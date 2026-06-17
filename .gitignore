@@ -1,0 +1,16 @@
+# Mac
+.DS_Store
+**/.DS_Store
+
+# Data — never commit
+*.parquet
+*.csv
+Data/
+
+# Model outputs
+*.pkl
+*.joblib
+*.model
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
