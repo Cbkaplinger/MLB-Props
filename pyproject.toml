@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlb-props"
+version = "0.1.0"
+description = "Pregame MLB pitcher strikeout projection research"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4",
+    "jupyterlab",
+    "lightgbm",
+    "matplotlib",
+    "numpy",
+    "optuna",
+    "pandas",
+    "polars",
+    "pyarrow",
+    "pybaseball",
+    "requests",
+    "scikit-learn",
+    "scipy",
+    "shap",
+    "tqdm",
+    "xgboost",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

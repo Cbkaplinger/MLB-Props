@@ -1,3 +1,28 @@
+Metadata-Version: 2.4
+Name: mlb-props
+Version: 0.1.0
+Summary: Pregame MLB pitcher strikeout projection research
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: beautifulsoup4
+Requires-Dist: jupyterlab
+Requires-Dist: lightgbm
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: optuna
+Requires-Dist: pandas
+Requires-Dist: polars
+Requires-Dist: pyarrow
+Requires-Dist: pybaseball
+Requires-Dist: requests
+Requires-Dist: scikit-learn
+Requires-Dist: scipy
+Requires-Dist: shap
+Requires-Dist: tqdm
+Requires-Dist: xgboost
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+
 # MLB Props
 
 Research project for pregame MLB pitcher strikeout projections using Statcast
