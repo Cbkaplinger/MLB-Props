@@ -13,7 +13,9 @@ Same-game `PA`, which contaminated earlier evaluation, has been removed from
 the model feature lists.
 
 See [the model card](docs/model-card.md) for the target, leakage rules, known
-limitations, and requirements for a trustworthy backtest.
+limitations, and requirements for a trustworthy backtest, and
+[docs/dev-notes.md](docs/dev-notes.md) for the historical development record
+(with banners marking metrics invalidated by the leakage fix).
 
 ## Repository layout
 
