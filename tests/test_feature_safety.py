@@ -1,23 +1,7 @@
-import json
-from pathlib import Path
-
+import pandas as pd
 import pytest
 
-from mlb_props.config import PROJECT_ROOT
-from mlb_props.features import validate_pregame_features
-
-
-MODEL_NOTEBOOKS = (
-    PROJECT_ROOT / "Models" / "Strikeout-Model" / "LightGBM.ipynb",
-    PROJECT_ROOT / "Models" / "Strikeout-Model" / "Naive-Linear-Model.ipynb",
-)
-
-
-def _notebook_source(path: Path) -> str:
-    notebook = json.loads(path.read_text(encoding="utf-8"))
-    return "\n".join(
-        "".join(cell.get("source", [])) for cell in notebook.get("cells", [])
-    )
+from mlb_props.features import model_feature_names, validate_pregame_features
 
 
 def test_valid_pregame_features_are_preserved() -> None:
@@ -25,7 +9,10 @@ def test_valid_pregame_features_are_preserved() -> None:
     assert validate_pregame_features(features) == features
 
 
-@pytest.mark.parametrize("feature", ["PA", "K", "actual_pa", "actual_tbf"])
+@pytest.mark.parametrize(
+    "feature",
+    ["PA", "K", "Outs", "k_rate", "actual_pa", "actual_tbf"],
+)
 def test_same_game_features_are_rejected(feature: str) -> None:
     with pytest.raises(ValueError, match="same-game features"):
         validate_pregame_features(["k_rate_P5", feature])
@@ -36,8 +23,18 @@ def test_duplicate_features_are_rejected() -> None:
         validate_pregame_features(["k_rate_P5", "k_rate_P5"])
 
 
-@pytest.mark.parametrize("notebook_path", MODEL_NOTEBOOKS)
-def test_model_notebooks_do_not_add_same_game_pa(notebook_path: Path) -> None:
-    source = _notebook_source(notebook_path)
-    assert "context_features = ['PA']" not in source
-    assert 'context_features = ["PA"]' not in source
+def test_model_feature_names_excludes_labels_ids_and_strings() -> None:
+    frame = pd.DataFrame(
+        {
+            "game_pk": [1],
+            "pitcher": [10],
+            "player_name": ["Ace"],
+            "K": [8],
+            "PA": [24],
+            "Outs": [18],
+            "k_rate": [1 / 3],
+            "k_rate_P5": [0.30],
+            "is_home": [True],
+        }
+    )
+    assert model_feature_names(frame) == ("k_rate_P5", "is_home")

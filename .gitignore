@@ -3,8 +3,13 @@
 __pycache__/
 **/__pycache__/
 *.pyc
+*.egg-info/
+.pytest_cache/
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
 Data/processed/
+artifacts/
+Models/Strikeout-Model/Saved-Models/
+Models/**/Graphs/
 .venv/
 **/.venv/

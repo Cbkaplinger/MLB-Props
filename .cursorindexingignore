@@ -1,0 +1,21 @@
+# Excludes files from the codebase index / semantic search / auto-context ONLY.
+# The agent can STILL read or edit these when you explicitly @-mention or ask.
+# Use this (not .cursorignore) for large, occasionally-needed files so you keep
+# full freedom to work while cutting background token bloat.
+
+# --- Raw data inputs (large / binary; never useful as text context) ---
+Data/Savant-Data/
+Data/Pitcher-Starts-2023-2025-Data/
+Data/**/*.parquet
+Data/**/*.csv
+
+# --- Generated pipeline artifacts (also gitignored) ---
+Data/processed/
+
+# --- Model + tuning outputs (also gitignored) ---
+artifacts/
+Models/**/Saved-Models/
+
+# --- Notebook checkpoints + generated plot images ---
+**/.ipynb_checkpoints/
+Models/**/Graphs/
