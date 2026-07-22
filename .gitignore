@@ -1,21 +1,10 @@
-# Mac
 .DS_Store
 **/.DS_Store
-
-# Data — never commit
-*.parquet
-*.csv
-data/*
-!data/README.md
-
-# Model outputs
-*.pkl
-*.joblib
-*.model
-artifacts/
-.venv/
-venv/
-.env
 __pycache__/
+**/__pycache__/
 *.pyc
 .ipynb_checkpoints/
+**/.ipynb_checkpoints/
+Data/processed/
+.venv/
+**/.venv/
