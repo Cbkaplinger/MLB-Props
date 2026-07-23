@@ -31,7 +31,16 @@ BUILD_COLUMNS: tuple[str, ...] = (
 
 
 def build_batter_games(df: pl.DataFrame) -> pl.DataFrame:
-    """Aggregate pitch-level Statcast into one row per (game_pk, batter)."""
+    """Aggregate pitch-level Statcast into one row per (game_pk, batter).
+
+    Note: mid-plate-appearance pinch-hit substitutions can leave the
+    original batter with PA = 0 (and K = BB = HBP = 0) in this table.
+    Statcast assigns the incoming substitute a new ``at_bat_number`` rather
+    than continuing the original batter's count, so the original batter's
+    pitches never carry a terminal ``events`` value. This is expected, not
+    a data error -- downstream K%/wOBA aggregations must guard against
+    division by a zero PA/woba_denom rather than assume PA > 0.
+    """
     flagged = add_plate_discipline_flags(add_event_flags(df)).with_columns(
         pl.when(pl.col("inning_topbot") == "Top")
           .then(pl.col("away_team"))

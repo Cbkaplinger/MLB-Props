@@ -34,7 +34,7 @@ from .statcast import (
 # Vocabulary
 # ---------------------------------------------------------------------------
 # Canonical arsenal buckets tracked by the model (others still count in totals).
-PITCH_TYPES: tuple[str, ...] = ("ff", "si", "fc", "sl", "st", "cu", "ch")
+PITCH_TYPES: tuple[str, ...] = ("ff", "si", "fc", "sl", "st", "cu", "ch", "fs")
 CANON_PITCH: dict[str, str] = {
     "FF": "ff", "FA": "ff",
     "SI": "si", "FT": "si",
@@ -43,6 +43,7 @@ CANON_PITCH: dict[str, str] = {
     "ST": "st",
     "CU": "cu", "KC": "cu", "CS": "cu",
     "CH": "ch",
+    "FS": "fs", "SF": "fs",
 }
 
 OUTS_ONE = (
@@ -301,6 +302,7 @@ def add_fip_xfip(
     fip_constant: Mapping[int, float] | None = None,
     league_hr_fb: Mapping[int, float] | None = None,
     include_constant: bool = True,
+    min_outs: int = 9,
 ) -> pl.DataFrame:
     """Append FanGraphs-scale FIP and xFIP to a per-start pitcher table.
 
@@ -328,6 +330,11 @@ def add_fip_xfip(
         include_constant: If ``False``, return raw cores (``C_season = 0``).
             Reasonable when FIP/xFIP are only model features, since a per-season
             offset carries no extra signal for a tree model.
+        min_outs: Minimum recorded outs (``Outs``) required for FIP/xFIP to be
+            computed. Below this, IP is too small for the ratio to be meaningful
+            and FIP/xFIP are set to null rather than an unstable/extreme value.
+            Default of 9 (3 IP) filters disaster-short outings. ``K``/``PA``/
+            ``Outs`` labels are untouched regardless of this filter.
 
     Note on matching FanGraphs: ``IP = Outs/3`` now counts baserunning outs
     (caught stealing / pickoffs) in addition to batting outs, so it tracks true
@@ -336,7 +343,19 @@ def add_fip_xfip(
     """
     constants = FANGRAPHS_FIP_CONSTANT if fip_constant is None else fip_constant
     ip = pl.col("Outs") / 3.0
-    core_num = 13 * pl.col("HR") + 3 * (pl.col("BB") + pl.col("HBP")) - 2 * pl.col("K")
+
+    # Cast to signed Int64 before the subtraction -- HR/BB/HBP/K are u32 from
+    # upstream sum() aggregations, and 13*HR + 3*(BB+HBP) - 2*K can go negative
+    # for low-contact, no-damage short outings. Unsigned subtraction wraps
+    # around to ~2^32, producing FIP values in the billions instead of null/
+    # negative. This bit us on real 2025 data (e.g. Shawn Armstrong 7/29/25).
+    hr = pl.col("HR").cast(pl.Int64)
+    bb = pl.col("BB").cast(pl.Int64)
+    hbp = pl.col("HBP").cast(pl.Int64)
+    k = pl.col("K").cast(pl.Int64)
+    fb = pl.col("FB").cast(pl.Int64)
+
+    core_num = 13 * hr + 3 * (bb + hbp) - 2 * k
 
     # Normalize the join key dtype (dt.year() is Int32; literal test frames Int64).
     starts = starts.with_columns(pl.col("season").cast(pl.Int32))
@@ -346,7 +365,7 @@ def add_fip_xfip(
     if league_hr_fb is None:
         hr_fb_df = starts.group_by("season").agg(
             pl.when(pl.col("FB").sum() > 0)
-            .then(pl.col("HR").sum() / pl.col("FB").sum())
+            .then(pl.col("HR").cast(pl.Int64).sum() / pl.col("FB").cast(pl.Int64).sum())
             .otherwise(0.0)
             .alias("lg_hr_fb")
         )
@@ -362,19 +381,22 @@ def add_fip_xfip(
     league = seasons.join(hr_fb_df, on="season", how="left").join(const_df, on="season", how="left")
 
     xcore_num = (
-        13 * (pl.col("FB") * pl.col("lg_hr_fb"))
-        + 3 * (pl.col("BB") + pl.col("HBP"))
-        - 2 * pl.col("K")
+        13 * (fb * pl.col("lg_hr_fb"))
+        + 3 * (bb + hbp)
+        - 2 * k
     )
+
+    ip_valid = (ip > 0) & (pl.col("Outs") >= min_outs)
 
     return (
         starts.join(league, on="season", how="left")
         .with_columns(
-            pl.when(ip > 0).then(core_num / ip + pl.col("fip_constant")).otherwise(None).alias("FIP"),
-            pl.when(ip > 0).then(xcore_num / ip + pl.col("fip_constant")).otherwise(None).alias("xFIP"),
+            pl.when(ip_valid).then(core_num / ip + pl.col("fip_constant")).otherwise(None).alias("FIP"),
+            pl.when(ip_valid).then(xcore_num / ip + pl.col("fip_constant")).otherwise(None).alias("xFIP"),
         )
         .drop("fip_constant", "lg_hr_fb")
     )
+
 
 
 def _season_map_to_df(mapping: Mapping[int, float], value_name: str) -> pl.DataFrame:
