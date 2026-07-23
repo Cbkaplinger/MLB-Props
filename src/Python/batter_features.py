@@ -25,7 +25,7 @@ from .statcast import (
 BUILD_COLUMNS: tuple[str, ...] = (
     "game_pk", "game_date", "batter", "stand", "p_throws",
     "home_team", "away_team", "inning_topbot",
-    "events", "description", "type", "zone",
+    "at_bat_number", "events", "description", "type", "zone",
     "estimated_woba_using_speedangle", "woba_value", "woba_denom",
 )
 
@@ -59,6 +59,7 @@ def build_batter_games(df: pl.DataFrame) -> pl.DataFrame:
             pl.col("home_team").first(),
             pl.col("away_team").first(),
             pl.col("stand").drop_nulls().mode().first().alias("stand"),
+            pl.col("at_bat_number").min().alias("_first_ab"),
             # overall line
             pl.len().alias("Pitches"),
             pl.col("is_pa").sum().alias("PA"),
@@ -81,14 +82,18 @@ def build_batter_games(df: pl.DataFrame) -> pl.DataFrame:
             xwoba_agg(),
             woba_agg(),
         )
+        .sort(["game_pk", "bat_team", "_first_ab", "batter"])
         .with_columns(
             (pl.col("CS") + pl.col("Whiffs")).alias("CSW"),
             (pl.col("bat_team") == pl.col("home_team")).alias("is_home"),
+            (pl.col("_first_ab").rank("ordinal").over(["game_pk", "bat_team"]) <= 9)
+            .alias("is_initial_lineup"),
             pl.when(pl.col("bat_team") == pl.col("home_team"))
             .then(pl.col("away_team"))
             .otherwise(pl.col("home_team"))
             .alias("opp_team"),
         )
+        .drop("_first_ab")
         .sort(["game_date", "game_pk", "batter"])
     )
     return add_plate_discipline_rates(out)

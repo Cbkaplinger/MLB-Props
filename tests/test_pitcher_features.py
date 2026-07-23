@@ -5,8 +5,9 @@ from __future__ import annotations
 import datetime as dt
 
 import polars as pl
+import pytest
 
-from mlb_props import pitcher_features as pf
+from Python import pitcher_features as pf
 
 
 def _pitch(**over):
@@ -195,6 +196,25 @@ def test_league_hr_fb_from_pitches_uses_all_pitchers():
     ]
     hr_fb = pf.league_hr_fb_from_pitches(_frame(rows))
     assert abs(hr_fb[2024] - 0.5) < 1e-9   # 1 HR / 2 FB
+
+
+def test_prior_date_league_hr_fb_uses_prior_season_and_prior_dates():
+    rows = [
+        _pitch(game_date=dt.date(2023, 4, 1), events="home_run", bb_type="fly_ball"),
+        _pitch(game_date=dt.date(2023, 4, 2), events="field_out", bb_type="fly_ball"),
+        _pitch(game_date=dt.date(2024, 4, 1), events="field_out", bb_type="fly_ball"),
+        _pitch(game_date=dt.date(2024, 4, 2), events="field_out", bb_type="fly_ball"),
+    ]
+    rates = pf.prior_date_league_hr_fb(
+        _frame(rows),
+        prior_strength_fb=2.0,
+    ).sort("game_date")
+    first_loaded = rates.filter(pl.col("game_date") == dt.date(2023, 4, 1))
+    april_1 = rates.filter(pl.col("game_date") == dt.date(2024, 4, 1))
+    april_2 = rates.filter(pl.col("game_date") == dt.date(2024, 4, 2))
+    assert first_loaded["lg_hr_fb_prior"][0] is None
+    assert april_1["lg_hr_fb_prior"][0] == pytest.approx(0.5)
+    assert april_2["lg_hr_fb_prior"][0] == pytest.approx(1 / 3)
 
 
 def test_vaa_sign_is_negative():

@@ -6,7 +6,7 @@ import datetime as dt
 
 import pandas as pd
 
-from mlb_props import reliability as rel
+from Python import reliability as rel
 
 
 def _panel(rate_by_player, starts=4, pa=10, denom_col="PA", stat="K", mean_val=None):

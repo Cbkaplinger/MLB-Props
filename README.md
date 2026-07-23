@@ -34,7 +34,7 @@ Level 3 joins opponent-lineup and prior-season park context.
 Key modules:
 
 ```text
-src/mlb_props/
+src/Python/
 ├─ statcast.py            shared Savant loading, event, wOBA, discipline logic
 ├─ pitcher_features.py    pitch-level -> pitcher start
 ├─ batter_features.py     pitch-level -> batter game
@@ -55,10 +55,13 @@ Python 3.11 or newer:
 
 ```powershell
 py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[research,dev]"
 ```
+
+The activation helper keeps project bytecode under the root `.pycache/`
+instead of creating `__pycache__` folders throughout the source tree.
 
 Set the raw Savant location if it is not under the repository's `Data/`
 directory:
@@ -77,20 +80,26 @@ regular/
 └─ 2025/statcast_2025_regular.parquet
 ```
 
+Download and validate a season against MLB's official schedule:
+
+```powershell
+python -c "from Python.statcast import download_statcast_season; download_statcast_season(2025)"
+```
+
 ## Build data
 
 Run the entire pipeline:
 
 ```powershell
-python -c "from mlb_props.pipeline import run_all; run_all()"
+python -c "from Python.pipeline import run_all; run_all()"
 ```
 
 Or inspect/rebuild one level at a time:
 
 ```powershell
-python -m mlb_props.pipeline.games
-python -m mlb_props.pipeline.rolling
-python -m mlb_props.pipeline.training
+python -m Python.pipeline.games
+python -m Python.pipeline.rolling
+python -m Python.pipeline.training
 ```
 
 Artifacts default to `Data/processed/`. Override the data root with
@@ -105,6 +114,12 @@ Artifacts default to `Data/processed/`. Override the data root with
    `python Models/Strikeout-Model/train.py --model lightgbm`.
 5. Use SHAP/CV to remove redundant windows and features.
 6. Record a frozen leakage-free baseline before developing a TBF/prop layer.
+
+Export a notebook to PDF through Chromium:
+
+```powershell
+.\export-notebook.ps1 "src\Notebooks\pipeline\rolling.ipynb"
+```
 
 ## Tests
 

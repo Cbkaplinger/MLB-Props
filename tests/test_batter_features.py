@@ -6,13 +6,14 @@ import datetime as dt
 
 import polars as pl
 
-from mlb_props import batter_features as bf
+from Python import batter_features as bf
 
 
 def _pitch(**over):
     base = dict(
         game_pk=5000, game_date=dt.date(2024, 4, 1), batter=100, stand="L",
         p_throws="R", home_team="AAA", away_team="BBB", inning_topbot="Top",
+        at_bat_number=1,
         events=None, description="hit_into_play", type="X", zone=5,
         estimated_woba_using_speedangle=None, woba_value=0.0, woba_denom=1,
     )
@@ -64,3 +65,12 @@ def test_one_row_per_batter_game():
     assert out.height == 2
     b100 = out.filter(pl.col("batter") == 100).row(0, named=True)
     assert b100["PA"] == 2 and b100["K"] == 1 and b100["BB"] == 1
+
+
+def test_first_nine_batters_are_marked_as_initial_lineup():
+    rows = [
+        _pitch(batter=100 + n, at_bat_number=n, events="field_out")
+        for n in range(1, 11)
+    ]
+    out = bf.build_batter_games(_frame(rows)).sort("batter")
+    assert out["is_initial_lineup"].to_list() == [True] * 9 + [False]

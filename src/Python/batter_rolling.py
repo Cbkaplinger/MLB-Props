@@ -3,9 +3,9 @@
 This is the batter-side companion to the per-game table produced by
 ``batter_features.build_batter_games``. It turns each hitter's game log into
 **pregame** K% features: for any game ``G`` every value uses only plate
-appearances from games *strictly before* ``G``. Nothing here ever reads the
-same-game outcome, which is what makes it safe to join onto the pitcher start
-being projected.
+appearances from earlier calendar dates. Same-day doubleheader games cannot
+feed one another, so the features are safe even when both games are priced
+before the first one starts.
 
 Two flavors are produced, and they are intentionally kept separate so you can
 inspect and validate each on its own:
@@ -35,7 +35,7 @@ DEFAULT_WINDOWS: tuple[int, ...] = (5, 10, 20)
 # Prior strength (in PA) for empirical-Bayes shrinkage of season-to-date K%.
 # ~200 PA is a common stabilization neighborhood for strikeout rate.
 DEFAULT_SHRINK_PA: float = 200.0
-DEFAULT_FALLBACK_K_RATE: float = 0.225
+DEFAULT_FALLBACK_K_RATE: float | None = None
 
 # Extra leakage-safe season-to-date rates: {feature: (numerator, denominator)}.
 # These feed the Level 3 opposing-lineup discipline features. Missing columns
@@ -94,7 +94,9 @@ def add_leakage_safe_k(
         min_games: Minimum prior games required to emit a rolling value.
         shrink_pa: Empirical-Bayes prior strength (in PA) for the shrunk
             season-to-date rate. Set to 0 to skip shrinkage.
-        fallback_k_rate: League prior used only when no earlier date exists.
+        fallback_k_rate: Explicit sourced league prior used only when no
+            earlier date exists. If omitted, ``prior_league_k_rate`` from
+            Level 1 is used; otherwise the first date remains null.
         extra_rate_stats: Additional ``{feature: (num, den)}`` season-to-date
             rates (defaults to :data:`DEFAULT_EXTRA_RATE_STATS`: whiff% and
             chase%). Missing columns are skipped. Pass ``{}`` to skip.
@@ -108,6 +110,9 @@ def add_leakage_safe_k(
             ``k_rate_P{w}`` for each window,
             ``{extra}_std`` for each extra rate stat.
     """
+    if games.select("batter", "game_pk").is_duplicated().any():
+        raise ValueError("games contains duplicate (batter, game_pk) keys")
+
     windows = list(windows)
     extras = DEFAULT_EXTRA_RATE_STATS if extra_rate_stats is None else extra_rate_stats
     extras = {n: (num, den) for n, (num, den) in extras.items()
@@ -115,23 +120,42 @@ def add_leakage_safe_k(
 
     df = games.with_columns(pl.col("game_date").dt.year().alias("season")).sort(_ORDER)
 
-    # Season-to-date (expanding, resets per season), overall + hand splits + extras.
-    df = df.with_columns(
-        _prior_rate("K", "PA", ["batter", "season"]).alias("k_rate_std"),
-        _prior_rate("K_vL", "PA_vL", ["batter", "season"]).alias("k_rate_std_vL"),
-        _prior_rate("K_vR", "PA_vR", ["batter", "season"]).alias("k_rate_std_vR"),
+    feature_specs: list[tuple[pl.Expr, str]] = [
+        (_prior_rate("K", "PA", ["batter", "season"]), "k_rate_std"),
+        (_prior_rate("K_vL", "PA_vL", ["batter", "season"]), "k_rate_std_vL"),
+        (_prior_rate("K_vR", "PA_vR", ["batter", "season"]), "k_rate_std_vR"),
         *[
-            _prior_rate(num, den, ["batter", "season"]).alias(f"{name}_std")
+            (_prior_rate(num, den, ["batter", "season"]), f"{name}_std")
             for name, (num, den) in extras.items()
         ],
-    )
-
-    # Rolling last-N games (carries across seasons).
+        *[
+            (_rolling_rate("K", "PA", w, min_games), f"k_rate_P{w}")
+            for w in windows
+        ],
+    ]
+    temporary = [f"__pregame_{index}" for index in range(len(feature_specs))]
     df = df.with_columns(
-        [_rolling_rate("K", "PA", w, min_games).alias(f"k_rate_P{w}") for w in windows]
+        expr.alias(column)
+        for column, (expr, _name) in zip(temporary, feature_specs, strict=True)
     )
+    df = df.with_columns(
+        pl.col(column)
+        .first()
+        .over(["batter", "game_date"])
+        .alias(name)
+        for column, (_expr, name) in zip(temporary, feature_specs, strict=True)
+    ).drop(temporary)
 
     if shrink_pa and shrink_pa > 0:
+        if fallback_k_rate is None and "prior_league_k_rate" in df.columns:
+            prior_rates = (
+                df["prior_league_k_rate"].drop_nulls().unique().to_list()
+            )
+            if len(prior_rates) != 1:
+                raise ValueError(
+                    "prior_league_k_rate must contain exactly one value"
+                )
+            fallback_k_rate = float(prior_rates[0])
         df = _add_shrunk_std(df, shrink_pa, fallback_k_rate)
 
     return df.sort(_ORDER)
@@ -140,15 +164,15 @@ def add_leakage_safe_k(
 def _add_shrunk_std(
     df: pl.DataFrame,
     shrink_pa: float,
-    fallback_k_rate: float,
+    fallback_k_rate: float | None,
 ) -> pl.DataFrame:
     """Shrink season-to-date K% toward league K% through the previous date.
 
     ``k_rate_std_shrunk = (priorK + shrink_pa * lg_k) / (priorPA + shrink_pa)``
 
     The league prior is cumulative across all games strictly before the current
-    date. Same-day and future outcomes are excluded. The first date in the
-    dataset uses ``fallback_k_rate``.
+    date. Same-day and future outcomes are excluded. The first date uses the
+    explicitly sourced ``fallback_k_rate`` or remains null.
     """
     league = (
         df.group_by("game_date")
@@ -176,9 +200,25 @@ def _add_shrunk_std(
     return (
         df.join(league, on="game_date", how="left")
         .with_columns(
-            ((prior_k + shrink_pa * pl.col("lg_k")) / (prior_pa + shrink_pa)).alias(
-                "k_rate_std_shrunk"
-            )
+            prior_k.alias("_prior_batter_k"),
+            prior_pa.alias("_prior_batter_pa"),
         )
-        .drop("lg_k")
+        .with_columns(
+            pl.col("_prior_batter_k")
+            .first()
+            .over(["batter", "game_date"]),
+            pl.col("_prior_batter_pa")
+            .first()
+            .over(["batter", "game_date"]),
+        )
+        .with_columns(
+            (
+                (
+                    pl.col("_prior_batter_k")
+                    + shrink_pa * pl.col("lg_k")
+                )
+                / (pl.col("_prior_batter_pa") + shrink_pa)
+            ).alias("k_rate_std_shrunk")
+        )
+        .drop("lg_k", "_prior_batter_k", "_prior_batter_pa")
     )

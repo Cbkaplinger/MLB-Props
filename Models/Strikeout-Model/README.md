@@ -2,12 +2,13 @@
 
 `train.py` is the canonical training entry point. It reads the Level 3
 `PITCHER_TRAINING_PATH`, derives the safe numeric feature list through
-`mlb_props.features.model_feature_names`, and uses a chronological 70/15/15
-split.
+`Python.features.model_feature_names`, and uses a chronological 70/15/15
+split. Boundary dates are assigned wholly to the later partition, so train,
+validation, and test never share a calendar date.
 
 ```powershell
 # Build model-ready data first
-python -c "from mlb_props.pipeline import run_all; run_all()"
+python -c "from Python.pipeline import run_all; run_all()"
 
 # Benchmarks
 python Models/Strikeout-Model/train.py --model mean

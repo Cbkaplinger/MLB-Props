@@ -1,0 +1,42 @@
+﻿commit=2e7f83c24a6cb330d11f6e94a68315fce8b3272b
+worktree_dirty=True
+captured_at_utc=2026-07-23T18:27:38.0125474Z
+
+git status --short:
+ M .gitignore
+ M Data/Savant-Data/regular/2025/statcast_2025_regular.parquet
+ M Models/Strikeout-Model/README.md
+ M Models/Strikeout-Model/Strikeout-EDA/README.md
+ M Models/Strikeout-Model/Strikeout-EDA/strikeout-eda.ipynb
+ M Models/Strikeout-Model/train.py
+ M README.md
+ M RosterScraper/RosterScraper.py
+ M docs/dev-notes.md
+ M docs/model-card.md
+ M src/Notebooks/batter-features.ipynb
+ M src/Notebooks/batter_rolling.ipynb
+ M src/Notebooks/pitcher-features.ipynb
+ M src/Notebooks/statcast.ipynb
+ M src/Python/ballpark.py
+ M src/Python/config.py
+ M src/Python/features.py
+ M src/Python/pipeline/__init__.py
+ M src/Python/pipeline/games.py
+ M src/Python/pipeline/rolling.py
+ M src/Python/statcast.py
+ M tests/test_ballpark.py
+ M tests/test_batter_features.py
+ M tests/test_batter_rolling.py
+ M tests/test_feature_safety.py
+ M tests/test_pipeline.py
+ M tests/test_pitcher_features.py
+ M tests/test_pitcher_rolling.py
+ M tests/test_reliability.py
+ M tests/test_stabilization.py
+ M tests/test_statcast.py
+?? rules/
+?? src/Notebooks/ballpark.ipynb
+?? src/Notebooks/pipeline/
+?? src/Notebooks/pitcher-rolling.ipynb
+?? src/Python/identity.py
+?? tests/test_identity.py

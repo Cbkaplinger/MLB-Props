@@ -1,0 +1,35 @@
+---
+description: Prefer Polars over pandas for data manipulation
+alwaysApply: true
+---
+
+# Data manipulation: prefer Polars over pandas
+
+Use **Polars** for all new data loading, transformation, joins, and aggregation.
+The Statcast datasets are large and Polars' lazy/columnar engine is materially
+faster and more memory-efficient on this architecture.
+
+- Read parquet with `pl.read_parquet` / `pl.scan_parquet` (use lazy scans for big files).
+- Do joins, group-bys, and feature engineering with Polars expressions.
+- Only convert to pandas (`.to_pandas()`) at the boundary where a library
+  requires it (seaborn/matplotlib plotting, SHAP, sklearn/LightGBM input).
+- New modules in `src/mlb_props/` should accept/return Polars frames; see
+  `src/mlb_props/statcast.py` for the reference pattern.
+
+```python
+# GOOD - Polars (lazy for large data)
+import polars as pl
+pa = (
+    pl.scan_parquet(path)
+    .filter(pl.col("events").is_not_null())
+    .group_by("batter").agg(pl.len().alias("PA"))
+    .collect()
+)
+
+# AVOID - pandas for large-data manipulation
+import pandas as pd
+df = pd.read_parquet(path)
+pa = df[df["events"].notna()].groupby("batter").size()
+```
+
+Existing tested pandas code (e.g. `reliability.py`) can stay; migrate opportunistically.

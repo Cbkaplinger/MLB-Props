@@ -5,8 +5,9 @@ from __future__ import annotations
 import datetime as dt
 
 import polars as pl
+import pytest
 
-from mlb_props import batter_rolling as br
+from Python import batter_rolling as br
 
 
 def _games(rows):
@@ -47,9 +48,27 @@ def test_rolling_window_excludes_current_game():
     assert abs(df["k_rate_P5"][1] - 1.0) < 1e-9       # only game 1
 
 
+def test_same_date_games_do_not_feed_each_other():
+    df = br.add_leakage_safe_k(
+        _games([
+            _g(1, 4, 4, gp=100),
+            _g(1, 4, 0, gp=200),
+            _g(2, 4, 0, gp=300),
+        ]),
+        windows=(5,),
+        shrink_pa=0,
+    ).sort("game_pk")
+    assert df["k_rate_P5"][0] is None
+    assert df["k_rate_P5"][1] is None
+    assert df["k_rate_P5"][2] == pytest.approx(4 / 8)
+
+
 def test_season_to_date_resets_but_rolling_carries():
     df = br.add_leakage_safe_k(
-        _games([_g(1, 4, 4, year=2024), _g(1, 4, 0, year=2025)]),
+        _games([
+            _g(1, 4, 4, year=2024, gp=202401),
+            _g(1, 4, 0, year=2025, gp=202501),
+        ]),
         windows=(5,), shrink_pa=0,
     ).sort("game_date")
     # New season -> season-to-date starts empty again.
@@ -98,6 +117,25 @@ def test_shrinkage_pulls_small_samples_toward_league():
     assert shrunk < raw   # regressed toward the league mean (< 1.0)
 
 
+def test_shrinkage_uses_sourced_prior_on_first_date():
+    games = _games([_g(1, 4, 1), _g(2, 4, 1)]).with_columns(
+        pl.lit(0.21).alias("prior_league_k_rate")
+    )
+    df = br.add_leakage_safe_k(games, windows=(5,), shrink_pa=200.0).sort(
+        "game_date"
+    )
+    assert df["k_rate_std_shrunk"][0] == pytest.approx(0.21)
+
+
+def test_shrinkage_without_prior_remains_null_on_first_date():
+    df = br.add_leakage_safe_k(
+        _games([_g(1, 4, 1), _g(2, 4, 1)]),
+        windows=(5,),
+        shrink_pa=200.0,
+    ).sort("game_date")
+    assert df["k_rate_std_shrunk"][0] is None
+
+
 def test_shrinkage_prior_does_not_use_future_games():
     history = [
         _g(1, 4, 1, batter=1, gp=1),
@@ -119,3 +157,12 @@ def test_shrinkage_prior_does_not_use_future_games():
         (pl.col("batter") == 1) & (pl.col("game_pk") == 3)
     )["k_rate_std_shrunk"][0]
     assert abs(base_value - future_value) < 1e-12
+
+
+def test_duplicate_batter_game_keys_are_rejected():
+    with pytest.raises(ValueError, match="duplicate"):
+        br.add_leakage_safe_k(
+            _games([_g(1, 4, 1), _g(1, 4, 1)]),
+            windows=(5,),
+            shrink_pa=0,
+        )

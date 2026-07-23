@@ -22,8 +22,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from mlb_props.config import MODEL_DIR, PITCHER_TRAINING_PATH, ensure_output_directories
-from mlb_props.features import TARGET, model_feature_names
+from Python.config import MODEL_DIR, PITCHER_TRAINING_PATH, ensure_output_directories
+from Python.features import TARGET, model_feature_names
 
 
 def load_frame() -> tuple[pd.DataFrame, list[str]]:
@@ -45,9 +45,29 @@ def load_frame() -> tuple[pd.DataFrame, list[str]]:
 def chronological_split(
     frame: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Split rows chronologically 70/15/15 without shuffling."""
+    """Split approximately 70/15/15 without dividing a calendar date.
+
+    Every game on a boundary date is assigned to the later partition. This
+    keeps train, validation, and test date ranges strictly disjoint.
+    """
+    if len(frame) < 3 or frame["game_date"].nunique() < 3:
+        raise ValueError("chronological split requires at least three distinct dates")
+    if not frame["game_date"].is_monotonic_increasing:
+        raise ValueError("chronological split requires rows sorted by game_date")
+
     first, second = int(len(frame) * 0.70), int(len(frame) * 0.85)
-    return frame.iloc[:first], frame.iloc[first:second], frame.iloc[second:]
+    validation_start = frame.iloc[first]["game_date"]
+    test_start = frame.iloc[second]["game_date"]
+
+    train = frame[frame["game_date"] < validation_start]
+    validation = frame[
+        (frame["game_date"] >= validation_start)
+        & (frame["game_date"] < test_start)
+    ]
+    test = frame[frame["game_date"] >= test_start]
+    if train.empty or validation.empty or test.empty:
+        raise ValueError("chronological split produced an empty partition")
+    return train, validation, test
 
 
 def build_model(name: str):
@@ -91,7 +111,8 @@ def main(model_name: str) -> None:
     fit_kwargs = {}
     if model_name == "lightgbm":
         fit_kwargs = {
-            "eval_set": [(validation[features], validation[TARGET])],
+            "eval_X": validation[features],
+            "eval_y": validation[TARGET],
             "callbacks": [lgb.early_stopping(200), lgb.log_evaluation(50)],
         }
     model.fit(train[features], train[TARGET], **fit_kwargs)
@@ -106,6 +127,7 @@ def main(model_name: str) -> None:
         },
         "cutoffs": {
             "train_end": str(train["game_date"].max().date()),
+            "validation_start": str(validation["game_date"].min().date()),
             "validation_end": str(validation["game_date"].max().date()),
             "test_start": str(test["game_date"].min().date()),
         },

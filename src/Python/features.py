@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+import re
 
 import pandas as pd
 
@@ -17,12 +18,16 @@ MODEL_METADATA_COLUMNS = frozenset(
         "pitcher",
         "batter",
         "player_name",
+        "pitcher_name",
+        "batter_name",
         "p_throws",
         "stand",
         "home_team",
         "away_team",
         "opp_team",
         "bat_team",
+        "is_initial_lineup",
+        "opp_lineup_size",
     }
 )
 
@@ -40,6 +45,18 @@ FORBIDDEN_PREGAME_FEATURES = frozenset(
         "actual_tbf",
     }
 )
+
+APPROVED_CONTEXT_FEATURES = frozenset(
+    {
+        "is_home",
+        "park_k_factor",
+        "opp_lineup_k",
+        "opp_lineup_k_vs_hand",
+        "opp_lineup_whiff",
+        "opp_lineup_chase",
+    }
+)
+_ROLLING_FEATURE_RE = re.compile(r"(_P\d+|_std(?:_vL|_vR|_shrunk)?)$")
 
 
 def validate_pregame_features(features: Iterable[str]) -> tuple[str, ...]:
@@ -66,11 +83,27 @@ def validate_pregame_features(features: Iterable[str]) -> tuple[str, ...]:
 
 
 def model_feature_names(frame: pd.DataFrame) -> tuple[str, ...]:
-    """Return numeric/bool Level 3 columns safe to use as model inputs."""
+    """Return approved numeric/bool Level 3 model inputs.
+
+    Unexpected numeric columns fail loudly rather than becoming features
+    automatically. This prevents a newly retained same-game aggregate from
+    bypassing the explicit label/metadata exclusions.
+    """
     excluded = LABEL_COLUMNS | MODEL_METADATA_COLUMNS
-    candidates = (
+    candidates = tuple(
         column
         for column in frame.select_dtypes(include=["number", "bool"]).columns
         if column not in excluded
     )
+    unexpected = sorted(
+        column
+        for column in candidates
+        if column not in APPROVED_CONTEXT_FEATURES
+        and not _ROLLING_FEATURE_RE.search(column)
+    )
+    if unexpected:
+        raise ValueError(
+            "Unexpected numeric columns are not approved pregame features: "
+            f"{unexpected}"
+        )
     return validate_pregame_features(candidates)

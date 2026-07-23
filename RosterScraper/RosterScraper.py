@@ -68,7 +68,7 @@ def RosterScraper():
         elif name == 'redsox':
             return 'BOS'
         elif name == 'athletics':
-            return 'OAK'
+            return 'ATH'
         elif name == 'mets':
             return 'NYM'
         elif name == 'braves':

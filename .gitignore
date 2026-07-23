@@ -2,14 +2,17 @@
 **/.DS_Store
 __pycache__/
 **/__pycache__/
+.pycache/
 *.pyc
 *.egg-info/
 .pytest_cache/
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
 Data/processed/
+Data/dimensions/
 artifacts/
 Models/Strikeout-Model/Saved-Models/
+Models/Strikeout-Model/results/Test-Predictions/
 Models/**/Graphs/
 .venv/
 **/.venv/

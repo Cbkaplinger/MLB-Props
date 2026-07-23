@@ -48,7 +48,7 @@ CANON_PITCH: dict[str, str] = {
 
 OUTS_ONE = (
     "field_out", "force_out", "sac_fly", "sac_bunt", "strikeout",
-    "fielders_choice_out", "fielders_choice", "other_out",
+    "fielders_choice_out", "fielders_choice", "other_out", "batter_interference",
 )
 OUTS_TWO = ("grounded_into_double_play", "double_play", "sac_fly_double_play", "strikeout_double_play")
 OUTS_THREE = ("triple_play",)
@@ -297,10 +297,93 @@ def league_hr_fb_from_pitches(pitches: pl.DataFrame) -> dict[int, float]:
     return {int(s): hr / fb for s, hr, fb in per.select("season", "HR", "FB").iter_rows()}
 
 
+def prior_date_league_hr_fb(
+    pitches: pl.DataFrame,
+    *,
+    prior_strength_fb: float = 1_000.0,
+    fallback_rate: float | None = None,
+) -> pl.DataFrame:
+    """League HR/FB available before each game date.
+
+    Current-season league HR and fly balls are cumulative only through the
+    previous calendar date. Early-season estimates are regressed toward the
+    previous loaded season's final league rate using ``prior_strength_fb``
+    pseudo-fly-balls. The first loaded season is null unless an explicit
+    sourced ``fallback_rate`` is supplied; the production pipeline instead
+    loads one prior season of Statcast context.
+    """
+    daily = (
+        pitches.select("game_date", "events", "bb_type")
+        .with_columns(
+            pl.col("game_date").cast(pl.Date),
+            pl.col("game_date").cast(pl.Date).dt.year().alias("season"),
+            (pl.col("events") == "home_run").cast(pl.Int64).alias("_hr"),
+            pl.col("bb_type")
+            .is_in(FLY_BALL_TYPES)
+            .cast(pl.Int64)
+            .alias("_fb"),
+        )
+        .group_by("season", "game_date")
+        .agg(
+            pl.col("_hr").sum().alias("_daily_hr"),
+            pl.col("_fb").sum().alias("_daily_fb"),
+        )
+        .sort(["season", "game_date"])
+        .with_columns(
+            pl.col("_daily_hr")
+            .cum_sum()
+            .shift(1)
+            .over("season")
+            .fill_null(0)
+            .alias("_prior_hr"),
+            pl.col("_daily_fb")
+            .cum_sum()
+            .shift(1)
+            .over("season")
+            .fill_null(0)
+            .alias("_prior_fb"),
+        )
+    )
+    annual = (
+        daily.group_by("season")
+        .agg(
+            pl.col("_daily_hr").sum().alias("_season_hr"),
+            pl.col("_daily_fb").sum().alias("_season_fb"),
+        )
+        .with_columns(
+            (pl.col("season") + 1).alias("season"),
+            pl.when(pl.col("_season_fb") > 0)
+            .then(pl.col("_season_hr") / pl.col("_season_fb"))
+            .otherwise(None)
+            .alias("_previous_rate"),
+        )
+        .select("season", "_previous_rate")
+    )
+    prior_mean = pl.col("_previous_rate")
+    if fallback_rate is not None:
+        prior_mean = prior_mean.fill_null(fallback_rate)
+
+    return (
+        daily.join(annual, on="season", how="left")
+        .with_columns(prior_mean.alias("_prior_mean"))
+        .with_columns(
+            (
+                (
+                    pl.col("_prior_hr")
+                    + prior_strength_fb * pl.col("_prior_mean")
+                )
+                / (pl.col("_prior_fb") + prior_strength_fb)
+            ).alias("lg_hr_fb_prior")
+        )
+        .select("game_date", "lg_hr_fb_prior")
+    )
+
+
 def add_fip_xfip(
     starts: pl.DataFrame,
     fip_constant: Mapping[int, float] | None = None,
     league_hr_fb: Mapping[int, float] | None = None,
+    league_hr_fb_column: str | None = None,
     include_constant: bool = True,
     min_outs: int = 9,
 ) -> pl.DataFrame:
@@ -327,6 +410,10 @@ def add_fip_xfip(
             prefer the league-wide value from :func:`league_hr_fb_from_pitches`
             (all pitchers). If omitted, it falls back to a **starters-only** rate
             computed from ``starts`` (biased; fine for quick looks only).
+        league_hr_fb_column: Existing per-row league HR/FB column. Use
+            ``lg_hr_fb_prior`` from :func:`prior_date_league_hr_fb` for
+            leakage-safe pregame features. Mutually exclusive with
+            ``league_hr_fb``.
         include_constant: If ``False``, return raw cores (``C_season = 0``).
             Reasonable when FIP/xFIP are only model features, since a per-season
             offset carries no extra signal for a tree model.
@@ -342,6 +429,12 @@ def add_fip_xfip(
     come from event-classification edge cases, not from missing outs.
     """
     constants = FANGRAPHS_FIP_CONSTANT if fip_constant is None else fip_constant
+    if league_hr_fb is not None and league_hr_fb_column is not None:
+        raise ValueError(
+            "pass either league_hr_fb or league_hr_fb_column, not both"
+        )
+    if league_hr_fb_column is not None and league_hr_fb_column not in starts.columns:
+        raise ValueError(f"starts is missing {league_hr_fb_column!r}")
     ip = pl.col("Outs") / 3.0
 
     # Cast to signed Int64 before the subtraction -- HR/BB/HBP/K are u32 from
@@ -362,15 +455,20 @@ def add_fip_xfip(
     seasons = starts.select("season").unique()
 
     # League HR/FB per season (supplied all-pitcher value preferred).
-    if league_hr_fb is None:
+    if league_hr_fb_column is not None:
+        hr_fb_df = None
+        lg_hr_fb = pl.col(league_hr_fb_column)
+    elif league_hr_fb is None:
         hr_fb_df = starts.group_by("season").agg(
             pl.when(pl.col("FB").sum() > 0)
             .then(pl.col("HR").cast(pl.Int64).sum() / pl.col("FB").cast(pl.Int64).sum())
             .otherwise(0.0)
             .alias("lg_hr_fb")
         )
+        lg_hr_fb = pl.col("lg_hr_fb")
     else:
         hr_fb_df = _season_map_to_df(league_hr_fb, "lg_hr_fb")
+        lg_hr_fb = pl.col("lg_hr_fb")
 
     # Per-season additive constant.
     if include_constant:
@@ -378,23 +476,28 @@ def add_fip_xfip(
     else:
         const_df = seasons.with_columns(pl.lit(0.0).alias("fip_constant"))
 
-    league = seasons.join(hr_fb_df, on="season", how="left").join(const_df, on="season", how="left")
+    league = seasons.join(const_df, on="season", how="left")
+    if hr_fb_df is not None:
+        league = league.join(hr_fb_df, on="season", how="left")
 
     xcore_num = (
-        13 * (fb * pl.col("lg_hr_fb"))
+        13 * (fb * lg_hr_fb)
         + 3 * (bb + hbp)
         - 2 * k
     )
 
     ip_valid = (ip > 0) & (pl.col("Outs") >= min_outs)
 
+    drop_columns = ["fip_constant"]
+    if league_hr_fb_column is None:
+        drop_columns.append("lg_hr_fb")
     return (
         starts.join(league, on="season", how="left")
         .with_columns(
             pl.when(ip_valid).then(core_num / ip + pl.col("fip_constant")).otherwise(None).alias("FIP"),
             pl.when(ip_valid).then(xcore_num / ip + pl.col("fip_constant")).otherwise(None).alias("xFIP"),
         )
-        .drop("fip_constant", "lg_hr_fb")
+        .drop(drop_columns)
     )
 
 

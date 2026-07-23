@@ -9,8 +9,9 @@ spine feeding Level 3 reproducible.
 Two flavors, mirroring the batter side:
 
 1. **Rolling last-N starts** (``{name}_P{w}``): PA/pitch-weighted for rate stats,
-   simple mean for physics/rate columns. ``shift(1)`` drops the current start
-   before the rolling window, so the value is known pregame.
+   simple mean for physics/rate columns. The current start and every other
+   start on the same calendar date are excluded, so doubleheader ordering
+   cannot leak outcomes.
 2. **Season-to-date** (``{name}_std``): expanding, resets each season, for the
    rate stats.
 
@@ -23,6 +24,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 
 import polars as pl
+
+from .pitcher_features import FANGRAPHS_FIP_CONSTANT
 
 _ORDER: tuple[str, ...] = ("pitcher", "game_date", "game_pk")
 
@@ -47,11 +50,12 @@ DEFAULT_MEAN_COLS: tuple[str, ...] = (
     *(f"{pt}_{m}" for pt in _PITCH_TYPES for m in ("velo", "spinrate", "ivb", "hb", "vaa")),
     *(f"{pt}_usage_v{h}" for pt in _PITCH_TYPES for h in ("R", "L")),
     "extension", "rel_x", "rel_z", "rel_x_sd", "rel_z_sd",
-    "xBA", "wOBA", "xwOBA", "FIP", "xFIP",
+    "xBA", "wOBA", "xwOBA",
 )
 
 DEFAULT_RATE_WINDOWS: tuple[int, ...] = (5, 10, 20)
 DEFAULT_MEAN_WINDOWS: tuple[int, ...] = (3, 5, 10)
+_FIP_COUNTS: tuple[str, ...] = ("HR", "BB", "HBP", "K", "FB", "Outs")
 
 
 def _prior_rate(num: str, den: str, by: list[str]) -> pl.Expr:
@@ -71,6 +75,75 @@ def _rolling_rate(num: str, den: str, window: int, min_games: int) -> pl.Expr:
 def _rolling_mean(col: str, window: int, min_games: int) -> pl.Expr:
     """Mean of a per-start column over the previous ``window`` starts (current excluded)."""
     return pl.col(col).shift(1).rolling_mean(window_size=window, min_samples=min_games).over("pitcher")
+
+
+def _add_rolling_fip(
+    df: pl.DataFrame,
+    windows: list[int],
+    min_games: int,
+    min_outs: int = 9,
+) -> pl.DataFrame:
+    """Add denominator-weighted FIP/xFIP over prior starts."""
+    required = {*_FIP_COUNTS, "lg_hr_fb_prior", "season"}
+    if not required.issubset(df.columns):
+        return df
+
+    temporary = [
+        (column, window, f"__fip_{column}_{window}")
+        for window in windows
+        for column in _FIP_COUNTS
+    ]
+    df = df.with_columns(
+        pl.col(column)
+        .shift(1)
+        .rolling_sum(window_size=window, min_samples=min_games)
+        .over("pitcher")
+        .alias(temp)
+        for column, window, temp in temporary
+    ).with_columns(
+        pl.col(temp)
+        .first()
+        .over(["pitcher", "game_date"])
+        .alias(temp)
+        for _column, _window, temp in temporary
+    )
+
+    constant = pl.col("season").replace_strict(
+        FANGRAPHS_FIP_CONSTANT,
+        default=None,
+        return_dtype=pl.Float64,
+    )
+    expressions: list[pl.Expr] = []
+    for window in windows:
+        values = {
+            column: pl.col(f"__fip_{column}_{window}").cast(pl.Float64)
+            for column in _FIP_COUNTS
+        }
+        ip = values["Outs"] / 3.0
+        base = 3 * (values["BB"] + values["HBP"]) - 2 * values["K"]
+        valid = (values["Outs"] >= min_outs) & constant.is_not_null()
+        expressions.extend(
+            [
+                pl.when(valid)
+                .then((13 * values["HR"] + base) / ip + constant)
+                .otherwise(None)
+                .alias(f"FIP_P{window}"),
+                pl.when(valid & pl.col("lg_hr_fb_prior").is_not_null())
+                .then(
+                    (
+                        13 * values["FB"] * pl.col("lg_hr_fb_prior")
+                        + base
+                    )
+                    / ip
+                    + constant
+                )
+                .otherwise(None)
+                .alias(f"xFIP_P{window}"),
+            ]
+        )
+    return df.with_columns(expressions).drop(
+        [temp for _column, _window, temp in temporary]
+    )
 
 
 def add_rolling_pitcher_features(
@@ -99,6 +172,9 @@ def add_rolling_pitcher_features(
             ``season``, ``{rate}_P{w}``, ``{rate}_std`` (if enabled),
             ``{mean_col}_P{w}``.
     """
+    if starts.select("pitcher", "game_pk").is_duplicated().any():
+        raise ValueError("starts contains duplicate (pitcher, game_pk) keys")
+
     rate_windows, mean_windows = list(rate_windows), list(mean_windows)
     rate_stats = {
         name: (num, den)
@@ -109,18 +185,35 @@ def add_rolling_pitcher_features(
 
     df = starts.with_columns(pl.col("game_date").dt.year().alias("season")).sort(_ORDER)
 
-    rate_exprs: list[pl.Expr] = []
+    feature_specs: list[tuple[pl.Expr, str]] = []
     for name, (num, den) in rate_stats.items():
-        rate_exprs += [
-            _rolling_rate(num, den, w, min_games).alias(f"{name}_P{w}") for w in rate_windows
-        ]
+        feature_specs.extend(
+            (_rolling_rate(num, den, w, min_games), f"{name}_P{w}")
+            for w in rate_windows
+        )
         if season_to_date:
-            rate_exprs.append(_prior_rate(num, den, ["pitcher", "season"]).alias(f"{name}_std"))
+            feature_specs.append(
+                (_prior_rate(num, den, ["pitcher", "season"]), f"{name}_std")
+            )
 
-    mean_exprs = [
-        _rolling_mean(col, w, min_games).alias(f"{col}_P{w}")
+    feature_specs.extend(
+        (_rolling_mean(col, w, min_games), f"{col}_P{w}")
         for col in mean_cols
         for w in mean_windows
-    ]
+    )
 
-    return df.with_columns(rate_exprs + mean_exprs).sort(_ORDER)
+    temporary = [f"__pregame_{index}" for index in range(len(feature_specs))]
+    df = df.with_columns(
+        expr.alias(column)
+        for column, (expr, _name) in zip(temporary, feature_specs, strict=True)
+    )
+    df = df.with_columns(
+        pl.col(column)
+        .first()
+        .over(["pitcher", "game_date"])
+        .alias(name)
+        for column, (_expr, name) in zip(temporary, feature_specs, strict=True)
+    )
+    df = df.drop(temporary)
+    df = _add_rolling_fip(df, mean_windows, min_games)
+    return df.sort(_ORDER)

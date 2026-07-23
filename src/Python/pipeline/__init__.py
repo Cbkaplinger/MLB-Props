@@ -7,19 +7,19 @@ data flow is explicit and any single stage can be edited/re-run in isolation.
     Level 2  ``rolling.py``   per-game    ->  leakage-safe rolling + statics
     Level 3  ``training.py``  rolling     ->  model-ready training frames
 
-Artifact locations live in :mod:`mlb_props.config` (``*_GAMES_PATH``,
+Artifact locations live in :mod:`Python.config` (``*_GAMES_PATH``,
 ``*_ROLLING_PATH``, ``*_TRAINING_PATH``, ``PARK_FACTORS_PATH``).
 
 Run the whole thing::
 
-    from mlb_props.pipeline import run_all
+    from Python.pipeline import run_all
     run_all(years=(2023, 2024, 2025))
 
 or a single stage from the shell::
 
-    python -m mlb_props.pipeline.games
-    python -m mlb_props.pipeline.rolling
-    python -m mlb_props.pipeline.training
+    python -m Python.pipeline.games
+    python -m Python.pipeline.rolling
+    python -m Python.pipeline.training
 """
 
 from __future__ import annotations

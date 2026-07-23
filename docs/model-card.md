@@ -17,12 +17,14 @@ This repository is research code, not a validated betting system.
 - Level 1 unit: one row per qualifying starter/game.
 - Target: `k_rate = K / PA`.
 - Default training seasons: 2023-2025.
-- Evaluation: chronological train/validation/test splits only.
+- Evaluation: chronological train/validation/test splits only; calendar dates
+  are never divided across partitions.
 - Primary rate metrics: MAE, RMSE, and R² on future starts.
 - Prop evaluation must use projected, never actual same-game, batters faced.
 
-No current performance score is published. Older notebook scores used a
-superseded feature pipeline and must not be treated as valid.
+The current date-disjoint 2023-2025 baseline uses 227 approved features.
+Held-out test results are Mean RMSE 0.1076 / R² -0.0001, Ridge RMSE 0.1003 /
+R² 0.1313, and LightGBM RMSE 0.0994 / R² 0.1459.
 
 ## Leakage policy
 
@@ -31,8 +33,9 @@ include same-game `K`, `PA`, `Outs`, actual TBF, and any statistic containing
 the game being predicted. Level 2 uses prior games only. `K`, `PA`, `Outs`, and
 `k_rate` are retained in Level 3 solely as labels/evaluation fields.
 
-`src/mlb_props/features.py` validates explicit feature lists and selects only
-numeric, non-identifier, non-label columns for the training script.
+`src/Python/features.py` validates explicit feature lists and accepts only
+approved lagged-feature families and context columns. Unknown numeric columns
+fail rather than silently entering training.
 
 ## Feature pipeline
 
@@ -52,18 +55,21 @@ Important definitions:
 - pitcher outs include recorded caught-stealing and pickoff outs;
 - release extension and horizontal/vertical release-point consistency are
   included;
-- FIP constants use FanGraphs published values, while xFIP league HR/FB uses
-  all loaded pitchers.
+- Rolling FIP/xFIP use summed prior-start counts. xFIP uses league HR/FB
+  available before the game date, regressed toward the previous season with a
+  1,000-fly-ball prior. The 2023 boundary uses 2022 Statcast context calculated
+  under the same fly-ball definition; 2022 itself does not enter model rows.
 
 ## Context features
 
 Opponent features aggregate each hitter's pregame overall/handed K%, whiff%,
-and chase%. Historical membership uses players who appeared; live projections
+and chase%. Historical membership uses the first nine distinct batters by first
+plate appearance and requires complete nine-player coverage. Live projections
 must substitute the announced lineup.
 
 Park factors are keyed by `(season, home_team)` and use prior seasons only.
-The first available season is neutral. This prevents future park outcomes from
-entering earlier rows.
+The prior-only 2022 source supplies 2023 park history without entering model
+rows. This prevents future park outcomes from entering earlier rows.
 
 ## Evaluation requirements
 
@@ -80,7 +86,6 @@ Before publishing performance or using probabilities:
 
 ## Current limitations
 
-- No leakage-free Level 3 baseline has been recorded.
 - TBF projection and end-to-end prop backtesting are incomplete.
 - Announced-lineup ingestion is not implemented.
 - Batter-by-pitch-type arsenal interactions remain planned.

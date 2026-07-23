@@ -23,7 +23,7 @@ SHAP_DIR = OUTPUT_DIR / "shap"
 OPTUNA_DIR = OUTPUT_DIR / "optuna"
 
 # ---------------------------------------------------------------------------
-# Three-level feature pipeline artifacts (see src/mlb_props/pipeline/).
+# Three-level feature pipeline artifacts (see src/Python/pipeline/).
 # Level 1 (games)  : raw Savant -> one row per game (pitcher start / batter game)
 # Level 2 (rolling): game-level -> leakage-safe rolling/season-to-date + statics
 # Level 3 (train)  : rolling -> model-ready frames (spine + lineup/park joins)
@@ -40,6 +40,7 @@ PITCHER_TRAINING_PATH = PROCESSED_DATA_DIR / "pitcher_training.parquet"
 BATTER_TRAINING_PATH = PROCESSED_DATA_DIR / "batter_training.parquet"
 # Dimension tables (computed once over the window, joined at Level 3)
 PARK_FACTORS_PATH = PROCESSED_DATA_DIR / "park_factors.parquet"
+PLAYER_ID_MAP_PATH = DATA_DIR / "dimensions" / "player_id_map.parquet"
 
 SAVANT_DATA_DIR = _path_from_env(
     "MLB_PROPS_SAVANT_DATA_DIR",

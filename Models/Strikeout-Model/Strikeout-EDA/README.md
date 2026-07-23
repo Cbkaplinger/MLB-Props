@@ -27,13 +27,13 @@ Keep this convention for walks, hits, and outs as those models are built.
 From the repo root, with the project venv
 (`pip install -e ".[research,dev]"`), open the
 notebook and select the project environment. It reads the canonical Level 1
-artifact at `mlb_props.config.PITCHER_GAMES_PATH`. Run
-`python -m mlb_props.pipeline.games` first.
+artifact at `Python.config.PITCHER_GAMES_PATH`. Run
+`python -m Python.pipeline.games` first.
 
 ## Where the logic lives
 
 Reusable reliability/stabilization functions were extracted to
-`src/mlb_props/reliability.py` (unit-tested in `tests/test_reliability.py`) so
+`src/Python/reliability.py` (unit-tested in `tests/test_reliability.py`) so
 feature-selection code can call the same routines the EDA uses:
 
 - `stabilization_curve(...)` - split-half reliability vs window size, all stats at once.
@@ -42,7 +42,7 @@ feature-selection code can call the same routines the EDA uses:
   used to choose candidate rolling windows.
 
 > **Data note:** Training window is the 2023-2025 regular seasons; the target
-> deployment is 2026 projections (see `mlb_props.config.TRAIN_SEASONS` /
+> deployment is 2026 projections (see `Python.config.TRAIN_SEASONS` /
 > `PROJECTION_SEASON`).
 >
 > **Leakage note:** `PA`, `K`, and other same-game outcomes appear here only for

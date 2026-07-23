@@ -1,12 +1,13 @@
-"""Tests for mlb_props.statcast plate-appearance extraction."""
+"""Tests for Python.statcast loading and plate-appearance extraction."""
 
 from __future__ import annotations
 
 import datetime as dt
 
 import polars as pl
+import pytest
 
-from mlb_props import statcast as sc
+from Python import statcast as sc
 
 
 def _pitch(game_pk, ab, pitch, events, batter=1):
@@ -58,3 +59,43 @@ def test_batter_k_rate():
     assert int(b10["PA"][0]) == 2  # strikeout + walk
     assert int(b10["K"][0]) == 1
     assert abs(b10["k_rate"][0] - 0.5) < 1e-9
+
+
+def test_intentional_walk_and_batter_interference_are_plate_appearances():
+    frame = pl.DataFrame(
+        {
+            "game_date": [dt.date(2024, 4, 1), dt.date(2024, 4, 1)],
+            "events": ["intent_walk", "batter_interference"],
+            "description": ["ball", "hit_into_play"],
+        }
+    )
+    flagged = sc.add_event_flags(frame)
+    assert flagged["is_pa"].to_list() == [True, True]
+    assert flagged["is_bb"].to_list() == [True, False]
+
+
+def test_validate_statcast_season_accepts_official_game_ids():
+    frame = pl.DataFrame(
+        {
+            "game_pk": [100, 100],
+            "game_date": [dt.date(2025, 4, 1), dt.date(2025, 4, 1)],
+            "game_year": [2025, 2025],
+        }
+    )
+    sc.validate_statcast_season(frame, 2025, official_game_pks=frozenset({100}))
+
+
+def test_validate_statcast_season_rejects_relabelled_game_ids():
+    frame = pl.DataFrame(
+        {
+            "game_pk": [100],
+            "game_date": [dt.date(2025, 4, 1)],
+            "game_year": [2025],
+        }
+    )
+    with pytest.raises(ValueError, match="do not match the official schedule"):
+        sc.validate_statcast_season(
+            frame,
+            2025,
+            official_game_pks=frozenset({200}),
+        )

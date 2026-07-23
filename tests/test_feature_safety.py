@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from mlb_props.features import model_feature_names, validate_pregame_features
+from Python.features import model_feature_names, validate_pregame_features
 
 
 def test_valid_pregame_features_are_preserved() -> None:
@@ -29,6 +29,8 @@ def test_model_feature_names_excludes_labels_ids_and_strings() -> None:
             "game_pk": [1],
             "pitcher": [10],
             "player_name": ["Ace"],
+            "pitcher_name": ["Ace Pitcher"],
+            "batter_name": ["A Hitter"],
             "K": [8],
             "PA": [24],
             "Outs": [18],
@@ -38,3 +40,16 @@ def test_model_feature_names_excludes_labels_ids_and_strings() -> None:
         }
     )
     assert model_feature_names(frame) == ("k_rate_P5", "is_home")
+
+
+def test_model_feature_names_rejects_unapproved_numeric_columns() -> None:
+    frame = pd.DataFrame(
+        {
+            "game_pk": [1],
+            "k_rate": [0.25],
+            "k_rate_P5": [0.22],
+            "Whiffs": [12],
+        }
+    )
+    with pytest.raises(ValueError, match="Unexpected numeric columns"):
+        model_feature_names(frame)

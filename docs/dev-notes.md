@@ -19,7 +19,7 @@ from model inputs. All player-form features lag the current game.
 
 ## Three data levels
 
-Paths are defined in `src/mlb_props/config.py` and default to
+Paths are defined in `src/Python/config.py` and default to
 `Data/processed/`.
 
 | Level | Builder | Pitcher artifact | Batter artifact |
@@ -31,16 +31,21 @@ Paths are defined in `src/mlb_props/config.py` and default to
 Run all stages:
 
 ```powershell
-python -c "from mlb_props.pipeline import run_all; run_all()"
+python -c "from Python.pipeline import run_all; run_all()"
 ```
 
-Or run `python -m mlb_props.pipeline.games`, `.rolling`, and `.training`
+Or run `python -m Python.pipeline.games`, `.rolling`, and `.training`
 individually.
 
 ### Level 1: Savant to game tables
 
 `statcast.py` loads regular-season parquet exports and defines shared event,
-wOBA/xwOBA, and plate-discipline primitives.
+wOBA/xwOBA, and plate-discipline primitives. Level 1 verifies every requested
+season's local game IDs against MLB's official regular-season schedule before
+building outputs; `verify_schedule=False` is an explicit offline-only escape
+hatch. It also loads the immediately preceding season as prior-only HR/FB
+context. Thus a 2023-2025 build uses 2022 Statcast for the early-2023 xFIP
+prior without creating 2022 model rows.
 
 `pitcher_features.py` produces one row per true starter/game:
 
@@ -50,8 +55,8 @@ wOBA/xwOBA, and plate-discipline primitives.
 - wOBA/xwOBA use Savant's `woba_value`, `woba_denom`, and
   `estimated_woba_using_speedangle`;
 - outs include batting, caught-stealing, and pickoff outs;
-- FIP uses published FanGraphs season constants; xFIP uses league HR/FB from
-  all loaded pitches;
+- FIP uses published FanGraphs season constants; xFIP uses league HR/FB
+  available before each game date, regressed toward the previous season;
 - pitch-type physics, usage by batter hand, wOBA/xwOBA, extension, mean release
   point, and release-point standard deviation are retained.
 
@@ -64,15 +69,26 @@ home flag, batter hand).
 
 `pitcher_rolling.py` creates lagged, denominator-weighted rates and rolling means.
 Defaults are 5/10/20 starts for rates and 3/5/10 starts for physics, mechanics,
-usage, and expected metrics. Season-to-date rates reset each season.
+usage, and expected metrics. Season-to-date rates reset each season. All games
+on the current calendar date are excluded, and duplicate pitcher-game keys fail
+loudly. Rolling FIP/xFIP are calculated from summed prior-start
+HR/BB/HBP/K/FB/outs rather than averaging per-start ratios. xFIP applies the
+league HR/FB known before the projected date, with a 1,000-fly-ball prior based
+on the previous loaded season. Under the pipeline's `fly_ball + popup`
+definition, the sourced 2022 prior for 2023 is 0.12815157.
 
 `batter_rolling.py` creates:
 
 - season-to-date overall and handedness-split K%;
 - lagged 5/10/20-game K%;
 - empirical-Bayes season K% shrinkage toward league K% through the previous
-  date only (a fixed fallback is used before any history exists);
+  date only (the first date uses the exact-definition previous-season league
+  rate; 2023 uses 2022's `0.22381258`);
 - season-to-date whiff and chase rates.
+
+Batter rolling features likewise exclude every same-date game, reject duplicate
+batter-game keys, and allow partial early-history windows (`P20` means up to the
+last 20 games, with at least one prior game by default).
 
 `pipeline/rolling.py` keeps static keys/context, Level 2 features, and pitcher
 labels. It drops raw same-game feature columns by default. Use `keep_raw=True`
@@ -90,19 +106,46 @@ after that analysis; do not recreate windows in notebooks.
 - the opposing batters' pregame overall/handed K%, whiff%, and chase%;
 - the season/stadium park factor.
 
-The historical lineup currently uses batters who appeared in the game. Live
-inference must use the announced lineup. Pinch hitters in the historical source
-are a known approximation.
+The historical lineup proxy uses the first nine distinct batters to appear for
+each team, ordered by first plate appearance. This removes bullpen-only pinch
+hitters from the feature membership and Level 3 requires exactly nine matched
+batters. Live inference must still use the announced lineup.
+
+Season-opening games, including early neutral-site openers, intentionally have
+null opponent-lineup rates. Every batter has zero prior season-to-date PA before
+their first game, so a leakage-safe rate does not yet exist. These nulls must be
+handled by model-native missing-value support or preprocessing fitted on the
+training split; they must not be backfilled from same-game outcomes.
+
+The batter training frame does not yet include opposing-starter features and is
+therefore not feature-complete for a production batter-side model.
 
 `Models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and supports
 LightGBM, Ridge, and mean baselines without rebuilding Level 1 or Level 2.
+Feature selection accepts only explicitly approved context fields and lagged
+rolling/season-to-date columns; an unexpected numeric column fails loudly.
+The approximate 70/15/15 chronological split keeps each calendar date wholly
+inside one partition.
 
 ## Park factors and future intangibles
 
 `park_factors.parquet` is a dimension table keyed by `(season, home_team)`.
-For season `Y`, its factor uses only seasons before `Y`; the first available
-season receives a neutral `1.0`. A 2023-2025 build also writes the 2026 lookup.
-This avoids using future park outcomes in earlier training rows.
+For season `Y`, its factor uses only seasons before `Y`. The preceding
+prior-only Statcast season supplies the first model season's history, so 2023
+uses 2022 rather than receiving neutral factors. A 2023-2025 build also writes
+the 2026 lookup. This avoids using future park outcomes in earlier training
+rows.
+
+Venue resolution is date-aware where a team code spans multiple physical
+parks. In particular, `TB` home games in 2025 resolve to Steinbrenner Field;
+the override ends on December 31, 2025 because the Rays returned to Tropicana
+Field in 2026. Statcast already distinguishes the Athletics' Sacramento era
+as `ATH` from the pre-2025 Oakland code `OAK`.
+
+Neutral-site and international games (including the Mexico City, Seoul, and
+London series, Field of Dreams, and the Little League Classic) are not
+currently filtered. They remain grouped under Statcast's listed home-team
+code and can slightly contaminate that venue's factor.
 
 Future catcher, weather, travel, or other context belongs in separate keyed
 dimension tables and is joined at Level 3. It does not belong in player rolling
@@ -131,7 +174,8 @@ A season-level additive constant has no within-season tree-model signal.
 
 ## Current limitations
 
-- No leakage-free model score has been recorded from the Level 3 artifact.
+- The leakage-safe baseline is recorded, but the working tree remains
+  uncommitted; its data/model hashes must accompany any published result.
 - Projected batters faced and an end-to-end strikeout-count backtest are not
   complete.
 - Announced-lineup ingestion is not implemented.

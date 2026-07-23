@@ -1,4 +1,4 @@
-"""Tests for mlb_props.reliability.
+"""Tests for Python.reliability.
 
 These exercise the split-half / stabilization / reliability-table helpers on a
 small synthetic dataset where each pitcher has a stable underlying "skill", so
@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mlb_props import reliability as rel
+from Python import reliability as rel
 
 
 @pytest.fixture

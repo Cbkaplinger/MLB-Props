@@ -31,15 +31,16 @@ _ROLLING_RE = re.compile(r"(_P\d+|_std(_vL|_vR|_shrunk)?)$")
 
 # Static identity/context to carry through (kept when present).
 _PITCHER_STATIC = (
-    "game_pk", "game_date", "season", "pitcher", "player_name", "p_throws",
-    "home_team", "away_team", "is_home", "opp_team",
+    "game_pk", "game_date", "season", "pitcher", "player_name", "pitcher_name",
+    "p_throws", "home_team", "away_team", "is_home", "opp_team",
 )
 # Pitcher label / target-support columns (same-game, but they are the labels).
 _PITCHER_LABELS = ("K", "PA", "Outs", "k_rate")
 
 _BATTER_STATIC = (
-    "game_pk", "game_date", "season", "batter", "stand", "bat_team",
-    "home_team", "away_team", "is_home", "opp_team",
+    "game_pk", "game_date", "season", "batter", "batter_name", "stand",
+    "bat_team", "home_team", "away_team", "is_home", "opp_team",
+    "is_initial_lineup",
 )
 
 
