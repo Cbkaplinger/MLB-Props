@@ -5,6 +5,8 @@ one row per game, then written to ``data/processed/``:
 
 - ``pitcher_games.parquet`` - one row per starting-pitcher game (the spine),
   including the label ``k_rate = K / max(PA, 1)``.
+- ``pitch_type_games.parquet`` - one row per starter/game/canonical pitch type,
+  retaining numerator/denominator pairs for feature research.
 - ``batter_games.parquet``  - one row per ``(game_pk, batter)``.
 - ``park_factors.parquet``  - season/stadium strikeout-factor dimension. Each
   target season uses prior seasons only and is joined at Level 3 rather than
@@ -170,6 +172,13 @@ def run(
                 hr_fb_history=prior_history,
             ),
             config.PITCHER_GAMES_PATH,
+        ),
+        "pitch_type_games": _write(
+            pitcher_features.build_pitch_type_games(
+                raw,
+                min_batters_faced=min_batters_faced,
+            ),
+            config.PITCH_TYPE_GAMES_PATH,
         ),
         "batter_games": _write(
             build_batter_games(

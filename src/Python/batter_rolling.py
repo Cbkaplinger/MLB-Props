@@ -41,7 +41,8 @@ DEFAULT_FALLBACK_K_RATE: float | None = None
 # These feed the Level 3 opposing-lineup discipline features. Missing columns
 # are skipped.
 DEFAULT_EXTRA_RATE_STATS: dict[str, tuple[str, str]] = {
-    "whiff_rate": ("Whiffs", "Pitches"),   # SwStr% (whiffs per pitch)
+    "swstr_rate": ("Whiffs", "Pitches"),   # SwStr%: whiffs per pitch
+    "whiff_rate": ("Whiffs", "Swings"),    # Whiff%: whiffs per swing
     "chase_rate": ("Chases", "OutZone"),   # O-Swing%
 }
 
@@ -98,8 +99,9 @@ def add_leakage_safe_k(
             earlier date exists. If omitted, ``prior_league_k_rate`` from
             Level 1 is used; otherwise the first date remains null.
         extra_rate_stats: Additional ``{feature: (num, den)}`` season-to-date
-            rates (defaults to :data:`DEFAULT_EXTRA_RATE_STATS`: whiff% and
-            chase%). Missing columns are skipped. Pass ``{}`` to skip.
+            rates (defaults to :data:`DEFAULT_EXTRA_RATE_STATS`: swinging
+            strike%, whiff%, and chase%). Missing columns are skipped. Pass
+            ``{}`` to skip.
 
     Returns:
         The input frame (same rows, original order preserved via re-sort) with

@@ -53,6 +53,7 @@ APPROVED_CONTEXT_FEATURES = frozenset(
         "opp_lineup_k",
         "opp_lineup_k_vs_hand",
         "opp_lineup_whiff",
+        "opp_lineup_swstr",
         "opp_lineup_chase",
     }
 )

@@ -21,6 +21,7 @@ def _pitch(**over):
         bb_type=None, release_speed=94.0, release_spin_rate=2300.0,
         pfx_x=-0.5, pfx_z=1.2, vy0=-130.0, vz0=-5.0, ay=27.0, az=-15.0,
         release_extension=6.5, release_pos_x=-1.5, release_pos_z=5.8,
+        launch_speed=None, launch_angle=None, launch_speed_angle=None,
         estimated_ba_using_speedangle=None, estimated_woba_using_speedangle=None,
         woba_value=0.0, woba_denom=1, bat_score=0, post_bat_score=0, zone=5,
     )
@@ -61,6 +62,8 @@ def test_outcome_counts():
     assert out["Hits"] == 1
     assert out["Pitches"] == 3
     assert out["Strikes"] == 1 and out["Balls"] == 1 and out["BIP"] == 1
+    assert out["Strikes"] + out["Balls"] + out["BIP"] == out["Pitches"]
+    assert out["Strikes"] != out["Strikes"] + out["BIP"]
     assert out["Whiffs"] == 1 and out["CS"] == 0
     assert out["CSW"] == out["CS"] + out["Whiffs"]
     assert out["GB"] == 1
@@ -139,11 +142,100 @@ def test_per_pitch_woba_allowed():
         _pitch(at_bat_number=2, pitch_type="FF", type="X",
                description="hit_into_play", events="home_run",
                bb_type="fly_ball", woba_value=2.0, woba_denom=1,
+               estimated_ba_using_speedangle=0.8,
                estimated_woba_using_speedangle=1.8),
     ]
     out = pf.build_pitcher_starts(_frame(rows), min_batters_faced=0).row(0, named=True)
     assert abs(out["ff_woba"] - 1.0) < 1e-9       # (0 + 2.0) / 2
     assert abs(out["ff_xwoba"] - 0.9) < 1e-9      # (0 + 1.8) / 2
+    assert out["wOBA_num"] == pytest.approx(2.0)
+    assert out["wOBA_den"] == 2
+    assert out["xwOBA_num"] == pytest.approx(1.8)
+    assert out["xBA_num"] == pytest.approx(0.8)
+    assert out["xBA_den"] == 1
+    assert out["wOBA"] == pytest.approx(1.0)
+    assert out["xwOBA"] == pytest.approx(0.9)
+    assert out["xBA"] == pytest.approx(0.8)
+
+
+def test_pitch_type_games_retain_counts_and_separate_bip_from_strikes():
+    rows = [
+        _pitch(
+            at_bat_number=1,
+            pitch_number=1,
+            pitch_type="FF",
+            type="S",
+            description="swinging_strike",
+            events="strikeout",
+        ),
+        _pitch(
+            at_bat_number=2,
+            pitch_number=1,
+            pitch_type="FF",
+            type="X",
+            description="hit_into_play",
+            events="single",
+            bb_type="line_drive",
+            launch_speed=101.0,
+            launch_angle=24.0,
+            launch_speed_angle=6,
+            estimated_ba_using_speedangle=0.7,
+            estimated_woba_using_speedangle=0.9,
+            woba_value=0.9,
+        ),
+        _pitch(
+            at_bat_number=3,
+            pitch_number=1,
+            pitch_type="SL",
+            type="B",
+            description="ball",
+            events="walk",
+        ),
+        _pitch(
+            at_bat_number=4,
+            pitch_number=1,
+            pitch_type="FF",
+            type="X",
+            description="hit_into_play",
+            events="sac_bunt",
+            bb_type="ground_ball",
+        ),
+    ]
+    out = pf.build_pitch_type_games(
+        _frame(rows),
+        min_batters_faced=0,
+    )
+    fastball = out.filter(pl.col("pitch_type") == "ff").row(0, named=True)
+    slider = out.filter(pl.col("pitch_type") == "sl").row(0, named=True)
+    assert fastball["Pitches"] == 3
+    assert fastball["Strikes"] == 1
+    assert fastball["BIP"] == 2
+    assert fastball["Balls"] == 0
+    assert fastball["OtherPitches"] == 0
+    assert fastball["usage_rate"] == pytest.approx(3 / 4)
+    assert fastball["HardHit"] == 1
+    assert fastball["Barrels"] == 1
+    assert fastball["hard_hit_rate"] == pytest.approx(1.0)
+    assert fastball["barrel_rate"] == pytest.approx(1.0)
+    assert slider["Pitches"] == 1
+    assert slider["Balls"] == 1
+    assert slider["Strikes"] == 0
+
+
+def test_pitch_type_games_use_locked_starter_population():
+    rows = [
+        _pitch(
+            at_bat_number=n,
+            type="X",
+            description="hit_into_play",
+            events="field_out",
+        )
+        for n in range(1, 5)
+    ]
+    assert pf.build_pitch_type_games(
+        _frame(rows),
+        min_batters_faced=9,
+    ).is_empty()
 
 
 def test_fip_xfip_added():

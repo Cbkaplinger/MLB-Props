@@ -36,21 +36,24 @@ DEFAULT_RATE_STATS: dict[str, tuple[str, str]] = {
     "csw_rate": ("CSW", "Pitches"),
     "swstr_rate": ("Whiffs", "Pitches"),   # whiffs per pitch
     "whiff_rate": ("Whiffs", "Swings"),    # whiffs per swing
+    "ball_rate": ("Balls", "Pitches"),
     "cs_rate": ("CS", "Pitches"),
     "chase_rate": ("Chases", "OutZone"),
     "zone_rate": ("InZone", "Pitches"),
     "contact_rate": ("Contacts", "Swings"),
     "gb_rate": ("GB", "BIP"),
     "hr_rate": ("HR", "PA"),
+    "xBA": ("xBA_num", "xBA_den"),
+    "wOBA": ("wOBA_num", "wOBA_den"),
+    "xwOBA": ("xwOBA_num", "wOBA_den"),
 }
 
-# Per-start values rolled with a simple mean (physics, mechanics, usage, xstats).
-_PITCH_TYPES: tuple[str, ...] = ("ff", "si", "fc", "sl", "st", "cu", "ch")
+# Per-start values rolled with a simple mean (physics, mechanics, and usage).
+_PITCH_TYPES: tuple[str, ...] = ("ff", "si", "fc", "sl", "st", "cu", "ch", "fs")
 DEFAULT_MEAN_COLS: tuple[str, ...] = (
     *(f"{pt}_{m}" for pt in _PITCH_TYPES for m in ("velo", "spinrate", "ivb", "hb", "vaa")),
     *(f"{pt}_usage_v{h}" for pt in _PITCH_TYPES for h in ("R", "L")),
     "extension", "rel_x", "rel_z", "rel_x_sd", "rel_z_sd",
-    "xBA", "wOBA", "xwOBA",
 )
 
 DEFAULT_RATE_WINDOWS: tuple[int, ...] = (5, 10, 20)
@@ -63,6 +66,114 @@ def _prior_rate(num: str, den: str, by: list[str]) -> pl.Expr:
     prior_num = pl.col(num).cum_sum().over(by) - pl.col(num)
     prior_den = pl.col(den).cum_sum().over(by) - pl.col(den)
     return pl.when(prior_den > 0).then(prior_num / prior_den).otherwise(None)
+
+
+def add_prior_season_shrunk_k(
+    starts: pl.DataFrame,
+    *,
+    prior_strength_pa: float,
+    fallback_league_k_rate: float | None = None,
+) -> pl.DataFrame:
+    """Add a leakage-safe, prior-season-shrunk pitcher K rate.
+
+    The estimate combines current-season counts strictly before the projected
+    date with ``prior_strength_pa`` pseudo-PA at the pitcher's completed
+    previous-season K rate. Pitchers without previous-season MLB starts use the
+    completed previous-season league starter rate. The first loaded season uses
+    ``fallback_league_k_rate`` or remains null.
+
+    This function is intentionally separate from
+    :func:`add_rolling_pitcher_features`: callers must opt in explicitly, and
+    the feature is not automatically added to Level 2 or Level 3.
+    """
+    if prior_strength_pa <= 0:
+        raise ValueError("prior_strength_pa must be positive")
+    required = {"pitcher", "game_pk", "game_date", "K", "PA"}
+    missing = sorted(required - set(starts.columns))
+    if missing:
+        raise ValueError(f"starts is missing shrinkage columns: {missing}")
+    if starts.select("pitcher", "game_pk").is_duplicated().any():
+        raise ValueError("starts contains duplicate (pitcher, game_pk) keys")
+
+    df = starts.with_columns(
+        pl.col("game_date").cast(pl.Date),
+        pl.col("game_date").cast(pl.Date).dt.year().alias("season"),
+    ).sort(_ORDER)
+
+    pitcher_prior = (
+        df.group_by("pitcher", "season")
+        .agg(
+            pl.col("K").sum().alias("_prior_season_k"),
+            pl.col("PA").sum().alias("_prior_season_pa"),
+        )
+        .with_columns((pl.col("season") + 1).alias("season"))
+        .with_columns(
+            pl.when(pl.col("_prior_season_pa") > 0)
+            .then(pl.col("_prior_season_k") / pl.col("_prior_season_pa"))
+            .otherwise(None)
+            .alias("_pitcher_prior_rate")
+        )
+        .select("pitcher", "season", "_pitcher_prior_rate")
+    )
+    league_prior = (
+        df.group_by("season")
+        .agg(
+            pl.col("K").sum().alias("_league_k"),
+            pl.col("PA").sum().alias("_league_pa"),
+        )
+        .with_columns((pl.col("season") + 1).alias("season"))
+        .with_columns(
+            pl.when(pl.col("_league_pa") > 0)
+            .then(pl.col("_league_k") / pl.col("_league_pa"))
+            .otherwise(None)
+            .alias("_league_prior_rate")
+        )
+        .select("season", "_league_prior_rate")
+    )
+
+    current_prior_k = pl.col("K").cum_sum().over(["pitcher", "season"]) - pl.col("K")
+    current_prior_pa = (
+        pl.col("PA").cum_sum().over(["pitcher", "season"]) - pl.col("PA")
+    )
+    fallback = pl.lit(fallback_league_k_rate, dtype=pl.Float64)
+    return (
+        df.join(pitcher_prior, on=["pitcher", "season"], how="left")
+        .join(league_prior, on="season", how="left")
+        .with_columns(
+            current_prior_k.alias("_current_prior_k"),
+            current_prior_pa.alias("_current_prior_pa"),
+        )
+        .with_columns(
+            pl.col("_current_prior_k")
+            .first()
+            .over(["pitcher", "game_date"]),
+            pl.col("_current_prior_pa")
+            .first()
+            .over(["pitcher", "game_date"]),
+            pl.coalesce(
+                "_pitcher_prior_rate",
+                "_league_prior_rate",
+                fallback,
+            ).alias("_shrink_prior_rate"),
+        )
+        .with_columns(
+            (
+                (
+                    pl.col("_current_prior_k")
+                    + prior_strength_pa * pl.col("_shrink_prior_rate")
+                )
+                / (pl.col("_current_prior_pa") + prior_strength_pa)
+            ).alias("k_rate_std_shrunk")
+        )
+        .drop(
+            "_pitcher_prior_rate",
+            "_league_prior_rate",
+            "_current_prior_k",
+            "_current_prior_pa",
+            "_shrink_prior_rate",
+        )
+        .sort(_ORDER)
+    )
 
 
 def _rolling_rate(num: str, den: str, window: int, min_games: int) -> pl.Expr:

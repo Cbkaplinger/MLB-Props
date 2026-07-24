@@ -15,14 +15,15 @@ def _games(rows):
 
 
 def _g(day, pa, k, *, pa_vl=0, k_vl=0, pa_vr=0, k_vr=0, batter=1, gp=None, year=2024,
-       whiffs=0, pitches=0, chases=0, outzone=0):
+       whiffs=0, swings=0, pitches=0, chases=0, outzone=0):
     return dict(
         batter=batter,
         game_pk=gp if gp is not None else day,
         game_date=dt.date(year, 4, day),
         PA=pa, K=k,
         PA_vL=pa_vl, K_vL=k_vl, PA_vR=pa_vr, K_vR=k_vr,
-        Whiffs=whiffs, Pitches=pitches, Chases=chases, OutZone=outzone,
+        Whiffs=whiffs, Swings=swings, Pitches=pitches,
+        Chases=chases, OutZone=outzone,
     )
 
 
@@ -89,16 +90,23 @@ def test_handedness_splits():
     assert abs(df["k_rate_std_vR"][1] - 0.0) < 1e-9   # 0/2 vs RHP
 
 
-def test_extra_rate_stats_whiff_and_chase():
+def test_extra_rate_stats_have_correct_whiff_and_swstr_denominators():
     df = br.add_leakage_safe_k(
         _games([
-            _g(1, 4, 1, whiffs=10, pitches=50, chases=6, outzone=20),
-            _g(2, 4, 1, whiffs=0, pitches=50, chases=0, outzone=20),
+            _g(
+                1, 4, 1, whiffs=10, swings=20, pitches=50,
+                chases=6, outzone=20,
+            ),
+            _g(
+                2, 4, 1, whiffs=0, swings=20, pitches=50,
+                chases=0, outzone=20,
+            ),
         ]),
         windows=(5,), shrink_pa=0,
     ).sort("game_date")
-    # game 2 uses only game 1: whiff/pitch = 10/50, chase/outzone = 6/20
-    assert abs(df["whiff_rate_std"][1] - 0.2) < 1e-9
+    # Game 2 uses only game 1.
+    assert abs(df["swstr_rate_std"][1] - 10 / 50) < 1e-9
+    assert abs(df["whiff_rate_std"][1] - 10 / 20) < 1e-9
     assert abs(df["chase_rate_std"][1] - 0.3) < 1e-9
 
 

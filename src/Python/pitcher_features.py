@@ -16,18 +16,16 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from . import config
 
 import polars as pl
 
+from . import config
 from .statcast import (
     FLY_BALL_TYPES,
     add_event_flags,
     add_plate_discipline_flags,
     add_plate_discipline_rates,
     discipline_count_exprs,
-    woba_agg,
-    xwoba_agg,
     xwoba_num,
 )
 
@@ -88,6 +86,7 @@ BUILD_COLUMNS: tuple[str, ...] = (
     "release_speed", "release_spin_rate", "pfx_x", "pfx_z",
     "release_extension", "release_pos_x", "release_pos_z",
     "vy0", "vz0", "ay", "az",
+    "launch_speed", "launch_angle", "launch_speed_angle",
     "estimated_ba_using_speedangle", "estimated_woba_using_speedangle",
     "woba_value", "woba_denom", "bat_score", "post_bat_score",
 )
@@ -161,11 +160,14 @@ def _arsenal_exprs() -> list[pl.Expr]:
     return exprs
 
 
-def build_pitcher_starts(df: pl.DataFrame, min_batters_faced: int = config.MIN_STARTER_BATTERS_FACED) -> pl.DataFrame:
+def build_pitcher_starts(
+    df: pl.DataFrame,
+    min_batters_faced: int = config.MIN_STARTER_BATTERS_FACED,
+) -> pl.DataFrame:
     """Aggregate pitch-level Statcast into one row per starting-pitcher game.
 
     The default excludes appearances with fewer than nine PA, including openers
-    and very early exits.This is a postgame-defined research cohort and must not
+    and very early exits. This is a postgame-defined research cohort and must not
     be described as coverage of every pregame announced starter.
 
     Args:
@@ -198,6 +200,9 @@ def build_pitcher_starts(df: pl.DataFrame, min_batters_faced: int = config.MIN_S
             pl.col("p_throws").first(),
             # volume
             pl.len().alias("Pitches"),
+            # Statcast pitch-result categories are mutually exclusive:
+            # S = strike, B = ball, X = ball put into play. A ball in play is
+            # contact, not a strike, and must never be added to Strikes.
             (pl.col("type") == "S").sum().alias("Strikes"),
             (pl.col("type") == "B").sum().alias("Balls"),
             (pl.col("type") == "X").sum().alias("BIP"),
@@ -223,10 +228,22 @@ def build_pitcher_starts(df: pl.DataFrame, min_batters_faced: int = config.MIN_S
             pl.col("release_pos_z").mean().alias("rel_z"),
             pl.col("release_pos_x").std().alias("rel_x_sd"),
             pl.col("release_pos_z").std().alias("rel_z_sd"),
-            # quality / expected
-            pl.col("estimated_ba_using_speedangle").mean().alias("xBA"),
-            woba_agg(),
-            xwoba_agg(),
+            # Quality / expected-stat count pairs are retained so rolling
+            # windows can aggregate by their real denominator instead of
+            # averaging per-start rates.
+            pl.when(pl.col("type") == "X")
+            .then(pl.col("estimated_ba_using_speedangle"))
+            .sum()
+            .alias("xBA_num"),
+            (
+                (pl.col("type") == "X")
+                & pl.col("estimated_ba_using_speedangle").is_not_null()
+            )
+            .sum()
+            .alias("xBA_den"),
+            pl.col("woba_value").sum().alias("wOBA_num"),
+            pl.col("woba_denom").sum().alias("wOBA_den"),
+            pl.col("xwoba_num").sum().alias("xwOBA_num"),
             # handedness split denominators
             n_R.alias("_pit_R"),
             n_L.alias("_pit_L"),
@@ -237,7 +254,20 @@ def build_pitcher_starts(df: pl.DataFrame, min_batters_faced: int = config.MIN_S
 
     # Convert per-type handedness counts to usage rates and per-type results to
     # wOBA/xwOBA allowed, then drop the helper sum columns.
-    derived_exprs = []
+    derived_exprs = [
+        pl.when(pl.col("xBA_den") > 0)
+        .then(pl.col("xBA_num") / pl.col("xBA_den"))
+        .otherwise(None)
+        .alias("xBA"),
+        pl.when(pl.col("wOBA_den") > 0)
+        .then(pl.col("wOBA_num") / pl.col("wOBA_den"))
+        .otherwise(None)
+        .alias("wOBA"),
+        pl.when(pl.col("wOBA_den") > 0)
+        .then(pl.col("xwOBA_num") / pl.col("wOBA_den"))
+        .otherwise(None)
+        .alias("xwOBA"),
+    ]
     for pt in PITCH_TYPES:
         derived_exprs += [
             pl.when(pl.col("_pit_R") > 0)
@@ -276,6 +306,156 @@ def build_pitcher_starts(df: pl.DataFrame, min_batters_faced: int = config.MIN_S
         agg = agg.filter(pl.col("PA") >= min_batters_faced)
 
     return agg.sort(["game_date", "player_name"])
+
+
+def build_pitch_type_games(
+    df: pl.DataFrame,
+    min_batters_faced: int = config.MIN_STARTER_BATTERS_FACED,
+) -> pl.DataFrame:
+    """Aggregate starter pitches by game and canonical pitch type.
+
+    Count pairs are deliberately retained for denominator-aware stabilization.
+    Outcome columns such as K, BB, wOBA, and xwOBA attribute a plate appearance
+    to its terminal pitch type. Contact-quality flags use Statcast conventions:
+    hard hit is exit velocity >= 95 mph, barrel is launch-speed-angle category
+    6, and weak contact is category 1.
+    """
+    pitches = _pitch_level(df).join(
+        _starter_keys(df),
+        on=["game_pk", "pitcher"],
+        how="inner",
+    )
+    qualified = pitches.group_by("game_pk", "pitcher").agg(
+        pl.col("is_pa").sum().alias("_starter_pa"),
+        pl.len().alias("TotalPitches"),
+    )
+    if min_batters_faced > 0:
+        qualified = qualified.filter(
+            pl.col("_starter_pa") >= min_batters_faced
+        )
+    pitches = pitches.join(
+        qualified,
+        on=["game_pk", "pitcher"],
+        how="inner",
+        validate="m:1",
+    ).filter(pl.col("canon_pitch").is_not_null())
+
+    grouped = (
+        pitches.group_by(["game_pk", "pitcher", "canon_pitch"])
+        .agg(
+            pl.col("game_date").first(),
+            pl.col("game_date").first().dt.year().alias("season"),
+            pl.col("player_name").first(),
+            pl.col("p_throws").first(),
+            pl.col("TotalPitches").first(),
+            pl.len().alias("Pitches"),
+            (pl.col("type") == "S").sum().alias("Strikes"),
+            (pl.col("type") == "B").sum().alias("Balls"),
+            (pl.col("type") == "X").sum().alias("BIP"),
+            pl.col("is_pa").sum().alias("PA"),
+            pl.col("is_k").sum().alias("K"),
+            pl.col("is_bb").sum().alias("BB"),
+            pl.col("is_whiff").sum().alias("Whiffs"),
+            pl.col("is_called_strike").sum().alias("CS"),
+            pl.col("is_gb").sum().alias("GB"),
+            pl.col("is_fb").sum().alias("FB"),
+            *discipline_count_exprs(),
+            (
+                (pl.col("type") == "X") & (pl.col("launch_speed") >= 95.0)
+            ).sum().alias("HardHit"),
+            (
+                (pl.col("type") == "X") & (pl.col("launch_speed_angle") == 6)
+            ).sum().alias("Barrels"),
+            (
+                (pl.col("type") == "X") & (pl.col("launch_speed_angle") == 1)
+            ).sum().alias("WeakContact"),
+            pl.when(pl.col("type") == "X")
+            .then(pl.col("launch_speed"))
+            .sum()
+            .alias("EV_num"),
+            (
+                (pl.col("type") == "X") & pl.col("launch_speed").is_not_null()
+            ).sum().alias("EV_den"),
+            pl.when(pl.col("type") == "X")
+            .then(pl.col("launch_angle"))
+            .sum()
+            .alias("LA_num"),
+            (
+                (pl.col("type") == "X") & pl.col("launch_angle").is_not_null()
+            ).sum().alias("LA_den"),
+            pl.when(pl.col("type") == "X")
+            .then(pl.col("estimated_ba_using_speedangle"))
+            .sum()
+            .alias("xBA_num"),
+            (
+                (pl.col("type") == "X")
+                & pl.col("estimated_ba_using_speedangle").is_not_null()
+            )
+            .sum()
+            .alias("xBA_den"),
+            pl.col("woba_value").sum().alias("wOBA_num"),
+            pl.col("woba_denom").sum().alias("wOBA_den"),
+            pl.col("xwoba_num").sum().alias("xwOBA_num"),
+            pl.col("release_speed").sum().alias("velo_num"),
+            pl.col("release_speed").is_not_null().sum().alias("velo_den"),
+            pl.col("release_spin_rate").sum().alias("spin_num"),
+            pl.col("release_spin_rate").is_not_null().sum().alias("spin_den"),
+            pl.col("ivb").sum().alias("ivb_num"),
+            pl.col("ivb").is_not_null().sum().alias("ivb_den"),
+            pl.col("hb").sum().alias("hb_num"),
+            pl.col("hb").is_not_null().sum().alias("hb_den"),
+            pl.col("vaa").sum().alias("vaa_num"),
+            pl.col("vaa").is_not_null().sum().alias("vaa_den"),
+        )
+        .rename({"canon_pitch": "pitch_type"})
+        .with_columns(
+            (pl.col("CS") + pl.col("Whiffs")).alias("CSW"),
+            (
+                pl.col("Pitches")
+                - pl.col("Strikes")
+                - pl.col("Balls")
+                - pl.col("BIP")
+            ).alias("OtherPitches"),
+        )
+    )
+    if grouped.filter(pl.col("OtherPitches") != 0).height:
+        raise ValueError(
+            "pitch rows must be exactly one of strike, ball, or ball in play"
+        )
+
+    def rate(num: str, den: str, name: str) -> pl.Expr:
+        return (
+            pl.when(pl.col(den) > 0)
+            .then(pl.col(num) / pl.col(den))
+            .otherwise(None)
+            .alias(name)
+        )
+
+    return (
+        grouped.with_columns(
+            rate("Pitches", "TotalPitches", "usage_rate"),
+            rate("Whiffs", "Pitches", "swstr_rate"),
+            rate("Whiffs", "Swings", "whiff_rate"),
+            rate("Balls", "Pitches", "ball_rate"),
+            rate("CSW", "Pitches", "csw_rate"),
+            rate("Chases", "OutZone", "chase_rate"),
+            rate("GB", "BIP", "gb_rate"),
+            rate("HardHit", "EV_den", "hard_hit_rate"),
+            rate("Barrels", "xBA_den", "barrel_rate"),
+            rate("WeakContact", "xBA_den", "weak_contact_rate"),
+            rate("EV_num", "EV_den", "avg_exit_velocity"),
+            rate("LA_num", "LA_den", "avg_launch_angle"),
+            rate("xBA_num", "xBA_den", "xBA"),
+            rate("wOBA_num", "wOBA_den", "wOBA"),
+            rate("xwOBA_num", "wOBA_den", "xwOBA"),
+            rate("velo_num", "velo_den", "velocity"),
+            rate("spin_num", "spin_den", "spin_rate"),
+            rate("ivb_num", "ivb_den", "ivb"),
+            rate("hb_num", "hb_den", "hb"),
+            rate("vaa_num", "vaa_den", "vaa"),
+        )
+        .sort(["game_date", "player_name", "pitch_type"])
+    )
 
 
 def league_hr_fb_from_pitches(pitches: pl.DataFrame) -> dict[int, float]:

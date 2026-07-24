@@ -30,6 +30,7 @@ from .. import config
 
 _LINEUP_RATE_COLUMNS = {
     "opp_lineup_whiff": "whiff_rate_std",
+    "opp_lineup_swstr": "swstr_rate_std",
     "opp_lineup_chase": "chase_rate_std",
 }
 _REQUIRED_BATTER_COLUMNS = {
@@ -52,11 +53,11 @@ def opposing_lineup_features(
 
     Season-opening games (including early neutral-site openers) will have
     null lineup features here: batters have zero season-to-date PA before
-    their own first game, so k_rate_std/whiff_rate_std/chase_rate_std are
-    null for the whole opposing lineup. This is intentional -- it preserves
-    the leakage boundary rather than backfilling with a synthetic constant.
-    Downstream training must handle these nulls explicitly (imputation or
-    native NaN-tolerant model).
+    their own first game, so the K, whiff, swinging-strike, and chase rates are
+    null for the whole opposing lineup. This is intentional -- it preserves the
+    leakage boundary rather than backfilling with a synthetic constant.
+    Downstream training must handle these nulls explicitly (imputation or native
+    NaN-tolerant model).
     """
     missing = sorted(_REQUIRED_BATTER_COLUMNS - set(batters.columns))
     if missing:

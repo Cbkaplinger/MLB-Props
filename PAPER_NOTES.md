@@ -33,6 +33,9 @@ Update incrementally as work happens -- do not reconstruct retroactively.
 
 - Same-game `K`, `PA`, `Outs`, and `k_rate` are labels/evaluation fields, not
   model inputs.
+- Statcast pitch-result categories remain separate: `S` is a strike, `B` is a
+  ball, and `X` is a ball put into play. BIP is contact and is never added to
+  strike counts or strike-rate numerators.
 - Rolling and season-to-date player statistics are shifted by one game or
   start, so the game being predicted never contributes to its own features.
 - Season-to-date windows reset at season boundaries.
@@ -52,7 +55,7 @@ Update incrementally as work happens -- do not reconstruct retroactively.
 - Level 3 null audit traced 90 fully-null opponent-lineup rows to each season's
   opening games (including the Tokyo Series), where no batter has prior
   season-to-date PA. The nulls were retained as the leakage-safe behavior.
-- Automated test suite: 84 tests across test_ballpark.py, test_batter_features.py,
+- Automated test suite: 96 tests across test_ballpark.py, test_batter_features.py,
   test_batter_rolling.py, test_feature_safety.py, test_identity.py,
   test_pipeline.py, test_pitcher_features.py, test_pitcher_rolling.py,
   test_reliability.py, test_stabilization.py, test_statcast.py
@@ -240,9 +243,190 @@ Final audit-corrected, date-disjoint baseline:
 
 ## 7. Feature redundancy audit
 
-> Document findings from the correlation check on the 227-feature set --
+> Document findings from the correlation check on the frozen 227-feature set
+> and the current 232-feature candidate set --
 > which near-duplicate columns exist (e.g. k_rate_P5 vs P10 vs P20,
 > k_rate_std vs k_rate_std_shrunk) and what was pruned, if anything.
+
+### Denominator-aware stabilization findings
+
+Development data are restricted to 2023-2024. Pitchers use the locked
+`PA >= 9` research cohort; batter histories use all Level 1 batter games.
+Curves use consecutive denominator buckets and 300 player-level bootstrap
+resamples. A threshold is called reliably estimable only when the lower 95%
+pointwise CI crosses it with at least 50 qualified players. Generated curves,
+CI files, and plots are under `artifacts/stabilization/`.
+
+Pitcher findings:
+
+- K/PA: `r=.50` at 100 PA (CI crossings 75-125; 257 pitchers), approximately
+  4.3 starts. `r=.70` median crossing is 325 PA (~14.1 starts), but the lower
+  CI never crosses. Candidate: one ~5-start signal plus season-to-date.
+- Whiffs/swings: `r=.50` at 200 swings (150-250; 252 pitchers), ~4.8 starts;
+  `r=.70` at 550 swings (350-750; 145 pitchers), ~13.1 starts. Candidate:
+  short ~5 starts and long ~13-18 starts.
+- Whiffs/pitches (SwStr%): `r=.50` at 300 pitches (200-500; 282 pitchers),
+  ~3.3 starts; `r=.70` at 900 pitches (600-1,500; 178 pitchers), ~10 starts.
+  This is the leading pitcher whiff-skill candidate for K/PA prediction.
+- Balls/pitches (Ball%): `r=.50` at 300 pitches (200-600; 282 pitchers),
+  ~3.3 starts. The median `r=.70` crossing at 1,800 pitches is not reliable.
+  Keep as a candidate for command and workload effects, not as a proven direct
+  K-rate feature.
+- Chases/out-of-zone pitches: median `r=.50` is 700 (~15.6 starts), but its
+  lower-CI crossing occurs only at 1,450 with 15 qualified pitchers. Neither
+  threshold is reliable. Prefer season-to-date pending predictive validation.
+- CSW/pitches: `r=.50` at 800 pitches (300-1,400; 187 pitchers), ~8.9 starts;
+  `r=.70` is not reached. Candidate: ~10-15 starts plus season-to-date.
+- BB/PA: median `r=.50` is 250 PA (~10.9 starts), but the lower CI never
+  crosses either threshold. Treat as noisy; prefer a long/shrunk estimate.
+- GB/BIP: `r=.50` at 75 BIP (50-100; 253 pitchers), ~4.7 starts; `r=.70` at
+  150 BIP (125-350; 181 pitchers), ~9.4 starts. Stable enough to test, but its
+  direct value for K/PA is uncertain and should be established by ablation.
+- HR/fly balls: neither median threshold is reached. Do not create an
+  unshrunk individual HR/FB rolling feature; retain the regressed league
+  HR/FB treatment used by xFIP.
+
+Batter findings:
+
+- K/PA: `r=.50` at 75 PA (50-100; 526 batters), ~18.8 games; `r=.70` at
+  175 PA (100-225; 408 batters), ~43.8 games. Candidate: ~20 games plus a
+  shrunk season-to-date estimate.
+- Whiffs/swings: `r=.50` at 100 swings (50-100; 561 batters), ~14.3 games;
+  `r=.70` at 150 swings (150-250; 515 batters), ~21.4 games.
+- Whiffs/pitches (SwStr%): `r=.50` at 200 pitches (100-200; 564 batters),
+  ~13.3 games; `r=.70` at 300 pitches (300-400; 520 batters), ~20 games.
+- Chases/out-of-zone pitches: `r=.50` at 100 (50-100; 562 batters), ~14.3
+  games; `r=.70` at 200 (150-250; 473 batters), ~28.6 games.
+
+No rolling constants change from this analysis alone. The next step is a
+within-family redundancy audit and chronological 2023-to-2024 predictive
+comparison of the small candidate window sets. Naming is now consistent:
+`whiff_rate = Whiffs/Swings` and `swstr_rate = Whiffs/Pitches` for both
+pitchers and batters. Level 3 exposes distinct `opp_lineup_whiff` and
+`opp_lineup_swstr` candidates; neither is frozen into the final registry.
+
+JA ERA is not added as a feature because its exact published coefficients were
+not supplied and it estimates run prevention rather than K/PA. Its available
+components are represented separately: pitcher SwStr%, Ball%, and GB%. Raw
+components let the model test incremental value without importing a redundant
+ERA-scale composite. The planned ablation should compare both/all/none within
+the pitcher whiff family and batter lineup whiff family, then test Ball% and
+GB% individually.
+
+### Pitch-type research and denominator corrections
+
+The Level 1 build now writes `pitch_type_games.parquet`: 67,653 rows at one
+starter/game/canonical-pitch-type grain for FF, SI, FC, SL, ST, CU, CH, and FS.
+It retains the numerator/denominator pairs needed for honest aggregation.
+`Strikes`, `Balls`, and `BIP` are mutually exclusive and sum to `Pitches` in
+every row; a ball put into play is never included in a strike numerator.
+Contact-quality values are restricted to `type == "X"` so exit velocity on
+fouls cannot contaminate BIP quality.
+
+The overall xBA, wOBA, and xwOBA rolling features were also corrected. They are
+now `sum(numerator) / sum(denominator)` over prior starts, not unweighted means
+of per-start rates. Splitter (`fs_*`) physics, movement, usage, and handedness
+features now propagate through Level 2 and Level 3.
+
+Pooled 2023-2024 descriptions support the baseball intuition but do not by
+themselves justify model inclusion:
+
+- Whiffs/swings were highest for SL (.326), FS (.322), ST (.313), CU (.311),
+  and CH (.307), versus FF (.212), FC (.224), and SI (.128).
+- Whiffs/pitches were highest for FS (.169), SL (.159), and CH (.155).
+- GB/BIP was highest for FS (.543), SI (.533), and CH (.501).
+- Weak-contact differences were small: CH (.0477), FC (.0467), ST (.0460),
+  SI (.0456), and FS (.0446). These are descriptive pooled rates, not
+  pitcher-skill reliability estimates.
+
+Pitch-type split-half curves use each statistic's actual denominator. At
+`r=.50`, only these lower-CI crossings retained at least 50 qualified pitchers:
+FF Whiff% (175 swings), FF SwStr% (250 pitches), FF Ball% (450 pitches), FF
+CSW% (550 pitches), FF GB% (100 BIP), SL Whiff% (150 swings), SL SwStr% (200
+pitches), CH SwStr% (150 pitches), CH Ball% (250 pitches), and CH Chase% (125
+out-of-zone pitches). No pitch-type weak-contact, hard-hit, barrel, xBA, wOBA,
+or xwOBA estimate met that criterion. These noisy contact outcomes should be
+shrunk heavily or omitted, not added as raw rolling rates.
+
+Outputs are under `artifacts/stabilization/pitch_type/`; the reusable runner is
+`Models/Strikeout-Model/Strikeout-EDA/run_pitch_type_stabilization.py`.
+
+### Crucial analysis still required before registry freeze
+
+1. **Separate strikeout skill from workload.** K/PA does not produce a
+   strikeout-count prop by itself. Build and validate a pregame batters-faced
+   or outs/pitches workload model, then combine exposure with K/PA (or compare
+   with a count model using exposure/offset).
+2. **Measure population-selection bias.** `PA >= 9` intentionally removes
+   openers and very early exits, but an in-game injury is unknowable pregame.
+   Report model coverage and evaluate the conditional "normal starter"
+   estimand separately from all announced starters.
+3. **Audit missingness and cold starts.** Quantify coverage by season, player,
+   pitch type, and feature. Debuts and new pitch types need explicit
+   prior-season/league fallback and missingness indicators; minor-league data
+   remain out of scope.
+4. **Validate production lineup construction.** Compare the retrospective
+   first-nine-batters proxy with scraped announced lineups, including late
+   scratches and handedness changes.
+5. **Test drift and interactions.** Check 2023-to-2024 feature/target drift and
+   test pitch-type skill only as leakage-safe prior-game rolls, ideally
+   interacted with opponent lineup handedness and pitch-type vulnerability.
+6. **Repeat grouped redundancy/ablation after these corrections.** Existing
+   ablation numbers predate denominator-weighted expected stats and splitter
+   propagation. Do not freeze pitch-type features from descriptive rankings or
+   stabilization alone.
+7. **Evaluate the final betting target.** Preserve the untouched 2025 holdout;
+   on development folds compare count MAE/RMSE, calibration, and probabilities
+   above/below prop lines, not only K/PA R2.
+
+### Protected feature-family ablation
+
+A fixed Ridge and LightGBM screen used three expanding, date-disjoint folds
+contained entirely within 2023-2024. The 2025 holdout was not read. Every
+configuration used the same 214-feature core; reported improvements are mean
+validation deltas against that core. Outputs and split metadata are under
+`artifacts/feature_research/`.
+
+- Batter lineup Whiff% + SwStr% was the only family that improved MAE in all
+  three folds for both models: LightGBM improved by `0.000527` MAE and `0.0106`
+  R2; Ridge improved by `0.000302` MAE and `0.0066` R2. Retain both as
+  candidates for now.
+- Pitcher Whiff% + SwStr% improved LightGBM in all folds (`0.000341` mean MAE)
+  but slightly hurt Ridge (`-0.000042`). Their incremental value appears
+  nonlinear; do not force both into a linear model.
+- Pitcher Ball% improved LightGBM in all folds (`0.000352` mean MAE) and was
+  effectively neutral in Ridge (`-0.000014`). Keep it as a candidate.
+- Pitcher GB% improved LightGBM in two of three folds but hurt Ridge in every
+  fold (`-0.000400` mean MAE). Exclude it from the leading K/PA registry for
+  now; retain it for run-prevention/workload research.
+- Adding all candidates was worse than selective subsets and improved
+  LightGBM MAE in only two folds. This rejects an indiscriminate
+  "include everything" approach.
+
+Redundancy remains substantial: P10 versus P20 correlations are approximately
+`0.96` within Whiff%, SwStr%, Ball%, and GB%; pitcher Whiff% versus SwStr% is
+approximately `0.94` at matched windows; batter lineup Whiff% versus SwStr% is
+`0.925`.
+
+The follow-up window screen found that average improvement alone overstated
+short-window value because the 2023 second-half fold drove most P5 gains.
+Pitcher Whiff% + SwStr% at P20 was the only tested whiff combination that
+improved LightGBM in all three folds and improved Ridge in two. SwStr% P20 was
+the strongest Ridge discipline window. Ball% P20 improved Ridge in all three
+folds and LightGBM in two, while Ball% P5 improved LightGBM in only one.
+
+The provisional compact candidate set is therefore pitcher Whiff% P20,
+pitcher SwStr% P20, pitcher Ball% P20, and both season-to-date batter lineup
+rates. P5 may remain a nonlinear recent-form challenger, but P10/P20/STD
+duplicates should not all survive the registry freeze. This remains a
+development-data decision; no 2025 result has been consulted.
+
+That five-feature compact addition was then tested as one configuration. It
+improved MAE in all three folds for both models: LightGBM by `0.000436` with
+`0.0078` R2 improvement, and Ridge by `0.000370` with `0.0081` R2 improvement.
+At 219 total features it was more consistent than the indiscriminate
+232-feature set, which improved LightGBM in only two folds and hurt Ridge.
+This is now the leading registry candidate, not a frozen final registry.
 
 ## 8. Error analysis
 
@@ -279,7 +463,8 @@ Final audit-corrected, date-disjoint baseline:
 - Command sequence:
   `python -m Python.pipeline.games`,
   `python -m Python.pipeline.rolling`,
-  `python -m Python.pipeline.training`
-- Test suite: `python -m pytest` (89 tests, all passing as of 2026-07-23)
+  `python -m Python.pipeline.training`,
+  `python Models/Strikeout-Model/Strikeout-EDA/run_pitch_type_stabilization.py`
+- Test suite: `python -m pytest` (100 tests, all passing as of 2026-07-23)
 - Model training:
   `python Models/Strikeout-Model/train.py --model [mean|ridge|...]`

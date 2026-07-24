@@ -31,6 +31,7 @@ OPTUNA_DIR = OUTPUT_DIR / "optuna"
 # ---------------------------------------------------------------------------
 # Level 1 -- game-level
 PITCHER_GAMES_PATH = PROCESSED_DATA_DIR / "pitcher_games.parquet"
+PITCH_TYPE_GAMES_PATH = PROCESSED_DATA_DIR / "pitch_type_games.parquet"
 BATTER_GAMES_PATH = PROCESSED_DATA_DIR / "batter_games.parquet"
 # Level 2 -- rolling / season-to-date
 PITCHER_ROLLING_PATH = PROCESSED_DATA_DIR / "pitcher_rolling.parquet"
@@ -48,15 +49,16 @@ SAVANT_DATA_DIR = _path_from_env(
 )
 ROSTER_SCRAPER_DIR = PROJECT_ROOT / "RosterScraper"
 
+# Postgame-defined research cohort used by the current Level 1 build.
 MIN_STARTER_BATTERS_FACED: int = 9
 
+# Season configuration. Feature research is restricted to 2023-2024 so the
+# complete 2025 season remains a historical holdout. After evaluation, the
+# production model may fit all training seasons before projecting 2026.
 TRAIN_SEASONS: tuple[int, ...] = (2023, 2024, 2025)
-PROJECTION_SEASON: int = 2026
-
-# Season configuration. The training window was chosen as the 2023-2025 regular
-# seasons; the target deployment is projecting the 2026 season. Keep feature and
 FEATURE_RESEARCH_SEASONS: tuple[int, ...] = (2023, 2024)
 HOLDOUT_SEASON: int = 2025
+PROJECTION_SEASON: int = 2026
 
 
 def ensure_output_directories() -> None:

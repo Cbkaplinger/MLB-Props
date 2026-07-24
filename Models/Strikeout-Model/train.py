@@ -12,18 +12,16 @@ import argparse
 import json
 from datetime import datetime, timezone
 
-import lightgbm as lgb
 import numpy as np
 import pandas as pd
-from sklearn.dummy import DummyRegressor
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
 from Python.config import MODEL_DIR, PITCHER_TRAINING_PATH, ensure_output_directories
 from Python.features import TARGET, model_feature_names
+
+try:
+    import lightgbm as lgb
+except ImportError:  # Base/dev installs can still audit splits and non-LGBM models.
+    lgb = None
 
 
 def load_frame() -> tuple[pd.DataFrame, list[str]]:
@@ -73,6 +71,11 @@ def chronological_split(
 def build_model(name: str):
     """Construct a model; all learned preprocessing is fit on training rows."""
     if name == "lightgbm":
+        if lgb is None:
+            raise ImportError(
+                "LightGBM requires the research dependencies: "
+                'pip install -e ".[research]"'
+            )
         return lgb.LGBMRegressor(
             objective="regression",
             n_estimators=5_000,
@@ -86,21 +89,35 @@ def build_model(name: str):
             random_state=42,
         )
     if name == "ridge":
+        from sklearn.impute import SimpleImputer
+        from sklearn.linear_model import Ridge
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
+
         return make_pipeline(
             SimpleImputer(strategy="median"),
             StandardScaler(),
             Ridge(alpha=1.0),
         )
+    from sklearn.dummy import DummyRegressor
+
     return DummyRegressor(strategy="mean")
 
 
 def metrics(y_true: pd.Series, prediction: np.ndarray) -> dict[str, float]:
     """Regression metrics for one chronological holdout."""
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
     return {
         "mae": float(mean_absolute_error(y_true, prediction)),
         "rmse": float(mean_squared_error(y_true, prediction) ** 0.5),
         "r2": float(r2_score(y_true, prediction)),
     }
+
+
+def lightgbm_matrix(frame: pd.DataFrame, features: list[str]) -> np.ndarray:
+    """Return a stable numeric matrix for LightGBM's Windows native library."""
+    return np.ascontiguousarray(frame[features].to_numpy(dtype=np.float64))
 
 
 def main(model_name: str) -> None:
@@ -109,13 +126,31 @@ def main(model_name: str) -> None:
     model = build_model(model_name)
 
     fit_kwargs = {}
+    fit_target: pd.Series | np.ndarray = train[TARGET]
+    fit_features: pd.DataFrame | np.ndarray = train[features]
     if model_name == "lightgbm":
+        assert lgb is not None  # build_model already raises a clear dependency error.
+        fit_features = lightgbm_matrix(train, features)
+        fit_target = np.ascontiguousarray(train[TARGET].to_numpy(dtype=np.float64))
         fit_kwargs = {
-            "eval_X": validation[features],
-            "eval_y": validation[TARGET],
+            "eval_X": lightgbm_matrix(validation, features),
+            "eval_y": np.ascontiguousarray(
+                validation[TARGET].to_numpy(dtype=np.float64)
+            ),
             "callbacks": [lgb.early_stopping(200), lgb.log_evaluation(50)],
         }
-    model.fit(train[features], train[TARGET], **fit_kwargs)
+    model.fit(fit_features, fit_target, **fit_kwargs)
+
+    validation_features = (
+        lightgbm_matrix(validation, features)
+        if model_name == "lightgbm"
+        else validation[features]
+    )
+    test_features = (
+        lightgbm_matrix(test, features)
+        if model_name == "lightgbm"
+        else test[features]
+    )
 
     report = {
         "model": model_name,
@@ -132,9 +167,9 @@ def main(model_name: str) -> None:
             "test_start": str(test["game_date"].min().date()),
         },
         "validation": metrics(
-            validation[TARGET], np.clip(model.predict(validation[features]), 0, 1)
+            validation[TARGET], np.clip(model.predict(validation_features), 0, 1)
         ),
-        "test": metrics(test[TARGET], np.clip(model.predict(test[features]), 0, 1)),
+        "test": metrics(test[TARGET], np.clip(model.predict(test_features), 0, 1)),
     }
     print(json.dumps(report, indent=2))
 

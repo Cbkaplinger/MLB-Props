@@ -36,7 +36,6 @@ except ImportError:  # pragma: no cover - depends on optional install
 RATE_STATS: tuple[str, ...] = (
     "K", "BB", "Whiffs", "HR", "Hits", "GB", "FB", "HBP", "BIP",
     "CS", "CSW", "Strikes", "Balls", "Outs", "Pitches", "Runs",
-    "xBA", "wOBA", "xwOBA",
 )
 
 # Stats that are already rates / per-start measurements (use the mean).
@@ -325,7 +324,9 @@ PITCH_DENOM_PLAN: tuple[tuple[str, str, bool], ...] = (
 PA_DENOM_PLAN: tuple[tuple[str, str, bool], ...] = (
     ("K", "PA", True), ("BB", "PA", True), ("HR", "PA", True),
     ("Hits", "PA", True), ("HBP", "PA", True), ("BIP", "PA", True),
-    ("wOBA", "PA", False), ("xwOBA", "PA", False),
+    ("xBA_num", "xBA_den", True),
+    ("wOBA_num", "wOBA_den", True),
+    ("xwOBA_num", "wOBA_den", True),
 )
 
 

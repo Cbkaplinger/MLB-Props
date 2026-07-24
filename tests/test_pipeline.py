@@ -33,7 +33,8 @@ def _batter_games():
                 bat_team="BBB", home_team="AAA", away_team="BBB",
                 is_home=False, opp_team="AAA", is_initial_lineup=True,
                 PA=pa, K=k, PA_vL=0, K_vL=0, PA_vR=pa, K_vR=k,
-                Whiffs=5, Pitches=60, Chases=3, OutZone=20,  # raw -> dropped
+                Whiffs=5, Swings=20, Pitches=60,
+                Chases=3, OutZone=20,  # raw -> dropped
             ))
     return pl.DataFrame(rows, schema_overrides={"game_date": pl.Date})
 
@@ -117,7 +118,8 @@ def test_level2_batter_keeps_join_keys():
         "is_home", "opp_team", "k_rate_std",
     ):
         assert col in out.columns
-    assert "whiff_rate_std" in out.columns  # extra rate stat produced
+    assert "whiff_rate_std" in out.columns  # whiffs / swings
+    assert "swstr_rate_std" in out.columns  # whiffs / pitches
     assert "Whiffs" not in out.columns      # raw dropped
 
 
@@ -129,22 +131,27 @@ def test_lineup_aggregation_uses_opponent_and_pitcher_hand():
         [
             dict(game_pk=1, batter=1, bat_team="BBB", is_initial_lineup=True,
                  k_rate_std=0.30, k_rate_std_vL=0.50,
-                 k_rate_std_vR=0.40, whiff_rate_std=0.12, chase_rate_std=0.28),
+                 k_rate_std_vR=0.40, whiff_rate_std=0.25,
+                 swstr_rate_std=0.12, chase_rate_std=0.28),
             dict(game_pk=1, batter=2, bat_team="BBB", is_initial_lineup=True,
                  k_rate_std=0.10, k_rate_std_vL=0.50,
-                 k_rate_std_vR=0.20, whiff_rate_std=0.08, chase_rate_std=0.32),
+                 k_rate_std_vR=0.20, whiff_rate_std=0.15,
+                 swstr_rate_std=0.08, chase_rate_std=0.32),
             dict(game_pk=1, batter=3, bat_team="AAA", is_initial_lineup=True,
                  k_rate_std=0.99, k_rate_std_vL=0.99,
-                 k_rate_std_vR=0.99, whiff_rate_std=0.99, chase_rate_std=0.99),
+                 k_rate_std_vR=0.99, whiff_rate_std=0.99,
+                 swstr_rate_std=0.99, chase_rate_std=0.99),
             dict(game_pk=1, batter=4, bat_team="BBB", is_initial_lineup=False,
                  k_rate_std=0.99, k_rate_std_vL=0.99,
-                 k_rate_std_vR=0.99, whiff_rate_std=0.99, chase_rate_std=0.99),
+                 k_rate_std_vR=0.99, whiff_rate_std=0.99,
+                 swstr_rate_std=0.99, chase_rate_std=0.99),
         ]
     )
     out = training.opposing_lineup_features(starts, batters).row(0, named=True)
     assert abs(out["opp_lineup_k"] - 0.20) < 1e-9
     assert abs(out["opp_lineup_k_vs_hand"] - 0.30) < 1e-9
-    assert abs(out["opp_lineup_whiff"] - 0.10) < 1e-9
+    assert abs(out["opp_lineup_whiff"] - 0.20) < 1e-9
+    assert abs(out["opp_lineup_swstr"] - 0.10) < 1e-9
     assert abs(out["opp_lineup_chase"] - 0.30) < 1e-9
     assert out["opp_lineup_size"] == 2
 
@@ -164,6 +171,7 @@ def test_lineup_aggregation_preserves_season_opening_nulls():
                 k_rate_std_vL=None,
                 k_rate_std_vR=None,
                 whiff_rate_std=None,
+                swstr_rate_std=None,
                 chase_rate_std=None,
             )
         ],
@@ -172,6 +180,7 @@ def test_lineup_aggregation_preserves_season_opening_nulls():
             "k_rate_std_vL": pl.Float64,
             "k_rate_std_vR": pl.Float64,
             "whiff_rate_std": pl.Float64,
+            "swstr_rate_std": pl.Float64,
             "chase_rate_std": pl.Float64,
         },
     )
@@ -180,6 +189,7 @@ def test_lineup_aggregation_preserves_season_opening_nulls():
     assert out["opp_lineup_k"][0] is None
     assert out["opp_lineup_k_vs_hand"][0] is None
     assert out["opp_lineup_whiff"][0] is None
+    assert out["opp_lineup_swstr"][0] is None
     assert out["opp_lineup_chase"][0] is None
 
 
