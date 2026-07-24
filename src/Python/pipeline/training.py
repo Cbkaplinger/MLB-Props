@@ -28,10 +28,57 @@ import polars as pl
 
 from .. import config
 
-_LINEUP_RATE_COLUMNS = {
+_BASE_LINEUP_RATE_COLUMNS = {
     "opp_lineup_whiff": "whiff_rate_std",
     "opp_lineup_swstr": "swstr_rate_std",
     "opp_lineup_chase": "chase_rate_std",
+    "opp_lineup_zswing": "zswing_rate_std",
+    "opp_lineup_swing": "swing_rate_std",
+    "opp_lineup_zcontact": "zcontact_rate_std",
+    "opp_lineup_bb": "bb_rate_std",
+    **{
+        f"opp_lineup_{output}_P{window}": f"{source}_P{window}"
+        for output, source in (
+            ("zswing", "zswing_rate"),
+            ("swing", "swing_rate"),
+            ("zcontact", "zcontact_rate"),
+            ("bb", "bb_rate"),
+        )
+        for window in (5, 10, 20)
+    },
+}
+_RESEARCH_LINEUP_BASES = {
+    "k": "k_rate",
+    "whiff": "whiff_rate",
+    "swstr": "swstr_rate",
+    "chase": "chase_rate",
+    "zswing": "zswing_rate",
+    "swing": "swing_rate",
+    "zcontact": "zcontact_rate",
+    "bb": "bb_rate",
+    "babip": "babip",
+    "hard_hit": "hard_hit_rate",
+    "barrel": "barrel_rate",
+    "sweet_spot": "sweet_spot_rate",
+    "avg_ev": "avg_exit_velocity",
+    "avg_la": "avg_launch_angle",
+    "xba": "xBA",
+    "woba": "wOBA",
+    "xwoba": "xwOBA",
+    "hr": "hr_rate",
+    "fb": "fb_rate",
+    "hr_fb": "hr_fb_rate",
+    "pull_air": "pull_air_rate",
+    "rv_per_pitch": "rv_per_pitch",
+}
+_RESEARCH_LINEUP_RATE_COLUMNS = {
+    f"opp_lineup_{output}{suffix}": f"{source}_{'std' if not suffix else suffix[1:]}"
+    for output, source in _RESEARCH_LINEUP_BASES.items()
+    for suffix in ("", "_P5", "_P10", "_P20")
+}
+_LINEUP_RATE_COLUMNS = {
+    **_RESEARCH_LINEUP_RATE_COLUMNS,
+    **_BASE_LINEUP_RATE_COLUMNS,
 }
 _REQUIRED_BATTER_COLUMNS = {
     "batter",
@@ -41,7 +88,7 @@ _REQUIRED_BATTER_COLUMNS = {
     "k_rate_std",
     "k_rate_std_vL",
     "k_rate_std_vR",
-    *_LINEUP_RATE_COLUMNS.values(),
+    *_BASE_LINEUP_RATE_COLUMNS.values(),
 }
 
 
@@ -51,11 +98,16 @@ def opposing_lineup_features(
 ) -> pl.DataFrame:
     """Aggregate each opposing batter's pregame rates onto a pitcher start.
 
+    Every hitter rate is computed before this join. Level 3 emits the existing
+    flat lineup mean plus research-only batting-order-opportunity weighted means
+    and weighted standard deviations. It never rolls a realized team lineup
+    aggregate, which would mix changing rosters and risk same-game leakage.
+
     Season-opening games (including early neutral-site openers) will have
     null lineup features here: batters have zero season-to-date PA before
-    their own first game, so the K, whiff, swinging-strike, and chase rates are
-    null for the whole opposing lineup. This is intentional -- it preserves the
-    leakage boundary rather than backfilling with a synthetic constant.
+    their own first game, so the K and discipline rates are null for the whole
+    opposing lineup. This is intentional -- it preserves the leakage boundary
+    rather than backfilling with a synthetic constant.
     Downstream training must handle these nulls explicitly (imputation or native
     NaN-tolerant model).
     """
@@ -64,10 +116,27 @@ def opposing_lineup_features(
         raise ValueError(f"batter rolling data is missing lineup columns: {missing}")
 
     keys = starts.select("game_pk", "pitcher", "p_throws", "opp_team")
+    available_rates = {
+        output: source
+        for output, source in _LINEUP_RATE_COLUMNS.items()
+        if source in batters.columns
+    }
+    optional_columns = [
+        column
+        for column in ("lineup_slot", "lineup_pa_weight")
+        if column in batters.columns
+    ]
+    rate_source_columns = [
+        source
+        for source in dict.fromkeys(available_rates.values())
+        if source not in {"k_rate_std", "k_rate_std_vL", "k_rate_std_vR"}
+    ]
+    has_lineup_weight = "lineup_pa_weight" in batters.columns
     joined = keys.join(
         batters.filter(pl.col("is_initial_lineup")).select(
             "game_pk", "batter", "bat_team", "k_rate_std", "k_rate_std_vL",
-            "k_rate_std_vR", *_LINEUP_RATE_COLUMNS.values(),
+            "k_rate_std_vR", *optional_columns,
+            *rate_source_columns,
         ),
         left_on=["game_pk", "opp_team"],
         right_on=["game_pk", "bat_team"],
@@ -78,17 +147,64 @@ def opposing_lineup_features(
         .when(pl.col("p_throws") == "L")
         .then(pl.col("k_rate_std_vL"))
         .otherwise(None)
-        .alias("_k_vs_hand")
+        .alias("_k_vs_hand"),
+        (
+            pl.col("lineup_pa_weight")
+            if has_lineup_weight
+            else pl.lit(1.0)
+        ).alias("_lineup_weight"),
     )
+
+    def weighted_mean(source: str, output: str) -> pl.Expr:
+        valid = pl.col(source).is_not_null() & (pl.col("_lineup_weight") > 0)
+        denominator = pl.when(valid).then(pl.col("_lineup_weight")).otherwise(0.0).sum()
+        numerator = (
+            pl.when(valid)
+            .then(pl.col(source) * pl.col("_lineup_weight"))
+            .otherwise(0.0)
+            .sum()
+        )
+        return pl.when(denominator > 0).then(numerator / denominator).otherwise(None).alias(output)
+
+    def weighted_sd(source: str, output: str) -> pl.Expr:
+        valid = pl.col(source).is_not_null() & (pl.col("_lineup_weight") > 0)
+        denominator = pl.when(valid).then(pl.col("_lineup_weight")).otherwise(0.0).sum()
+        mean = (
+            pl.when(valid)
+            .then(pl.col(source) * pl.col("_lineup_weight"))
+            .otherwise(0.0)
+            .sum()
+            / denominator
+        )
+        second_moment = (
+            pl.when(valid)
+            .then(pl.col(source).pow(2) * pl.col("_lineup_weight"))
+            .otherwise(0.0)
+            .sum()
+            / denominator
+        )
+        variance = (second_moment - mean.pow(2)).clip(lower_bound=0.0)
+        return pl.when(denominator > 0).then(variance.sqrt()).otherwise(None).alias(output)
 
     aggregations = [
         pl.col("batter").count().alias("opp_lineup_size"),
         pl.col("k_rate_std").mean().alias("opp_lineup_k"),
         pl.col("_k_vs_hand").mean().alias("opp_lineup_k_vs_hand"),
+        weighted_mean("_k_vs_hand", "opp_lineup_k_vs_hand_order_weighted"),
+        weighted_sd("_k_vs_hand", "opp_lineup_k_vs_hand_order_sd"),
     ]
     aggregations.extend(
         pl.col(source).mean().alias(output)
-        for output, source in _LINEUP_RATE_COLUMNS.items()
+        for output, source in available_rates.items()
+        if output not in {"opp_lineup_k"}
+    )
+    aggregations.extend(
+        expression
+        for output, source in available_rates.items()
+        for expression in (
+            weighted_mean(source, f"{output}_order_weighted"),
+            weighted_sd(source, f"{output}_order_sd"),
+        )
     )
     return joined.group_by("game_pk", "pitcher").agg(aggregations)
 

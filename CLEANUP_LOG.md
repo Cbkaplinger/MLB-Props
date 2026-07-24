@@ -6,6 +6,47 @@ are intact. A follow-up audit removed only redundant/generated files from
 `Data/` and `artifacts/`; current data, research evidence, and the frozen model
 remain intact.
 
+## Follow-up refresh — 2026-07-24
+
+- Rebuilt Levels 2-3 after adding research-only batter Z-Swing%, Swing%,
+  Z-Contact%, and BB% histories.
+- Regenerated the current 317-feature dictionary, missingness, correlation,
+  VIF, VIF-reduction, and registry artifacts. The production gate remains 248
+  features; 69 candidates require explicit research opt-in. The refreshed
+  Ridge interpretation proposal contains 90 features.
+- Corrected the safety/registry lifecycle so all 16 new batter-lineup columns
+  remain research-only rather than silently entering the default trainer.
+- Added `artifacts/README.md` to distinguish canonical current output,
+  historical evidence, safe regeneration, and disposable files.
+- Deleted the older `lightgbm_krate_20260724_142209.*` rerun after confirming
+  its metadata was byte-identical to the retained, later
+  `lightgbm_krate_20260724_165215.json`.
+- Removed regenerated editable-install metadata and known test/interpreter
+  cache files. The local environment and ignored cache directories remain
+  disposable and are not provenance artifacts.
+- Preserved all raw Savant seasons, postseason files, legacy unique source
+  datasets, the unreproducible baseline snapshot, fold-level research results,
+  stabilization uncertainty output, and the historical 227-feature model.
+- Verification after the refresh: `python -m pytest` — **129 passed**; edited
+  Python files have no IDE lint errors.
+
+## Hitter expansion follow-up — 2026-07-24
+
+- Rebuilt Levels 1-3 with denominator-paired batter expected stats, contact
+  quality, batted-ball outcomes, and P5/P10/P20 histories.
+- Added leakage-safe prior-date batting-order PA weights and lineup weighted
+  standard deviations; current-game realized opportunity is never used.
+- Expanded the research surface from 317 to 563 features while retaining the
+  248-feature production gate. The registry now contains 315 research-only
+  candidates and the refreshed Ridge proposal contains 165 features.
+- Added focused batter-quality stabilization and nested family artifacts.
+  Weighted plus dispersion helped LightGBM in both outer folds but hurt Ridge
+  MAE in both, so no feature was promoted.
+- Enriched the preserved batter-by-pitch-type research parquet to 37 columns
+  without joining its unreliable run-value signals into production.
+- Verification: `python -m pytest` — **132 passed**; edited Python files have no
+  IDE lint errors.
+
 ## Files deleted
 
 - `RosterScraper/RosterScraper.py` — orphaned 40-man-roster scraper; it was not
@@ -213,10 +254,13 @@ documentation ignore was added.
   JSONs, superseded model runs, an orphan export, and empty artifact
   directories were removed.
 
-## Post-cleanup directory tree
+## Historical post-cleanup directory tree (2026-07-23)
 
-Generated caches and the local `.venv/` are shown as local-only entries; large
-untouched data/artifact subtrees are summarized.
+This tree records the first cleanup checkpoint and is not maintained as a live
+inventory. See the active root/Data/model READMEs and `artifacts/README.md` for
+the current layout and lifecycle. Generated caches and the local `.venv/` are
+shown as local-only entries; large untouched data/artifact subtrees are
+summarized.
 
 ```text
 MLB-Props/

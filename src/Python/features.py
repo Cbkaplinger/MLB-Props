@@ -56,8 +56,67 @@ APPROVED_CONTEXT_FEATURES = frozenset(
         "opp_lineup_swstr",
         "opp_lineup_chase",
     }
+) | frozenset(
+    {
+        f"opp_lineup_{metric}{suffix}"
+        for metric in ("zswing", "swing", "zcontact", "bb")
+        for suffix in ("", "_P5", "_P10", "_P20")
+    }
+)
+_PRODUCTION_LINEUP_FEATURES = frozenset(
+    {
+        "opp_lineup_k",
+        "opp_lineup_k_vs_hand",
+        "opp_lineup_whiff",
+        "opp_lineup_swstr",
+        "opp_lineup_chase",
+    }
 )
 _ROLLING_FEATURE_RE = re.compile(r"(_P\d+|_std(?:_vL|_vR|_shrunk)?)$")
+_DETERMINISTIC_REDUNDANCY_RE = re.compile(
+    r"^(?:[a-z]{2}_)?(?:contact_rate|csw_rate|strike_rate|neutral_rate)(?:_|$)"
+)
+_EXPERIMENTAL_FEATURE_RE = re.compile(
+    r"^(?:"
+    r"has_thrown_[a-z]{2}_P2|"
+    r"[a-z]{2}_usage_P2|"
+    r"[a-z]{2}_rv_shrunk_P\d+|"
+    r"(?:bip_rate|babip|first_pitch_strike_rate|ahead_rate|behind_rate|"
+    r"two_strike_reach_rate|putaway_rate|arm_angle|siera_mlb|rv_per_100)"
+    r"_(?:P\d+|std)"
+    r")$"
+)
+_EXPERIMENTAL_LINEUP_DISCIPLINE_RE = re.compile(
+    r"^opp_lineup_(?:zswing|swing|zcontact|bb)(?:_P(?:5|10|20))?$"
+)
+_LINEUP_RESEARCH_FEATURE_RE = re.compile(
+    r"^opp_lineup_(?:"
+    r"k(?:_vs_hand)?|whiff|swstr|chase|zswing|swing|zcontact|bb|"
+    r"babip|hard_hit|barrel|sweet_spot|avg_ev|avg_la|xba|woba|xwoba|"
+    r"hr|fb|hr_fb|pull_air|rv_per_pitch"
+    r")(?:_P(?:5|10|20))?(?:_order_(?:weighted|sd))?$"
+)
+
+
+def is_deterministically_redundant(feature: str) -> bool:
+    """Return whether a feature is an excluded exact algebraic identity.
+
+    Whiff rate is retained instead of contact rate, separate swinging/called
+    strike rates replace CSW, ball rate replaces conventional strike rate, and
+    neutral count share is the omitted reference for count-state composition.
+    """
+    return _DETERMINISTIC_REDUNDANCY_RE.match(feature) is not None
+
+
+def is_experimental_feature(feature: str) -> bool:
+    """Return whether a candidate failed or has not cleared promotion gates."""
+    if feature in _PRODUCTION_LINEUP_FEATURES:
+        return False
+    return (
+        _EXPERIMENTAL_FEATURE_RE.match(feature) is not None
+        or _EXPERIMENTAL_LINEUP_DISCIPLINE_RE.match(feature) is not None
+        or _LINEUP_RESEARCH_FEATURE_RE.match(feature) is not None
+    )
 
 
 def validate_pregame_features(features: Iterable[str]) -> tuple[str, ...]:
@@ -71,19 +130,28 @@ def validate_pregame_features(features: Iterable[str]) -> tuple[str, ...]:
         feature for feature in set(normalized) if normalized.count(feature) > 1
     )
     forbidden = sorted(set(normalized) & FORBIDDEN_PREGAME_FEATURES)
+    redundant = sorted(
+        feature for feature in normalized if is_deterministically_redundant(feature)
+    )
 
     errors: list[str] = []
     if duplicates:
         errors.append(f"duplicate features: {duplicates}")
     if forbidden:
         errors.append(f"same-game features: {forbidden}")
+    if redundant:
+        errors.append(f"deterministically redundant features: {redundant}")
     if errors:
         raise ValueError("Invalid pregame feature list (" + "; ".join(errors) + ")")
 
     return normalized
 
 
-def model_feature_names(frame: pd.DataFrame) -> tuple[str, ...]:
+def model_feature_names(
+    frame: pd.DataFrame,
+    *,
+    include_experimental: bool = False,
+) -> tuple[str, ...]:
     """Return approved numeric/bool Level 3 model inputs.
 
     Unexpected numeric columns fail loudly rather than becoming features
@@ -95,12 +163,15 @@ def model_feature_names(frame: pd.DataFrame) -> tuple[str, ...]:
         column
         for column in frame.select_dtypes(include=["number", "bool"]).columns
         if column not in excluded
+        and not is_deterministically_redundant(column)
+        and (include_experimental or not is_experimental_feature(column))
     )
     unexpected = sorted(
         column
         for column in candidates
         if column not in APPROVED_CONTEXT_FEATURES
         and not _ROLLING_FEATURE_RE.search(column)
+        and not _LINEUP_RESEARCH_FEATURE_RE.match(column)
     )
     if unexpected:
         raise ValueError(

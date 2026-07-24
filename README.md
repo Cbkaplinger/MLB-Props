@@ -133,8 +133,8 @@ must be monitored; MLB IDs remain the durable identity contract.
 
 1. Build Level 1 and rerun the EDA/stabilization studies when inputs change.
 2. Use denominator-aware stabilization to propose nearby windows, then validate
-   them chronologically. The completed study did not by itself change the
-   current 5/10/20 rate or 3/5/10 physics defaults.
+   them chronologically. Phase 3 narrowed the provisional set but did not
+   justify changing the global 5/10/20 rate or 3/5/10 physics defaults.
 3. Build Levels 2 and 3.
 4. Train chronologically with
    `python Models/Strikeout-Model/train.py --model lightgbm`.
@@ -142,14 +142,24 @@ must be monitored; MLB IDs remain the durable identity contract.
    features.
 6. Record a frozen leakage-free baseline before developing a TBF/prop layer.
 
-## Current frozen baseline
+## Current baseline and research surface
 
-The audit-corrected 227-feature evaluation keeps calendar dates disjoint:
-training ends 2025-04-14, validation is 2025-04-15 through 2025-07-05, and
-testing starts 2025-07-06. Test RMSE / R² are 0.1076 / -0.0001 for Mean,
-0.1003 / 0.1313 for Ridge, and 0.0994 / 0.1459 for LightGBM. The older
-overlapping-date run is retained only under
-`docs/archive/leaky-baseline-2026-07-23/`.
+The production safety gate currently admits 248 features. The latest
+date-disjoint 2023-2024 development evaluation uses those 248 features; its
+LightGBM internal-test RMSE / R² are 0.0983 / 0.1546. This is development
+evidence, not an untouched final test.
+
+An additional 315 columns remain research-only. The current 563-feature
+research surface includes pitcher expansions plus batter discipline, contact
+quality, batted-ball outcomes, recent-form windows, batting-order weighted
+lineup means, and lineup dispersion. Generated feature diagnostics, registries,
+stabilization results, and nested-ablation evidence live under
+`artifacts/feature_research/` and `artifacts/stabilization/`; none of these
+additions silently enter the 248-feature production gate.
+
+The older date-disjoint 227-feature evaluation that consulted 2025 remains
+historical benchmark evidence. The invalid overlapping-date run is retained
+only under `docs/archive/leaky-baseline-2026-07-23/`.
 
 Export a notebook to PDF through Chromium:
 

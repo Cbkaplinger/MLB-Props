@@ -7,7 +7,15 @@ import datetime as dt
 import polars as pl
 import pytest
 
-from Python.pipeline import games, rolling, training
+from Python import config
+from Python.pipeline import games, rolling, run_all, training
+
+
+def test_pipeline_defaults_retain_holdout_source_season() -> None:
+    assert games.run.__defaults__ == (config.PIPELINE_SEASONS,)
+    assert run_all.__defaults__ == (config.PIPELINE_SEASONS,)
+    assert config.HOLDOUT_SEASON in config.PIPELINE_SEASONS
+    assert config.HOLDOUT_SEASON not in config.TRAIN_SEASONS
 
 
 def _pitcher_games():
@@ -34,13 +42,22 @@ def _batter_games():
                 is_home=False, opp_team="AAA", is_initial_lineup=True,
                 PA=pa, K=k, PA_vL=0, K_vL=0, PA_vR=pa, K_vR=k,
                 Whiffs=5, Swings=20, Pitches=60,
-                Chases=3, OutZone=20,  # raw -> dropped
+                Chases=3, OutZone=20, ZSwings=12, InZone=30,
+                ZContacts=10, BB=1,  # raw -> dropped
             ))
     return pl.DataFrame(rows, schema_overrides={"game_date": pl.Date})
 
 
 def _park_factors():
     return pl.DataFrame([dict(season=2024, home_team="AAA", park_k_factor=1.05)])
+
+
+def _new_discipline_rates(value):
+    return {
+        f"{rate}_rate_{suffix}": value
+        for rate in ("zswing", "swing", "zcontact", "bb")
+        for suffix in ("std", "P5", "P10", "P20")
+    }
 
 
 def test_level1_validates_requested_season_game_ids(monkeypatch):
@@ -120,6 +137,9 @@ def test_level2_batter_keeps_join_keys():
         assert col in out.columns
     assert "whiff_rate_std" in out.columns  # whiffs / swings
     assert "swstr_rate_std" in out.columns  # whiffs / pitches
+    assert "zswing_rate_std" in out.columns
+    assert "zswing_rate_P5" in out.columns
+    assert "bb_rate_P20" in out.columns
     assert "Whiffs" not in out.columns      # raw dropped
 
 
@@ -130,21 +150,29 @@ def test_lineup_aggregation_uses_opponent_and_pitcher_hand():
     batters = pl.DataFrame(
         [
             dict(game_pk=1, batter=1, bat_team="BBB", is_initial_lineup=True,
+                 lineup_slot=1, lineup_pa_weight=2.0,
                  k_rate_std=0.30, k_rate_std_vL=0.50,
                  k_rate_std_vR=0.40, whiff_rate_std=0.25,
-                 swstr_rate_std=0.12, chase_rate_std=0.28),
+                 swstr_rate_std=0.12, chase_rate_std=0.28,
+                 **_new_discipline_rates(0.40)),
             dict(game_pk=1, batter=2, bat_team="BBB", is_initial_lineup=True,
+                 lineup_slot=9, lineup_pa_weight=1.0,
                  k_rate_std=0.10, k_rate_std_vL=0.50,
                  k_rate_std_vR=0.20, whiff_rate_std=0.15,
-                 swstr_rate_std=0.08, chase_rate_std=0.32),
+                 swstr_rate_std=0.08, chase_rate_std=0.32,
+                 **_new_discipline_rates(0.20)),
             dict(game_pk=1, batter=3, bat_team="AAA", is_initial_lineup=True,
+                 lineup_slot=1, lineup_pa_weight=2.0,
                  k_rate_std=0.99, k_rate_std_vL=0.99,
                  k_rate_std_vR=0.99, whiff_rate_std=0.99,
-                 swstr_rate_std=0.99, chase_rate_std=0.99),
+                 swstr_rate_std=0.99, chase_rate_std=0.99,
+                 **_new_discipline_rates(0.99)),
             dict(game_pk=1, batter=4, bat_team="BBB", is_initial_lineup=False,
+                 lineup_slot=10, lineup_pa_weight=1.0,
                  k_rate_std=0.99, k_rate_std_vL=0.99,
                  k_rate_std_vR=0.99, whiff_rate_std=0.99,
-                 swstr_rate_std=0.99, chase_rate_std=0.99),
+                 swstr_rate_std=0.99, chase_rate_std=0.99,
+                 **_new_discipline_rates(0.99)),
         ]
     )
     out = training.opposing_lineup_features(starts, batters).row(0, named=True)
@@ -153,6 +181,11 @@ def test_lineup_aggregation_uses_opponent_and_pitcher_hand():
     assert abs(out["opp_lineup_whiff"] - 0.20) < 1e-9
     assert abs(out["opp_lineup_swstr"] - 0.10) < 1e-9
     assert abs(out["opp_lineup_chase"] - 0.30) < 1e-9
+    assert out["opp_lineup_k_order_weighted"] == pytest.approx(7 / 30)
+    assert out["opp_lineup_k_vs_hand_order_weighted"] == pytest.approx(1 / 3)
+    assert out["opp_lineup_k_order_sd"] == pytest.approx((2 / 225) ** 0.5)
+    assert abs(out["opp_lineup_zswing"] - 0.30) < 1e-9
+    assert abs(out["opp_lineup_bb_P20"] - 0.30) < 1e-9
     assert out["opp_lineup_size"] == 2
 
 
@@ -173,6 +206,7 @@ def test_lineup_aggregation_preserves_season_opening_nulls():
                 whiff_rate_std=None,
                 swstr_rate_std=None,
                 chase_rate_std=None,
+                **_new_discipline_rates(None),
             )
         ],
         schema_overrides={
@@ -182,6 +216,10 @@ def test_lineup_aggregation_preserves_season_opening_nulls():
             "whiff_rate_std": pl.Float64,
             "swstr_rate_std": pl.Float64,
             "chase_rate_std": pl.Float64,
+            **{
+                column: pl.Float64
+                for column in _new_discipline_rates(None)
+            },
         },
     )
 
@@ -191,6 +229,8 @@ def test_lineup_aggregation_preserves_season_opening_nulls():
     assert out["opp_lineup_whiff"][0] is None
     assert out["opp_lineup_swstr"][0] is None
     assert out["opp_lineup_chase"][0] is None
+    assert out["opp_lineup_zswing"][0] is None
+    assert out["opp_lineup_bb_P20"][0] is None
 
 
 def test_pitcher_training_rejects_duplicate_lineup_keys(monkeypatch):

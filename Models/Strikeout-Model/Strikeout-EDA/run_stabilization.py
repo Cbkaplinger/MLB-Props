@@ -51,6 +51,72 @@ PITCHER_SPECS = (
     StatSpec("pitcher", "bb_rate", "BB", "PA", tuple(range(25, 1001, 25))),
     StatSpec("pitcher", "gb_rate", "GB", "BIP", tuple(range(25, 1001, 25))),
     StatSpec("pitcher", "hr_fb", "HR", "FB", tuple(range(10, 401, 10))),
+    StatSpec(
+        "pitcher", "bip_rate", "BIP", "Pitches", tuple(range(100, 5001, 100))
+    ),
+    StatSpec(
+        "pitcher", "babip", "BABIP_num", "BABIP_den", tuple(range(25, 1001, 25))
+    ),
+    StatSpec(
+        "pitcher",
+        "first_pitch_strike_rate",
+        "FirstPitchStrikes",
+        "FirstPitches",
+        tuple(range(25, 1001, 25)),
+    ),
+    StatSpec(
+        "pitcher",
+        "ahead_rate",
+        "AheadPitches",
+        "Pitches",
+        tuple(range(100, 5001, 100)),
+    ),
+    StatSpec(
+        "pitcher",
+        "neutral_rate",
+        "NeutralPitches",
+        "Pitches",
+        tuple(range(100, 5001, 100)),
+    ),
+    StatSpec(
+        "pitcher",
+        "behind_rate",
+        "BehindPitches",
+        "Pitches",
+        tuple(range(100, 5001, 100)),
+    ),
+    StatSpec(
+        "pitcher",
+        "two_strike_reach_rate",
+        "TwoStrikePA",
+        "PA",
+        tuple(range(25, 1001, 25)),
+    ),
+    StatSpec(
+        "pitcher",
+        "putaway_rate",
+        "PutAwayK",
+        "TwoStrikePitches",
+        tuple(range(25, 2001, 25)),
+    ),
+    StatSpec(
+        "pitcher",
+        "arm_angle",
+        "arm_angle_num",
+        "arm_angle_den",
+        tuple(range(100, 5001, 100)),
+    ),
+    StatSpec(
+        "pitcher",
+        "rv_per_pitch",
+        "RV_num",
+        "RV_den",
+        tuple(range(100, 5001, 100)),
+    ),
+    StatSpec("pitcher", "popup_rate", "PU", "PA", tuple(range(25, 1001, 25))),
+    StatSpec(
+        "pitcher", "outfield_fly_rate", "OFB", "PA", tuple(range(25, 1001, 25))
+    ),
 )
 BatterSpec = StatSpec
 BATTER_SPECS = (
@@ -63,6 +129,48 @@ BATTER_SPECS = (
     ),
     BatterSpec(
         "batter", "chase_rate", "Chases", "OutZone", tuple(range(50, 2001, 50))
+    ),
+    BatterSpec(
+        "batter", "zswing_rate", "ZSwings", "InZone", tuple(range(50, 2001, 50))
+    ),
+    BatterSpec(
+        "batter", "swing_rate", "Swings", "Pitches", tuple(range(100, 4001, 100))
+    ),
+    BatterSpec(
+        "batter",
+        "zcontact_rate",
+        "ZContacts",
+        "ZSwings",
+        tuple(range(50, 2001, 50)),
+    ),
+    BatterSpec("batter", "bb_rate", "BB", "PA", tuple(range(25, 1001, 25))),
+    BatterSpec("batter", "babip", "BABIP_num", "BABIP_den", tuple(range(25, 1001, 25))),
+    BatterSpec(
+        "batter", "hard_hit_rate", "HardHit", "EV_den", tuple(range(25, 1001, 25))
+    ),
+    BatterSpec(
+        "batter", "barrel_rate", "Barrels", "xBA_den", tuple(range(25, 1001, 25))
+    ),
+    BatterSpec(
+        "batter", "sweet_spot_rate", "SweetSpot", "LA_den", tuple(range(25, 1001, 25))
+    ),
+    BatterSpec(
+        "batter", "avg_exit_velocity", "EV_num", "EV_den", tuple(range(25, 1001, 25))
+    ),
+    BatterSpec(
+        "batter", "avg_launch_angle", "LA_num", "LA_den", tuple(range(25, 1001, 25))
+    ),
+    BatterSpec("batter", "xBA", "xBA_num", "xBA_den", tuple(range(25, 1001, 25))),
+    BatterSpec("batter", "wOBA", "wOBA_num", "wOBA_den", tuple(range(25, 1001, 25))),
+    BatterSpec("batter", "xwOBA", "xwOBA_num", "wOBA_den", tuple(range(25, 1001, 25))),
+    BatterSpec("batter", "hr_rate", "HR", "PA", tuple(range(25, 1001, 25))),
+    BatterSpec("batter", "fb_rate", "FB", "BIP", tuple(range(25, 1001, 25))),
+    BatterSpec("batter", "hr_fb_rate", "HR", "FB", tuple(range(25, 1001, 25))),
+    BatterSpec(
+        "batter", "pull_air_rate", "PullAir", "BIP", tuple(range(25, 1001, 25))
+    ),
+    BatterSpec(
+        "batter", "rv_per_pitch", "RV_num", "RV_den", tuple(range(100, 4001, 100))
     ),
 )
 
@@ -278,7 +386,7 @@ def analyze(
 
 
 def main() -> None:
-    output_dir = config.OUTPUT_DIR / "stabilization"
+    output_dir = config.OUTPUT_DIR / "stabilization" / "expanded"
     pitcher = _dev_frame(config.PITCHER_GAMES_PATH, "pitcher")
     batter = _dev_frame(config.BATTER_GAMES_PATH, "batter")
     if pitcher["PA"].min() < config.MIN_STARTER_BATTERS_FACED:

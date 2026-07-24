@@ -135,7 +135,7 @@ def _validate_raw_seasons(raw: pl.DataFrame, years: Iterable[int]) -> None:
 
 
 def run(
-    years: Iterable[int] = config.TRAIN_SEASONS,
+    years: Iterable[int] = config.PIPELINE_SEASONS,
     *,
     min_batters_faced: int = config.MIN_STARTER_BATTERS_FACED,
     refresh_player_map: bool = False,

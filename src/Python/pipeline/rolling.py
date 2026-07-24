@@ -40,7 +40,7 @@ _PITCHER_LABELS = ("K", "PA", "Outs", "k_rate")
 _BATTER_STATIC = (
     "game_pk", "game_date", "season", "batter", "batter_name", "stand",
     "bat_team", "home_team", "away_team", "is_home", "opp_team",
-    "is_initial_lineup",
+    "is_initial_lineup", "lineup_slot", "lineup_pa_weight",
 )
 
 

@@ -206,34 +206,60 @@ Historical frozen baseline (superseded because boundary dates overlapped):
 | Mean | 227 | 2025-04-15 | 2025-07-06 | 2025-07-06 | 0.0857 | 0.1074 | -0.0001 |
 | Ridge | 227 | 2025-04-15 | 2025-07-06 | 2025-07-06 | 0.0797 | 0.1002 | 0.1290 |
 
-Final audit-corrected, date-disjoint baseline:
+Current 2023-2024-only, date-disjoint baseline after deterministic pruning:
 
 | Model | Features | Train end | Val start | Val end | Test start | Test MAE | Test RMSE | Test R2 |
 |---|---|---|---|---|---|---|---|---|
-| Mean | 227 | 2025-04-14 | 2025-04-15 | 2025-07-05 | 2025-07-06 | 0.0859 | 0.1076 | -0.0001 |
-| Ridge | 227 | 2025-04-14 | 2025-04-15 | 2025-07-05 | 2025-07-06 | 0.0797 | 0.1003 | 0.1313 |
-| LightGBM | 227 | 2025-04-14 | 2025-04-15 | 2025-07-05 | 2025-07-06 | 0.0786 | 0.0994 | 0.1459 |
+| Mean | 248 | 2024-06-08 | 2024-06-09 | 2024-08-05 | 2024-08-06 | 0.0854 | 0.1070 | -0.0010 |
+| Ridge | 248 | 2024-06-08 | 2024-06-09 | 2024-08-05 | 2024-08-06 | 0.0788 | 0.0993 | 0.1378 |
+| LightGBM | 248 | 2024-06-08 | 2024-06-09 | 2024-08-05 | 2024-08-06 | 0.0783 | 0.0983 | 0.1546 |
+
+The superseded run previously labeled “final audit-corrected” trained through
+2025-04-14, validated through 2025-07-05, and tested from 2025-07-06. Its
+Mean/Ridge/LightGBM test RMSE values were 0.1076/0.1003/0.0994 and R² values
+were -0.0001/0.1313/0.1459. It is retained in the experiment count because
+early 2025 entered fitting and later 2025 was consulted; it is not a holdout
+result.
 
 > Add rows as new models or feature-pruned variants are run.
 > Historical frozen snapshot location:
 > `docs/archive/leaky-baseline-2026-07-23/`. It is retained for process
 > history only and must not be cited as current performance.
-> The fitted LightGBM model and its complete feature/evaluation JSON are in
-> `artifacts/models/lightgbm_krate_20260723_202255.*`.
-> Final SHA-256: pitcher training
-> `ba27a66c90335de113232308de9364ae22769f61ce3cbd36f9fe2294f024f3d9`,
-> batter training
-> `45809e8f3dc727de427ac479206105c0f1480455b50c22ba959f4e90bc199cda`,
-> ordered feature list
-> `df924cf1d06108ff7e34d3e50e5a97472fbc44ac886de6f18acc8d19578d6c30`.
-> Git commit hash at time of this run:
-> `2e7f83c24a6cb330d11f6e94a68315fce8b3272b` (dirty working tree; exact source
-> snapshot and status are stored with the frozen artifacts).
+> The current LightGBM artifact was created at `2026-07-24 16:52:15 UTC`:
+> `artifacts/models/lightgbm_krate_20260724_165215.txt` (SHA-256
+> `0d428a6cc0284881d99af226204666271005d9bd51f968d575cb429ddb2d28a8`)
+> with evaluation metadata in the matching JSON (SHA-256
+> `79b00d4098937eab769f0023d4c82a065cc1192d0cbb16323630a4144fac3036`).
+> The fit contains only 2023-2024 rows. The previously consulted 2025 results
+> remain historical evidence and were not read by this corrected run.
 
 ## 6. Ablation plan
 
 > Design ablations around feature GROUPS, not individual columns, to tell
 > a clean story. Fill in results as each ablation is run.
+
+### Nested selection protocol
+
+The reused `2023_h2` / `2024_h1` / `2024_h2` screen is retired. Feature-family
+and window configurations are now selected by mean MAE on two inner,
+chronological folds contained wholly within each outer training period. The
+selected configuration is then refit on all outer-train rows and evaluated
+once on that outer confirmation period. No outer row participates in its own
+selection.
+
+Outer confirmations are 2024 H1 after training on 2023 and 2024 H2 after
+training through 2024 H1. Exact boundaries and inner selections are stored in
+`candidate_ablation_metadata.json`, `window_ablation_metadata.json`, and the
+matching `*_inner_selection.csv` files under
+`artifacts/feature_research/`. `_research_folds` was removed and
+`tests/test_nested_cv.py` enforces containment and date disjointness.
+
+The nested rerun selected different feature/window configurations by outer
+fold and model. All four feature-family selections beat their outer core MAE,
+by `0.000291` to `0.000733`; all four window selections also improved outer
+MAE, by approximately `0.000001` to `0.000386`. These are honest outer
+confirmation results, but the changing selections are evidence against calling
+one current configuration universally stable.
 
 | Feature group removed | Test MAE | Test RMSE | Test R2 | Delta vs full |
 |---|---|---|---|---|
@@ -250,6 +276,190 @@ Final audit-corrected, date-disjoint baseline:
 > and the current 232-feature candidate set --
 > which near-duplicate columns exist (e.g. k_rate_P5 vs P10 vs P20,
 > k_rate_std vs k_rate_std_shrunk) and what was pruned, if anything.
+
+### Reproducible phase-1 diagnostics
+
+`scripts/feature_diagnostics.py` runs only on the 6,557-row chronological
+training partition ending 2024-06-08. `src/Python/features.py` now excludes all
+rolling `contact_rate` and `csw_rate` variants, retaining Whiff%, SwStr%, and
+called-strike rate. The resulting 248-feature design is full rank.
+
+Artifacts under `artifacts/feature_research/` include:
+
+- `feature_missingness.csv` and `dispersion_ratios.csv`;
+- full Pearson, targeted Spearman, and narrow tied-pair Kendall matrices plus
+  flagged-pair tables, all using `|correlation| > 0.80`;
+- `vif.csv`, `usage_composition_rank_audit.csv`, and
+  `feature_dictionary.csv`;
+- `feature_diagnostics_metadata.json`, which records the split and method.
+
+The reduced design has 242 features above VIF 5 and 236 above VIF 10, so exact
+identity removal fixed rank deficiency but did not solve the broader
+multicollinearity problem. The eight retained pitch-type usage shares are full
+rank and do not sum exactly to one because the taxonomy does not exhaust all
+pitches, but 82.2%-96.3% of complete rows are within one percentage point of
+one; they remain a near-compositional VIF concern.
+
+The old dispersion claim does **not** reproduce under the required corrected
+training-only scope. With documented PA bins `(8,12]`, `(12,16]`, `(16,20]`,
+`(20,24]`, `(24,28]`, and `(28,∞]`, count-variance ratios range
+`1.259-1.502` and K/PA-variance ratios range `1.273-1.496`. The prior
+`1.38-1.53` / `1.35-1.52` ranges used 2023-2025 and did not document bin
+edges; they are retained only as a superseded, non-reproducible scope.
+
+### Phase-2 VIF cluster proposal
+
+`scripts/vif_cluster_reduction.py` groups the 236 Phase-1 features above VIF 10
+using the saved Pearson-linked clusters and chooses one representative from
+each of 62 clusters. Selection priority is enforced in order: documented
+stabilization/reliability, then lower training-split missingness, then the
+simpler definition. Every decision and rationale is recorded in
+`artifacts/feature_research/vif_cluster_selection.csv`.
+
+The proposal retains 62 representatives plus 12 unclustered features, reducing
+248 eligible features to 74. Recomputed VIF has median `3.214`, maximum
+`16.432`, and two values above 10 (`xwOBA_P5` and `xFIP_P5`). This is a
+meaningful cluster reduction, not a claim that all collinearity disappeared.
+No further mechanical pruning is required merely to force VIF below 10:
+overlapping rolling windows are correlated by design, and multicollinearity is
+not a LightGBM predictive-performance pruning rule, although it remains
+important for Ridge interpretation and stable attribution. The proposal has
+not been wired into `train.py` or frozen as the registry.
+
+### Expanded candidate research (2026-07-24)
+
+The Level 1/2 pipeline now computes leakage-safe research candidates for prior-
+two-start arsenal presence and pitch-weighted usage, BIP%, BABIP, first-pitch
+strike%, ahead/behind count shares, two-strike reach, put-away%, arm angle,
+fixed-formula MLB SIERA, and pitcher run-expectancy value. Conventional
+Strike% is retained only as an auditable Level 1 metric and rejected from the
+model because it is exactly `1 - Ball%`; neutral count share is the omitted
+reference because ahead + neutral + behind = 1. WPA is rejected as leverage
+context rather than pitcher strikeout skill.
+
+All new artifacts are versioned under
+`artifacts/feature_research/expanded/` and
+`artifacts/stabilization/expanded/`. On the 6,557-row training partition, the
+expanded 301-feature research design is full rank but has 282 VIF values above
+10. The Ridge proposal reduces it to 81 features, median VIF `3.098`, maximum
+`12.618`, with one value above 10.
+
+At the `r=.50` reliability gate, BIP%, behind-count share, two-strike reach,
+put-away%, and arm angle clear the lower-bootstrap-CI rule. BABIP, first-pitch
+strike%, ahead-count share, overall run value, every pitcher pitch-type run-
+value series, and every batter pitch-type/coarse-family run-value series do
+not. Arm angle is the strongest measurement-stability result (`100` pitches;
+about `1.1` starts), but repeatability alone is not predictive evidence.
+
+Nested selection did not choose any expanded family in any outer-fold/model
+selection. LightGBM selected `preferred_raw` then `batter_whiff`; Ridge selected
+`compact_candidate` then `revised_compact`. Window selections likewise stayed
+with existing discipline configurations. Therefore all 53 expanded columns
+remain research-only and the production LightGBM registry stays at the 248
+audit-corrected baseline features. The decision table is
+`artifacts/feature_research/expanded/candidate_feature_registry.csv`; final
+LightGBM and Ridge lists are `final_lightgbm_registry.csv` and
+`final_ridge_registry.csv`.
+
+#### Phase 3 follow-up and refreshed diagnostics
+
+Phase 3 added 16 opposing-lineup batter-discipline candidates (Z-Swing%,
+Swing%, Z-Contact%, and BB%; season-to-date plus P5/P10/P20) without promoting
+them through the production gate. At that checkpoint the research design was
+317 features: 248 production-baseline columns plus 69 research-only candidates.
+The refreshed 6,557-row training-only diagnostic was full rank, with 291 VIF
+values above 10, and yielded a separate 90-feature Ridge interpretation
+proposal (median VIF `3.223`, maximum `12.640`, one value above 10).
+That checkpoint's `pitcher_training.parquet` SHA-256 was
+`f2f061489b098319e6eb3e531374be398a3f8d9dc4265f3ecf189c842ae5b3b6`;
+the earlier `41d1d1b9...` hash remains attached only to the corrected-frame
+ablation checkpoint that preceded the batter-discipline columns.
+
+The stabilization-nominated batter family is lineup Z-Swing% P10, Swing% P10,
+Z-Contact% P20, and BB% season-to-date. It improved LightGBM outer-fold MAE by
+`0.000962` and `0.000743`; Ridge selected core in H1 and the family in H2.
+This is positive LightGBM development evidence, but the 16 generated columns
+remain research-only because explicit registry freeze was outside Phase 3.
+
+The rolling-window follow-up tested only BABIP P20/P30/P35, arm angle P2/P3,
+and run value P10/P20/P25. No global rolling default changed. Run-value P25 is
+a LightGBM-specific proposal; BABIP, arm angle, Ridge run value, and unstudied
+physics/usage windows remain provisional.
+
+#### Hitter quality and lineup-construction follow-up
+
+The batter game table now retains denominator pairs for BABIP, hard-hit%,
+barrel%, sweet-spot%, average exit velocity/launch angle, xBA, wOBA, xwOBA,
+HR%, FB%, HR/FB, pulled-air balls per BIP, and batter run value per pitch.
+Every available metric receives leakage-safe season-to-date and P5/P10/P20
+histories before lineup aggregation. The richer batter-by-pitch-type research
+table has 416,999 batter/game/pitch-type rows and 37 columns; it is not joined
+to the model because the earlier pitch-type run-value reliability gate failed.
+
+Lineup construction now retains the flat mean and adds prior-date
+batting-order-opportunity weighted means and weighted standard deviations.
+The final prior-date weights are approximately 4.50 PA for lineup slot 1 and
+3.47 for slot 9. Current-game realized PA is never used. Pulled-air rate is the
+project's transparent definition: pulled Statcast fly balls or line drives per
+BIP using batter hand and field-center x-coordinate 125.42.
+
+At the lower-bootstrap-CI `r=.50` gate, hard-hit%, barrel%, average exit
+velocity, average launch angle, xBA, xwOBA, HR%, FB%, HR/FB, and pulled-air
+rate were reliably estimable. BABIP, sweet-spot%, wOBA, and run value per pitch
+were not. The nested ablation therefore tested one stabilization-nominated
+representation for only those ten metrics across four predeclared
+configurations: core, flat, order weighted, and weighted plus dispersion.
+
+Weighted plus dispersion won every inner selection. LightGBM outer-fold MAE
+improved by `0.000360` and `0.000152`; Ridge MAE worsened by `0.000209` and
+`0.000200`. No feature was promoted. The production gate remains 248 while the
+research surface is 563 features (315 research-only). The refreshed Ridge VIF
+proposal has 165 features, median VIF `4.263`, maximum `14.618`, and four
+values above 10. Current `pitcher_training.parquet` SHA-256:
+`20eaaca766a2a24fa8e0db5741c6ae039478476139d42c2b5c1bbd7e609e657e`.
+
+#### Feature-count reconciliation and coverage inventory
+
+The apparent 301-row `feature_dictionary.csv` versus 317 model-feature
+discrepancy compared two different research checkpoints, not two views of the
+same frame. The 301-row dictionary described the expanded pitcher design
+before the 16 opposing-lineup discipline columns were materialized. Adding
+season-to-date plus P5/P10/P20 for Z-Swing%, Swing%, Z-Contact%, and BB%
+produced the 317-feature checkpoint. The later hitter-quality and lineup
+construction work added the contact-quality, order-weighted, and weighted-SD
+research variants. The current expanded dictionary and missingness files each
+cover all 563 current research features: 248 production-baseline columns plus
+315 research-only columns. The older 301 and 317 figures remain useful dated
+checkpoints, but neither is the current model-input inventory.
+
+`artifacts/feature_research/feature_coverage_matrix.csv` is the cross-level
+inventory. Its 117 conceptual rows map every one of the 563 Level 3 features
+exactly once through `level3_columns` and `level3_feature_count`. It also keeps
+separate batter-source rows and 31 documented omission/rejection rows so that
+Level 1/2 metrics do not disappear merely because they are not direct pitcher
+training columns. The matrix is generated by
+`scripts/feature_coverage_matrix.py`, which fails if the current dictionary is
+not a 563-feature one-to-one accounting.
+
+#### Research parking lot
+
+These items are intentionally recorded without changing the feature pipeline:
+
+- complete the rolling-window decision for provisional pitcher physics,
+  mechanics, usage, BABIP, arm angle, and run-value representations;
+- test season-to-date FIP and leakage-safe xFIP only as predeclared
+  replacements, alongside the existing rolling composites;
+- decide whether batter Zone%, O-Contact%, called-strike%, HBP%, hit rate, and
+  BIP% merit stabilization screening; retain Contact% and CSW% as rejected
+  deterministic representations;
+- leave batter pitch-type matchup features outside Level 3 until a reliability
+  design supports more than the failed run-value screen;
+- consider pitcher-hand batter discipline splits only after the unsplit family
+  is resolved;
+- consider robust lineup dispersion/threat summaries only as a capped
+  alternative to the existing weighted SD, not an open-ended operator search;
+- correct neutral-site/international venue handling in the park-factor key;
+- retain the VIF tie-breaker relabeling task for after this inventory.
 
 ### Denominator-aware stabilization findings
 
@@ -381,62 +591,51 @@ Outputs are under `artifacts/stabilization/pitch_type/`; the reusable runner is
    ablation numbers predate denominator-weighted expected stats and splitter
    propagation. Do not freeze pitch-type features from descriptive rankings or
    stabilization alone.
-7. **Evaluate the final betting target.** Preserve the untouched 2025 holdout;
-   on development folds compare count MAE/RMSE, calibration, and probabilities
-   above/below prop lines, not only K/PA R2.
+7. **Evaluate the final betting target.** Do not use the previously scored
+   `2025-07-06+` benchmark for additional feature decisions. On development
+   folds compare count MAE/RMSE, calibration, and probabilities above/below
+   prop lines, not only K/PA R2; reserve genuinely future post-freeze games for
+   the next pristine test.
 
-### Protected feature-family ablation
+### Corrected-frame protected feature-family ablation
 
-These results predate denominator-weighted expected-stat corrections and
-splitter (`fs_*`) propagation. They remain development evidence, but must be
-rerun on the rebuilt frame before any registry is frozen.
+The pipeline and ablations were rerun on 2026-07-24 after the
+denominator-weighted expected-stat and splitter (`fs_*`) corrections. The
+rebuilt pitcher frame has 14,124 rows and SHA-256
+`41d1d1b9602b509bc183e3f03bedad13cc2b3a8eb7cb557607d712acfe5a9ee0`.
+Three expanding, date-disjoint folds remain entirely within 2023-2024; the
+2025 rows were filtered out before any fit, score, or feature decision. The
+corrected frame has a 238-feature core, a 243-feature original compact
+candidate, a 251-feature preferred-raw candidate, and 256 features with every
+screened candidate.
 
-A fixed Ridge and LightGBM screen used three expanding, date-disjoint folds
-contained entirely within 2023-2024. The 2025 holdout was not read. Every
-configuration used the same 214-feature core; reported improvements are mean
-validation deltas against that core. Outputs and split metadata are under
-`artifacts/feature_research/`.
+- Opponent-lineup Whiff% + SwStr% is the strongest robust family. Its
+  240-feature configuration improved MAE in all three folds for both models:
+  LightGBM by `0.000554` with `0.01145` R2 improvement and Ridge by
+  `0.000343` with `0.00701` R2 improvement.
+- Pitcher Whiff% improved LightGBM MAE in all three folds (`0.000218`) but
+  slightly hurt Ridge (`-0.000019`). Pitcher GB% likewise helped LightGBM in
+  all folds (`0.000266`) but clearly hurt Ridge (`-0.000216`). Neither is a
+  model-agnostic registry choice.
+- Adding every candidate improved LightGBM MAE in only one fold and Ridge in
+  two, with worse mean Ridge RMSE and R2. The broad 251-feature preferred-raw
+  set was similarly inconsistent.
+- The corrected window screen favors Ball% P5 (`0.000372` LightGBM MAE
+  improvement, 3/3 folds) and SwStr% P20 (`0.000290`, 3/3 folds). Their Ridge
+  improvements were positive but tiny and occurred in two folds. No Whiff%
+  window improved all three LightGBM folds.
+- A targeted 242-feature revised compact set added lineup Whiff%/SwStr%,
+  pitcher Ball% P5, and pitcher SwStr% P20. It improved Ridge MAE in all folds
+  (`0.000361`) but LightGBM in only two (`0.000487`) and did not beat the
+  simpler lineup-only configuration for LightGBM.
 
-- Batter lineup Whiff% + SwStr% was the only family that improved MAE in all
-  three folds for both models: LightGBM improved by `0.000527` MAE and `0.0106`
-  R2; Ridge improved by `0.000302` MAE and `0.0066` R2. Retain both as
-  candidates for now.
-- Pitcher Whiff% + SwStr% improved LightGBM in all folds (`0.000341` mean MAE)
-  but slightly hurt Ridge (`-0.000042`). Their incremental value appears
-  nonlinear; do not force both into a linear model.
-- Pitcher Ball% improved LightGBM in all folds (`0.000352` mean MAE) and was
-  effectively neutral in Ridge (`-0.000014`). Keep it as a candidate.
-- Pitcher GB% improved LightGBM in two of three folds but hurt Ridge in every
-  fold (`-0.000400` mean MAE). Exclude it from the leading K/PA registry for
-  now; retain it for run-prevention/workload research.
-- Adding all candidates was worse than selective subsets and improved
-  LightGBM MAE in only two folds. This rejects an indiscriminate
-  "include everything" approach.
-
-Redundancy remains substantial: P10 versus P20 correlations are approximately
-`0.96` within Whiff%, SwStr%, Ball%, and GB%; pitcher Whiff% versus SwStr% is
-approximately `0.94` at matched windows; batter lineup Whiff% versus SwStr% is
-`0.925`.
-
-The follow-up window screen found that average improvement alone overstated
-short-window value because the 2023 second-half fold drove most P5 gains.
-Pitcher Whiff% + SwStr% at P20 was the only tested whiff combination that
-improved LightGBM in all three folds and improved Ridge in two. SwStr% P20 was
-the strongest Ridge discipline window. Ball% P20 improved Ridge in all three
-folds and LightGBM in two, while Ball% P5 improved LightGBM in only one.
-
-The provisional compact candidate set is therefore pitcher Whiff% P20,
-pitcher SwStr% P20, pitcher Ball% P20, and both season-to-date batter lineup
-rates. P5 may remain a nonlinear recent-form challenger, but P10/P20/STD
-duplicates should not all survive the registry freeze. This remains a
-development-data decision; no 2025 result has been consulted.
-
-That five-feature compact addition was then tested as one configuration. It
-improved MAE in all three folds for both models: LightGBM by `0.000436` with
-`0.0078` R2 improvement, and Ridge by `0.000370` with `0.0081` R2 improvement.
-At 219 total features it was more consistent than the indiscriminate
-232-feature set, which improved LightGBM in only two folds and hurt Ridge.
-This is now the leading registry candidate, not a frozen final registry.
+The leading screened development configuration is therefore the 238-feature
+core plus both opponent-lineup discipline rates (240 features). It is not a
+frozen registry; that historical screen contained as many as 256 eligible
+features. The current safety gate now admits only the 248 production-baseline
+features by default, while 69 candidates require explicit research opt-in.
+Pitcher Ball% P5 and SwStr% P20 remain model-specific challengers, not default
+registry members. This decision used no 2025 result.
 
 ## 8. Error analysis
 
@@ -477,6 +676,51 @@ This is now the leading registry candidate, not a frozen final registry.
   `python -m Python.pipeline.rolling`,
   `python -m Python.pipeline.training`,
   `python Models/Strikeout-Model/Strikeout-EDA/run_pitch_type_stabilization.py`
-- Test suite: `python -m pytest` (108 tests, all passing as of 2026-07-23)
+- Test suite: `python -m pytest` (129 tests, all passing as of 2026-07-24)
 - Model training:
   `python Models/Strikeout-Model/train.py --model [mean|ridge|...]`
+
+## 12. Required sequencing before the batters-faced (TBF) model
+
+1. Complete a feature dictionary with missingness rates and correlation
+   clusters by family.
+2. Remove deterministic redundant features, including exact complements and
+   algebraically derivable sums.
+3. Run grouped ablations across every major family: rates, pitch physics,
+   usage, mechanics, FIP/xFIP, lineup, park, and context.
+4. Select one or at most a small number of windows per statistic using
+   stabilization to nominate candidates and predictive validation to choose
+   among them.
+5. Compare ordinary unweighted K/PA regression with PA-weighted, binomial, and
+   beta-binomial modeling.
+6. Validate the complete selection procedure with nested chronological folds:
+   inner folds for feature/window/hyperparameter selection and outer folds for
+   confirmation.
+7. Freeze an explicit compact feature registry with a documented missingness
+   and cold-start policy.
+8. Only then perform a protected evaluation. The historical
+   `2025-07-06+` partition has already been scored by baseline runs and is not
+   pristine; the next honest final test must use future post-freeze games.
+
+Do not skip ahead to TBF or count-probability implementation until this
+sequence is complete and documented. The detailed status and fold proposal are
+in `docs/statistical_audit_and_sequencing_report.md`.
+
+## 13. Strikeout-count probability modeling (planned, not yet built)
+
+Candidate conditional count models are:
+
+- beta-binomial regression with strikeouts as successes and PA/TBF as trials;
+- negative-binomial regression with a log projected-TBF offset;
+- Poisson regression with the same offset as a transparent baseline.
+
+Beta-binomial is the leading conceptual candidate because it may solve both
+the heteroskedastic K/PA problem and the conditional strikeout-count
+probability problem in one likelihood. It must be compared with simpler
+weighted/binomial baselines before implementation is finalized.
+
+Actual same-game TBF is never a prediction-time input. Historical PA can be
+part of the response likelihood and remain an evaluation oracle, while all
+deployed and end-to-end backtest probabilities must condition on cross-fitted
+or genuinely pregame projected TBF. Full uncertainty should eventually mix the
+conditional strikeout distribution over the projected-TBF distribution.

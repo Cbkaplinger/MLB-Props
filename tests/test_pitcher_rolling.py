@@ -86,6 +86,120 @@ def test_mean_column_rolls_and_shifts():
     assert abs(df["ff_velo_P5"][1] - 96.0) < 1e-9   # only the prior start
 
 
+def test_p2_arsenal_presence_and_usage_are_lagged_and_weighted():
+    df = pr.add_rolling_pitcher_features(
+        _starts(
+            [
+                _s(1, 5, 20, pitches=100, throws_ff=1, ff_pitches=80),
+                _s(2, 5, 20, pitches=50, throws_ff=0, ff_pitches=0),
+                _s(3, 5, 20, pitches=100, throws_ff=0, ff_pitches=0),
+                _s(4, 5, 20, pitches=100, throws_ff=1, ff_pitches=20),
+            ]
+        ),
+        rate_stats={},
+        mean_cols=[],
+        rate_windows=(),
+        mean_windows=(),
+    ).sort("game_date")
+    assert df["has_thrown_ff_P2"][0] is None
+    assert df["has_thrown_ff_P2"][1] == 1
+    assert df["has_thrown_ff_P2"][2] == 1
+    assert df["has_thrown_ff_P2"][3] == 0
+    assert df["ff_usage_P2"][2] == pytest.approx(80 / 150)
+    assert df["ff_usage_P2"][3] == pytest.approx(0.0)
+
+
+def test_arm_angle_siera_and_run_value_use_prior_aggregate_counts():
+    common = dict(
+        BB=2,
+        GB=10,
+        OFB=5,
+        PU=2,
+        arm_angle_num=4000.0,
+        arm_angle_den=100,
+        RV_num=1.0,
+        RV_den=100,
+    )
+    df = pr.add_rolling_pitcher_features(
+        _starts(
+            [
+                _s(1, 8, 30, **common),
+                _s(2, 6, 30, **common),
+            ]
+        ),
+        rate_stats={},
+        mean_cols=[],
+        rate_windows=(),
+        mean_windows=(3,),
+    ).sort("game_date")
+    assert df["arm_angle_P3"][1] == pytest.approx(40.0)
+    assert df["rv_per_100_P3"][1] == pytest.approx(1.0)
+    expected = pr.siera_mlb_expr(
+        pl.lit(8),
+        pl.lit(2),
+        pl.lit(10),
+        pl.lit(5),
+        pl.lit(2),
+        pl.lit(30),
+    ).alias("value")
+    assert df["siera_mlb_P3"][1] == pytest.approx(
+        pl.select(expected)["value"][0]
+    )
+
+
+def test_pitch_type_rv_is_shrunk_with_prior_dates_and_complete_start_windows():
+    starts = _starts(
+        [
+            _s(1, 5, 20, pitcher=1, gp=101),
+            _s(2, 5, 20, pitcher=1, gp=102),
+            _s(3, 5, 20, pitcher=1, gp=103),
+            _s(1, 5, 20, pitcher=2, gp=201),
+        ]
+    )
+    pitch_types = pl.DataFrame(
+        [
+            {
+                "game_pk": 101,
+                "pitcher": 1,
+                "game_date": dt.date(2024, 4, 1),
+                "pitch_type": "ff",
+                "RV_num": 1.0,
+                "RV_den": 100,
+            },
+            {
+                "game_pk": 201,
+                "pitcher": 2,
+                "game_date": dt.date(2024, 4, 1),
+                "pitch_type": "ff",
+                "RV_num": 3.0,
+                "RV_den": 100,
+            },
+            {
+                "game_pk": 103,
+                "pitcher": 1,
+                "game_date": dt.date(2024, 4, 3),
+                "pitch_type": "ff",
+                "RV_num": 99.0,
+                "RV_den": 100,
+            },
+        ],
+        schema_overrides={"game_date": pl.Date},
+    )
+    out = pr.add_pitch_type_rv_features(
+        starts,
+        pitch_types,
+        prior_strength_pitches=100,
+        windows=(2,),
+    ).sort(["pitcher", "game_date"])
+    pitcher_one = out.filter(pl.col("pitcher") == 1)
+    assert pitcher_one["ff_rv_shrunk_P2"][0] is None
+    # Prior league mean after day 1 is 2/100 pitches = .02 per pitch.
+    # Pitcher one contributes 1 run / 100 pitches; EB total = 3 / 200.
+    assert pitcher_one["ff_rv_shrunk_P2"][1] == pytest.approx(1.5)
+    # Day 2 contains zero FF pitches but still consumes one of the two starts.
+    assert pitcher_one["ff_rv_shrunk_P2"][2] == pytest.approx(1.5)
+
+
 def test_expected_stats_are_denominator_weighted():
     df = pr.add_rolling_pitcher_features(
         _starts(

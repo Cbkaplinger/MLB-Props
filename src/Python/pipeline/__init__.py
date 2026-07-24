@@ -30,7 +30,7 @@ from .. import config
 from . import games, rolling, training
 
 
-def run_all(years: Iterable[int] = config.TRAIN_SEASONS) -> None:
+def run_all(years: Iterable[int] = config.PIPELINE_SEASONS) -> None:
     """Run all three levels end to end for the given seasons."""
     games.run(years)
     rolling.run()

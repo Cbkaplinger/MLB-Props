@@ -8,6 +8,8 @@ shared July 6 split boundary. Neither file may be used as current model evidence
 or as a feature registry.
 
 They are retained only for research provenance. The replacement feature policy
-is implemented by `src/Python/features.py`, and the corrected frozen model
-metadata is stored at
-`artifacts/models/lightgbm_krate_20260723_202255.*`.
+is implemented by `src/Python/features.py`. The active 248-feature 2023-2024
+development baseline is
+`artifacts/models/lightgbm_krate_20260724_165215.*`; the earlier
+`lightgbm_krate_20260723_202255.*` run is retained only as a historical
+2025-consulting benchmark.

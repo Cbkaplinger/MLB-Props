@@ -17,13 +17,16 @@ def _pitch(**over):
         game_pk=5000, game_date=dt.date(2024, 4, 1), player_name="Test, Ace",
         pitcher=1, stand="R", p_throws="R", home_team="AAA", away_team="BBB",
         inning=1, inning_topbot="Top", at_bat_number=1, pitch_number=1,
+        balls=0, strikes=0,
         pitch_type="FF", type="X", description="hit_into_play", events=None,
         bb_type=None, release_speed=94.0, release_spin_rate=2300.0,
         pfx_x=-0.5, pfx_z=1.2, vy0=-130.0, vz0=-5.0, ay=27.0, az=-15.0,
         release_extension=6.5, release_pos_x=-1.5, release_pos_z=5.8,
+        arm_angle=45.0,
         launch_speed=None, launch_angle=None, launch_speed_angle=None,
         estimated_ba_using_speedangle=None, estimated_woba_using_speedangle=None,
         woba_value=0.0, woba_denom=1, bat_score=0, post_bat_score=0, zone=5,
+        delta_run_exp=0.0, delta_pitcher_run_exp=0.0,
     )
     base.update(over)
     return base
@@ -67,6 +70,73 @@ def test_outcome_counts():
     assert out["Whiffs"] == 1 and out["CS"] == 0
     assert out["CSW"] == out["CS"] + out["Whiffs"]
     assert out["GB"] == 1
+
+
+def test_new_rate_counts_and_run_value_sign():
+    rows = [
+        _pitch(
+            at_bat_number=1,
+            pitch_number=1,
+            balls=0,
+            strikes=0,
+            type="S",
+            description="called_strike",
+            events=None,
+            delta_run_exp=-0.03,
+            delta_pitcher_run_exp=0.03,
+            arm_angle=40.0,
+        ),
+        _pitch(
+            at_bat_number=1,
+            pitch_number=2,
+            balls=0,
+            strikes=2,
+            type="S",
+            description="swinging_strike",
+            events="strikeout",
+            delta_run_exp=-0.07,
+            delta_pitcher_run_exp=0.07,
+            arm_angle=50.0,
+        ),
+    ]
+    out = pf.build_pitcher_starts(_frame(rows), min_batters_faced=0).row(
+        0, named=True
+    )
+    assert out["first_pitch_strike_rate"] == pytest.approx(1.0)
+    assert out["two_strike_reach_rate"] == pytest.approx(1.0)
+    assert out["putaway_rate"] == pytest.approx(1.0)
+    assert out["ahead_rate"] == pytest.approx(0.5)
+    assert out["neutral_rate"] == pytest.approx(0.5)
+    assert out["behind_rate"] == pytest.approx(0.0)
+    assert out["arm_angle"] == pytest.approx(45.0)
+    assert out["RV_num"] == pytest.approx(0.10)
+    assert out["rv_per_100"] == pytest.approx(5.0)
+    assert out["ff_rv_per_100"] == pytest.approx(5.0)
+
+
+def test_babip_uses_standard_opportunity_denominator():
+    rows = [
+        _pitch(at_bat_number=1, events="single", bb_type="line_drive"),
+        _pitch(at_bat_number=2, events="home_run", bb_type="fly_ball"),
+        _pitch(at_bat_number=3, events="field_out", bb_type="ground_ball"),
+        _pitch(at_bat_number=4, events="sac_fly", bb_type="fly_ball"),
+        _pitch(at_bat_number=5, events="sac_bunt", bb_type="ground_ball"),
+        _pitch(
+            at_bat_number=6,
+            type="S",
+            description="swinging_strike",
+            events="strikeout",
+        ),
+    ]
+    out = pf.build_pitcher_starts(_frame(rows), min_batters_faced=0).row(
+        0, named=True
+    )
+    assert out["BABIP_num"] == 1
+    assert out["BABIP_den"] == 3
+    assert out["babip"] == pytest.approx(1 / 3)
+    assert out["BIP"] == 5
+    assert out["bip_rate"] == pytest.approx(5 / 6)
+    assert out["strike_rate"] + out["Balls"] / out["Pitches"] == pytest.approx(1.0)
 
 
 def test_caught_stealing_and_pickoff_count_as_outs():

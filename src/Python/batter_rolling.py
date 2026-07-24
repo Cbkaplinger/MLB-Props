@@ -1,4 +1,4 @@
-"""Leakage-safe rolling / season-to-date batter strikeout rate (Polars).
+"""Leakage-safe rolling / season-to-date batter rates (Polars).
 
 This is the batter-side companion to the per-game table produced by
 ``batter_features.build_batter_games``. It turns each hitter's game log into
@@ -12,9 +12,9 @@ inspect and validate each on its own:
 
 1. **Season-to-date** (``k_rate_std`` and the vs-LHP / vs-RHP splits):
    an expanding, PA-weighted rate that *resets every season*.
-2. **Rolling last-N games** (``k_rate_P{w}``): a PA-weighted rate over the
-   previous ``w`` games, allowed to carry across the season boundary because it
-   is a "recent form" signal.
+2. **Rolling last-N games** (``*_P{w}``): denominator-weighted rates over the
+   previous ``w`` games, allowed to carry across the season boundary because
+   they are recent-form signals.
 
 The season-to-date rate is also offered in an **empirical-Bayes shrunk** form
 (``k_rate_std_shrunk``) that regresses a small sample toward the league K% for
@@ -37,14 +37,33 @@ DEFAULT_WINDOWS: tuple[int, ...] = (5, 10, 20)
 DEFAULT_SHRINK_PA: float = 200.0
 DEFAULT_FALLBACK_K_RATE: float | None = None
 
-# Extra leakage-safe season-to-date rates: {feature: (numerator, denominator)}.
-# These feed the Level 3 opposing-lineup discipline features. Missing columns
-# are skipped.
+# Extra leakage-safe rates: {feature: (numerator, denominator)}. These feed
+# Level 3 opposing-lineup discipline, contact-quality, and batted-ball research
+# features. Missing Level 1 count pairs are skipped.
 DEFAULT_EXTRA_RATE_STATS: dict[str, tuple[str, str]] = {
     "swstr_rate": ("Whiffs", "Pitches"),   # SwStr%: whiffs per pitch
     "whiff_rate": ("Whiffs", "Swings"),    # Whiff%: whiffs per swing
     "chase_rate": ("Chases", "OutZone"),   # O-Swing%
+    "zswing_rate": ("ZSwings", "InZone"),  # Z-Swing%
+    "swing_rate": ("Swings", "Pitches"),   # Swing%
+    "zcontact_rate": ("ZContacts", "ZSwings"),  # Z-Contact%
+    "bb_rate": ("BB", "PA"),               # BB%
+    "babip": ("BABIP_num", "BABIP_den"),
+    "hard_hit_rate": ("HardHit", "EV_den"),
+    "barrel_rate": ("Barrels", "xBA_den"),
+    "sweet_spot_rate": ("SweetSpot", "LA_den"),
+    "avg_exit_velocity": ("EV_num", "EV_den"),
+    "avg_launch_angle": ("LA_num", "LA_den"),
+    "xBA": ("xBA_num", "xBA_den"),
+    "wOBA": ("wOBA_num", "wOBA_den"),
+    "xwOBA": ("xwOBA_num", "wOBA_den"),
+    "hr_rate": ("HR", "PA"),
+    "fb_rate": ("FB", "BIP"),
+    "hr_fb_rate": ("HR", "FB"),
+    "pull_air_rate": ("PullAir", "BIP"),
+    "rv_per_pitch": ("RV_num", "RV_den"),
 }
+ROLLING_RATE_STATS: frozenset[str] = frozenset(DEFAULT_EXTRA_RATE_STATS)
 
 
 def _prior_rate(num: str, den: str, by: list[str]) -> pl.Expr:
@@ -98,10 +117,9 @@ def add_leakage_safe_k(
         fallback_k_rate: Explicit sourced league prior used only when no
             earlier date exists. If omitted, ``prior_league_k_rate`` from
             Level 1 is used; otherwise the first date remains null.
-        extra_rate_stats: Additional ``{feature: (num, den)}`` season-to-date
-            rates (defaults to :data:`DEFAULT_EXTRA_RATE_STATS`: swinging
-            strike%, whiff%, and chase%). Missing columns are skipped. Pass
-            ``{}`` to skip.
+        extra_rate_stats: Additional ``{feature: (num, den)}`` rates. All are
+            emitted season-to-date and over ``windows``. Missing Level 1 count
+            pairs are skipped. Pass ``{}`` to skip.
 
     Returns:
         The input frame (same rows, original order preserved via re-sort) with
@@ -110,7 +128,9 @@ def add_leakage_safe_k(
             ``k_rate_std``, ``k_rate_std_vL``, ``k_rate_std_vR``,
             ``k_rate_std_shrunk`` (if ``shrink_pa > 0``),
             ``k_rate_P{w}`` for each window,
-            ``{extra}_std`` for each extra rate stat.
+            ``{extra}_std`` and ``{extra}_P{w}`` for each available rate,
+            plus ``lineup_pa_weight`` derived from prior-date league PA by
+            batting-order slot.
     """
     if games.select("batter", "game_pk").is_duplicated().any():
         raise ValueError("games contains duplicate (batter, game_pk) keys")
@@ -132,6 +152,12 @@ def add_leakage_safe_k(
         ],
         *[
             (_rolling_rate("K", "PA", w, min_games), f"k_rate_P{w}")
+            for w in windows
+        ],
+        *[
+            (_rolling_rate(num, den, w, min_games), f"{name}_P{w}")
+            for name, (num, den) in extras.items()
+            if name in ROLLING_RATE_STATS
             for w in windows
         ],
     ]
@@ -160,7 +186,58 @@ def add_leakage_safe_k(
             fallback_k_rate = float(prior_rates[0])
         df = _add_shrunk_std(df, shrink_pa, fallback_k_rate)
 
-    return df.sort(_ORDER)
+    return _add_lineup_opportunity_weight(df).sort(_ORDER)
+
+
+def _add_lineup_opportunity_weight(df: pl.DataFrame) -> pl.DataFrame:
+    """Estimate batting-order opportunity from league games on prior dates.
+
+    The weight is prior-date league-average PA for the hitter's lineup slot.
+    Current-date realized PA never contributes, so this can safely distinguish
+    leadoff/middle-order opportunity from lower-order opportunity at game time.
+    Older/synthetic frames without lineup slots remain usable with equal weight.
+    """
+    required = {"lineup_slot", "is_initial_lineup", "PA", "game_date"}
+    if not required.issubset(df.columns):
+        return df.with_columns(pl.lit(1.0).alias("lineup_pa_weight"))
+
+    daily = (
+        df.filter(
+            pl.col("is_initial_lineup")
+            & pl.col("lineup_slot").is_between(1, 9, closed="both")
+        )
+        .group_by("game_date", "lineup_slot")
+        .agg(
+            pl.col("PA").sum().alias("_slot_pa"),
+            pl.len().alias("_slot_starts"),
+        )
+        .sort(["lineup_slot", "game_date"])
+        .with_columns(
+            pl.col("_slot_pa")
+            .cum_sum()
+            .shift(1)
+            .over("lineup_slot")
+            .alias("_prior_slot_pa"),
+            pl.col("_slot_starts")
+            .cum_sum()
+            .shift(1)
+            .over("lineup_slot")
+            .alias("_prior_slot_starts"),
+        )
+        .with_columns(
+            pl.when(pl.col("_prior_slot_starts") > 0)
+            .then(pl.col("_prior_slot_pa") / pl.col("_prior_slot_starts"))
+            .otherwise(1.0)
+            .alias("lineup_pa_weight")
+        )
+        .select("game_date", "lineup_slot", "lineup_pa_weight")
+    )
+    return df.join(
+        daily,
+        on=["game_date", "lineup_slot"],
+        how="left",
+        validate="m:1",
+    ).with_columns(pl.col("lineup_pa_weight").fill_null(1.0))
 
 
 def _add_shrunk_std(

@@ -26,6 +26,7 @@ PITCH_CONTACT_SPECS = (
     ("xBA", "xBA_num", "xBA_den", tuple(range(10, 401, 10))),
     ("wOBA", "wOBA_num", "wOBA_den", tuple(range(10, 401, 10))),
     ("xwOBA", "xwOBA_num", "wOBA_den", tuple(range(10, 401, 10))),
+    ("rv_per_pitch", "RV_num", "RV_den", tuple(range(50, 2001, 50))),
 )
 
 
@@ -35,6 +36,7 @@ def descriptive_summary(frame: pl.DataFrame) -> pl.DataFrame:
         "Pitches", "Swings", "Whiffs", "Balls", "CSW", "OutZone", "Chases",
         "BIP", "GB", "WeakContact", "HardHit", "Barrels", "EV_den", "xBA_den",
         "wOBA_num", "wOBA_den", "xwOBA_num",
+        "RV_num", "RV_den",
     )
     return (
         frame.group_by("pitch_type")
@@ -51,6 +53,7 @@ def descriptive_summary(frame: pl.DataFrame) -> pl.DataFrame:
             (pl.col("Barrels") / pl.col("xBA_den")).alias("barrel_rate"),
             (pl.col("wOBA_num") / pl.col("wOBA_den")).alias("wOBA"),
             (pl.col("xwOBA_num") / pl.col("wOBA_den")).alias("xwOBA"),
+            (100.0 * pl.col("RV_num") / pl.col("RV_den")).alias("rv_per_100"),
         )
         .sort("Pitches", descending=True)
     )
@@ -69,7 +72,9 @@ def main() -> None:
             f"expected dev seasons {config.FEATURE_RESEARCH_SEASONS}, got {observed}"
         )
 
-    output_dir = config.OUTPUT_DIR / "stabilization" / "pitch_type"
+    output_dir = (
+        config.OUTPUT_DIR / "stabilization" / "expanded" / "pitch_type"
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     descriptive_summary(dev).write_csv(
         output_dir / "pitch_type_descriptive_summary.csv"

@@ -55,3 +55,28 @@ def test_chronological_split_requires_three_dates() -> None:
     )
     with pytest.raises(ValueError, match="three distinct dates"):
         module.chronological_split(frame)
+
+
+def test_load_frame_excludes_holdout_season(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_train_module()
+    path = tmp_path / "pitcher_training.parquet"
+    pd.DataFrame(
+        {
+            "season": [2023, 2024, 2025],
+            "game_date": pd.to_datetime(
+                ["2023-04-01", "2024-04-01", "2025-04-01"]
+            ),
+            "player_name": ["A", "B", "C"],
+            "k_rate": [0.20, 0.25, 0.30],
+            "k_rate_P5": [0.18, 0.23, 0.28],
+        }
+    ).to_parquet(path)
+    monkeypatch.setattr(module, "PITCHER_TRAINING_PATH", path)
+
+    frame, features = module.load_frame()
+
+    assert tuple(frame["season"]) == module.TRAIN_SEASONS
+    assert features == ["k_rate_P5"]

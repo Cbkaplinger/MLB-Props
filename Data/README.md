@@ -25,6 +25,12 @@ Data/
    └─ daily_starters_YYYY-MM-DD.parquet
 ```
 
+The live eight Level 1-3 parquet files are canonical generated outputs and may
+be rebuilt in dependency order. `processed/_baseline_2026-07-23/` is a
+provenance snapshot whose exact historical frames cannot currently be
+byte-reproduced; it is intentionally retained and must not be mixed with live
+pipeline inputs.
+
 Set `MLB_PROPS_DATA_DIR` to relocate the whole data root or
 `MLB_PROPS_SAVANT_DATA_DIR` to point directly at the regular-season source
 folders. All processed paths derive from `MLB_PROPS_DATA_DIR`.
@@ -41,3 +47,10 @@ level.
 The 2022 file is prior-only context: it supplies the exact-definition league
 HR/FB and K-rate priors plus park history for 2023. Model rows still begin in
 2023.
+
+Older regular seasons, postseason Savant files,
+`Pitcher-Starts-2023-2025-Data/`, and
+`DailyPitcherModelTrainingData.csv` are not consumed by the current K/PA
+pipeline. They are preserved source data—not stale generated output—because
+their outcomes and longer history may support future hits, outs, walks,
+pitches, earned-runs, and batters-faced models.

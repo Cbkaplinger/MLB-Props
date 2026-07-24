@@ -28,10 +28,13 @@ LightGBM models and adjacent JSON metadata (feature names and evaluation
 results) are written to `artifacts/models/` by default. Generated models are
 ignored by Git.
 
-The current frozen 227-feature test RMSE / R² are 0.1076 / -0.0001 (Mean),
-0.1003 / 0.1313 (Ridge), and 0.0994 / 0.1459 (LightGBM), using disjoint
-2025-04-14/15 and 2025-07-05/06 date boundaries. The invalid overlapping-date
-snapshot is archived under `docs/archive/leaky-baseline-2026-07-23/`.
+The current production gate contains 248 features. The latest date-disjoint
+2023-2024 LightGBM development evaluation has internal-test RMSE `0.0983` and
+R² `0.1546`; its model and metadata are
+`artifacts/models/lightgbm_krate_20260724_165215.*`. The 227-feature
+2025-consulting run remains a historical benchmark, not a pristine final test.
+The invalid overlapping-date snapshot is archived under
+`docs/archive/leaky-baseline-2026-07-23/`.
 
 The `Strikeout-EDA/` notebooks and runners read Level 1 artifacts for
 distribution, stabilization, and feature-ablation work. They are not training

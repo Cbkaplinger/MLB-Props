@@ -15,7 +15,12 @@ def _games(rows):
 
 
 def _g(day, pa, k, *, pa_vl=0, k_vl=0, pa_vr=0, k_vr=0, batter=1, gp=None, year=2024,
-       whiffs=0, swings=0, pitches=0, chases=0, outzone=0):
+       whiffs=0, swings=0, pitches=0, chases=0, outzone=0, zswings=0,
+       inzone=0, zcontacts=0, bb=0, lineup_slot=1, woba_num=0.0,
+       woba_den=0, xwoba_num=0.0, xba_num=0.0, xba_den=0,
+       hard_hit=0, barrels=0, sweet_spot=0, ev_num=0.0, ev_den=0,
+       la_num=0.0, la_den=0, babip_num=0, babip_den=0, hr=0, fb=0,
+       bip=0, pull_air=0, rv_num=0.0, rv_den=0):
     return dict(
         batter=batter,
         game_pk=gp if gp is not None else day,
@@ -24,6 +29,14 @@ def _g(day, pa, k, *, pa_vl=0, k_vl=0, pa_vr=0, k_vr=0, batter=1, gp=None, year=
         PA_vL=pa_vl, K_vL=k_vl, PA_vR=pa_vr, K_vR=k_vr,
         Whiffs=whiffs, Swings=swings, Pitches=pitches,
         Chases=chases, OutZone=outzone,
+        ZSwings=zswings, InZone=inzone, ZContacts=zcontacts, BB=bb,
+        lineup_slot=lineup_slot, is_initial_lineup=True,
+        wOBA_num=woba_num, wOBA_den=woba_den, xwOBA_num=xwoba_num,
+        xBA_num=xba_num, xBA_den=xba_den, HardHit=hard_hit,
+        Barrels=barrels, SweetSpot=sweet_spot, EV_num=ev_num, EV_den=ev_den,
+        LA_num=la_num, LA_den=la_den, BABIP_num=babip_num,
+        BABIP_den=babip_den, HR=hr, FB=fb, BIP=bip, PullAir=pull_air,
+        RV_num=rv_num, RV_den=rv_den,
     )
 
 
@@ -108,6 +121,109 @@ def test_extra_rate_stats_have_correct_whiff_and_swstr_denominators():
     assert abs(df["swstr_rate_std"][1] - 10 / 50) < 1e-9
     assert abs(df["whiff_rate_std"][1] - 10 / 20) < 1e-9
     assert abs(df["chase_rate_std"][1] - 0.3) < 1e-9
+
+
+def test_new_discipline_rates_are_season_to_date_and_rolling():
+    df = br.add_leakage_safe_k(
+        _games([
+            _g(
+                1,
+                4,
+                1,
+                pitches=50,
+                swings=20,
+                inzone=25,
+                zswings=15,
+                zcontacts=12,
+                bb=1,
+            ),
+            _g(
+                2,
+                4,
+                1,
+                pitches=50,
+                swings=10,
+                inzone=20,
+                zswings=10,
+                zcontacts=5,
+                bb=0,
+            ),
+        ]),
+        windows=(5,),
+        shrink_pa=0,
+    ).sort("game_date")
+
+    assert df["zswing_rate_std"][1] == pytest.approx(15 / 25)
+    assert df["swing_rate_std"][1] == pytest.approx(20 / 50)
+    assert df["zcontact_rate_std"][1] == pytest.approx(12 / 15)
+    assert df["bb_rate_std"][1] == pytest.approx(1 / 4)
+    assert df["zswing_rate_P5"][1] == pytest.approx(15 / 25)
+    assert df["swing_rate_P5"][1] == pytest.approx(20 / 50)
+    assert df["zcontact_rate_P5"][1] == pytest.approx(12 / 15)
+    assert df["bb_rate_P5"][1] == pytest.approx(1 / 4)
+
+
+def test_contact_quality_rates_are_denominator_weighted_and_rolling():
+    df = br.add_leakage_safe_k(
+        _games(
+            [
+                _g(
+                    1,
+                    4,
+                    1,
+                    woba_num=1.2,
+                    woba_den=4,
+                    xwoba_num=1.6,
+                    xba_num=1.5,
+                    xba_den=3,
+                    hard_hit=2,
+                    barrels=1,
+                    sweet_spot=2,
+                    ev_num=285.0,
+                    ev_den=3,
+                    la_num=45.0,
+                    la_den=3,
+                    babip_num=1,
+                    babip_den=3,
+                    hr=1,
+                    fb=2,
+                    bip=3,
+                    pull_air=1,
+                    rv_num=0.4,
+                    rv_den=20,
+                ),
+                _g(2, 4, 0),
+            ]
+        ),
+        windows=(5,),
+        shrink_pa=0,
+    ).sort("game_date")
+    assert df["wOBA_P5"][1] == pytest.approx(0.3)
+    assert df["xwOBA_P5"][1] == pytest.approx(0.4)
+    assert df["xBA_P5"][1] == pytest.approx(0.5)
+    assert df["hard_hit_rate_P5"][1] == pytest.approx(2 / 3)
+    assert df["barrel_rate_P5"][1] == pytest.approx(1 / 3)
+    assert df["avg_exit_velocity_P5"][1] == pytest.approx(95.0)
+    assert df["hr_fb_rate_P5"][1] == pytest.approx(0.5)
+    assert df["pull_air_rate_P5"][1] == pytest.approx(1 / 3)
+    assert df["rv_per_pitch_P5"][1] == pytest.approx(0.02)
+
+
+def test_lineup_opportunity_weight_uses_prior_dates_only():
+    games = _games(
+        [
+            _g(1, 5, 1, batter=1, gp=11, lineup_slot=1),
+            _g(1, 3, 1, batter=2, gp=12, lineup_slot=9),
+            _g(2, 4, 1, batter=1, gp=21, lineup_slot=1),
+            _g(2, 4, 1, batter=2, gp=22, lineup_slot=9),
+        ]
+    )
+    out = br.add_leakage_safe_k(games, windows=(5,), shrink_pa=0).sort(
+        ["game_date", "lineup_slot"]
+    )
+    day_two = out.filter(pl.col("game_date") == dt.date(2024, 4, 2))
+    assert day_two.filter(pl.col("lineup_slot") == 1)["lineup_pa_weight"][0] == 5
+    assert day_two.filter(pl.col("lineup_slot") == 9)["lineup_pa_weight"][0] == 3
 
 
 def test_shrinkage_pulls_small_samples_toward_league():

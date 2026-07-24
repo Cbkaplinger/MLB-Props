@@ -45,6 +45,41 @@ CANON_PITCH: dict[str, str] = {
     "FS": "fs", "SF": "fs",
 }
 
+
+def siera_mlb_expr(
+    strikeouts: pl.Expr,
+    walks: pl.Expr,
+    ground_balls: pl.Expr,
+    outfield_flies: pl.Expr,
+    popups: pl.Expr,
+    plate_appearances: pl.Expr,
+) -> pl.Expr:
+    """Published MLB-glossary SIERA formula from aggregate count expressions."""
+    pa = plate_appearances.cast(pl.Float64)
+    so_rate = strikeouts.cast(pl.Float64) / pa
+    bb_rate = walks.cast(pl.Float64) / pa
+    net_gb = (
+        ground_balls.cast(pl.Float64)
+        - outfield_flies.cast(pl.Float64)
+        - popups.cast(pl.Float64)
+    ) / pa
+    signed_net_gb_sq = (
+        pl.when(net_gb >= 0)
+        .then(6.664 * net_gb**2)
+        .otherwise(-6.664 * net_gb**2)
+    )
+    value = (
+        6.145
+        - 16.986 * so_rate
+        + 11.434 * bb_rate
+        - 1.858 * net_gb
+        + 7.653 * so_rate**2
+        + signed_net_gb_sq
+        + 10.130 * so_rate * net_gb
+        - 5.195 * bb_rate * net_gb
+    )
+    return pl.when(pa > 0).then(value).otherwise(None)
+
 OUTS_ONE = (
     "field_out", "force_out", "sac_fly", "sac_bunt", "strikeout",
     "fielders_choice_out", "fielders_choice", "other_out", "batter_interference",
@@ -82,13 +117,15 @@ BUILD_COLUMNS: tuple[str, ...] = (
     "game_pk", "game_date", "player_name", "pitcher", "stand", "p_throws",
     "home_team", "away_team", "inning", "inning_topbot",
     "at_bat_number", "pitch_number", "pitch_type", "type", "description",
+    "balls", "strikes",
     "events", "bb_type", "zone",
     "release_speed", "release_spin_rate", "pfx_x", "pfx_z",
-    "release_extension", "release_pos_x", "release_pos_z",
+    "release_extension", "release_pos_x", "release_pos_z", "arm_angle",
     "vy0", "vz0", "ay", "az",
     "launch_speed", "launch_angle", "launch_speed_angle",
     "estimated_ba_using_speedangle", "estimated_woba_using_speedangle",
     "woba_value", "woba_denom", "bat_score", "post_bat_score",
+    "delta_run_exp", "delta_pitcher_run_exp",
 )
 
 
@@ -102,13 +139,38 @@ def _pitch_level(df: pl.DataFrame) -> pl.DataFrame:
     vz_f = pl.col("vz0") + pl.col("az") * t
     vaa = -(vz_f / vy_f).arctan() * (180.0 / math.pi)
 
-    return add_plate_discipline_flags(add_event_flags(df)).with_columns(
+    flagged = add_plate_discipline_flags(add_event_flags(df))
+    count_known = pl.col("balls").is_not_null() & pl.col("strikes").is_not_null()
+    two_strikes = count_known & (pl.col("strikes") == 2)
+    return flagged.with_columns(
         pl.col("pitch_type").replace_strict(CANON_PITCH, default=None).alias("canon_pitch"),
         vaa.alias("vaa"),
         (pl.col("pfx_z") * 12.0).alias("ivb"),
         (pl.col("pfx_x") * 12.0).alias("hb"),
         pl.col("bb_type").is_in(FLY_BALL_TYPES).alias("is_fb"),
         (pl.col("bb_type") == "ground_ball").alias("is_gb"),
+        (pl.col("bb_type") == "popup").alias("is_popup"),
+        (pl.col("bb_type") == "fly_ball").alias("is_ofb"),
+        (
+            pl.col("is_pa")
+            & ~pl.col("is_k")
+            & ~pl.col("is_bb")
+            & ~pl.col("is_hbp")
+            & ~pl.col("is_hr")
+            & ~pl.col("events").is_in(["sac_bunt", "catcher_interf"])
+        ).alias("is_babip_opportunity"),
+        (
+            pl.col("is_hit") & ~pl.col("is_hr")
+        ).alias("is_babip_hit"),
+        ((pl.col("pitch_number") == 1) & pl.col("type").is_in(["S", "X"]))
+        .alias("is_first_pitch_strike"),
+        (pl.col("pitch_number") == 1).alias("is_first_pitch"),
+        (count_known & (pl.col("strikes") > pl.col("balls"))).alias("is_ahead_count"),
+        (count_known & (pl.col("strikes") == pl.col("balls"))).alias("is_neutral_count"),
+        (count_known & (pl.col("strikes") < pl.col("balls"))).alias("is_behind_count"),
+        two_strikes.alias("is_two_strike_pitch"),
+        (two_strikes & pl.col("is_k")).alias("is_putaway_k"),
+        (-pl.col("delta_run_exp")).alias("pitcher_rv"),
         pl.when(pl.col("events").is_in(OUTS_THREE)).then(3)
           .when(pl.col("events").is_in(OUTS_TWO)).then(2)
           .when(pl.col("events").is_in(OUTS_BR_TWO)).then(2)
@@ -149,6 +211,9 @@ def _arsenal_exprs() -> list[pl.Expr]:
             pl.col("hb").filter(m).mean().alias(f"{pt}_hb"),
             pl.col("vaa").filter(m).mean().alias(f"{pt}_vaa"),
             (m.sum() > 0).cast(pl.Int8).alias(f"throws_{pt}"),
+            m.sum().alias(f"{pt}_pitches"),
+            pl.col("pitcher_rv").filter(m).sum().alias(f"{pt}_rv_num"),
+            (m & pl.col("pitcher_rv").is_not_null()).sum().alias(f"{pt}_rv_den"),
             # usage vs a handedness = (that pitch to that hand) / (all pitches to that hand)
             (m & (pl.col("stand") == "R")).sum().alias(f"_{pt}_R"),
             (m & (pl.col("stand") == "L")).sum().alias(f"_{pt}_L"),
@@ -217,8 +282,26 @@ def build_pitcher_starts(
             pl.col("is_called_strike").sum().alias("CS"),
             pl.col("is_fb").sum().alias("FB"),
             pl.col("is_gb").sum().alias("GB"),
+            pl.col("is_popup").sum().alias("PU"),
+            pl.col("is_ofb").sum().alias("OFB"),
             pl.col("outs_on_play").sum().alias("Outs"),
             pl.col("run_delta").sum().alias("Runs"),
+            pl.col("is_babip_hit").sum().alias("BABIP_num"),
+            pl.col("is_babip_opportunity").sum().alias("BABIP_den"),
+            pl.col("is_first_pitch_strike").sum().alias("FirstPitchStrikes"),
+            pl.col("is_first_pitch").sum().alias("FirstPitches"),
+            pl.col("is_ahead_count").sum().alias("AheadPitches"),
+            pl.col("is_neutral_count").sum().alias("NeutralPitches"),
+            pl.col("is_behind_count").sum().alias("BehindPitches"),
+            (
+                pl.col("at_bat_number")
+                .filter(pl.col("is_two_strike_pitch"))
+                .n_unique()
+            ).alias("TwoStrikePA"),
+            pl.col("is_two_strike_pitch").sum().alias("TwoStrikePitches"),
+            pl.col("is_putaway_k").sum().alias("PutAwayK"),
+            pl.col("pitcher_rv").sum().alias("RV_num"),
+            pl.col("pitcher_rv").is_not_null().sum().alias("RV_den"),
             # plate discipline induced/allowed (swings, chases, contact, zone)
             *discipline_count_exprs(),
             # release / mechanics: extension (ft toward plate) and release-point
@@ -228,6 +311,8 @@ def build_pitcher_starts(
             pl.col("release_pos_z").mean().alias("rel_z"),
             pl.col("release_pos_x").std().alias("rel_x_sd"),
             pl.col("release_pos_z").std().alias("rel_z_sd"),
+            pl.col("arm_angle").sum().alias("arm_angle_num"),
+            pl.col("arm_angle").is_not_null().sum().alias("arm_angle_den"),
             # Quality / expected-stat count pairs are retained so rolling
             # windows can aggregate by their real denominator instead of
             # averaging per-start rates.
@@ -267,6 +352,43 @@ def build_pitcher_starts(
         .then(pl.col("xwOBA_num") / pl.col("wOBA_den"))
         .otherwise(None)
         .alias("xwOBA"),
+        pl.when(pl.col("BABIP_den") > 0)
+        .then(pl.col("BABIP_num") / pl.col("BABIP_den"))
+        .otherwise(None)
+        .alias("babip"),
+        (pl.col("BIP") / pl.col("Pitches")).alias("bip_rate"),
+        ((pl.col("Strikes") + pl.col("BIP")) / pl.col("Pitches")).alias("strike_rate"),
+        pl.when(pl.col("FirstPitches") > 0)
+        .then(pl.col("FirstPitchStrikes") / pl.col("FirstPitches"))
+        .otherwise(None)
+        .alias("first_pitch_strike_rate"),
+        (pl.col("AheadPitches") / pl.col("Pitches")).alias("ahead_rate"),
+        (pl.col("NeutralPitches") / pl.col("Pitches")).alias("neutral_rate"),
+        (pl.col("BehindPitches") / pl.col("Pitches")).alias("behind_rate"),
+        pl.when(pl.col("PA") > 0)
+        .then(pl.col("TwoStrikePA") / pl.col("PA"))
+        .otherwise(None)
+        .alias("two_strike_reach_rate"),
+        pl.when(pl.col("TwoStrikePitches") > 0)
+        .then(pl.col("PutAwayK") / pl.col("TwoStrikePitches"))
+        .otherwise(None)
+        .alias("putaway_rate"),
+        pl.when(pl.col("arm_angle_den") > 0)
+        .then(pl.col("arm_angle_num") / pl.col("arm_angle_den"))
+        .otherwise(None)
+        .alias("arm_angle"),
+        pl.when(pl.col("RV_den") > 0)
+        .then(100.0 * pl.col("RV_num") / pl.col("RV_den"))
+        .otherwise(None)
+        .alias("rv_per_100"),
+        siera_mlb_expr(
+            pl.col("K"),
+            pl.col("BB"),
+            pl.col("GB"),
+            pl.col("OFB"),
+            pl.col("PU"),
+            pl.col("PA"),
+        ).alias("siera_mlb"),
     ]
     for pt in PITCH_TYPES:
         derived_exprs += [
@@ -286,6 +408,10 @@ def build_pitcher_starts(
             .then(pl.col(f"_{pt}_xwoba_num") / pl.col(f"_{pt}_woba_den"))
             .otherwise(None)
             .alias(f"{pt}_xwoba"),
+            pl.when(pl.col(f"{pt}_rv_den") > 0)
+            .then(100.0 * pl.col(f"{pt}_rv_num") / pl.col(f"{pt}_rv_den"))
+            .otherwise(None)
+            .alias(f"{pt}_rv_per_100"),
         ]
     agg = agg.with_columns(derived_exprs).with_columns(
         (pl.col("_topbot") == "Top").alias("is_home"),
@@ -359,6 +485,8 @@ def build_pitch_type_games(
             pl.col("is_called_strike").sum().alias("CS"),
             pl.col("is_gb").sum().alias("GB"),
             pl.col("is_fb").sum().alias("FB"),
+            pl.col("is_popup").sum().alias("PU"),
+            pl.col("is_ofb").sum().alias("OFB"),
             *discipline_count_exprs(),
             (
                 (pl.col("type") == "X") & (pl.col("launch_speed") >= 95.0)
@@ -396,6 +524,8 @@ def build_pitch_type_games(
             pl.col("woba_value").sum().alias("wOBA_num"),
             pl.col("woba_denom").sum().alias("wOBA_den"),
             pl.col("xwoba_num").sum().alias("xwOBA_num"),
+            pl.col("pitcher_rv").sum().alias("RV_num"),
+            pl.col("pitcher_rv").is_not_null().sum().alias("RV_den"),
             pl.col("release_speed").sum().alias("velo_num"),
             pl.col("release_speed").is_not_null().sum().alias("velo_den"),
             pl.col("release_spin_rate").sum().alias("spin_num"),
@@ -448,6 +578,7 @@ def build_pitch_type_games(
             rate("xBA_num", "xBA_den", "xBA"),
             rate("wOBA_num", "wOBA_den", "wOBA"),
             rate("xwOBA_num", "wOBA_den", "xwOBA"),
+            (100.0 * pl.col("RV_num") / pl.col("RV_den")).alias("rv_per_100"),
             rate("velo_num", "velo_den", "velocity"),
             rate("spin_num", "spin_den", "spin_rate"),
             rate("ivb_num", "ivb_den", "ivb"),

@@ -48,10 +48,12 @@ SAVANT_DATA_DIR = _path_from_env(
 # Postgame-defined research cohort used by the current Level 1 build.
 MIN_STARTER_BATTERS_FACED: int = 9
 
-# Season configuration. Feature research is restricted to 2023-2024 so the
-# complete 2025 season remains a historical holdout. After evaluation, the
-# production model may fit all training seasons before projecting 2026.
-TRAIN_SEASONS: tuple[int, ...] = (2023, 2024, 2025)
+# Season configuration. The pipeline retains 2025 for historical holdout
+# evaluation and 2026 projection features. Model fitting and feature research
+# are restricted to 2023-2024, so 2025 must not enter training, validation,
+# feature selection, or preprocessing fits.
+PIPELINE_SEASONS: tuple[int, ...] = (2023, 2024, 2025)
+TRAIN_SEASONS: tuple[int, ...] = (2023, 2024)
 FEATURE_RESEARCH_SEASONS: tuple[int, ...] = (2023, 2024)
 HOLDOUT_SEASON: int = 2025
 PROJECTION_SEASON: int = 2026

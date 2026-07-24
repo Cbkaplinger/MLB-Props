@@ -25,7 +25,7 @@ from collections.abc import Iterable, Mapping
 
 import polars as pl
 
-from .pitcher_features import FANGRAPHS_FIP_CONSTANT
+from .pitcher_features import FANGRAPHS_FIP_CONSTANT, PITCH_TYPES, siera_mlb_expr
 
 _ORDER: tuple[str, ...] = ("pitcher", "game_date", "game_pk")
 
@@ -43,13 +43,20 @@ DEFAULT_RATE_STATS: dict[str, tuple[str, str]] = {
     "contact_rate": ("Contacts", "Swings"),
     "gb_rate": ("GB", "BIP"),
     "hr_rate": ("HR", "PA"),
+    "bip_rate": ("BIP", "Pitches"),
+    "babip": ("BABIP_num", "BABIP_den"),
+    "first_pitch_strike_rate": ("FirstPitchStrikes", "FirstPitches"),
+    "ahead_rate": ("AheadPitches", "Pitches"),
+    "behind_rate": ("BehindPitches", "Pitches"),
+    "two_strike_reach_rate": ("TwoStrikePA", "PA"),
+    "putaway_rate": ("PutAwayK", "TwoStrikePitches"),
     "xBA": ("xBA_num", "xBA_den"),
     "wOBA": ("wOBA_num", "wOBA_den"),
     "xwOBA": ("xwOBA_num", "wOBA_den"),
 }
 
 # Per-start values rolled with a simple mean (physics, mechanics, and usage).
-_PITCH_TYPES: tuple[str, ...] = ("ff", "si", "fc", "sl", "st", "cu", "ch", "fs")
+_PITCH_TYPES: tuple[str, ...] = PITCH_TYPES
 DEFAULT_MEAN_COLS: tuple[str, ...] = (
     *(f"{pt}_{m}" for pt in _PITCH_TYPES for m in ("velo", "spinrate", "ivb", "hb", "vaa")),
     *(f"{pt}_usage_v{h}" for pt in _PITCH_TYPES for h in ("R", "L")),
@@ -59,6 +66,7 @@ DEFAULT_MEAN_COLS: tuple[str, ...] = (
 DEFAULT_RATE_WINDOWS: tuple[int, ...] = (5, 10, 20)
 DEFAULT_MEAN_WINDOWS: tuple[int, ...] = (3, 5, 10)
 _FIP_COUNTS: tuple[str, ...] = ("HR", "BB", "HBP", "K", "FB", "Outs")
+_SIERA_COUNTS: tuple[str, ...] = ("K", "BB", "GB", "OFB", "PU", "PA")
 
 
 def _prior_rate(num: str, den: str, by: list[str]) -> pl.Expr:
@@ -257,6 +265,314 @@ def _add_rolling_fip(
     )
 
 
+def _rolling_sum_column(
+    column: str,
+    window: int,
+    min_games: int,
+    *,
+    over: str | list[str] = "pitcher",
+) -> pl.Expr:
+    return (
+        pl.col(column)
+        .shift(1)
+        .rolling_sum(window_size=window, min_samples=min_games)
+        .over(over)
+    )
+
+
+def _add_rolling_arsenal(
+    df: pl.DataFrame,
+    min_games: int,
+) -> pl.DataFrame:
+    """Add requested prior-two-start arsenal presence and weighted usage."""
+    specs: list[tuple[pl.Expr, str]] = []
+    for pitch_type in _PITCH_TYPES:
+        thrown = f"throws_{pitch_type}"
+        pitches = f"{pitch_type}_pitches"
+        if thrown in df.columns:
+            specs.append(
+                (
+                    pl.col(thrown)
+                    .shift(1)
+                    .rolling_max(window_size=2, min_samples=min_games)
+                    .over("pitcher")
+                    .cast(pl.Int8),
+                    f"has_thrown_{pitch_type}_P2",
+                )
+            )
+        if pitches in df.columns and "Pitches" in df.columns:
+            numerator = _rolling_sum_column(pitches, 2, min_games)
+            denominator = _rolling_sum_column("Pitches", 2, min_games)
+            specs.append(
+                (
+                    pl.when(denominator > 0)
+                    .then(numerator / denominator)
+                    .otherwise(None),
+                    f"{pitch_type}_usage_P2",
+                )
+            )
+    if not specs:
+        return df
+    temporary = [f"__arsenal_{index}" for index in range(len(specs))]
+    return (
+        df.with_columns(
+            expr.alias(temp)
+            for temp, (expr, _name) in zip(temporary, specs, strict=True)
+        )
+        .with_columns(
+            pl.col(temp).first().over(["pitcher", "game_date"]).alias(name)
+            for temp, (_expr, name) in zip(temporary, specs, strict=True)
+        )
+        .drop(temporary)
+    )
+
+
+def _add_rolling_arm_angle(
+    df: pl.DataFrame,
+    windows: list[int],
+    min_games: int,
+) -> pl.DataFrame:
+    if not {"arm_angle_num", "arm_angle_den"}.issubset(df.columns):
+        return df
+    specs: list[tuple[pl.Expr, str]] = []
+    for window in windows:
+        numerator = _rolling_sum_column("arm_angle_num", window, min_games)
+        denominator = _rolling_sum_column("arm_angle_den", window, min_games)
+        specs.append(
+            (
+                pl.when(denominator > 0)
+                .then(numerator / denominator)
+                .otherwise(None),
+                f"arm_angle_P{window}",
+            )
+        )
+    temporary = [f"__arm_angle_{index}" for index in range(len(specs))]
+    return (
+        df.with_columns(
+            expr.alias(temp)
+            for temp, (expr, _name) in zip(temporary, specs, strict=True)
+        )
+        .with_columns(
+            pl.col(temp).first().over(["pitcher", "game_date"]).alias(name)
+            for temp, (_expr, name) in zip(temporary, specs, strict=True)
+        )
+        .drop(temporary)
+    )
+
+
+def _add_rolling_siera_and_rv(
+    df: pl.DataFrame,
+    windows: list[int],
+    min_games: int,
+) -> pl.DataFrame:
+    specs: list[tuple[pl.Expr, str]] = []
+    if set(_SIERA_COUNTS).issubset(df.columns):
+        for window in windows:
+            values = {
+                column: _rolling_sum_column(column, window, min_games)
+                for column in _SIERA_COUNTS
+            }
+            specs.append(
+                (
+                    siera_mlb_expr(
+                        values["K"],
+                        values["BB"],
+                        values["GB"],
+                        values["OFB"],
+                        values["PU"],
+                        values["PA"],
+                    ),
+                    f"siera_mlb_P{window}",
+                )
+            )
+    if {"RV_num", "RV_den"}.issubset(df.columns):
+        for window in windows:
+            numerator = _rolling_sum_column("RV_num", window, min_games)
+            denominator = _rolling_sum_column("RV_den", window, min_games)
+            specs.append(
+                (
+                    pl.when(denominator > 0)
+                    .then(100.0 * numerator / denominator)
+                    .otherwise(None),
+                    f"rv_per_100_P{window}",
+                )
+            )
+    if not specs:
+        return df
+    temporary = [f"__composite_{index}" for index in range(len(specs))]
+    return (
+        df.with_columns(
+            expr.alias(temp)
+            for temp, (expr, _name) in zip(temporary, specs, strict=True)
+        )
+        .with_columns(
+            pl.col(temp).first().over(["pitcher", "game_date"]).alias(name)
+            for temp, (_expr, name) in zip(temporary, specs, strict=True)
+        )
+        .drop(temporary)
+    )
+
+
+def add_pitch_type_rv_features(
+    starts: pl.DataFrame,
+    pitch_type_games: pl.DataFrame,
+    *,
+    prior_strength_pitches: float,
+    windows: Iterable[int] = (5, 10, 20),
+    min_games: int = 1,
+) -> pl.DataFrame:
+    """Join empirical-Bayes pitch-type RV candidates onto the start spine.
+
+    The league-by-pitch-type prior uses only dates strictly before the projected
+    date. Pitcher counts use complete prior starts, including zero pitches of a
+    type, so a five-start window means five starts rather than five appearances
+    of that pitch.
+    """
+    if prior_strength_pitches <= 0:
+        raise ValueError("prior_strength_pitches must be positive")
+    required_starts = {"game_pk", "pitcher", "game_date"}
+    required_types = {
+        "game_pk",
+        "pitcher",
+        "game_date",
+        "pitch_type",
+        "RV_num",
+        "RV_den",
+    }
+    if missing := sorted(required_starts - set(starts.columns)):
+        raise ValueError(f"starts is missing pitch-type RV keys: {missing}")
+    if missing := sorted(required_types - set(pitch_type_games.columns)):
+        raise ValueError(f"pitch_type_games is missing RV columns: {missing}")
+
+    dates = starts.select("game_pk", "pitcher", "game_date")
+    pitch_types = pl.DataFrame({"pitch_type": list(_PITCH_TYPES)})
+    grid = (
+        dates.join(pitch_types, how="cross")
+        .join(
+            pitch_type_games.select(
+                "game_pk", "pitcher", "pitch_type", "RV_num", "RV_den"
+            ),
+            on=["game_pk", "pitcher", "pitch_type"],
+            how="left",
+            validate="1:1",
+        )
+        .with_columns(
+            pl.col("RV_num").fill_null(0.0),
+            pl.col("RV_den").fill_null(0),
+        )
+    )
+    daily_totals = pitch_type_games.group_by("pitch_type", "game_date").agg(
+        pl.col("RV_num").sum().alias("_daily_rv"),
+        pl.col("RV_den").sum().alias("_daily_den"),
+    )
+    daily = (
+        dates.select("game_date")
+        .unique()
+        .join(pitch_types, how="cross")
+        .join(
+            daily_totals,
+            on=["pitch_type", "game_date"],
+            how="left",
+            validate="1:1",
+        )
+        .with_columns(
+            pl.col("_daily_rv").fill_null(0.0),
+            pl.col("_daily_den").fill_null(0),
+        )
+        .sort(["pitch_type", "game_date"])
+        .with_columns(
+            pl.col("_daily_rv")
+            .cum_sum()
+            .shift(1)
+            .over("pitch_type")
+            .fill_null(0.0)
+            .alias("_league_prior_rv"),
+            pl.col("_daily_den")
+            .cum_sum()
+            .shift(1)
+            .over("pitch_type")
+            .fill_null(0)
+            .alias("_league_prior_den"),
+        )
+        .select(
+            "pitch_type",
+            "game_date",
+            "_league_prior_rv",
+            "_league_prior_den",
+        )
+    )
+    grid = (
+        grid.join(daily, on=["pitch_type", "game_date"], how="left")
+        .sort(["pitcher", "pitch_type", "game_date", "game_pk"])
+        .with_columns(
+            pl.when(pl.col("_league_prior_den") > 0)
+            .then(pl.col("_league_prior_rv") / pl.col("_league_prior_den"))
+            .otherwise(None)
+            .alias("_league_prior_mean")
+        )
+    )
+
+    windows = list(windows)
+    specs: list[tuple[pl.Expr, str]] = []
+    for window in windows:
+        numerator = _rolling_sum_column(
+            "RV_num", window, min_games, over=["pitcher", "pitch_type"]
+        )
+        denominator = _rolling_sum_column(
+            "RV_den", window, min_games, over=["pitcher", "pitch_type"]
+        )
+        specs.append(
+            (
+                pl.when(pl.col("_league_prior_mean").is_not_null())
+                .then(
+                    100.0
+                    * (
+                        numerator
+                        + prior_strength_pitches * pl.col("_league_prior_mean")
+                    )
+                    / (denominator + prior_strength_pitches)
+                )
+                .otherwise(None),
+                f"rv_shrunk_P{window}",
+            )
+        )
+    temporary = [f"__pitch_type_rv_{index}" for index in range(len(specs))]
+    grid = (
+        grid.with_columns(
+            expr.alias(temp)
+            for temp, (expr, _name) in zip(temporary, specs, strict=True)
+        )
+        .with_columns(
+            pl.col(temp)
+            .first()
+            .over(["pitcher", "pitch_type", "game_date"])
+            .alias(name)
+            for temp, (_expr, name) in zip(temporary, specs, strict=True)
+        )
+        .drop(temporary)
+    )
+
+    out = starts
+    for pitch_type in _PITCH_TYPES:
+        selected = grid.filter(pl.col("pitch_type") == pitch_type).select(
+            "game_pk",
+            "pitcher",
+            *(
+                pl.col(f"rv_shrunk_P{window}").alias(
+                    f"{pitch_type}_rv_shrunk_P{window}"
+                )
+                for window in windows
+            ),
+        )
+        out = out.join(
+            selected,
+            on=["game_pk", "pitcher"],
+            how="left",
+            validate="1:1",
+        )
+    return out
+
+
 def add_rolling_pitcher_features(
     starts: pl.DataFrame,
     rate_stats: Mapping[str, tuple[str, str]] = DEFAULT_RATE_STATS,
@@ -326,5 +642,8 @@ def add_rolling_pitcher_features(
         for column, (_expr, name) in zip(temporary, feature_specs, strict=True)
     )
     df = df.drop(temporary)
+    df = _add_rolling_arsenal(df, min_games)
+    df = _add_rolling_arm_angle(df, mean_windows, min_games)
+    df = _add_rolling_siera_and_rv(df, mean_windows, min_games)
     df = _add_rolling_fip(df, mean_windows, min_games)
     return df.sort(_ORDER)

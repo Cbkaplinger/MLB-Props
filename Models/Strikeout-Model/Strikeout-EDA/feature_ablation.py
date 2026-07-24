@@ -1,8 +1,8 @@
 """Protected 2023-to-2024 screening of plate-discipline feature families.
 
-This is feature research, not final model training. It never reads 2025 rows.
-The fixed Ridge and LightGBM estimators compare candidate families against a
-common core while correlation outputs quantify within-family redundancy.
+This is feature research, not final model training. It never uses 2025 rows.
+Inner chronological folds select among fixed Ridge/LightGBM configurations;
+distinct outer folds report confirmation against a common core.
 """
 
 from __future__ import annotations
@@ -22,6 +22,8 @@ from sklearn.preprocessing import StandardScaler
 from Python import config
 from Python.features import TARGET, model_feature_names
 
+from nested_cv import fold_metadata, nested_research_folds
+
 
 def _metrics(actual: pd.Series, prediction: np.ndarray) -> dict[str, float]:
     prediction = np.clip(prediction, 0, 1)
@@ -40,8 +42,19 @@ def _families(features: list[str]) -> dict[str, list[str]]:
         "pitcher_gb": ("gb_rate_",),
         "batter_whiff": ("opp_lineup_whiff",),
         "batter_swstr": ("opp_lineup_swstr",),
+        "batted_ball": ("bip_rate_", "babip_"),
+        "count_state": (
+            "first_pitch_strike_rate_",
+            "ahead_rate_",
+            "behind_rate_",
+            "two_strike_reach_rate_",
+            "putaway_rate_",
+        ),
+        "siera": ("siera_mlb_",),
+        "arm_angle": ("arm_angle_",),
+        "run_value": ("rv_per_100_",),
     }
-    return {
+    families = {
         name: [
             feature
             for feature in features
@@ -52,6 +65,13 @@ def _families(features: list[str]) -> dict[str, list[str]]:
         ]
         for name, prefixes in definitions.items()
     }
+    families["p2_arsenal"] = [
+        feature
+        for feature in features
+        if feature.startswith("has_thrown_")
+        or (feature.endswith("_usage_P2") and "_v" not in feature)
+    ]
+    return families
 
 
 def _configurations(
@@ -76,6 +96,19 @@ def _configurations(
     compact.extend(families["batter_whiff"])
     compact.extend(families["batter_swstr"])
 
+    revised_compact = [
+        feature
+        for feature in families["pitcher_ball"]
+        if feature.endswith("_P5")
+    ]
+    revised_compact.extend(
+        feature
+        for feature in families["pitcher_swstr"]
+        if feature.endswith("_P20")
+    )
+    revised_compact.extend(families["batter_whiff"])
+    revised_compact.extend(families["batter_swstr"])
+
     return {
         "core": core,
         "pitcher_whiff": with_families("pitcher_whiff"),
@@ -93,6 +126,21 @@ def _configurations(
             "pitcher_gb",
         ),
         "compact_candidate": [*core, *compact],
+        "revised_compact": [*core, *revised_compact],
+        "p2_arsenal": with_families("p2_arsenal"),
+        "batted_ball": with_families("batted_ball"),
+        "count_state": with_families("count_state"),
+        "siera": with_families("siera"),
+        "arm_angle": with_families("arm_angle"),
+        "run_value": with_families("run_value"),
+        "expanded_all": with_families(
+            "p2_arsenal",
+            "batted_ball",
+            "count_state",
+            "siera",
+            "arm_angle",
+            "run_value",
+        ),
         "all_candidates": features,
     }
 
@@ -121,66 +169,31 @@ def _models() -> dict[str, object]:
     }
 
 
-def _correlation_report(
-    frame: pd.DataFrame,
-    families: dict[str, list[str]],
-) -> pd.DataFrame:
-    candidates = [feature for group in families.values() for feature in group]
-    correlation = frame[candidates].corr(min_periods=100)
-    rows = []
-    for left_index, left in enumerate(candidates):
-        for right in candidates[left_index + 1 :]:
-            value = correlation.loc[left, right]
-            rows.append(
-                {
-                    "left": left,
-                    "right": right,
-                    "correlation": float(value) if pd.notna(value) else np.nan,
-                    "abs_correlation": (
-                        float(abs(value)) if pd.notna(value) else np.nan
-                    ),
-                }
-            )
-    return pd.DataFrame(rows).sort_values(
-        "abs_correlation",
-        ascending=False,
-        na_position="last",
+def _select_from_inner_results(results: pd.DataFrame) -> pd.DataFrame:
+    """Select one configuration per outer fold/model using inner MAE only."""
+    aggregate = (
+        results.groupby(
+            ["outer_fold", "model", "configuration"],
+            as_index=False,
+        )
+        .agg(
+            n_features=("n_features", "first"),
+            inner_folds=("inner_fold", "nunique"),
+            inner_mean_mae=("mae", "mean"),
+            inner_mean_rmse=("rmse", "mean"),
+            inner_mean_r2=("r2", "mean"),
+        )
+        .sort_values(
+            [
+                "outer_fold",
+                "model",
+                "inner_mean_mae",
+                "n_features",
+                "configuration",
+            ]
+        )
     )
-
-
-def _research_folds(
-    frame: pd.DataFrame,
-) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
-    """Return expanding, date-disjoint folds contained entirely in dev data."""
-    july_2023 = pd.Timestamp("2023-07-01")
-    start_2024 = pd.Timestamp("2024-01-01")
-    july_2024 = pd.Timestamp("2024-07-01")
-    folds = {
-        "2023_h2": (
-            frame[frame["game_date"] < july_2023],
-            frame[
-                (frame["game_date"] >= july_2023)
-                & (frame["game_date"] < start_2024)
-            ],
-        ),
-        "2024_h1": (
-            frame[frame["game_date"] < start_2024],
-            frame[
-                (frame["game_date"] >= start_2024)
-                & (frame["game_date"] < july_2024)
-            ],
-        ),
-        "2024_h2": (
-            frame[frame["game_date"] < july_2024],
-            frame[frame["game_date"] >= july_2024],
-        ),
-    }
-    for name, (train, validation) in folds.items():
-        if train.empty or validation.empty:
-            raise ValueError(f"research fold {name} produced an empty partition")
-        if train["game_date"].max() >= validation["game_date"].min():
-            raise ValueError(f"research fold {name} has overlapping dates")
-    return folds
+    return aggregate.drop_duplicates(["outer_fold", "model"], keep="first")
 
 
 def main() -> None:
@@ -194,63 +207,110 @@ def main() -> None:
             f"expected {config.FEATURE_RESEARCH_SEASONS}, got {observed_seasons}"
         )
 
-    folds = _research_folds(frame)
+    folds = nested_research_folds(frame)
 
-    features = list(model_feature_names(frame))
+    features = list(model_feature_names(frame, include_experimental=True))
     families = _families(features)
     missing = [name for name, columns in families.items() if not columns]
     if missing:
         raise ValueError(f"candidate feature families are empty: {missing}")
     configurations = _configurations(features, families)
 
-    output_dir = config.OUTPUT_DIR / "feature_research"
+    output_dir = config.OUTPUT_DIR / "feature_research" / "expanded"
     output_dir.mkdir(parents=True, exist_ok=True)
-    correlations = _correlation_report(frame, families)
-    correlations.to_csv(output_dir / "candidate_correlations.csv", index=False)
 
-    rows: list[dict[str, object]] = []
-    for fold, (train, validation) in folds.items():
-        for model_name in _models():
-            for configuration, selected in configurations.items():
-                # Estimators are rebuilt each iteration to avoid fitted-state reuse.
-                model = _models()[model_name]
-                model.fit(train[selected], train[TARGET])
-                result = _metrics(
-                    validation[TARGET],
-                    model.predict(validation[selected]),
-                )
-                rows.append(
-                    {
-                        "fold": fold,
-                        "model": model_name,
-                        "configuration": configuration,
-                        "n_features": len(selected),
-                        "train_rows": len(train),
-                        "validation_rows": len(validation),
-                        **result,
-                    }
-                )
-                print(fold, model_name, configuration, result)
+    inner_rows: list[dict[str, object]] = []
+    for outer_name, nested in folds.items():
+        for inner_name, inner in nested.inner.items():
+            for model_name in _models():
+                for configuration, selected in configurations.items():
+                    model = _models()[model_name]
+                    model.fit(inner.train[selected], inner.train[TARGET])
+                    result = _metrics(
+                        inner.validation[TARGET],
+                        model.predict(inner.validation[selected]),
+                    )
+                    inner_rows.append(
+                        {
+                            "outer_fold": outer_name,
+                            "inner_fold": inner_name,
+                            "model": model_name,
+                            "configuration": configuration,
+                            "n_features": len(selected),
+                            "train_rows": len(inner.train),
+                            "validation_rows": len(inner.validation),
+                            **result,
+                        }
+                    )
+                    print(
+                        "inner",
+                        outer_name,
+                        inner_name,
+                        model_name,
+                        configuration,
+                        result,
+                    )
 
-    results = pd.DataFrame(rows)
-    core = (
-        results[results["configuration"] == "core"]
-        .set_index(["fold", "model"])[["mae", "rmse", "r2"]]
-        .rename(columns=lambda column: f"core_{column}")
+    inner_results = pd.DataFrame(inner_rows)
+    inner_results.to_csv(
+        output_dir / "candidate_ablation_inner_results.csv",
+        index=False,
     )
-    results = results.join(core, on=["fold", "model"])
-    results["mae_improvement_vs_core"] = results["core_mae"] - results["mae"]
-    results["rmse_improvement_vs_core"] = (
-        results["core_rmse"] - results["rmse"]
+    selections = _select_from_inner_results(inner_results)
+    selections.to_csv(
+        output_dir / "candidate_ablation_inner_selection.csv",
+        index=False,
     )
-    results["r2_improvement_vs_core"] = results["r2"] - results["core_r2"]
-    results = results.drop(columns=["core_mae", "core_rmse", "core_r2"])
+
+    outer_rows: list[dict[str, object]] = []
+    for selection in selections.itertuples(index=False):
+        nested = folds[selection.outer_fold]
+        outer = nested.outer
+        selected = configurations[selection.configuration]
+        selected_model = _models()[selection.model]
+        selected_model.fit(outer.train[selected], outer.train[TARGET])
+        selected_metrics = _metrics(
+            outer.validation[TARGET],
+            selected_model.predict(outer.validation[selected]),
+        )
+
+        core_features = configurations["core"]
+        core_model = _models()[selection.model]
+        core_model.fit(outer.train[core_features], outer.train[TARGET])
+        core_metrics = _metrics(
+            outer.validation[TARGET],
+            core_model.predict(outer.validation[core_features]),
+        )
+        outer_rows.append(
+            {
+                "outer_fold": selection.outer_fold,
+                "model": selection.model,
+                "selected_configuration": selection.configuration,
+                "n_features": len(selected),
+                "train_rows": len(outer.train),
+                "validation_rows": len(outer.validation),
+                "inner_mean_mae": selection.inner_mean_mae,
+                "inner_mean_rmse": selection.inner_mean_rmse,
+                "inner_mean_r2": selection.inner_mean_r2,
+                "mae": selected_metrics["mae"],
+                "rmse": selected_metrics["rmse"],
+                "r2": selected_metrics["r2"],
+                "mae_improvement_vs_core": core_metrics["mae"]
+                - selected_metrics["mae"],
+                "rmse_improvement_vs_core": core_metrics["rmse"]
+                - selected_metrics["rmse"],
+                "r2_improvement_vs_core": selected_metrics["r2"]
+                - core_metrics["r2"],
+            }
+        )
+        print("outer", selection.outer_fold, selection.model, outer_rows[-1])
+
+    results = pd.DataFrame(outer_rows)
     results.to_csv(output_dir / "candidate_ablation_results.csv", index=False)
     aggregate = (
-        results.groupby(["model", "configuration"], as_index=False)
+        results.groupby(["model"], as_index=False)
         .agg(
-            n_features=("n_features", "first"),
-            folds=("fold", "nunique"),
+            outer_folds=("outer_fold", "nunique"),
             mean_mae=("mae", "mean"),
             mean_rmse=("rmse", "mean"),
             mean_r2=("r2", "mean"),
@@ -262,7 +322,7 @@ def main() -> None:
                 lambda values: int((values > 0).sum()),
             ),
         )
-        .sort_values(["model", "mean_mae"])
+        .sort_values("mean_mae")
     )
     aggregate.to_csv(
         output_dir / "candidate_ablation_aggregate.csv",
@@ -272,19 +332,10 @@ def main() -> None:
     metadata = {
         "research_seasons": list(config.FEATURE_RESEARCH_SEASONS),
         "holdout_season_not_read": config.HOLDOUT_SEASON,
-        "folds": {
-            name: {
-                "train_range": [
-                    str(train["game_date"].min().date()),
-                    str(train["game_date"].max().date()),
-                ],
-                "validation_range": [
-                    str(validation["game_date"].min().date()),
-                    str(validation["game_date"].max().date()),
-                ],
-            }
-            for name, (train, validation) in folds.items()
-        },
+        "selection_metric": "mean inner-fold MAE",
+        "outer_data_used_for_selection": False,
+        "retired_api": "_research_folds removed; use nested_research_folds",
+        "folds": fold_metadata(folds),
         "families": families,
         "configurations": {
             name: len(selected) for name, selected in configurations.items()
@@ -295,7 +346,6 @@ def main() -> None:
         encoding="utf-8",
     )
     print(aggregate.to_string(index=False))
-    print(correlations.head(20).to_string(index=False))
     print(f"Wrote feature research outputs to {output_dir}")
 
 

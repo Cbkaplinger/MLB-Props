@@ -15,7 +15,12 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
-from Python.config import MODEL_DIR, PITCHER_TRAINING_PATH, ensure_output_directories
+from Python.config import (
+    MODEL_DIR,
+    PITCHER_TRAINING_PATH,
+    TRAIN_SEASONS,
+    ensure_output_directories,
+)
 from Python.features import TARGET, model_feature_names
 
 try:
@@ -33,10 +38,17 @@ def load_frame() -> tuple[pd.DataFrame, list[str]]:
     frame = pd.read_parquet(PITCHER_TRAINING_PATH)
     frame["game_date"] = pd.to_datetime(frame["game_date"])
     frame = (
-        frame.dropna(subset=[TARGET, "game_date"])
+        frame.loc[frame["season"].isin(TRAIN_SEASONS)]
+        .dropna(subset=[TARGET, "game_date"])
         .sort_values(["game_date", "player_name"])
         .reset_index(drop=True)
     )
+    observed_seasons = tuple(sorted(frame["season"].unique()))
+    if observed_seasons != TRAIN_SEASONS:
+        raise ValueError(
+            f"expected configured training seasons {TRAIN_SEASONS}, "
+            f"got {observed_seasons}"
+        )
     return frame, list(model_feature_names(frame))
 
 
