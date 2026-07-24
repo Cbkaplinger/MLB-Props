@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from . import config
 
 import polars as pl
 
@@ -160,8 +161,12 @@ def _arsenal_exprs() -> list[pl.Expr]:
     return exprs
 
 
-def build_pitcher_starts(df: pl.DataFrame, min_batters_faced: int = 9) -> pl.DataFrame:
+def build_pitcher_starts(df: pl.DataFrame, min_batters_faced: int = config.MIN_STARTER_BATTERS_FACED) -> pl.DataFrame:
     """Aggregate pitch-level Statcast into one row per starting-pitcher game.
+
+    The default excludes appearances with fewer than nine PA, including openers
+    and very early exits.This is a postgame-defined research cohort and must not
+    be described as coverage of every pregame announced starter.
 
     Args:
         df: Pitch-level Statcast for one or more seasons.

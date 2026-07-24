@@ -40,7 +40,7 @@ def _write(df: pl.DataFrame, path: Path) -> Path:
 
 def build_pitcher_games(
     raw: pl.DataFrame,
-    min_batters_faced: int = 9,
+    min_batters_faced: int = config.MIN_STARTER_BATTERS_FACED,
     with_fip: bool = True,
     player_map: pl.DataFrame | None = None,
     hr_fb_history: pl.DataFrame | None = None,
@@ -135,6 +135,7 @@ def _validate_raw_seasons(raw: pl.DataFrame, years: Iterable[int]) -> None:
 def run(
     years: Iterable[int] = config.TRAIN_SEASONS,
     *,
+    min_batters_faced: int = config.MIN_STARTER_BATTERS_FACED,
     refresh_player_map: bool = False,
     verify_schedule: bool = True,
 ) -> dict[str, Path]:
@@ -164,6 +165,7 @@ def run(
         "pitcher_games": _write(
             build_pitcher_games(
                 raw,
+                min_batters_faced=min_batters_faced,
                 player_map=player_map,
                 hr_fb_history=prior_history,
             ),

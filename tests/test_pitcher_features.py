@@ -6,6 +6,7 @@ import datetime as dt
 
 import polars as pl
 import pytest
+import Python.config as config
 
 from Python import pitcher_features as pf
 
@@ -222,3 +223,6 @@ def test_vaa_sign_is_negative():
     out = pf.build_pitcher_starts(_frame([_pitch(at_bat_number=1, events="field_out")]),
                                   min_batters_faced=0)
     assert out["ff_vaa"][0] is not None and out["ff_vaa"][0] < 0
+
+def test_default_population_requires_nine_batters_faced():
+    assert config.MIN_STARTER_BATTERS_FACED == 9

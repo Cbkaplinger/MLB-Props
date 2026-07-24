@@ -48,11 +48,15 @@ SAVANT_DATA_DIR = _path_from_env(
 )
 ROSTER_SCRAPER_DIR = PROJECT_ROOT / "RosterScraper"
 
-# Season configuration. The training window was chosen as the 2023-2025 regular
-# seasons; the target deployment is projecting the 2026 season. Keep feature and
-# data code parameterized by these rather than hard-coding years.
+MIN_STARTER_BATTERS_FACED: int = 9
+
 TRAIN_SEASONS: tuple[int, ...] = (2023, 2024, 2025)
 PROJECTION_SEASON: int = 2026
+
+# Season configuration. The training window was chosen as the 2023-2025 regular
+# seasons; the target deployment is projecting the 2026 season. Keep feature and
+FEATURE_RESEARCH_SEASONS: tuple[int, ...] = (2023, 2024)
+HOLDOUT_SEASON: int = 2025
 
 
 def ensure_output_directories() -> None:
