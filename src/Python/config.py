@@ -18,9 +18,6 @@ DATA_DIR = _path_from_env("MLB_PROPS_DATA_DIR", PROJECT_ROOT / "Data")
 OUTPUT_DIR = _path_from_env("MLB_PROPS_OUTPUT_DIR", PROJECT_ROOT / "artifacts")
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 MODEL_DIR = OUTPUT_DIR / "models"
-PREDICTION_DIR = OUTPUT_DIR / "predictions"
-SHAP_DIR = OUTPUT_DIR / "shap"
-OPTUNA_DIR = OUTPUT_DIR / "optuna"
 
 # ---------------------------------------------------------------------------
 # Three-level feature pipeline artifacts (see src/Python/pipeline/).
@@ -47,7 +44,6 @@ SAVANT_DATA_DIR = _path_from_env(
     "MLB_PROPS_SAVANT_DATA_DIR",
     DATA_DIR / "Savant-Data" / "regular",
 )
-ROSTER_SCRAPER_DIR = PROJECT_ROOT / "RosterScraper"
 
 # Postgame-defined research cohort used by the current Level 1 build.
 MIN_STARTER_BATTERS_FACED: int = 9
@@ -63,5 +59,4 @@ PROJECTION_SEASON: int = 2026
 
 def ensure_output_directories() -> None:
     """Create local artifact directories when a workflow needs them."""
-    for directory in (MODEL_DIR, PREDICTION_DIR, SHAP_DIR, OPTUNA_DIR):
-        directory.mkdir(parents=True, exist_ok=True)
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)

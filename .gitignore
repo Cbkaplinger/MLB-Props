@@ -16,3 +16,10 @@ Models/Strikeout-Model/results/Test-Predictions/
 Models/**/Graphs/
 .venv/
 **/.venv/
+venv/
+**/venv/
+env/
+**/env/
+.env
+.vscode/
+.idea/

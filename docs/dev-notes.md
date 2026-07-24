@@ -28,6 +28,10 @@ Paths are defined in `src/Python/config.py` and default to
 | 2: rolling | `pipeline/rolling.py` | `pitcher_rolling.parquet` | `batter_rolling.parquet` |
 | 3: training | `pipeline/training.py` | `pitcher_training.parquet` | `batter_training.parquet` |
 
+Level 1 also writes `pitch_type_games.parquet` at
+starter/game/canonical-pitch-type grain for denominator-aware pitch-type
+research.
+
 Run all stages:
 
 ```powershell
@@ -94,16 +98,19 @@ last 20 games, with at least one prior game by default).
 labels. It drops raw same-game feature columns by default. Use `keep_raw=True`
 only for diagnostics, never as the model input artifact.
 
-The default windows are provisional until denominator-aware stabilization is
-run on the current Level 1 data. Change window constants in the rolling modules
-after that analysis; do not recreate windows in notebooks.
+Denominator-aware stabilization has been run on the current Level 1 data. It
+proposed candidate neighborhoods but did not by itself justify changing the
+default 5/10/20 rate windows or 3/5/10 physics windows. Validate nearby choices
+with chronological CV and grouped ablation before changing constants in the
+rolling modules; do not recreate windows in notebooks.
 
 ### Level 3: model-ready joins
 
 `pipeline/training.py` joins:
 
 - pitcher rolling form;
-- the opposing batters' pregame overall/handed K%, whiff%, and chase%;
+- the opposing batters' pregame overall/handed K%, Whiff%
+  (`Whiffs/Swings`), SwStr% (`Whiffs/Pitches`), and chase%;
 - the season/stadium park factor.
 
 The historical lineup proxy uses the first nine distinct batters to appear for
@@ -120,12 +127,47 @@ training split; they must not be backfilled from same-game outcomes.
 The batter training frame does not yet include opposing-starter features and is
 therefore not feature-complete for a production batter-side model.
 
+### Daily lineup adapter
+
+`Python.daily_lineups` ingests the current RotoGrinders DraftKings MLB page,
+preserving batting order and projected/confirmed status. It joins each game to
+the official MLB schedule, resolves scraped players only within the matching
+MLB active/40-man roster, and returns numeric `batter`/`pitcher` IDs. Name-only
+or forward-filled joins are forbidden. Validation requires nine unique
+resolved batters per team; `--require-confirmed` additionally rejects
+projected lineups.
+
+The adapter writes dated batter and starter inputs under `Data/processed/`.
+RotoGrinders supplies the earlier prediction surface; MLB schedule, roster,
+probable-pitcher, and person endpoints remain the canonical identity/game
+surface. The HTML source is external and must be monitored for markup or usage
+policy changes.
+
+### Preserved future-target foundations
+
+Level 1 intentionally retains `Hits`, `BB`, `Runs`, `Pitches`, `Outs`, and
+`PA`/batters faced even when they are not inputs to the K/PA model. These
+outcomes and the denominator plans in `reliability.py` are foundations for
+future hit, walk, runs-allowed, pitches, outs, and workload models; they are not
+dead columns or dead research code. Level 2 currently promotes only the active
+pitcher labels needed by this model, so future targets should rebuild from
+Level 1 or explicitly extend the label-retention policy without weakening the
+pregame leakage gate.
+
 `Models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and supports
 LightGBM, Ridge, and mean baselines without rebuilding Level 1 or Level 2.
 Feature selection accepts only explicitly approved context fields and lagged
 rolling/season-to-date columns; an unexpected numeric column fails loudly.
 The approximate 70/15/15 chronological split keeps each calendar date wholly
 inside one partition.
+
+The frozen audit-corrected baseline has 227 features: training ends
+2025-04-14, validation is 2025-04-15 through 2025-07-05, and testing starts
+2025-07-06. Test RMSE / R² are 0.1076 / -0.0001 (Mean), 0.1003 / 0.1313
+(Ridge), and 0.0994 / 0.1459 (LightGBM). Later research frames contain
+214 core, 219 compact, 227 preferred-raw, or 232 all-candidate features and
+must not be conflated with that frozen baseline. The frozen registry includes
+`opp_lineup_whiff`, while `opp_lineup_swstr` is a later candidate.
 
 ## Park factors and future intangibles
 
@@ -162,8 +204,8 @@ files unless the feature itself represents lagged player form.
 
 Use the denominator where reliability reaches the chosen threshold (commonly
 `r ≈ 0.5`), translate it to starts, then compare nearby windows with
-chronological cross-validation and SHAP. Stabilization chooses plausible
-windows; it does not prove predictive value.
+chronological cross-validation and grouped ablation. Stabilization chooses
+plausible windows; it does not prove predictive value.
 
 ## FIP constant maintenance
 
@@ -174,14 +216,16 @@ A season-level additive constant has no within-season tree-model signal.
 
 ## Current limitations
 
-- The leakage-safe baseline is recorded, but the working tree remains
-  uncommitted; its data/model hashes must accompany any published result.
 - Projected batters faced and an end-to-end strikeout-count backtest are not
   complete.
-- Announced-lineup ingestion is not implemented.
+- Daily lineup ingestion exists, but scheduling, retries, source-status
+  monitoring, and downstream prediction-frame assembly are not automated.
 - Full batter-by-pitch-type arsenal/lineup interactions are not implemented;
-  current lineup whiff/chase features are lineup averages.
+  current lineup discipline features are lineup averages.
 - Weather, travel/rest, catcher, and market features are not integrated.
+- Neutral-site/international games can contaminate team-keyed park factors.
+- Existing feature-family ablations predate denominator-weighted expected-stat
+  and splitter propagation corrections and require a rebuilt-frame rerun.
 
 ## Validation
 

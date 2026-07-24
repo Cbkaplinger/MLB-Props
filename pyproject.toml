@@ -9,6 +9,7 @@ description = "Pregame MLB pitcher strikeout projection research"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "beautifulsoup4",
     "numpy",
     "pandas",
     "polars",
@@ -17,19 +18,14 @@ dependencies = [
 
 [project.optional-dependencies]
 research = [
-    "beautifulsoup4",
     "jupyterlab",
     "lightgbm",
     "matplotlib",
-    "optuna",
+    "nbconvert",
     "pybaseball",
-    "requests",
     "scikit-learn",
     "scipy",
     "seaborn",
-    "shap",
-    "tqdm",
-    "xgboost",
 ]
 dev = ["pytest"]
 

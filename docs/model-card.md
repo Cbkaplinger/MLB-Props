@@ -24,7 +24,12 @@ This repository is research code, not a validated betting system.
 
 The current date-disjoint 2023-2025 baseline uses 227 approved features.
 Held-out test results are Mean RMSE 0.1076 / R² -0.0001, Ridge RMSE 0.1003 /
-R² 0.1313, and LightGBM RMSE 0.0994 / R² 0.1459.
+R² 0.1313, and LightGBM RMSE 0.0994 / R² 0.1459. Training ends
+2025-04-14, validation runs from 2025-04-15 through 2025-07-05, and testing
+starts 2025-07-06. Later feature research compares a 214-feature core,
+219-feature compact candidate, 227-feature preferred-raw candidate, and
+232-feature all-candidate frame; those are not replacements for the frozen
+baseline.
 
 ## Leakage policy
 
@@ -62,10 +67,14 @@ Important definitions:
 
 ## Context features
 
-Opponent features aggregate each hitter's pregame overall/handed K%, whiff%,
-and chase%. Historical membership uses the first nine distinct batters by first
-plate appearance and requires complete nine-player coverage. Live projections
-must substitute the announced lineup.
+Opponent features aggregate each hitter's pregame overall/handed K%,
+Whiff% (`Whiffs/Swings`), SwStr% (`Whiffs/Pitches`), and chase%. Historical
+membership uses the first nine distinct batters by first plate appearance and
+requires complete nine-player coverage. The frozen 227-feature baseline
+includes lineup Whiff% but not the later lineup SwStr% candidate. Live
+projections substitute the RotoGrinders projected/confirmed lineup through
+`Python.daily_lineups`; every scraped name must resolve to an official
+team-roster MLB ID.
 
 Park factors are keyed by `(season, home_team)` and use prior seasons only.
 The prior-only 2022 source supplies 2023 park history without entering model
@@ -77,7 +86,7 @@ Before publishing performance or using probabilities:
 
 - run the complete Level 1-3 pipeline;
 - choose rolling windows with denominator-aware stabilization, then validate
-  nearby choices with chronological CV and SHAP;
+  nearby choices with chronological CV and grouped ablation;
 - train without label/identifier columns;
 - compare against a mean baseline and a regularized linear baseline;
 - assess calibration and proper scoring rules for prop probabilities;
@@ -87,6 +96,10 @@ Before publishing performance or using probabilities:
 ## Current limitations
 
 - TBF projection and end-to-end prop backtesting are incomplete.
-- Announced-lineup ingestion is not implemented.
+- Daily lineup ingestion exists, but its scheduler, retry/monitoring layer, and
+  downstream production prediction assembly are not implemented.
 - Batter-by-pitch-type arsenal interactions remain planned.
 - Weather, travel/rest, catcher, and market inputs are not integrated.
+- Neutral-site/international games can contaminate team-keyed park factors.
+- Existing feature-family ablations predate denominator-weighted expected-stat
+  and splitter propagation corrections and require a rebuilt-frame rerun.

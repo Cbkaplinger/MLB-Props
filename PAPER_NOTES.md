@@ -17,8 +17,9 @@ Update incrementally as work happens -- do not reconstruct retroactively.
 > this section should be the "why," dev-notes.md is the "how."
 
 - Source: Baseball Savant pitch-level Statcast via pybaseball. The repository
-  currently provides a validated season download, but no automated daily job.
-- Level 1: pitcher_games, batter_games, park_factors
+  provides a validated season download and an ID-resolved RotoGrinders/MLB
+  daily lineup adapter, but no automated daily projection scheduler.
+- Level 1: pitcher_games, pitch_type_games, batter_games, park_factors
 - Level 2: pitcher_rolling, batter_rolling (leakage-safe rolling/season-to-date)
 - Level 3: pitcher_training, batter_training (final model-ready frame)
 
@@ -55,10 +56,11 @@ Update incrementally as work happens -- do not reconstruct retroactively.
 - Level 3 null audit traced 90 fully-null opponent-lineup rows to each season's
   opening games (including the Tokyo Series), where no batter has prior
   season-to-date PA. The nulls were retained as the leakage-safe behavior.
-- Automated test suite: 96 tests across test_ballpark.py, test_batter_features.py,
-  test_batter_rolling.py, test_feature_safety.py, test_identity.py,
-  test_pipeline.py, test_pitcher_features.py, test_pitcher_rolling.py,
-  test_reliability.py, test_stabilization.py, test_statcast.py
+- Automated test suite covers ballpark, batter features/rolling, feature
+  safety, identity, pipeline stages, pitcher features/rolling, reliability,
+  stabilization, Statcast primitives, and the production trainer/splitter
+  (`tests/test_train.py`). The dated counts in individual bug entries are
+  historical snapshots rather than the live suite size.
 
 ## 4. Bugs found and fixed (evidence log)
 
@@ -212,9 +214,10 @@ Final audit-corrected, date-disjoint baseline:
 | Ridge | 227 | 2025-04-14 | 2025-04-15 | 2025-07-05 | 2025-07-06 | 0.0797 | 0.1003 | 0.1313 |
 | LightGBM | 227 | 2025-04-14 | 2025-04-15 | 2025-07-05 | 2025-07-06 | 0.0786 | 0.0994 | 0.1459 |
 
-> Add rows as new models are run (LightGBM, XGBoost, feature-pruned variants).
+> Add rows as new models or feature-pruned variants are run.
 > Historical frozen snapshot location:
-> `Models/Strikeout-Model/results/_baseline_2026-07-23/`.
+> `docs/archive/leaky-baseline-2026-07-23/`. It is retained for process
+> history only and must not be cited as current performance.
 > The fitted LightGBM model and its complete feature/evaluation JSON are in
 > `artifacts/models/lightgbm_krate_20260723_202255.*`.
 > Final SHA-256: pitcher training
@@ -303,7 +306,9 @@ within-family redundancy audit and chronological 2023-to-2024 predictive
 comparison of the small candidate window sets. Naming is now consistent:
 `whiff_rate = Whiffs/Swings` and `swstr_rate = Whiffs/Pitches` for both
 pitchers and batters. Level 3 exposes distinct `opp_lineup_whiff` and
-`opp_lineup_swstr` candidates; neither is frozen into the final registry.
+`opp_lineup_swstr` candidates. `opp_lineup_whiff` is in the frozen 227-feature
+baseline; `opp_lineup_swstr` belongs to the later research candidate frame and
+is not in that frozen registry.
 
 JA ERA is not added as a feature because its exact published coefficients were
 not supplied and it estimates run prevention rather than K/PA. Its available
@@ -365,9 +370,10 @@ Outputs are under `artifacts/stabilization/pitch_type/`; the reusable runner is
    pitch type, and feature. Debuts and new pitch types need explicit
    prior-season/league fallback and missingness indicators; minor-league data
    remain out of scope.
-4. **Validate production lineup construction.** Compare the retrospective
-   first-nine-batters proxy with scraped announced lineups, including late
-   scratches and handedness changes.
+4. **Validate production lineup construction.** Collect the ID-resolved daily
+   adapter outputs and compare the retrospective first-nine-batters proxy with
+   projected/confirmed lineups, including late scratches and handedness
+   changes.
 5. **Test drift and interactions.** Check 2023-to-2024 feature/target drift and
    test pitch-type skill only as leakage-safe prior-game rolls, ideally
    interacted with opponent lineup handedness and pitch-type vulnerability.
@@ -380,6 +386,10 @@ Outputs are under `artifacts/stabilization/pitch_type/`; the reusable runner is
    above/below prop lines, not only K/PA R2.
 
 ### Protected feature-family ablation
+
+These results predate denominator-weighted expected-stat corrections and
+splitter (`fs_*`) propagation. They remain development evidence, but must be
+rerun on the rebuilt frame before any registry is frozen.
 
 A fixed Ridge and LightGBM screen used three expanding, date-disjoint folds
 contained entirely within 2023-2024. The 2025 holdout was not read. Every
@@ -458,13 +468,15 @@ This is now the leading registry candidate, not a frozen final registry.
 
 > Fill in once frozen. Should be copy-paste runnable by a reader.
 
-- Git commit: `2e7f83c24a6cb330d11f6e94a68315fce8b3272b`
-  (dirty working tree; see baseline `GIT_STATE.txt` and hashes above)
+- Historical baseline commit:
+  `2e7f83c24a6cb330d11f6e94a68315fce8b3272b` (see
+  `docs/archive/leaky-baseline-2026-07-23/GIT_STATE.txt`; corrected artifact
+  identity is established by the hashes above)
 - Command sequence:
   `python -m Python.pipeline.games`,
   `python -m Python.pipeline.rolling`,
   `python -m Python.pipeline.training`,
   `python Models/Strikeout-Model/Strikeout-EDA/run_pitch_type_stabilization.py`
-- Test suite: `python -m pytest` (100 tests, all passing as of 2026-07-23)
+- Test suite: `python -m pytest` (108 tests, all passing as of 2026-07-23)
 - Model training:
   `python Models/Strikeout-Model/train.py --model [mean|ridge|...]`

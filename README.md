@@ -14,6 +14,7 @@ raw Savant parquet
   │
   ├─ Level 1: pipeline/games.py
   │    ├─ pitcher_games.parquet
+  │    ├─ pitch_type_games.parquet
   │    ├─ batter_games.parquet
   │    └─ park_factors.parquet
   │
@@ -42,6 +43,7 @@ src/Python/
 ├─ batter_rolling.py      leakage-safe batter form and hand splits
 ├─ ballpark.py            prior-season park-factor dimension
 ├─ reliability.py         stabilization and reliability analysis
+├─ daily_lineups.py       daily predicted/confirmed lineup ingestion
 ├─ features.py            pregame feature safety
 └─ pipeline/
    ├─ games.py            Level 1 orchestration
@@ -75,6 +77,7 @@ Expected source layout:
 
 ```text
 regular/
+├─ 2022/statcast_2022_regular.parquet  (prior-only context)
 ├─ 2023/statcast_2023_regular.parquet
 ├─ 2024/statcast_2024_regular.parquet
 └─ 2025/statcast_2025_regular.parquet
@@ -105,15 +108,48 @@ python -m Python.pipeline.training
 Artifacts default to `Data/processed/`. Override the data root with
 `MLB_PROPS_DATA_DIR`.
 
+## Build daily projection inputs
+
+`daily_lineups.py` combines RotoGrinders projected/confirmed batting orders
+with official MLB Stats API schedule, roster, probable-pitcher, and person IDs.
+Scraped names are resolved only within the corresponding official team roster;
+model-facing joins use numeric MLB IDs.
+
+```powershell
+# Accept projected or confirmed lineups
+python -m Python.daily_lineups
+
+# Fail until every lineup is marked confirmed
+python -m Python.daily_lineups --require-confirmed
+```
+
+The command writes dated `daily_lineups_YYYY-MM-DD.parquet` and
+`daily_starters_YYYY-MM-DD.parquet` files under `Data/processed/`. Every team
+must have nine unique batting-order positions and resolved MLB IDs or the run
+fails. RotoGrinders is an external HTML source whose markup and permitted use
+must be monitored; MLB IDs remain the durable identity contract.
+
 ## Research workflow
 
-1. Build Level 1 and run the EDA/stabilization notebook.
-2. Update rolling-window constants from denominator-aware stabilization.
+1. Build Level 1 and rerun the EDA/stabilization studies when inputs change.
+2. Use denominator-aware stabilization to propose nearby windows, then validate
+   them chronologically. The completed study did not by itself change the
+   current 5/10/20 rate or 3/5/10 physics defaults.
 3. Build Levels 2 and 3.
 4. Train chronologically with
    `python Models/Strikeout-Model/train.py --model lightgbm`.
-5. Use SHAP/CV to remove redundant windows and features.
+5. Use grouped ablation and chronological CV to remove redundant windows and
+   features.
 6. Record a frozen leakage-free baseline before developing a TBF/prop layer.
+
+## Current frozen baseline
+
+The audit-corrected 227-feature evaluation keeps calendar dates disjoint:
+training ends 2025-04-14, validation is 2025-04-15 through 2025-07-05, and
+testing starts 2025-07-06. Test RMSE / R² are 0.1076 / -0.0001 for Mean,
+0.1003 / 0.1313 for Ridge, and 0.0994 / 0.1459 for LightGBM. The older
+overlapping-date run is retained only under
+`docs/archive/leaky-baseline-2026-07-23/`.
 
 Export a notebook to PDF through Chromium:
 
@@ -127,4 +163,6 @@ Export a notebook to PDF through Chromium:
 python -m pytest
 ```
 
-Data and generated artifacts are local-only and must not be committed.
+Generated files under `Data/processed/` and `artifacts/` are local-only and
+must not be committed. Raw source-data versioning is handled separately from
+those generated-output rules.
