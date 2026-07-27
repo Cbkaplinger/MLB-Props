@@ -610,6 +610,9 @@ games as the new pristine evaluation.
 
 ## Part 3: Strikeout-count probability model scoping
 
+Phase diagrams for this sequencing live under `diagrams/`
+(`01-architecture`, `03-modeling-and-evaluation`, `04-roadmap`).
+
 All count-model options are **NOT STARTED**. Actual same-game TBF/PA must never
 be a prediction-time feature. It may be retained as response structure and an
 evaluation oracle. End-to-end evaluation must use projected TBF generated
@@ -619,9 +622,14 @@ In the current repository, starter TBF is represented by `PA`; there is no
 separate `actual_tbf` column. Level 3 retains `K`, `PA`, `Outs`, and `k_rate`,
 which is enough to fit historical binomial/beta-binomial responses. It does not
 contain `projected_tbf` or the lagged workload features needed to produce one.
-Level 1 retains workload foundations such as pitches and outs, but Level 2
-currently drops them except for active labels, so a TBF training spine must
-extend label/history retention or rebuild from Level 1.
+Level 1 retains workload foundations such as `Pitches`, `PA`, and `Outs`, but
+Level 2 currently keeps only active labels (`K`, `PA`, `Outs`, `k_rate`) and
+drops `Pitches`. Default rolling does not emit lagged workload history
+(`PA_P*`, `Outs_P*`, `Pitches_P*`). A TBF training spine should therefore either
+extend Level 2 rolling means for those columns and join onto existing
+`pitcher_training.parquet`, or rebuild workload history from Level 1 — without
+promoting same-game workload counts into prediction features. See
+`diagrams/04-roadmap.md` for the minimal spine sketch.
 
 The original 2023-2025 dispersion ranges (`1.38-1.53` for count variance and
 `1.35-1.52` for K/PA variance) do not reproduce under the required

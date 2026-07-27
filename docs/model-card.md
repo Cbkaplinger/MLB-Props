@@ -123,11 +123,31 @@ Before publishing performance or using probabilities:
   beta-binomial and negative-binomial candidates compared against a Poisson
   baseline. This work is contingent on a stable projected-TBF model.
 
+## Diagrams
+
+Phase charts (keep separate; do not collapse into one mega-flowchart):
+
+- `diagrams/01-architecture.md` — as-built L1→L3→train→artifact, live side branch
+- `diagrams/02-leakage-and-risks.md` — priors, park contamination, ≥9 PA filter
+- `diagrams/03-modeling-and-evaluation.md` — chrono splits, baselines, Steps 1/3/4/5→7
+- `diagrams/04-roadmap.md` — TBF, count layer, live assembly, freeze gates
+
 ## Current limitations
 
-- TBF projection and end-to-end prop backtesting are incomplete.
-- Daily lineup ingestion exists, but its scheduler, retry/monitoring layer, and
-  downstream production prediction assembly are not implemented.
+- TBF projection and end-to-end prop backtesting are incomplete. Starter TBF is
+  represented by same-game `PA` (label/oracle only). Level 1 retains `Pitches`,
+  `PA`, and `Outs`, but Level 2 currently keeps only `K`/`PA`/`Outs`/`k_rate` as
+  labels and drops `Pitches`; lagged workload features (`PA_P*`, `Outs_P*`,
+  `Pitches_P*`) are not produced yet. A TBF spine can join new lagged workload
+  columns onto existing `pitcher_training.parquet` without rebuilding Level 1.
+- Count-probability layer (beta-binomial recommended; NB with log-TBF offset;
+  Poisson GLM floor) is not implemented. No `statsmodels` dependency and no
+  custom beta-binomial / NB / Poisson regression code exists yet.
+- Daily lineup ingestion exists (`Python.daily_lineups`), but its scheduler,
+  retry/monitoring layer, and downstream production prediction assembly
+  (frozen artifact + announced lineup → `k_rate` frame) are not implemented.
+- Step 5 PA-weighted Ridge/LightGBM and binomial/beta-binomial likelihood
+  comparisons are not started; `train.py` fits unweighted game-level `k_rate`.
 - Batter-by-pitch-type run value remains research-only: no detailed or coarse
   pitch family cleared the lower-bootstrap-CI reliability gate.
 - Weather, travel/rest, catcher, and market inputs are not integrated.

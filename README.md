@@ -4,8 +4,10 @@ Research pipeline for pregame MLB pitcher strikeout-rate projections from
 Baseball Savant data. Feature engineering is Polars-first; the training script
 consumes a model-ready parquet rather than rebuilding features.
 
-See `docs/model-card.md` for intended use and leakage rules and
-`docs/dev-notes.md` for the current feature reference.
+See `docs/model-card.md` for intended use and leakage rules,
+`docs/dev-notes.md` for the current feature reference, and
+`diagrams/` for phase-colored architecture / leakage / modeling / roadmap
+charts (Mermaid).
 
 ## Pipeline
 
@@ -141,6 +143,16 @@ must be monitored; MLB IDs remain the durable identity contract.
 5. Use grouped ablation and chronological CV to remove redundant windows and
    features.
 6. Record a frozen leakage-free baseline before developing a TBF/prop layer.
+
+## Remaining gaps (see `diagrams/04-roadmap.md`)
+
+- Projected TBF model: not started. Level 1 has `Pitches`/`PA`/`Outs`, but
+  Level 2 does not emit lagged workload features yet.
+- Count-probability layer (beta-binomial / NB / Poisson): not started.
+- Live prediction assembly: lineup ingestion exists (`daily_lineups.py`);
+  joining slate + frozen LightGBM artifact is not implemented.
+- Step 5 PA-weighted / binomial likelihood comparison: not started in
+  `train.py` (fits remain unweighted).
 
 ## Current baseline and research surface
 

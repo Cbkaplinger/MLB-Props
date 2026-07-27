@@ -5,6 +5,9 @@ project. Historical notebook scores and the former Longleaf workflow were
 removed because they were produced before the leakage-safe pipeline and are not
 valid evidence of current model quality.
 
+Visual phase diagrams (architecture, leakage, modeling status, roadmap) live
+under `diagrams/`. Prefer those over ad-hoc flowchart exports.
+
 ## Objective and leakage boundary
 
 The pitcher model predicts a starter's game-level strikeout rate:
@@ -206,10 +209,21 @@ Level 1 intentionally retains `Hits`, `BB`, `Runs`, `Pitches`, `Outs`, and
 `PA`/batters faced even when they are not inputs to the K/PA model. These
 outcomes and the denominator plans in `reliability.py` are foundations for
 future hit, walk, runs-allowed, pitches, outs, and workload models; they are not
-dead columns or dead research code. Level 2 currently promotes only the active
-pitcher labels needed by this model, so future targets should rebuild from
-Level 1 or explicitly extend the label-retention policy without weakening the
-pregame leakage gate.
+dead columns or dead research code.
+
+Level 2 currently keeps only the active pitcher labels (`K`, `PA`, `Outs`,
+`k_rate`) and drops same-game `Pitches` plus other raw workload counts.
+Lagged workload features such as `PA_P5`, `Outs_P5`, or `Pitches_P5` are
+**not** emitted by default rolling (though `features.py` documents that lagged
+`PA_P*` would be valid pregame inputs). A projected-TBF model therefore needs
+either:
+
+1. a thin Level-2 extension that rolls `PA` / `Outs` / `Pitches` from
+   `pitcher_games.parquet` and joins onto existing `pitcher_training.parquet`, or
+2. a rebuild from Level 1 with an explicit workload-retention policy —
+
+without weakening the pregame leakage gate (same-game `PA`/`Outs`/`Pitches`
+remain labels/oracles, never prediction-time features).
 
 `Models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and supports
 LightGBM, Ridge, and mean baselines without rebuilding Level 1 or Level 2.
@@ -357,9 +371,15 @@ A season-level additive constant has no within-season tree-model signal.
 ## Current limitations
 
 - Projected batters faced and an end-to-end strikeout-count backtest are not
-  complete.
+  complete (see `diagrams/04-roadmap.md`). No `projected_tbf` column or
+  workload-projection trainer exists yet.
+- Count-probability layer (beta-binomial / NB / Poisson) is not started; no
+  `statsmodels` dependency and no custom count likelihood code under `Models/`.
 - Daily lineup ingestion exists, but scheduling, retries, source-status
-  monitoring, and downstream prediction-frame assembly are not automated.
+  monitoring, and downstream prediction-frame assembly (artifact + announced
+  lineup → scored `k_rate` frame) are not automated.
+- Step 5 PA-weighted / binomial / beta-binomial comparison is not started;
+  `Models/Strikeout-Model/train.py` remains unweighted.
 - Full batter-by-pitch-type arsenal/lineup interactions are not implemented;
   the research-only run-value audit found no pitch type or coarse family
   reliably estimable at the lower-CI `r=.50` gate.
