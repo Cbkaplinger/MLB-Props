@@ -26,6 +26,7 @@ research = [
     "scikit-learn",
     "scipy",
     "seaborn",
+    "statsmodels",
 ]
 dev = ["pytest"]
 

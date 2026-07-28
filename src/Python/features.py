@@ -55,6 +55,40 @@ APPROVED_CONTEXT_FEATURES = frozenset(
         "opp_lineup_whiff",
         "opp_lineup_swstr",
         "opp_lineup_chase",
+        # TBF covariates (experimental for k-rate; allowed when include_experimental).
+        "days_rest",
+        "days_rest_capped",
+        "is_season_debut",
+        "rest_is_long_gap",
+        "rest_gap_severity",
+        "is_career_mlb_debut",
+        "bullpen_pitches_L1d",
+        "bullpen_pitches_L2d",
+        "bullpen_pitches_L3d",
+        "bullpen_pitchers_used_L1d",
+        "bullpen_pitchers_used_L2d",
+        "bullpen_pitchers_used_L3d",
+        "bullpen_unique_arms_L1d",
+        "bullpen_unique_arms_L2d",
+        "bullpen_unique_arms_L3d",
+        "bullpen_appearances_L1d",
+        "bullpen_appearances_L2d",
+        "bullpen_appearances_L3d",
+        "bullpen_L_pitches_L1d",
+        "bullpen_L_pitches_L2d",
+        "bullpen_L_pitches_L3d",
+        "bullpen_R_pitches_L1d",
+        "bullpen_R_pitches_L2d",
+        "bullpen_R_pitches_L3d",
+        "bullpen_b2b_arms_L1d",
+        "bullpen_b2b_arms_L2d",
+        "bullpen_b2b_arms_L3d",
+        "bullpen_max_pitches_L1d",
+        "bullpen_max_pitches_L2d",
+        "bullpen_max_pitches_L3d",
+        "bullpen_heavy_outings_L1d",
+        "bullpen_heavy_outings_L2d",
+        "bullpen_heavy_outings_L3d",
     }
 ) | frozenset(
     {
@@ -83,7 +117,13 @@ _EXPERIMENTAL_FEATURE_RE = re.compile(
     r"[a-z]{2}_rv_shrunk_P\d+|"
     r"(?:bip_rate|babip|first_pitch_strike_rate|ahead_rate|behind_rate|"
     r"two_strike_reach_rate|putaway_rate|arm_angle|siera_mlb|rv_per_100)"
-    r"_(?:P\d+|std)"
+    r"_(?:P\d+|std)|"
+    # TBF spine: lagged volume + rest stay out of frozen k-rate until promoted.
+    r"(?:PA|Outs|Pitches)_P\d+|"
+    r"days_rest(?:_capped)?|is_season_debut|rest_is_long_gap|"
+    r"rest_gap_severity|is_career_mlb_debut|"
+    r"bullpen_(?:pitches|pitchers_used|unique_arms|appearances|"
+    r"L_pitches|R_pitches|b2b_arms|max_pitches|heavy_outings)_L\d+d"
     r")$"
 )
 _EXPERIMENTAL_LINEUP_DISCIPLINE_RE = re.compile(

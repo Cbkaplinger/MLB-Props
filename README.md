@@ -1,13 +1,16 @@
 # MLB Props
 
 Research pipeline for pregame MLB pitcher strikeout-rate projections from
-Baseball Savant data. Feature engineering is Polars-first; the training script
-consumes a model-ready parquet rather than rebuilding features.
+Baseball Savant data, plus a frozen projected-TBF spine and count-layer props
+research. Feature engineering is Polars-first; trainers consume model-ready
+parquet rather than rebuilding features.
 
 See `docs/model-card.md` for intended use and leakage rules,
-`docs/dev-notes.md` for the current feature reference, and
+`docs/dev-notes.md` for the current feature reference,
+`docs/PAPER_NOTES.md` for the experiment log, and
 `diagrams/` for phase-colored architecture / leakage / modeling / roadmap
-charts (Mermaid).
+charts (Mermaid). Status snapshot: `diagrams/00-index.md`.
+Cleanup history: `docs/CLEANUP_LOG.md`.
 
 ## Pipeline
 
@@ -41,12 +44,15 @@ src/Python/
 ├─ statcast.py            shared Savant loading, event, wOBA, discipline logic
 ├─ pitcher_features.py    pitch-level -> pitcher start
 ├─ batter_features.py     pitch-level -> batter game
-├─ pitcher_rolling.py     leakage-safe pitcher form
+├─ pitcher_rolling.py     leakage-safe pitcher form (+ rest / lagged workload)
 ├─ batter_rolling.py      leakage-safe batter form and hand splits
 ├─ ballpark.py            prior-season park-factor dimension
+├─ bullpen.py             team bullpen L1–L3d lookbacks (TBF spine)
+├─ tbf.py                 projected-TBF feature sets / helpers
+├─ count_layer.py         expected_K + P(K ≥ line) on projected TBF
 ├─ reliability.py         stabilization and reliability analysis
 ├─ daily_lineups.py       daily predicted/confirmed lineup ingestion
-├─ features.py            pregame feature safety
+├─ features.py            pregame feature safety + registries
 └─ pipeline/
    ├─ games.py            Level 1 orchestration
    ├─ rolling.py          Level 2 orchestration
@@ -91,6 +97,16 @@ Download and validate a season against MLB's official schedule:
 python -c "from Python.statcast import download_statcast_season; download_statcast_season(2025)"
 ```
 
+Daily / in-season refresh (reuse cache; only fetch new days through yesterday ET):
+
+```powershell
+python production/refresh_statcast.py
+# or: python -c "from Python.statcast import update_statcast_season; print(update_statcast_season(2026))"
+```
+
+Ops CLIs for the live stack live under `production/` (not a web backend) —
+see `production/README.md`.
+
 ## Build data
 
 Run the entire pipeline:
@@ -133,41 +149,54 @@ must be monitored; MLB IDs remain the durable identity contract.
 
 ## Research workflow
 
-1. Build Level 1 and rerun the EDA/stabilization studies when inputs change.
-2. Use denominator-aware stabilization to propose nearby windows, then validate
-   them chronologically. Phase 3 narrowed the provisional set but did not
-   justify changing the global 5/10/20 rate or 3/5/10 physics defaults.
-3. Build Levels 2 and 3.
-4. Train chronologically with
-   `python Models/Strikeout-Model/train.py --model lightgbm`.
-5. Use grouped ablation and chronological CV to remove redundant windows and
-   features.
-6. Record a frozen leakage-free baseline before developing a TBF/prop layer.
+1. Build Level 1–3 when inputs change (`python -c "from Python.pipeline import run_all; run_all()"`).
+2. Train the frozen k-rate model:
+   `python Models/Strikeout-Model/train.py --model lightgbm --feature-set production`.
+3. Train the frozen TBF spine:
+   `python Models/TBF-Model/train.py --model ridge --feature-set workload_context_bullpen`.
+4. Score the count layer (expected_K + line probs):
+   `python Models/Strikeout-Model/score_count_layer.py`.
+5. Compare builds on nested chronological outer folds only; do not reuse scored
+   2025 for selection. Pristine final eval = future post-freeze games.
+
+Feature-research Steps 1–9 are closed for LightGBM; see `docs/step7_registry_freeze.md`
+and `docs/step8_feature_keep_drop_findings.md` / `docs/step9_metric_window_findings.md`.
 
 ## Remaining gaps (see `diagrams/04-roadmap.md`)
 
-- Projected TBF model: not started. Level 1 has `Pitches`/`PA`/`Outs`, but
-  Level 2 does not emit lagged workload features yet.
-- Count-probability layer (beta-binomial / NB / Poisson): not started.
-- Live prediction assembly: lineup ingestion exists (`daily_lineups.py`);
-  joining slate + frozen LightGBM artifact is not implemented.
-- Step 5 PA-weighted / binomial likelihood comparison: not started in
-  `train.py` (fits remain unweighted).
+- **Phase 11.A–C:** done as verification (HPO flat; WF expected_K ≈ 1.78; ECE ≈
+  0.024) — `docs/phase11_model_quality_gates.md`.
+- **Phase D:** interim policy frozen (~3.5% excluded by `PA≥9`) —
+  `docs/phase_d_population_findings.md`. Pregame role labels still open for
+  pristine v1.
+- **Live prediction assembly:** v1 wired (`docs/live_assembly_plan.md`);
+  daily ops in `production/` (incremental Statcast → features → score).
+- **Pristine post-freeze holdout:** future games + role labels (not recycled 2025).
+- **Optional later:** NB count challenger; market de-vig / Kelly; park cleanup.
+
+Frozen and done for research: **180-feature** LightGBM k-rate (Step 10 P1
+physics swap), Ridge TBF
+(`docs/tbf_first_model_findings.md`), count-layer + walk-forward stack
+(`docs/count_layer_findings.md`). Rest/bullpen spine:
+`docs/workload_rest_bullpen_feature_plan.md`.
 
 ## Current baseline and research surface
 
-The production safety gate currently admits 248 features. The latest
-date-disjoint 2023-2024 development evaluation uses those 248 features; its
-LightGBM internal-test RMSE / R² are 0.0983 / 0.1546. This is development
-evidence, not an untouched final test.
+The production LightGBM gate is the **frozen 180-feature** registry (Step 7
+mean-window thin + Step 9c/10 P1 physics swap; see
+`docs/step10_p1_registry_freeze.md`). Companion `step7_185` retains the prior
+185-feature freeze. Chrono test MAE / RMSE / R² ≈ 0.0787 / 0.0987 / 0.147
+(`docs/step10_p1_registry_freeze.md`). This is development evidence, not an
+untouched final test. Next work is live assembly or role-label ingestion —
+not more feature hunting.
 
-An additional 315 columns remain research-only. The current 563-feature
-research surface includes pitcher expansions plus batter discipline, contact
-quality, batted-ball outcomes, recent-form windows, batting-order weighted
-lineup means, and lineup dispersion. Generated feature diagnostics, registries,
-stabilization results, and nested-ablation evidence live under
-`artifacts/feature_research/` and `artifacts/stabilization/`; none of these
-additions silently enter the 248-feature production gate.
+Companion sets: `step7_185`, `pre_freeze_248` (comparison) and `ridge_vif`
+(73-feature Ridge research). Expanded research candidates remain outside
+production unless `include_experimental=True`. Generated diagnostics live under
+`artifacts/feature_research/` and `artifacts/stabilization/`.
+
+Count-layer chrono test (projected TBF): expected_K MAE ≈ **1.79**; line Briers
+≈ 0.12–0.22 depending on line (`docs/count_layer_findings.md`).
 
 The older date-disjoint 227-feature evaluation that consulted 2025 remains
 historical benchmark evidence. The invalid overlapping-date run is retained
@@ -176,7 +205,7 @@ only under `docs/archive/leaky-baseline-2026-07-23/`.
 Export a notebook to PDF through Chromium:
 
 ```powershell
-.\export-notebook.ps1 "src\Notebooks\pipeline\rolling.ipynb"
+.\scripts\export-notebook.ps1 "src\Notebooks\pipeline\rolling.ipynb"
 ```
 
 ## Tests

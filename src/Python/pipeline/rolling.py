@@ -24,6 +24,10 @@ import polars as pl
 
 from .. import config
 from ..batter_rolling import add_leakage_safe_k
+from ..bullpen import (
+    add_bullpen_lookback_features,
+    bullpen_lookback_column_names,
+)
 from ..pitcher_rolling import add_rolling_pitcher_features
 
 # Any rolling / season-to-date output column ends with one of these.
@@ -33,6 +37,11 @@ _ROLLING_RE = re.compile(r"(_P\d+|_std(_vL|_vR|_shrunk)?)$")
 _PITCHER_STATIC = (
     "game_pk", "game_date", "season", "pitcher", "player_name", "pitcher_name",
     "p_throws", "home_team", "away_team", "is_home", "opp_team",
+    # Phase A / A.1 TBF covariates (pregame; not same-game labels).
+    "days_rest", "days_rest_capped", "is_season_debut", "rest_is_long_gap",
+    "rest_gap_severity", "is_career_mlb_debut",
+    # Phase C bullpen lookbacks (flat team priors).
+    *bullpen_lookback_column_names(),
 )
 # Pitcher label / target-support columns (same-game, but they are the labels).
 _PITCHER_LABELS = ("K", "PA", "Outs", "k_rate")
@@ -52,9 +61,21 @@ def _select(df: pl.DataFrame, keep: tuple[str, ...], keep_raw: bool) -> pl.DataF
     return df.select(cols)
 
 
-def build_pitcher_rolling(games: pl.DataFrame, keep_raw: bool = False, **kw) -> pl.DataFrame:
+def build_pitcher_rolling(
+    games: pl.DataFrame,
+    keep_raw: bool = False,
+    bullpen_team_games: pl.DataFrame | None = None,
+    bullpen_appearances: pl.DataFrame | None = None,
+    **kw,
+) -> pl.DataFrame:
     """Add leakage-safe rolling pitcher features and trim to statics + rolling."""
     rolled = add_rolling_pitcher_features(games, **kw)
+    if bullpen_team_games is not None:
+        rolled = add_bullpen_lookback_features(
+            rolled,
+            bullpen_team_games,
+            appearances=bullpen_appearances,
+        )
     return _select(rolled, _PITCHER_STATIC + _PITCHER_LABELS, keep_raw)
 
 
@@ -74,10 +95,30 @@ def run(keep_raw: bool = False) -> dict[str, Path]:
     """Read Level 1 game files, build rolling features, write Level 2 files."""
     pitcher_games = pl.read_parquet(config.PITCHER_GAMES_PATH)
     batter_games = pl.read_parquet(config.BATTER_GAMES_PATH)
+    bullpen_team_games = (
+        pl.read_parquet(config.BULLPEN_TEAM_GAMES_PATH)
+        if config.BULLPEN_TEAM_GAMES_PATH.exists()
+        else None
+    )
+    bullpen_appearances = (
+        pl.read_parquet(config.BULLPEN_APPEARANCES_PATH)
+        if config.BULLPEN_APPEARANCES_PATH.exists()
+        else None
+    )
+    if bullpen_team_games is None:
+        print(
+            "[level 2] warning: missing bullpen_team_games.parquet; "
+            "Phase C lookbacks skipped. Re-run Level 1."
+        )
 
     paths = {
         "pitcher_rolling": _write(
-            build_pitcher_rolling(pitcher_games, keep_raw=keep_raw),
+            build_pitcher_rolling(
+                pitcher_games,
+                keep_raw=keep_raw,
+                bullpen_team_games=bullpen_team_games,
+                bullpen_appearances=bullpen_appearances,
+            ),
             config.PITCHER_ROLLING_PATH,
         ),
         "batter_rolling": _write(

@@ -1,6 +1,16 @@
 # Statistical rigor audit and feature-registry sequencing
 
-Audit date: 2026-07-24
+Audit date: 2026-07-24 (body); **status banner 2026-07-28**
+
+> **Current program state:** LightGBM `production` is **180** features
+> (Step 10 P1 swap; `docs/step10_p1_registry_freeze.md`). Feature research
+> Steps 1–10 are closed. **Phase 11.A–C complete** as verification (HPO flat;
+> walk-forward expected_K ≈ 1.78; ECE ≈ 0.024) —
+> `docs/phase11_model_quality_gates.md`. **Phase D interim policy frozen**
+> (`docs/phase_d_population_findings.md`); pregame role labels still required
+> for pristine v1. Live assembly is the optional next operational step.
+> Sections below retain historical sequencing language (185 / Step 7 era) as
+> process evidence unless explicitly updated.
 
 Scope: current pitcher strikeout-rate pipeline, active feature-research scripts,
 generated development artifacts, and documented model evaluations. The report
@@ -8,12 +18,11 @@ now includes the implemented expanded-feature remediation and registry result.
 
 ## Executive findings
 
-- **IN PROGRESS:** deterministic pruning reduced the active design from 256 to
-  248 features and restored full rank, but multicollinearity remains severe:
-  242 ordinary VIF values exceed 5 and 236 exceed 10 on the corrected
-  production-only split. The current 563-feature research audit yields a
-  separate 165-feature Ridge proposal with four VIF values above 10; it is not the
-  production feature list.
+- **RESOLVED (Step 1):** dual registries — LightGBM keeps the 248 production
+  allow-list (VIF is not an LGBM prune rule); Ridge adopts the Phase-1
+  73-feature VIF registry (`xFIP_P5` dropped; `xwOBA_P5` residual VIF accepted).
+  Freeze handoff is the 185-feature Step 4 mean-window thin
+  (`docs/step1_feature_dict_vif_findings.md`).
 - **RESOLVED:** `src/Python/features.py` now excludes every rolling Contact%
   and CSW% identity while retaining Whiff%, SwStr%, and called-strike rate.
 - **RESOLVED:** feature and window selection now uses inner chronological folds
@@ -22,15 +31,18 @@ now includes the implemented expanded-feature remediation and registry result.
 - **RESOLVED FOR FUTURE FITS / HISTORICAL RISK REMAINS:** the trainer now
   filters to 2023-2024 before splitting, but prior runs trained on early 2025
   and scored `2025-07-06+`. No part of 2025 is pristine.
-- **RISK FOUND:** current Ridge and LightGBM fits optimize unweighted game-level
-  K/PA, treating a low-PA start as equally informative as a high-PA start.
-- **PARTIALLY RESOLVED FOR THE EXPANDED CANDIDATES:** a 248-feature production
-  allow-list and a separate VIF-reduced Ridge proposal now exist, but formal
-  Step 7 registry freeze has not occurred. Drift, calibration, and broader
-  selection-stability analysis remain gaps.
-- **Recommendation:** complete the unresolved grouped-family and PA-aware
-  modeling work before formal registry freeze, then reserve genuinely future
-  post-freeze games as the next pristine test.
+- **RESOLVED (Step 5):** unweighted LightGBM remains the rate backbone; PA
+  weights / binomial / beta-binomial did not overturn it.
+- **RESOLVED (Steps 7–10):** Step 7 froze 185; Step 10 locked production at
+  **180** via targeted P1 physics swap. Companion `step7_185` retained.
+- **RESOLVED (Phase 11.A–C):** nested HPO did not beat baseline LGBM defaults;
+  walk-forward expected_K MAE ≈ 1.778; mean ECE ≈ 0.024 (no recalibration).
+  Confirmatory gate pass — not large lifts.
+- **RESOLVED (Phase D interim):** ~3.5% of first-pitcher appearances excluded by
+  `PA≥9`; metrics remain conditional; pregame role labels still open for
+  pristine v1 (`docs/phase_d_population_findings.md`).
+- **Recommendation:** live assembly is optional next; reserve genuinely future
+  post-freeze games + role labels as the next pristine test.
 
 ### Expanded-feature result — **RESOLVED**
 
@@ -55,9 +67,10 @@ research-only. The stabilization-qualified batter quality weighted-dispersion
 family likewise improved both LightGBM outer folds but worsened Ridge MAE in
 both. Accordingly:
 
-- all 315 expanded columns remain research-only pending registry freeze;
-- production LightGBM remains the 248-feature audit-corrected baseline;
-- Ridge has a separate 165-feature interpretation proposal;
+- all 315 expanded columns remain research-only (not promoted at freeze);
+- production LightGBM is now the **frozen 185-feature** registry (Step 7;
+  `pre_freeze_248` is comparison-only);
+- Ridge research uses the Step 1 VIF registry (`ridge_vif`, 73 features);
 - 2025 was not read during diagnostics or selection.
 
 Pointers: `artifacts/feature_research/expanded/candidate_feature_registry.csv`,
@@ -68,7 +81,14 @@ and ablation files named in Part 2.
 
 ## Part 1: Statistical rigor audit
 
-### 1. Multicollinearity (Ridge only) — **IN PROGRESS**
+### 1. Multicollinearity (Ridge only) — **RESOLVED (Ridge registry)**
+
+Training-partition diagnostics on the 248 production features found severe
+overlap (236 ordinary VIF values above 10). Step 1 adopted the cluster
+reduction as the Ridge research registry (73 features after dropping
+`xFIP_P5`); LightGBM keeps the full production list. See
+`docs/step1_feature_dict_vif_findings.md`.
+
 
 The original audit used all 9,374 development rows and all 256 eligible
 features. It found rank 250, 252 generalized VIF values above 5, and 242 above
@@ -348,7 +368,7 @@ No active season-over-season feature/target drift report was found. No binned
 predicted-versus-observed calibration analysis, Brier/log score, calibration
 slope/intercept, or count-probability reliability diagram exists.
 
-Both are listed as future work in `PAPER_NOTES.md`; neither is implemented.
+Both are listed as future work in `docs/PAPER_NOTES.md`; neither is implemented.
 Required analyses include 2023→2024 feature/missingness drift, target drift,
 model residual drift, and calibration by season/month/workload group.
 
@@ -417,11 +437,12 @@ Resolution pointer: `src/Python/config.py`,
 
 ## Part 2: Required sequencing before a TBF model
 
-Phase 1 resolved Step 2 and materially advanced Step 1. Steps 3 and 4 retain
-their prior partial evidence. The project is still mid-feature selection and
-is not ready to advance beyond this sequence.
+**Update (2026-07-27):** Phase 1 Steps 1–9 are closed; projected TBF is frozen
+and count-layer v1 is chrono-scored. Protect future post-freeze games as the
+pristine evaluation (do not reuse scored 2025). Remaining product work is live
+assembly + Phase D opener handling — see `diagrams/04-roadmap.md`.
 
-### Step 1. Feature dictionary, missingness, and clusters — **IN PROGRESS**
+### Step 1. Feature dictionary, missingness, and clusters — **RESOLVED**
 
 What exists:
 
@@ -432,36 +453,31 @@ What exists:
 - a full Pearson matrix and flagged pairs at `|r| > 0.80`;
 - targeted Spearman analysis for rolling-window, shrinkage, and xFIP families;
 - a narrow Kendall spot-check for tied low-count families;
-- ordinary full-design VIF and Pearson-linked groups for VIF above 10.
+- ordinary full-design VIF and Pearson-linked groups for VIF above 10;
 - a proposal reducing 62 correlated serious-VIF clusters to one representative
-  each using stabilization first, then missingness, then definition simplicity.
+  each using stabilization first, then missingness, then definition simplicity;
+- dual-registry keep/drop policy wired in `src/Python/registries.py` with
+  trainer `--feature-set` support and season missingness export
+  (`docs/step1_feature_dict_vif_findings.md`).
 
 Artifacts: `artifacts/feature_research/feature_dictionary.csv`,
 `pearson_*`, `spearman_*`, `kendall_*`, `vif.csv`, and
 `feature_diagnostics_metadata.json`, plus `vif_cluster_selection.csv`,
-`vif_reduced.csv`, `vif_reduced_features.csv`, and
-`vif_reduction_metadata.json`.
+`vif_reduced.csv`, `vif_reduced_features.csv`,
+`vif_reduction_metadata.json`, and `step1_registries/`.
 
-The proposal reduces 248 features to 74 without modifying `train.py`. Median
-VIF falls from the severe full-design regime to `3.214`; maximum VIF is
-`16.432`, and only two features remain above 10: `xwOBA_P5` and `xFIP_P5`.
-Those two clusters are explicitly flagged as unresolved rather than silently
-pruned again.
+Keep/drop (2026-07-27; applied at Step 7):
 
-The goal is correlated-cluster reduction, not forcing every feature below VIF
-10. Rolling windows are redundant by design because they represent overlapping
-histories, and tree predictive performance is generally insensitive to
-multicollinearity even though importance attribution can become unstable.
-Therefore VIF guides representative selection for a compact/interpretable
-Ridge design; it is not a mandatory LightGBM pruning rule.
+- **LightGBM `production` (185):** frozen mean-window thin (drop P10 on
+  physics/usage/mechanics/FIP). See `docs/step7_registry_freeze.md`.
+- **`pre_freeze_248`:** prior full allow-list retained for comparisons.
+- **Ridge `ridge_vif` (73):** Phase-1 VIF reduction, drop `xFIP_P5`, keep
+  `xwOBA_P5` as the single accepted residual VIF > 10.
 
-What is missing:
+Deferred (non-blocking): hand-curated numerator/denominator/availability-date
+dictionary enrichment.
 
-- hand-curated numerator/denominator and availability-date fields;
-- missingness by season and cold-start semantics;
-- registry-level keep/drop decisions and production adoption of the proposal.
-
-Status: not complete.
+Status: complete; LightGBM freeze applied in Step 7.
 
 ### Step 2. Remove deterministic redundancy — **RESOLVED**
 
@@ -471,30 +487,26 @@ The usage audit found no exact rank deficiency, although near-compositional
 behavior remains a VIF concern. Resolution pointer:
 `artifacts/feature_research/usage_composition_rank_audit.csv`.
 
-### Step 3. Grouped ablations across every family — **IN PROGRESS**
+### Step 3. Grouped ablations across every family — **RESOLVED (major family screen)**
 
-Ablation-tested:
+Ablation-tested (add-family screens, prior):
 
 - pitcher Whiff%, SwStr%, Ball%, and GB% additions;
 - opponent-lineup Whiff% and SwStr% additions;
 - compact combinations of those candidates.
 
-Not comprehensively ablation-tested on the corrected frame:
+Leave-family-out on the production 248-feature allow-list (2026-07-27):
 
-- K%, BB%, called-strike%, chase%, zone%, HR%, xBA, wOBA, xwOBA, and other
-  nonredundant rate families;
-- pitch physics grouped by pitch type and measurement;
-- handedness-specific pitch usage;
-- release mechanics;
-- FIP/xFIP;
-- the complete lineup family including K%, handed K%, and chase%;
-- park factor;
-- home/context;
-- rolling-only versus season-to-date-only families.
+- dictionary families: rates, pitch_physics, pitch_usage, mechanics,
+  expected_contact, fip_xfip, lineup, park, context;
+- structural: drop all rolling `_P*` vs drop all `_std`.
 
-The blank leave-family-out plan in `PAPER_NOTES.md` confirms this gap.
+Durable write-up: `docs/step3_leave_family_out_findings.md`. Clearest keep:
+opponent lineup. LightGBM needs rolling windows; Ridge prefers fewer overlapping
+windows. Optional finer within-family drops remain available but are not required
+to close this gate.
 
-### Step 4. Select a small number of windows — **PARTIALLY RESOLVED**
+### Step 4. Select a small number of windows — **RESOLVED (LightGBM)**
 
 Completed evidence:
 
@@ -507,17 +519,24 @@ Completed evidence:
   P2/P3, and run value P10/P20/P25 (five new metric-window values total);
 - metric-isolated nested inner/outer re-ablation of exactly those candidates;
 - leakage-safe batter Z-Swing%, Swing%, Z-Contact%, and BB% season-to-date and
-  P5/P10/P20 features, plus one stabilization-nominated lineup-family test.
+  P5/P10/P20 features, plus one stabilization-nominated lineup-family test;
+- outer-fold mean-window thinning for production physics / usage / mechanics /
+  FIP families (`step4_physics_windows`).
 
-The targeted confirmation does not justify changing the global rolling
-constants. BABIP selected core in both LightGBM folds and in one Ridge fold; the
-Ridge-selected P30 alternative in the other fold worsened outer MAE. Arm angle
-selected P3 in one LightGBM fold with a `0.000027` MAE improvement and selected
-core in the other three model/fold combinations. Run value is model-dependent:
-P25 was selected by LightGBM in both folds and improved outer MAE by `0.000032`
-and `0.000603`, while Ridge selected core/P10 and had no positive outer fold.
-Accordingly, P25 is a LightGBM-specific registry proposal, not a module-wide
-default; BABIP, arm angle, and Ridge run value remain provisional.
+Durable write-up: `docs/step4_window_decisions.md`. LightGBM decisions:
+
+- **BABIP / arm angle:** keep experimental defaults; do not promote longer/
+  shorter alternatives or production status on this gate.
+- **Run value:** LGBM-only freeze proposal `rv_per_100_P25` if the family is
+  promoted; ignore Ridge window disagreement for freeze.
+- **Physics / usage / mechanics / FIP:** LGBM freeze proposal thin
+  `P3/P5/P10` → **`P3/P5`** (mean ΔMAE −0.000369 vs full triple; both outer
+  folds improved). Dropping those families entirely still hurts on average.
+
+Pipeline constants still generate P10 mean columns in Level 2; Step 7 drops
+them from the frozen LightGBM feature set (`docs/step7_registry_freeze.md`).
+`DEFAULT_RATE_WINDOWS = 5/10/20` and `DEFAULT_MEAN_WINDOWS = 3/5/10` are
+unchanged in the rolling module.
 
 The four added batter rates crossed `r=.50` at approximately 14.3 games for
 Z-Swing%, 13.3 for Swing%, 20 for Z-Contact%, and 50 for BB%. To avoid another
@@ -547,31 +566,35 @@ Artifacts:
 - `artifacts/feature_research/window_stabilization_gap.csv`;
 - `artifacts/feature_research/window_change_proposals.csv`;
 - `artifacts/feature_research/targeted_window_ablation_*`;
+- `artifacts/feature_research/step4_physics_windows/`;
 - `artifacts/stabilization/expanded/batter_discipline/`;
 - `artifacts/feature_research/batter_discipline_ablation_*`;
 - `artifacts/stabilization/expanded/batter_quality/`;
 - `artifacts/feature_research/batter_quality_ablation_*`.
 
-Incomplete:
+Deferred (not blocking this Step 4 close):
 
-- predictive selection for most rate families;
-- physics, movement, usage, release, and FIP/xFIP windows;
+- per-metric stabilization for the 71 “not assessed” mapped curves (accepted
+  via the family-level P3/P5 thin for production mean windows);
 - batter K-window/shrinkage choices for lineup construction;
-- nested confirmation of Ball% P5 and SwStr% P20;
-- direct stabilization studies for 71 mapped metrics. This includes the
-  handedness-specific pitch-usage shares (`*_usage_vR` and `*_usage_vL`) that
-  can produce a profile like “pitch usage by batter hand”; those shares are
-  calculated per start and currently rolled as unweighted P3/P5/P10 means.
+- nested confirmation of Ball% P5 and SwStr% P20 as production defaults
+  (remain model-specific challengers from the earlier discipline screen).
 
-The production defaults remain 5/10/20 for rates and 3/5/10 for mean/physics
-features. The “rolling windows provisional” caveat is therefore narrowed but
-still open; no family-wide final window policy exists.
+### Step 5. Compare unweighted and PA-aware likelihoods — **RESOLVED**
 
-### Step 5. Compare unweighted and PA-aware likelihoods — **NOT STARTED**
+All four planned arms were compared on `nested_research_folds` (2023–2024,
+248-feature allow-list). Durable findings:
 
-No weighted Ridge/LightGBM, binomial regression, or beta-binomial model has
-been evaluated. This is the next major statistical modeling comparison after
-deterministic pruning and a first-pass family dictionary.
+- PA-weighted Ridge/LightGBM — **no gain**
+  (`docs/step5_pa_weight_findings.md`)
+- L2-regularized binomial GLM — **does not beat** unweighted LightGBM
+  (`docs/step5_binomial_findings.md`)
+- Two-stage beta-binomial — **does not overturn** unweighted LightGBM; with
+  LightGBM means, fitted concentration hits the binomial limit
+  (`docs/step5_beta_binomial_findings.md`)
+
+**Decision:** keep **unweighted LightGBM** as the rate/likelihood backbone.
+Shared helpers: `src/Python/training.py`, `src/Python/likelihoods.py`.
 
 ### Step 6. Nested chronological stability — **RESOLVED**
 
@@ -582,54 +605,48 @@ boundary, and focused tests enforce no inner/outer leakage. Resolution pointer:
 `Models/Strikeout-Model/Strikeout-EDA/nested_cv.py` and
 `artifacts/feature_research/*ablation_inner_selection.csv`.
 
-### Step 7. Explicit compact registry — **IN PROGRESS**
+### Step 7. Explicit compact registry — **RESOLVED (LightGBM frozen)**
 
-`artifacts/feature_research/expanded/candidate_feature_registry.csv` is now a
-566-row decision registry: 248 production-baseline features, 315 research-only
-candidates, and 3 explicit rejections. It records family, definition,
-numerator/denominator, source, missingness, deterministic status, eligibility,
-decision, and rationale. `final_lightgbm_registry.csv` materializes the
-248-feature production allow-list; `final_ridge_registry.csv` is a separate
-165-feature interpretation proposal.
+Frozen 2026-07-27 (`docs/step7_registry_freeze.md`):
 
-This resolves the earlier absence of a row-level registry artifact, but not
-formal freeze. The production list has not been locked with a final dataset
-hash, parameters, approval date, and protected post-freeze evaluation after
-Steps 3 and 5. The historical “240-feature leading development registry”
-remains an experimental configuration rather than the final compact registry.
+- LightGBM **`production`** registry is the Step 4 mean-window thin: **185**
+  features (drop `*_P10` on pitch_physics / pitch_usage / mechanics / fip_xfip).
+- Artifact: `artifacts/models/lightgbm_krate_20260727_204342.{txt,json}` with
+  dataset SHA-256, feature list, chrono cutoffs, and post-freeze eval policy.
+- Companion sets: `pre_freeze_248` (comparison) and `ridge_vif` (73-feature
+  Ridge research registry from Step 1).
+- Expanded `candidate_feature_registry.csv` remains the broader research
+  decision log; it does not override the frozen LightGBM list.
 
-### Step 8. Single protected evaluation — **RISK FOUND / BLOCKED**
+Pipeline rolling defaults still generate P10 mean columns in Level 2; the
+frozen model simply does not consume them.
 
-Steps 1, 3, 4, 5, and 7 remain incomplete. In addition, `2025-07-06+` has
-already been scored by five logged baselines, so it cannot fulfill the
-requested untouched-test role.
+### Step 8. Single protected evaluation — **RISK FOUND / BLOCKED ON HISTORY**
 
-Do not use it for further feature decisions. After Steps 1-7, report it only as
-a previously observed historical benchmark and designate future post-freeze
-games as the new pristine evaluation.
+Steps 1–7 are closed for the LightGBM path. `2025-07-06+` has already been
+scored by logged baselines, so it cannot fulfill the requested untouched-test
+role.
+
+Do not use it for further feature decisions. Report it only as a previously
+observed historical benchmark and designate future post-freeze games as the
+new pristine evaluation.
 
 ## Part 3: Strikeout-count probability model scoping
 
 Phase diagrams for this sequencing live under `diagrams/`
 (`01-architecture`, `03-modeling-and-evaluation`, `04-roadmap`).
 
-All count-model options are **NOT STARTED**. Actual same-game TBF/PA must never
-be a prediction-time feature. It may be retained as response structure and an
-evaluation oracle. End-to-end evaluation must use projected TBF generated
-without access to the same game's outcomes.
+**Update (2026-07-27):** projected TBF spine and count-layer v1 are **built**.
+`expected_K = frozen_k_rate × projected_tbf` and line probs (binomial / Poisson /
+β-binomial) are chrono-scored in `docs/count_layer_findings.md`. Same-game TBF/PA
+must never be a prediction-time feature. End-to-end *live* evaluation and
+market grading remain open; NB challenger and TBF-distribution mixing are not
+built.
 
-In the current repository, starter TBF is represented by `PA`; there is no
-separate `actual_tbf` column. Level 3 retains `K`, `PA`, `Outs`, and `k_rate`,
-which is enough to fit historical binomial/beta-binomial responses. It does not
-contain `projected_tbf` or the lagged workload features needed to produce one.
-Level 1 retains workload foundations such as `Pitches`, `PA`, and `Outs`, but
-Level 2 currently keeps only active labels (`K`, `PA`, `Outs`, `k_rate`) and
-drops `Pitches`. Default rolling does not emit lagged workload history
-(`PA_P*`, `Outs_P*`, `Pitches_P*`). A TBF training spine should therefore either
-extend Level 2 rolling means for those columns and join onto existing
-`pitcher_training.parquet`, or rebuild workload history from Level 1 — without
-promoting same-game workload counts into prediction features. See
-`diagrams/04-roadmap.md` for the minimal spine sketch.
+Workload covariates (`PA_P*` / `Outs_P*` / `Pitches_P*`, rest, bullpen L1–L3d)
+are emitted from Level 2 / joins and consumed by `Models/TBF-Model/train.py`
+(`src/Python/tbf.py`). Same-game `PA` remains the TBF training target and an
+evaluation oracle only.
 
 The original 2023-2025 dispersion ranges (`1.38-1.53` for count variance and
 `1.35-1.52` for K/PA variance) do not reproduce under the required
@@ -641,7 +658,16 @@ still show material overdispersion, but these are model-scoping diagnostics,
 not final out-of-sample dispersion estimates. See
 `artifacts/feature_research/dispersion_ratios.csv`.
 
-### 1. Beta-binomial regression — **NOT STARTED / RECOMMENDED**
+### 1. Beta-binomial regression — **STEP 5 DIAGNOSTIC DONE / COUNT LAYER V1 DONE**
+
+Two-stage beta-binomial (mean + global `kappa`) was evaluated on nested folds
+as a Step 5 rate-likelihood challenger and did not beat unweighted LightGBM
+(`docs/step5_beta_binomial_findings.md`).
+
+The projected-TBF count layer re-fit `kappa` on train (historical PA trials) and
+scored `P(K ≥ line | projected TBF)`. On chrono test, κ hit the binomial floor
+(identical to binomial). Prefer binomial (or tied Poisson) for current props;
+see `docs/count_layer_findings.md`.
 
 Natural formulation:
 
@@ -650,29 +676,10 @@ K_game | PA_game, p_game, dispersion ~ Beta-Binomial
 p_game = link(leakage-safe pregame features)
 ```
 
-Advantages:
+At score time, replace trials with `round(projected_tbf)`.
 
-- models `K` successes out of `PA` trials directly;
-- automatically gives high-PA games more likelihood information;
-- handles extra-binomial variation beyond ordinary binomial sampling;
-- yields `P(K >= n | projected TBF)` directly;
-- respects the finite support `0 <= K <= TBF`;
-- can unify the heteroskedastic K/PA correction and count-probability layer.
-
-Requirements:
-
-- custom/scientific likelihood tooling beyond the current sklearn interface;
-- inner/outer chronological fitting and dispersion validation;
-- count PMF/CDF, log score, Brier score, calibration, and tail diagnostics;
-- a distribution for projected TBF, not only a point estimate, if full
-  workload uncertainty is to be propagated.
-
-Leakage rule: historical actual PA is the trials component of the response,
-not a model feature. At inference and end-to-end backtest time, condition on
-out-of-fold/projected TBF only. To include workload uncertainty, mix the
-beta-binomial count distribution over the predicted TBF distribution.
-
-Feasibility: high statistical fit, moderate-to-large implementation scope.
+Still open: mix the count distribution over a **projected-TBF distribution**
+(point exposure only today).
 
 ### 2. Negative-binomial count regression with log-TBF offset — **NOT STARTED**
 
@@ -682,67 +689,27 @@ Natural formulation:
 log(E[K_game]) = log(projected_TBF_game) + f(pregame features)
 ```
 
-Advantages:
+Useful challenger; unbounded support vs finite TBF is the main caveat.
 
-- familiar overdispersed count model;
-- direct expected-count and tail probabilities;
-- easier implementation than custom beta-binomial in many libraries.
+### 3. Poisson GLM / Poisson PMF floor — **COUNT LAYER V1 DONE (TIED)**
 
-Limitations:
+Count-layer Poisson (`Poisson(mu = k_rate × projected_tbf)`) is essentially
+tied with binomial on line Brier/log loss. A separate Poisson *GLM* of features
+with log-TBF offset remains optional and is not required for the current spine.
 
-- strikeouts are bounded by TBF, while negative binomial support is unbounded;
-- dispersion represents count variation but not the finite-trials mechanism;
-- a point offset understates uncertainty in projected workload;
-- using actual same-game TBF as a prediction input or end-to-end offset would
-  leak workload information.
+### Unified recommendation — **PARTIAL / SPINE FROZEN**
 
-Training/evaluation should use cross-fitted projected TBF when testing the
-real deployed pipeline. Actual TBF remains an oracle for workload-model
-evaluation, not the deployed count-model input.
+Done:
 
-Feasibility: moderate implementation scope; useful challenger, not the most
-natural primary model.
+1. Rate/likelihood compare → keep unweighted LightGBM.
+2. Projected-TBF Ridge spine frozen (thin bullpen).
+3. Count layer v1: binomial / Poisson / β-binomial on projected TBF; chrono metrics.
 
-### 3. Poisson GLM baseline — **NOT STARTED**
+Still open:
 
-Natural formulation:
+4. Negative-binomial challenger.
+5. Full workload-distribution propagation (not point TBF).
+6. Live assembly + market de-vig / Kelly; Phase D before pristine claims.
 
-```text
-log(E[K_game]) = log(projected_TBF_game) + linear pregame predictor
-```
-
-Advantages:
-
-- simplest auditable count baseline;
-- fast and interpretable;
-- establishes whether more complex dispersion models add value.
-
-Limitations:
-
-- assumes conditional variance equals the mean;
-- has unbounded support and may understate tails;
-- does not represent finite PA trials or workload uncertainty.
-
-The observed within-PA-bin overdispersion already makes the Poisson variance
-assumption doubtful, which is why it belongs only as an auditable floor.
-
-Feasibility: small implementation scope. It should be retained as a baseline,
-not expected to be the final probability model.
-
-### Unified recommendation — **NOT STARTED / PLANNED**
-
-After the feature-registry sequence:
-
-1. compare unweighted K/PA regression, PA-weighted regression, binomial
-   regression, and beta-binomial regression on the same nested folds;
-2. select the rate/likelihood framework before building a separate count
-   mechanism;
-3. if beta-binomial is well calibrated, use it as the unified skill and
-   conditional count model;
-4. compare Poisson and negative binomial as transparent count baselines;
-5. combine every count model with cross-fitted projected-TBF inputs and test
-   both point-exposure and full workload-distribution propagation.
-
-This prevents building one mechanism to correct K/PA heteroskedasticity and a
-second disconnected mechanism for count probabilities when one beta-binomial
-likelihood may address both.
+This keeps one frozen rate model and one frozen exposure model feeding props,
+rather than inventing a second disconnected count-training stack prematurely.

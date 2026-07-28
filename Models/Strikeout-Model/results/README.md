@@ -10,10 +10,17 @@ was relocated during repository cleanup.
   worktree state for the invalid overlapping-date split
 - `docs/archive/pre-pipeline-v6/` — pre-pipeline SHAP output containing
   forbidden same-game/unlagged fields
-- `artifacts/models/lightgbm_krate_20260724_165215.*` — current 248-feature
-  2023-2024 development LightGBM model and metadata
+- `artifacts/models/lightgbm_krate_20260728_033241.*` — **frozen** 180-feature
+  LightGBM production (Step 10 P1 swap)
+- `artifacts/models/lightgbm_krate_20260727_204342.*` — Step 7 era 185-feature
+  freeze (comparison / `step7_185`)
+- `artifacts/models/lightgbm_krate_20260724_165215.*` — pre-freeze 248-feature
+  2023-2024 development LightGBM (comparison / process history)
 - `artifacts/models/lightgbm_krate_20260723_202255.*` — historical
   227-feature, 2025-consulting LightGBM benchmark
+- TBF + count layer: see `docs/tbf_first_model_findings.md` and
+  `docs/count_layer_findings.md` (`artifacts/models/tbf_pa_*`,
+  `artifacts/count_layer/`)
 
 ## Superseded baseline
 
@@ -34,16 +41,17 @@ evidence.
 | Ridge | 227 | 2025-04-14 | 2025-04-15–2025-07-05 | 2025-07-06 | 0.1003 | 0.1313 |
 | LightGBM | 227 | 2025-04-14 | 2025-04-15–2025-07-05 | 2025-07-06 | 0.0994 | 0.1459 |
 
-`PAPER_NOTES.md` is the canonical result log. No current holdout-prediction CSV
+`docs/PAPER_NOTES.md` is the canonical result log. No current holdout-prediction CSV
 is claimed here.
 
-## Current 2023-2024 development baseline
+## Current frozen production (2026-07-28)
 
-The current production gate contains 248 features. The latest LightGBM
-development run trains, validates, and internally tests only on 2023-2024:
-training ends 2024-06-08, validation covers 2024-06-09 through 2024-08-05, and
-internal testing starts 2024-08-06. Internal-test MAE / RMSE / R² are
-`0.07834` / `0.09829` / `0.15462`.
+Frozen LightGBM `production` = **180** features (Step 10 P1 physics swap on
+top of Step 7 mean-window thin). Chrono cutoffs: train ≤ 2024-06-08, val
+2024-06-09→08-05, test ≥ 2024-08-06. Test MAE / RMSE / R² ≈
+**0.0787 / 0.0987 / 0.147** (`docs/step10_p1_registry_freeze.md`).
 
-This is the active development baseline, but not a new independent final test.
-The next final evaluation requires genuinely future post-freeze games.
+This is the active frozen *feature* baseline, not a pristine final test and
+not a claim that hyperparameters or stack calibration are finished. Next:
+Phase 11 (`docs/phase11_model_quality_gates.md`). Honest final evaluation
+requires genuinely future post-freeze games (and Phase D population policy).

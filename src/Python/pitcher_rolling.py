@@ -64,7 +64,13 @@ DEFAULT_MEAN_COLS: tuple[str, ...] = (
 )
 
 DEFAULT_RATE_WINDOWS: tuple[int, ...] = (5, 10, 20)
-DEFAULT_MEAN_WINDOWS: tuple[int, ...] = (3, 5, 10)
+# P1 added for Step 9c physics form (mid-season arsenal changes); production
+# registry swaps five stems onto P1 and drops their P3/P5 (see registries.py).
+DEFAULT_MEAN_WINDOWS: tuple[int, ...] = (1, 3, 5, 10)
+# Lagged starter volume for the projected-TBF spine (pregame means of prior starts).
+DEFAULT_WORKLOAD_COLS: tuple[str, ...] = ("PA", "Outs", "Pitches")
+DEFAULT_WORKLOAD_WINDOWS: tuple[int, ...] = (5, 10, 20)
+DEFAULT_REST_LONG_GAP_DAYS: int = 15
 _FIP_COUNTS: tuple[str, ...] = ("HR", "BB", "HBP", "K", "FB", "Outs")
 _SIERA_COUNTS: tuple[str, ...] = ("K", "BB", "GB", "OFB", "PU", "PA")
 
@@ -194,6 +200,85 @@ def _rolling_rate(num: str, den: str, window: int, min_games: int) -> pl.Expr:
 def _rolling_mean(col: str, window: int, min_games: int) -> pl.Expr:
     """Mean of a per-start column over the previous ``window`` starts (current excluded)."""
     return pl.col(col).shift(1).rolling_mean(window_size=window, min_samples=min_games).over("pitcher")
+
+
+def add_starter_rest_features(
+    starts: pl.DataFrame,
+    *,
+    long_gap_days: int = DEFAULT_REST_LONG_GAP_DAYS,
+) -> pl.DataFrame:
+    """Add leakage-safe in-season rest features for starter appearances.
+
+    Rest is computed from our starter calendar within season (not Savant rest).
+    Season debuts are null rest + ``is_season_debut=1`` (no offseason carry).
+    Gaps longer than ``long_gap_days`` are capped and flagged as long gaps, with
+    ``rest_gap_severity`` (0–3) distinguishing short IL-ish gaps from long rehab.
+    ``is_career_mlb_debut`` flags the first starter row in the loaded MLB history
+    (no minor-league stats). Same-calendar-date starts share the first-row rest
+    values so doubleheaders do not invent zero-day rest from each other.
+    """
+    if long_gap_days <= 0:
+        raise ValueError("long_gap_days must be positive")
+    required = {"pitcher", "game_pk", "game_date"}
+    missing = sorted(required - set(starts.columns))
+    if missing:
+        raise ValueError(f"starts is missing rest columns: {missing}")
+    if starts.select("pitcher", "game_pk").is_duplicated().any():
+        raise ValueError("starts contains duplicate (pitcher, game_pk) keys")
+
+    df = starts.with_columns(
+        pl.col("game_date").cast(pl.Date),
+        pl.col("game_date").cast(pl.Date).dt.year().alias("season"),
+    ).sort(_ORDER)
+
+    prev_date = pl.col("game_date").shift(1).over(["pitcher", "season"])
+    days_rest = (pl.col("game_date") - prev_date).dt.total_days()
+    df = df.with_columns(
+        days_rest.alias("__days_rest_raw"),
+        prev_date.is_null().cast(pl.Int8).alias("__is_season_debut"),
+    ).with_columns(
+        pl.col("__days_rest_raw").first().over(["pitcher", "game_date"]),
+        pl.col("__is_season_debut").first().over(["pitcher", "game_date"]),
+    ).with_columns(
+        pl.when(pl.col("__is_season_debut") == 1)
+        .then(None)
+        .otherwise(pl.col("__days_rest_raw"))
+        .alias("days_rest"),
+        pl.col("__is_season_debut").alias("is_season_debut"),
+    ).with_columns(
+        pl.when(pl.col("days_rest").is_null())
+        .then(None)
+        .otherwise(pl.min_horizontal(pl.col("days_rest"), pl.lit(long_gap_days)))
+        .alias("days_rest_capped"),
+        pl.when(pl.col("days_rest").is_null())
+        .then(pl.lit(0, dtype=pl.Int8))
+        .otherwise((pl.col("days_rest") > long_gap_days).cast(pl.Int8))
+        .alias("rest_is_long_gap"),
+    ).with_columns(
+        # 0 = normal/debut; 1 = 16-35d; 2 = 36-60d; 3 = 61+d (TJ / long rehab).
+        pl.when(pl.col("days_rest").is_null() | (pl.col("rest_is_long_gap") == 0))
+        .then(pl.lit(0, dtype=pl.Int8))
+        .when(pl.col("days_rest") <= 35)
+        .then(pl.lit(1, dtype=pl.Int8))
+        .when(pl.col("days_rest") <= 60)
+        .then(pl.lit(2, dtype=pl.Int8))
+        .otherwise(pl.lit(3, dtype=pl.Int8))
+        .alias("rest_gap_severity"),
+        # First starter row in the loaded history (MLB-only; no MiLB). Early
+        # seasons in a short window will over-flag true veterans — acceptable.
+        pl.col("game_date")
+        .shift(1)
+        .over("pitcher")
+        .is_null()
+        .cast(pl.Int8)
+        .alias("__is_career_mlb_debut"),
+    ).with_columns(
+        pl.col("__is_career_mlb_debut")
+        .first()
+        .over(["pitcher", "game_date"])
+        .alias("is_career_mlb_debut"),
+    ).drop("__days_rest_raw", "__is_season_debut", "__is_career_mlb_debut")
+    return df.sort(_ORDER)
 
 
 def _add_rolling_fip(
@@ -579,8 +664,13 @@ def add_rolling_pitcher_features(
     mean_cols: Iterable[str] = DEFAULT_MEAN_COLS,
     rate_windows: Iterable[int] = DEFAULT_RATE_WINDOWS,
     mean_windows: Iterable[int] = DEFAULT_MEAN_WINDOWS,
+    workload_cols: Iterable[str] = DEFAULT_WORKLOAD_COLS,
+    workload_windows: Iterable[int] = DEFAULT_WORKLOAD_WINDOWS,
     season_to_date: bool = True,
     min_games: int = 1,
+    *,
+    add_rest: bool = True,
+    rest_long_gap_days: int = DEFAULT_REST_LONG_GAP_DAYS,
 ) -> pl.DataFrame:
     """Append leakage-safe rolling / season-to-date features to the start table.
 
@@ -591,24 +681,30 @@ def add_rolling_pitcher_features(
         rate_stats: ``{feature: (num_col, den_col)}``. Missing columns are skipped.
         mean_cols: Per-start columns rolled with a simple mean. Missing skipped.
         rate_windows / mean_windows: Rolling window sizes (in starts).
+        workload_cols / workload_windows: Lagged starter volume means for TBF
+            (``PA_P*``, ``Outs_P*``, ``Pitches_P*``). Missing columns skipped.
         season_to_date: Also emit expanding ``{name}_std`` for each rate stat.
         min_games: Minimum prior starts required to emit a rolling value.
+        add_rest: Emit in-season ``days_rest`` / debut / long-gap flags.
+        rest_long_gap_days: Cap / flag threshold for unusually long rest gaps.
 
     Returns:
         ``starts`` (order preserved) with added columns:
             ``season``, ``{rate}_P{w}``, ``{rate}_std`` (if enabled),
-            ``{mean_col}_P{w}``.
+            ``{mean_col}_P{w}``, workload ``{col}_P{w}``, and optional rest.
     """
     if starts.select("pitcher", "game_pk").is_duplicated().any():
         raise ValueError("starts contains duplicate (pitcher, game_pk) keys")
 
     rate_windows, mean_windows = list(rate_windows), list(mean_windows)
+    workload_windows = list(workload_windows)
     rate_stats = {
         name: (num, den)
         for name, (num, den) in rate_stats.items()
         if num in starts.columns and den in starts.columns
     }
     mean_cols = [c for c in mean_cols if c in starts.columns]
+    workload_cols = [c for c in workload_cols if c in starts.columns]
 
     df = starts.with_columns(pl.col("game_date").dt.year().alias("season")).sort(_ORDER)
 
@@ -628,6 +724,11 @@ def add_rolling_pitcher_features(
         for col in mean_cols
         for w in mean_windows
     )
+    feature_specs.extend(
+        (_rolling_mean(col, w, min_games), f"{col}_P{w}")
+        for col in workload_cols
+        for w in workload_windows
+    )
 
     temporary = [f"__pregame_{index}" for index in range(len(feature_specs))]
     df = df.with_columns(
@@ -646,4 +747,6 @@ def add_rolling_pitcher_features(
     df = _add_rolling_arm_angle(df, mean_windows, min_games)
     df = _add_rolling_siera_and_rv(df, mean_windows, min_games)
     df = _add_rolling_fip(df, mean_windows, min_games)
+    if add_rest:
+        df = add_starter_rest_features(df, long_gap_days=rest_long_gap_days)
     return df.sort(_ORDER)

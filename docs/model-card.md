@@ -2,11 +2,13 @@
 
 ## Intended use
 
-Estimate a starting pitcher's pregame strikeout rate. A separate projected
-batters-faced model will convert the rate to an expected strikeout count:
+Estimate a starting pitcher's pregame strikeout rate. A frozen projected
+batters-faced model converts the rate to an expected strikeout count and line
+probabilities:
 
 ```text
 expected strikeouts = predicted strikeout rate × projected batters faced
+P(K ≥ line) ← count layer on projected TBF
 ```
 
 This repository is research code, not a validated betting system.
@@ -17,23 +19,26 @@ This repository is research code, not a validated betting system.
 - Level 1 unit: one row per qualifying starter/game.
 - Target: `k_rate = K / PA`.
 - Training, validation, and internal test seasons: 2023-2024 only.
+- Frozen production registry: **180** LightGBM features (Step 10 P1 physics
+  swap; see `docs/step10_p1_registry_freeze.md`). Companion `step7_185` retains
+  the prior 185-feature freeze for bake-offs.
 - Historical holdout season: 2025. The trainer excludes it before any split or
   preprocessing fit. Earlier baseline work already consulted 2025, so it is a
   historical benchmark rather than a pristine final test.
+- Companion models: frozen Ridge projected TBF + count layer
+  (`docs/tbf_first_model_findings.md`, `docs/count_layer_findings.md`).
 - Evaluation: chronological train/validation/test splits only; calendar dates
   are never divided across partitions.
 - Primary rate metrics: MAE, RMSE, and R² on future starts.
 - Prop evaluation must use projected, never actual same-game, batters faced.
+  Prefer Brier / log loss on lines over accuracy alone.
 
-The current date-disjoint 2023-2024 baseline uses 248 approved features after
-deterministic Contact% and CSW% identities are excluded. Internal test results
-are Mean RMSE 0.1070 / R² -0.0010, Ridge RMSE 0.0993 / R² 0.1378, and
-LightGBM RMSE 0.0983 / R² 0.1546. Training ends 2024-06-08, validation runs
-from 2024-06-09 through 2024-08-05, and internal testing starts 2024-08-06.
-These are development results, not a new independent final evaluation.
-Historical corrected-frame feature-research artifacts used pre-pruning
-238/240/243/251/256-feature configurations and remain process evidence rather
-than the current trainer feature count.
+The frozen date-disjoint 2023-2024 LightGBM production artifact uses **180**
+features. Test MAE / RMSE / R² ≈ 0.0787 / 0.0987 / 0.147
+(`docs/step10_p1_registry_freeze.md`). Artifact:
+`artifacts/models/lightgbm_krate_20260728_033241.*`. Internal chrono results are
+development evidence, not an independent final evaluation. `step7_185`,
+`pre_freeze_248`, and earlier screens remain process evidence.
 
 ## Leakage policy
 
@@ -44,9 +49,9 @@ the game being predicted. Level 2 uses prior games only. `K`, `PA`, `Outs`, and
 
 `src/Python/features.py` is a safety gate: it accepts only approved
 lagged-feature families and context columns, and unknown numeric columns fail
-rather than silently entering training. It also enforces the 248-feature
-production allow-list by excluding expanded research candidates unless
-`include_experimental=True` is requested explicitly.
+rather than silently entering training. It also enforces the **180-feature**
+production allow-list by default; `step7_185`, `pre_freeze_248`, and expanded
+research candidates require an explicit feature-set / experimental opt-in.
 
 ## Feature pipeline
 
@@ -74,8 +79,10 @@ Important definitions:
   explicit registry freeze;
 - Rolling FIP/xFIP use summed prior-start counts. xFIP uses league HR/FB
   available before the game date, regressed toward the previous season with a
-  1,000-fly-ball prior. The 2023 boundary uses 2022 Statcast context calculated
-  under the same fly-ball definition; 2022 itself does not enter model rows.
+  1,000-fly-ball prior. The  midseason Step 10 swap promotes five physics stems
+  to **P1** (last start) while dropping their redundant P3/P5;
+- 2023 boundary uses 2022 Statcast context calculated under the same fly-ball
+  definition; 2022 itself does not enter model rows.
 
 ## Context features
 
@@ -85,8 +92,8 @@ lineup columns additionally cover discipline, wOBA/xwOBA/xBA, BABIP, contact
 quality, batted-ball shape, and run value over season-to-date and P5/P10/P20
 histories. They are represented as flat means, prior-date batting-order
 opportunity weighted means, and weighted lineup dispersion. Historical
-membership uses the first nine distinct batters by first plate appearance and
-requires complete nine-player coverage. The current 248-feature production
+membership uses the first nine distinct batters by first PA and
+requires complete nine-player coverage. The frozen 180-feature production
 baseline retains only the established lineup context columns. Live
 projections substitute the RotoGrinders projected/confirmed lineup through
 `Python.daily_lineups`; every scraped name must resolve to an official
@@ -107,7 +114,7 @@ Before publishing performance or using probabilities:
 - compare against a mean baseline and a regularized linear baseline;
 - assess calibration and proper scoring rules for prop probabilities;
 - use projected TBF in all strikeout-count evaluation;
-- freeze the data window, feature list, parameters, and model artifact.
+- freeze the data window, feature list, parameters, and model artifact;
 - retain 2023-2025 in `PIPELINE_SEASONS` for holdout/projection artifacts, but
   enforce `TRAIN_SEASONS = (2023, 2024)` in trainer loading; no 2025 row may
   enter training, validation, preprocessing, or internal testing;
@@ -115,47 +122,51 @@ Before publishing performance or using probabilities:
   and confirm the procedure in distinct outer folds. The 2025 holdout was
   already scored by historical baselines, so it must not drive further model
   decisions or be described as pristine; the next honest final test requires
-  genuinely future post-freeze games.
-- account for K/PA heteroskedasticity by comparing ordinary regression with
-  PA-weighted and binomial/beta-binomial formulations before declaring the
-  rate model statistically final.
-- derive `P(K >= n)` from a calibrated count distribution, with
-  beta-binomial and negative-binomial candidates compared against a Poisson
-  baseline. This work is contingent on a stable projected-TBF model.
+  genuinely future post-freeze games;
+- account for K/PA heteroskedasticity via the closed Step 5 nested compares
+  (keep unweighted LightGBM; `docs/step5_*_findings.md`);
+- derive `P(K >= n)` from the count layer on **projected** TBF
+  (`docs/count_layer_findings.md`); prefer Brier/log loss over accuracy.
+  Negative-binomial challenger and TBF-distribution mixing remain optional;
+- after the feature freeze, run **Phase 11** estimator tuning, walk-forward
+  stack backtest, and calibration before live or market use
+  (`docs/phase11_model_quality_gates.md`).
 
 ## Diagrams
 
 Phase charts (keep separate; do not collapse into one mega-flowchart):
 
-- `diagrams/01-architecture.md` — as-built L1→L3→train→artifact, live side branch
+- `diagrams/00-index.md` — status snapshot
+- `diagrams/01-architecture.md` — as-built L1→L3→train→artifact, live deferred
 - `diagrams/02-leakage-and-risks.md` — priors, park contamination, ≥9 PA filter
-- `diagrams/03-modeling-and-evaluation.md` — chrono splits, baselines, Steps 1/3/4/5→7
-- `diagrams/04-roadmap.md` — TBF, count layer, live assembly, freeze gates
+- `diagrams/03-modeling-and-evaluation.md` — chrono splits, Steps 1–10, Phase 11
+- `diagrams/04-roadmap.md` — Phase 11 → live → market
+- `docs/workload_rest_bullpen_feature_plan.md` — rest / bullpen / TBF (A–C done; D open)
+- `docs/tbf_first_model_findings.md` / `docs/count_layer_findings.md` — TBF + props
+- `docs/step5_*_findings.md` — Step 5 likelihood arm results
+- `docs/step10_p1_registry_freeze.md` — current feature freeze
+- `docs/phase11_model_quality_gates.md` — **next** engineering phase
 
 ## Current limitations
 
-- TBF projection and end-to-end prop backtesting are incomplete. Starter TBF is
-  represented by same-game `PA` (label/oracle only). Level 1 retains `Pitches`,
-  `PA`, and `Outs`, but Level 2 currently keeps only `K`/`PA`/`Outs`/`k_rate` as
-  labels and drops `Pitches`; lagged workload features (`PA_P*`, `Outs_P*`,
-  `Pitches_P*`) are not produced yet. A TBF spine can join new lagged workload
-  columns onto existing `pitcher_training.parquet` without rebuilding Level 1.
-- Count-probability layer (beta-binomial recommended; NB with log-TBF offset;
-  Poisson GLM floor) is not implemented. No `statsmodels` dependency and no
-  custom beta-binomial / NB / Poisson regression code exists yet.
-- Daily lineup ingestion exists (`Python.daily_lineups`), but its scheduler,
-  retry/monitoring layer, and downstream production prediction assembly
-  (frozen artifact + announced lineup → `k_rate` frame) are not implemented.
-- Step 5 PA-weighted Ridge/LightGBM and binomial/beta-binomial likelihood
-  comparisons are not started; `train.py` fits unweighted game-level `k_rate`.
-- Batter-by-pitch-type run value remains research-only: no detailed or coarse
-  pitch family cleared the lower-bootstrap-CI reliability gate.
-- Weather, travel/rest, catcher, and market inputs are not integrated.
+- **Projected TBF is frozen** (Ridge + thin bullpen; test MAE ≈ 2.49). Same-game
+  `PA` remains label/oracle only. Lagged workload (`PA_P*` / `Outs_P*` /
+  `Pitches_P*`), rest, and team bullpen L1–L3d are in Level 2 / TBF joins; they
+  are experimental for k-rate and do not enter the 180-feature freeze.
+- **Count layer v1 + Phase 11 stack:** walk-forward expected_K MAE ≈ 1.78;
+  line ECE ≈ 0.024 (no recalibration). Negative-binomial / TBF-mixture
+  challengers not built. See `docs/phase11_model_quality_gates.md`.
+- Daily lineup ingestion exists (`Python.daily_lineups`); live assembly is
+  optional next with opener **out-of-support** flags —
+  `docs/live_assembly_plan.md`.
+- Step 5 nested compares favor unweighted LightGBM for the *rate* model; the
+  count layer re-checked β-binomial on projected TBF (κ → binomial limit).
+- Phase D: ~3.5% of first pitchers excluded by `PA ≥ 9`; interim policy frozen
+  (`docs/phase_d_population_findings.md`). Pregame role labels still required
+  for pristine v1 claims.
+- Batter-by-pitch-type run value remains research-only.
+- Weather, travel, catcher, and market (de-vig / Kelly) inputs are not integrated.
 - Neutral-site/international games can contaminate team-keyed park factors.
-- The production LightGBM gate remains the 248-feature deterministic-pruned
-  baseline; explicit Step 7 registry freeze has not occurred. The current
-  563-feature research design has 315 research-only candidates. The qualified
-  batter quality weighted-dispersion family improved both LightGBM outer folds
-  but worsened Ridge MAE in both, so it is not a model-agnostic promotion.
-  Ridge has a separate 165-feature VIF-reduced interpretation proposal. The
-  historical 2025 benchmark cannot serve as a pristine final test.
+- The production LightGBM gate is the **frozen 180-feature** registry
+  (`docs/step10_p1_registry_freeze.md`). Ridge research uses `ridge_vif` (73).
+  Historical 2025 cannot serve as a pristine final test.

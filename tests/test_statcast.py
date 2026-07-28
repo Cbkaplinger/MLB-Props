@@ -99,3 +99,147 @@ def test_validate_statcast_season_rejects_relabelled_game_ids():
             2025,
             official_game_pks=frozenset({200}),
         )
+
+
+def test_update_statcast_season_skips_fetch_when_current(tmp_path, monkeypatch):
+    path = tmp_path / "statcast_2026_regular.parquet"
+    cached = pl.DataFrame(
+        {
+            "game_pk": [100, 101],
+            "game_date": [dt.date(2026, 7, 26), dt.date(2026, 7, 26)],
+            "game_year": [2026, 2026],
+            "game_type": ["R", "R"],
+        }
+    )
+    cached.write_parquet(path)
+
+    monkeypatch.setattr(
+        sc,
+        "regular_season_schedule",
+        lambda year: (dt.date(2026, 3, 20), dt.date(2026, 10, 5), frozenset({100, 101})),
+    )
+    monkeypatch.setattr(
+        sc,
+        "_ytd_official_game_pks",
+        lambda year, pull_end: frozenset({100, 101}),
+    )
+    monkeypatch.setattr(
+        sc,
+        "_official_game_pks_between",
+        lambda year, start, end: frozenset(),
+    )
+
+    def _boom(*_args, **_kwargs):
+        raise AssertionError("should not fetch when cache is current")
+
+    monkeypatch.setattr(sc, "_fetch_statcast_range", _boom)
+
+    report = sc.update_statcast_season(
+        2026,
+        path=path,
+        end_dt=dt.date(2026, 7, 26),
+        verbose=False,
+    )
+    assert report["skipped_fetch"] is True
+    assert report["fetched_rows"] == 0
+    assert report["total_rows"] == 2
+
+
+def test_update_statcast_season_appends_only_new_days(tmp_path, monkeypatch):
+    path = tmp_path / "statcast_2026_regular.parquet"
+    cached = pl.DataFrame(
+        {
+            "game_pk": [100],
+            "game_date": [dt.date(2026, 7, 25)],
+            "game_year": [2026],
+            "game_type": ["R"],
+        }
+    )
+    cached.write_parquet(path)
+
+    monkeypatch.setattr(
+        sc,
+        "regular_season_schedule",
+        lambda year: (dt.date(2026, 3, 20), dt.date(2026, 10, 5), frozenset({100, 101})),
+    )
+    monkeypatch.setattr(
+        sc,
+        "_ytd_official_game_pks",
+        lambda year, pull_end: frozenset({100, 101}),
+    )
+    monkeypatch.setattr(
+        sc,
+        "_official_game_pks_between",
+        lambda year, start, end: frozenset({101}),
+    )
+
+    def _fetch(start_date, end_date, *, verbose=True):
+        assert start_date == dt.date(2026, 7, 26)
+        assert end_date == dt.date(2026, 7, 26)
+        return pl.DataFrame(
+            {
+                "game_pk": [101],
+                "game_date": [dt.date(2026, 7, 26)],
+                "game_year": [2026],
+                "game_type": ["R"],
+            }
+        )
+
+    monkeypatch.setattr(sc, "_fetch_statcast_range", _fetch)
+
+    report = sc.update_statcast_season(
+        2026,
+        path=path,
+        end_dt=dt.date(2026, 7, 26),
+        verbose=False,
+    )
+    assert report["skipped_fetch"] is False
+    assert report["fetched_rows"] == 1
+    assert report["total_rows"] == 2
+    assert pl.read_parquet(path)["game_pk"].sort().to_list() == [100, 101]
+
+
+def test_update_statcast_season_rejects_empty_day_when_games_scheduled(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "statcast_2026_regular.parquet"
+    cached = pl.DataFrame(
+        {
+            "game_pk": [100],
+            "game_date": [dt.date(2026, 7, 25)],
+            "game_year": [2026],
+            "game_type": ["R"],
+        }
+    )
+    cached.write_parquet(path)
+
+    monkeypatch.setattr(
+        sc,
+        "regular_season_schedule",
+        lambda year: (dt.date(2026, 3, 20), dt.date(2026, 10, 5), frozenset({100, 101})),
+    )
+    monkeypatch.setattr(
+        sc,
+        "_official_game_pks_between",
+        lambda year, start, end: frozenset({101}),
+    )
+    monkeypatch.setattr(
+        sc,
+        "_fetch_statcast_range",
+        lambda *_a, **_k: pl.DataFrame(
+            schema={
+                "game_pk": pl.Int64,
+                "game_date": pl.Date,
+                "game_year": pl.Int32,
+                "game_type": pl.Utf8,
+            }
+        ),
+    )
+
+    with pytest.raises(ValueError, match="missing"):
+        sc.update_statcast_season(
+            2026,
+            path=path,
+            end_dt=dt.date(2026, 7, 26),
+            verbose=False,
+        )

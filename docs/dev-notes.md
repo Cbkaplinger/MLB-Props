@@ -8,6 +8,15 @@ valid evidence of current model quality.
 Visual phase diagrams (architecture, leakage, modeling status, roadmap) live
 under `diagrams/`. Prefer those over ad-hoc flowchart exports.
 
+Pipeline companion notebooks live under `src/Notebooks/` (including
+`pipeline/training.ipynb`). PDF exports are optional and regenerable with
+`scripts/export-notebook.ps1` / `scripts/export_notebook.py`; they are not
+provenance artifacts.
+
+Generated `artifacts/feature_research/*/SUMMARY.md` wrappers were retired on
+2026-07-28. Conclusions live in the matching `docs/step*_findings.md`; keep
+the numeric CSV/JSON evidence folders, not the duplicate markdown summaries.
+
 ## Objective and leakage boundary
 
 The pitcher model predicts a starter's game-level strikeout rate:
@@ -110,22 +119,13 @@ last 20 games, with at least one prior game by default).
 labels. It drops raw same-game feature columns by default. Use `keep_raw=True`
 only for diagnostics, never as the model input artifact.
 
-The rolling-window caveat is **partially resolved**, not closed. The Phase 3
-mapping covers 88 rate/physics/mechanics/usage metrics: 14 observed crossings
-fall within the existing discrete ranges, BABIP and run value are
-under-windowed, arm angle is over-windowed, and 71 metrics have no directly
-matching stabilization curve. The last group includes pitch-type physics and
-handedness-specific usage (`*_usage_vR` / `*_usage_vL`), so their P3/P5/P10
-windows remain provisional.
-
-The three flagged metrics were re-ablated with only the predeclared candidates
-in `artifacts/feature_research/window_change_proposals.csv`. Nested outer
-confirmation supports `rv_per_100_P25` for LightGBM (positive MAE improvement
-in both outer folds), but not for Ridge. BABIP and arm-angle alternatives were
-not consistently confirmed. Therefore no rolling constants have changed:
-BABIP, arm angle, Ridge run value, and every unstudied physics/usage metric
-remain provisional. See `window_stabilization_gap.csv` and
-`targeted_window_ablation_*` in `artifacts/feature_research/`; do not recreate
+The rolling-window caveat is **resolved for the LightGBM backbone**
+(`docs/step4_window_decisions.md`). Targeted re-ablation kept BABIP and arm
+angle on experimental defaults without promotion. Run-value **`P25`** and mean-
+window thin **`P3/P5`** (drop P10 on physics/usage/mechanics/FIP) are LGBM
+freeze proposals only — pipeline constants are unchanged until Step 7.
+See `window_stabilization_gap.csv`, `targeted_window_ablation_*`, and
+`step4_physics_windows/` in `artifacts/feature_research/`; do not recreate
 windows in notebooks.
 
 ### Level 3: model-ready joins
@@ -211,39 +211,28 @@ outcomes and the denominator plans in `reliability.py` are foundations for
 future hit, walk, runs-allowed, pitches, outs, and workload models; they are not
 dead columns or dead research code.
 
-Level 2 currently keeps only the active pitcher labels (`K`, `PA`, `Outs`,
-`k_rate`) and drops same-game `Pitches` plus other raw workload counts.
-Lagged workload features such as `PA_P5`, `Outs_P5`, or `Pitches_P5` are
-**not** emitted by default rolling (though `features.py` documents that lagged
-`PA_P*` would be valid pregame inputs). A projected-TBF model therefore needs
-either:
+Level 2 keeps active pitcher labels (`K`, `PA`, `Outs`, `k_rate`) and also
+emits leakage-safe lagged workload (`PA_P*` / `Outs_P*` / `Pitches_P*`), rest
+flags, and joins team bullpen L1–L3d lookbacks for the TBF spine. Same-game
+`PA` / `Outs` / `Pitches` remain labels/oracles, never prediction-time features.
 
-1. a thin Level-2 extension that rolls `PA` / `Outs` / `Pitches` from
-   `pitcher_games.parquet` and joins onto existing `pitcher_training.parquet`, or
-2. a rebuild from Level 1 with an explicit workload-retention policy —
+`Models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and defaults to
+`--feature-set production` (**180** frozen features via
+`Python.registries.resolve_feature_names`). Companions: `step7_185`,
+`pre_freeze_248`, `ridge_vif`. `Models/TBF-Model/train.py` +
+`score_count_layer.py` consume the workload spine for projected TBF and prop
+probs. The approximate 70/15/15 chronological split keeps each calendar date
+wholly inside one partition.
 
-without weakening the pregame leakage gate (same-game `PA`/`Outs`/`Pitches`
-remain labels/oracles, never prediction-time features).
-
-`Models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and supports
-LightGBM, Ridge, and mean baselines without rebuilding Level 1 or Level 2.
-The feature-safety gate accepts only approved context fields and lagged
-rolling/season-to-date columns; an unexpected numeric column fails loudly.
-This prevents leakage but does not choose a compact registry: the current
-trainer still fits every eligible Level 3 feature unless given a future
-explicit registry.
-The approximate 70/15/15 chronological split keeps each calendar date wholly
-inside one partition.
-
-The current 2023-2024-only baseline has 248 eligible features after exact
-Contact% and CSW% identities are excluded. Training ends 2024-06-08,
-validation is 2024-06-09 through 2024-08-05, and internal testing starts
-2024-08-06. Internal-test RMSE / R² are 0.1070 / -0.0010 (Mean),
-0.0993 / 0.1378 (Ridge), and 0.0983 / 0.1546 (LightGBM). The trainer filters
-to `TRAIN_SEASONS` before splitting, so existing Level 3 artifacts may retain
-2025 rows without allowing them into fitting. Historical research artifacts
-with 238/240/243/251/256 features predate deterministic pruning and must not be
-conflated with the current trainer feature count or a frozen registry.
+The frozen 2023-2024 LightGBM `production` registry has **180** features
+(Step 10 P1 physics swap). Chrono cutoffs: train ≤ 2024-06-08, val
+2024-06-09→08-05, test ≥ 2024-08-06. Frozen test MAE / RMSE / R² ≈ 0.0787 /
+0.0987 / 0.147 (`docs/step10_p1_registry_freeze.md`; artifact
+`lightgbm_krate_20260728_033241`). `step7_185` is the pre-P1 comparison;
+`pre_freeze_248` is the pre-thin set. Next engineering phase is model quality
+(`docs/phase11_model_quality_gates.md`), not further feature ablation.
+The trainer filters to `TRAIN_SEASONS` before splitting, so existing Level 3
+artifacts may retain 2025 rows without allowing them into fitting.
 
 ## Park factors and future intangibles
 
@@ -265,9 +254,12 @@ London series, Field of Dreams, and the Little League Classic) are not
 currently filtered. They remain grouped under Statcast's listed home-team
 code and can slightly contaminate that venue's factor.
 
-Future catcher, weather, travel, or other context belongs in separate keyed
-dimension tables and is joined at Level 3. It does not belong in player rolling
-files unless the feature itself represents lagged player form.
+Future catcher, weather, travel, market, or other context belongs in separate
+keyed dimension tables and is joined at Level 3 (or onto the TBF spine). It
+does not belong in player rolling files unless the feature itself represents
+lagged player form. Rest / bullpen / TBF Phases A–C are implemented and
+documented in `docs/workload_rest_bullpen_feature_plan.md`; remaining roadmap
+items are in `diagrams/04-roadmap.md`.
 
 ## Stabilization and feature selection
 
@@ -297,15 +289,15 @@ because they require distinct defenses:
   are in `vif.csv` and `feature_dictionary.csv`. Pairwise correlation cannot
   detect multivariate redundancy, so VIF remains required. These diagnostics
   apply to Ridge interpretation, not as a LightGBM pruning rule; investigate
-  VIF above 5 and treat VIF above 10 as serious. The Phase-2 proposal in
-  `vif_cluster_selection.csv` reduces 236 serious-VIF features to 62
-  representatives, producing a 74-feature design with median VIF 3.214 and
-  two values above 10. Full VIF<10 is not enforced: overlapping rolling
-  histories are redundant by design, and tree prediction is generally
-  insensitive to multicollinearity even though Ridge coefficients and feature
-  attribution are not. The expanded 301-column research frame has an 81-column
-  Ridge proposal (median VIF 3.098; one value above 10) under
-  `artifacts/feature_research/expanded/`.
+  VIF above 5 and treat VIF above 10 as serious. Step 1 adopted the Phase-2
+  cluster proposal as the Ridge research registry with one amendment (drop
+  `xFIP_P5` → 73 features; keep `xwOBA_P5` as residual VIF > 10). See
+  `docs/step1_feature_dict_vif_findings.md` and `--feature-set ridge_vif`.
+  Full VIF<10 is not enforced: overlapping rolling histories are redundant by
+  design, and tree prediction is generally insensitive to multicollinearity
+  even though Ridge coefficients and feature attribution are not. The expanded
+  563-column research frame has a separate 165-column Ridge proposal under
+  `artifacts/feature_research/expanded/` (research-only surface).
 - **Deterministic redundancy:** exact complements or sums, such as
   `Contact% = 1 - Whiff%` and `CSW% = SwStr% + called-strike%`, are now
   excluded by `features.py` and covered by feature-safety regression tests.
@@ -321,22 +313,22 @@ because they require distinct defenses:
   removed, and outer data are used only after a configuration is selected.
   `tests/test_nested_cv.py` enforces the boundary and containment rules.
 - **Heteroskedastic target treatment:** single-game K/PA is noisier at low PA
-  than high PA, as the stabilization analysis demonstrates. Ordinary
-  unweighted regression does not account for this. PA-weighted training and
-  binomial/beta-binomial likelihoods are planned comparisons.
+  than high PA. Step 5 nested compares (PA-weighted, binomial, beta-binomial)
+  favor **unweighted LightGBM**; see `docs/step5_*_findings.md`. Count-layer
+  props use projected TBF trials (`docs/count_layer_findings.md`).
 - **Population-selection bias:** `PA >= 9` is a postgame outcome used to define
-  a pregame prediction population. The intended population requires explicit
-  justification using pregame-observable starter/opener/piggyback information.
+  a pregame prediction population. Phase D interim policy frozen (~3.5%
+  excluded); pregame role labels still open for pristine v1
+  (`docs/phase_d_population_findings.md`).
 - **Feature-selection stability:** a family's improvement must persist across
   separate seasons and outer folds using grouped permutation or drop-column
   importance. SHAP is considered only after deterministic and highly
   correlated features are reduced.
 - **Expanded-feature registry:** P2 arsenal, count-state, BIP/BABIP, arm angle,
-  SIERA, run value, and the 16 batter-lineup additions require
-  `include_experimental=True`. The batter nominee improved both LightGBM outer
-  folds, but registry freeze was outside Phase 3; production therefore stays
-  at 248 features. Definitions and decisions are in
-  `artifacts/feature_research/expanded/candidate_feature_registry.csv`.
+  SIERA, run value, and lineup expansions require `include_experimental=True`.
+  Frozen production is **180** features (`docs/step10_p1_registry_freeze.md`);
+  `step7_185` / `pre_freeze_248` are comparison-only. Definitions live under
+  `artifacts/feature_research/`.
 - **Multiple-comparisons risk:** every consulted configuration belongs in the
   `PAPER_NOTES.md` experiment log. The `2025-07-06+` partition was already
   scored by historical baseline runs, so it is not a pristine future test and
@@ -350,16 +342,17 @@ VIF caveats, nested-fold proposal, and count-model scope.
 
 The live Level 3 parquet contains labels, identifiers, production features, and
 research candidates. Do not treat every numeric column as a model input.
-`Python.features.model_feature_names(frame)` returns the 248 default production
-features; pass `include_experimental=True` to inspect all 563 research-eligible
-columns.
+`Python.registries.resolve_feature_names(frame, "production")` returns the
+**180** frozen features; use `"step7_185"`, `"pre_freeze_248"`, or
+`"ridge_vif"` for companions.
+`Python.features.model_feature_names(..., include_experimental=True)` exposes
+the broader research-eligible surface.
 
 The current generated inventory is
 `artifacts/feature_research/expanded/feature_dictionary.csv`. Registry status
-and rationale are in `candidate_feature_registry.csv`; the production LightGBM
-and Ridge proposal lists are `final_lightgbm_registry.csv` and
-`final_ridge_registry.csv`. Regenerate them in the order documented by
-`artifacts/README.md` whenever Level 3 feature logic changes.
+and rationale are in `candidate_feature_registry.csv`. Step 7 freeze record:
+`docs/step7_registry_freeze.md`. Regenerate diagnostics in the order documented
+by `artifacts/README.md` whenever Level 3 feature logic changes.
 
 ## FIP constant maintenance
 
@@ -370,26 +363,30 @@ A season-level additive constant has no within-season tree-model signal.
 
 ## Current limitations
 
-- Projected batters faced and an end-to-end strikeout-count backtest are not
-  complete (see `diagrams/04-roadmap.md`). No `projected_tbf` column or
-  workload-projection trainer exists yet.
-- Count-probability layer (beta-binomial / NB / Poisson) is not started; no
-  `statsmodels` dependency and no custom count likelihood code under `Models/`.
+- Projected TBF is **frozen** (Ridge + thin bullpen; see
+  `docs/tbf_first_model_findings.md`). Count layer v1 is chrono-scored
+  (`docs/count_layer_findings.md`). Live slate assembly and market grading
+  are not automated.
+- Negative-binomial count challenger and mixing over a TBF distribution are
+  not built. Step 5 rate-likelihood helpers remain in
+  `src/Python/likelihoods.py`.
 - Daily lineup ingestion exists, but scheduling, retries, source-status
-  monitoring, and downstream prediction-frame assembly (artifact + announced
-  lineup → scored `k_rate` frame) are not automated.
-- Step 5 PA-weighted / binomial / beta-binomial comparison is not started;
-  `Models/Strikeout-Model/train.py` remains unweighted.
+  monitoring, and downstream prediction-frame assembly (k-rate + TBF + counts
+  on today's slate) are not automated.
+- Step 5 likelihood sequence is **resolved**: unweighted LightGBM remains the
+  rate backbone. Count-layer β-binomial on projected TBF collapsed to binomial.
+- Phase D interim policy frozen (`docs/phase_d_population_findings.md`);
+  pregame role labels still required for pristine v1.
 - Full batter-by-pitch-type arsenal/lineup interactions are not implemented;
   the research-only run-value audit found no pitch type or coarse family
   reliably estimable at the lower-CI `r=.50` gate.
-- Weather, travel/rest, catcher, and market features are not integrated.
+- Weather, travel, catcher, and market (de-vig / Kelly) inputs are not
+  integrated. Rest/bullpen/TBF companions A–C are in
+  `docs/workload_rest_bullpen_feature_plan.md`.
 - Neutral-site/international games can contaminate team-keyed park factors.
-- The production LightGBM registry is the 248-feature audit-corrected baseline.
-  The current 563-feature research surface contains 315 research-only
-  candidates; none are promoted by generation alone. Ridge uses a separate
-  165-feature interpretation proposal. The historical 2025 benchmark is not
-  an untouched final test.
+- The production LightGBM registry is the **frozen 180-feature** allow-list
+  (Step 10). `step7_185` / `pre_freeze_248` remain for comparisons. Ridge research uses
+  `ridge_vif` (73). The historical 2025 benchmark is not an untouched final test.
 
 ## Validation
 

@@ -1,7 +1,7 @@
 # 03 — Modeling and evaluation status
 
-Chronological evaluation of the strikeout-rate model, plus research-step gates
-before registry freeze.
+Chronological evaluation of the strikeout-rate model, research gates through
+the Step 10 feature freeze, and **Phase 11** model-quality work that comes next.
 
 ```mermaid
 flowchart TB
@@ -9,43 +9,47 @@ flowchart TB
   classDef partial fill:#e65100,stroke:#ffcc80,color:#fff
   classDef missing fill:#b71c1c,stroke:#ef9a9a,color:#fff
   classDef risk fill:#4a148c,stroke:#ce93d8,color:#fff
-  classDef research fill:#0d47a1,stroke:#90caf9,color:#fff
+  classDef next fill:#01579b,stroke:#81d4fa,color:#fff
 
-  SEAS["TRAIN_SEASONS = (2023, 2024)<br/>filtered in train.py before any split / fit"]:::built
-  SPLIT["Chrono date-disjoint split ≈ 70/15/15<br/>train ends 2024-06-08<br/>val 2024-06-09 → 2024-08-05<br/>test from 2024-08-06"]:::built
+  SEAS["TRAIN_SEASONS = (2023, 2024)<br/>filtered before any split / fit"]:::built
+  SPLIT["Chrono date-disjoint ≈ 70/15/15<br/>train ≤ 2024-06-08<br/>val → 2024-08-05<br/>test ≥ 2024-08-06"]:::built
+  NEST["Nested research folds<br/>outer 2024 h1/h2 · inner ⊂ train"]:::built
 
-  MEAN["Mean<br/>RMSE 0.1070 · R² −0.0010"]:::built
-  RIDGE["Ridge<br/>RMSE 0.0993 · R² 0.1378"]:::built
-  LGBM["LightGBM<br/>RMSE 0.0983 · R² 0.1546"]:::built
-  HOLD["2025 = historical holdout<br/>already consulted · not pristine"]:::risk
+  LGBM["LightGBM production 180<br/>Step 10 P1 · test MAE≈0.079"]:::built
+  TBF["TBF Ridge thin bullpen<br/>test MAE≈2.49"]:::built
+  CNT["Count layer<br/>expected_K MAE≈1.79"]:::built
+  HOLD["2025 = historical only<br/>already consulted · not pristine"]:::risk
 
-  S1["Step 1: feature dict / VIF<br/>IN PROGRESS"]:::partial
-  S3["Step 3: grouped ablations<br/>most families untested"]:::partial
-  S4["Step 4: windows provisional<br/>BABIP / arm-angle / Ridge RV"]:::partial
-  S5["Step 5: unweighted vs PA-weighted<br/>vs binomial / beta-binomial<br/>NOT STARTED"]:::missing
+  S1["Steps 1–5: dict · LFO · windows · likelihoods"]:::built
+  S7["Step 7: freeze 185"]:::built
+  S89["Steps 8–9c: keep/drop · windows · P1"]:::built
+  S10["Step 10: lock production 180"]:::built
 
-  S7["Step 7: registry freeze<br/>BLOCKED until Steps 1 / 3 / 4 / 5 resolve"]:::missing
-  NEXT["Next pristine test =<br/>future post-freeze games only"]:::missing
+  TUNE["11.A Tune LGBM + Ridge α"]:::next
+  WF["11.B Walk-forward stack backtest"]:::next
+  CAL["11.C Calibration / ECE"]:::next
+  NEXT["Pristine test =<br/>future post-freeze games"]:::missing
 
   SEAS --> SPLIT
-  SPLIT --> MEAN
-  SPLIT --> RIDGE
   SPLIT --> LGBM
+  SPLIT --> TBF
   SPLIT --> HOLD
-
-  S1 --> S7
-  S3 --> S7
-  S4 --> S7
-  S5 --> S7
-  S7 --> NEXT
+  NEST --> S1
+  S1 --> S7 --> S89 --> S10
+  S10 --> LGBM
+  LGBM --> TBF --> CNT
+  S10 --> TUNE --> WF --> CAL
+  CNT --> WF
+  CAL --> NEXT
 ```
 
 ## Notes
 
-- Nested selection/confirmation folds live in
-  `Models/Strikeout-Model/Strikeout-EDA/nested_cv.py`
-  (`nested_research_folds`).
-- Current `train.py` fits **unweighted** game-level `k_rate`. `PA` is retained
-  as a label and can become `sample_weight` without a Level 1/2 rebuild.
-- Older overlapping-date / 2025-consulting baselines are archived under
-  `docs/archive/leaky-baseline-2026-07-23/`.
+- Nested folds: `Models/Strikeout-Model/Strikeout-EDA/nested_cv.py`.
+- Production chrono split: `Python.training.chronological_split`.
+- Keep **unweighted** LightGBM (`--sample-weight none`); PA-weight is diagnostic.
+- Count metrics: prefer **Brier / log loss** over accuracy
+  (`Python.count_layer.line_market_metrics`).
+- Phase 11 plan: `docs/phase11_model_quality_gates.md`.
+- Freeze record: `docs/step10_p1_registry_freeze.md`.
+- Archived leaky baselines: `docs/archive/leaky-baseline-2026-07-23/`.

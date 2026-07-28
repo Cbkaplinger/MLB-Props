@@ -380,3 +380,105 @@ def test_duplicate_pitcher_game_keys_are_rejected():
             rate_stats={"k_rate": ("K", "PA")},
             mean_cols=[],
         )
+
+
+def test_workload_volume_rolls_exclude_current_start():
+    df = pr.add_rolling_pitcher_features(
+        _starts(
+            [
+                _s(1, 5, 20, pitches=80, Outs=15),
+                _s(2, 5, 24, pitches=100, Outs=18),
+                _s(3, 5, 22, pitches=90, Outs=16),
+            ]
+        ),
+        rate_stats={},
+        mean_cols=[],
+        workload_cols=("PA", "Outs", "Pitches"),
+        workload_windows=(5,),
+        add_rest=False,
+    ).sort("game_date")
+    assert df["PA_P5"][0] is None
+    assert df["PA_P5"][1] == pytest.approx(20.0)
+    assert df["PA_P5"][2] == pytest.approx(22.0)
+    assert df["Outs_P5"][2] == pytest.approx(16.5)
+    assert df["Pitches_P5"][2] == pytest.approx(90.0)
+
+
+def test_starter_rest_season_debut_and_long_gap():
+    df = pr.add_starter_rest_features(
+        _starts(
+            [
+                _s(1, 5, 20),
+                _s(6, 5, 20),   # 5 days rest
+                _s(30, 5, 20),  # 24 days → long gap, capped at 15
+            ]
+        ),
+        long_gap_days=15,
+    ).sort("game_date")
+    assert df["is_season_debut"][0] == 1
+    assert df["is_career_mlb_debut"][0] == 1
+    assert df["days_rest"][0] is None
+    assert df["days_rest_capped"][0] is None
+    assert df["rest_is_long_gap"][0] == 0
+    assert df["rest_gap_severity"][0] == 0
+    assert df["is_season_debut"][1] == 0
+    assert df["is_career_mlb_debut"][1] == 0
+    assert df["days_rest"][1] == 5
+    assert df["days_rest_capped"][1] == 5
+    assert df["rest_is_long_gap"][1] == 0
+    assert df["days_rest"][2] == 24
+    assert df["days_rest_capped"][2] == 15
+    assert df["rest_is_long_gap"][2] == 1
+    assert df["rest_gap_severity"][2] == 1  # 16-35
+
+
+def test_starter_rest_gap_severity_and_career_vs_season_debut():
+    df = pr.add_starter_rest_features(
+        _starts(
+            [
+                dict(
+                    pitcher=1, game_pk=1, game_date=dt.date(2023, 4, 1),
+                    K=5, PA=20, Pitches=90, ff_velo=95.0,
+                ),
+                dict(
+                    pitcher=1, game_pk=2, game_date=dt.date(2023, 4, 10),
+                    K=5, PA=20, Pitches=90, ff_velo=95.0,
+                ),
+                dict(
+                    pitcher=1, game_pk=3, game_date=dt.date(2024, 4, 1),
+                    K=5, PA=20, Pitches=90, ff_velo=95.0,
+                ),
+                dict(
+                    pitcher=1, game_pk=4, game_date=dt.date(2024, 6, 15),
+                    K=5, PA=20, Pitches=90, ff_velo=95.0,
+                ),  # 75 days from Apr 1 → severity 3
+            ]
+        ),
+        long_gap_days=15,
+    ).sort("game_date")
+    assert df["is_career_mlb_debut"][0] == 1
+    assert df["is_season_debut"][2] == 1
+    assert df["is_career_mlb_debut"][2] == 0
+    assert df["rest_is_long_gap"][3] == 1
+    assert df["rest_gap_severity"][3] == 3
+    assert df["days_rest"][3] == 75
+    assert df["days_rest_capped"][3] == 15
+
+
+def test_starter_rest_same_date_shares_prior_rest():
+    df = pr.add_starter_rest_features(
+        _starts(
+            [
+                _s(1, 5, 20, gp=101),
+                _s(10, 5, 20, gp=201),
+                _s(10, 5, 20, gp=202),  # doubleheader same date
+            ]
+        ),
+        long_gap_days=15,
+    ).sort(["game_date", "game_pk"])
+    assert df["days_rest"][1] == 9
+    assert df["days_rest"][2] == 9
+    assert df["is_season_debut"][1] == 0
+    assert df["is_season_debut"][2] == 0
+    assert df["is_career_mlb_debut"][1] == 0
+    assert df["is_career_mlb_debut"][2] == 0

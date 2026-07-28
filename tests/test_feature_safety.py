@@ -92,6 +92,9 @@ def test_experimental_candidates_require_explicit_research_opt_in() -> None:
             "opp_lineup_xwoba_P20": [0.35],
             "opp_lineup_k_order_weighted": [0.24],
             "opp_lineup_hard_hit_order_sd": [0.08],
+            "PA_P5": [22.0],
+            "days_rest_capped": [4],
+            "is_season_debut": [0],
         }
     )
     assert model_feature_names(frame) == ("whiff_rate_P5",)
@@ -106,6 +109,9 @@ def test_experimental_candidates_require_explicit_research_opt_in() -> None:
         "opp_lineup_xwoba_P20",
         "opp_lineup_k_order_weighted",
         "opp_lineup_hard_hit_order_sd",
+        "PA_P5",
+        "days_rest_capped",
+        "is_season_debut",
     )
 
 

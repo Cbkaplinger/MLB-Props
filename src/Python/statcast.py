@@ -179,13 +179,125 @@ def validate_statcast_season(
             )
 
 
-def download_statcast_season(
-    year: int,
+def yesterday_et() -> dt.date:
+    """Calendar yesterday in America/New_York (Statcast / slate convention)."""
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:  # pragma: no cover
+        return dt.datetime.utcnow().date() - dt.timedelta(days=1)
+    return dt.datetime.now(ZoneInfo("America/New_York")).date() - dt.timedelta(
+        days=1
+    )
+
+
+def _official_schedule_dates(year: int) -> list[tuple[dt.date, int]]:
+    """Return ``(officialDate, gamePk)`` rows for regular-season games."""
+    query = urlencode({"sportId": 1, "season": year, "gameType": "R"})
+    with urlopen(f"{MLB_SCHEDULE_URL}?{query}", timeout=30.0) as response:
+        payload = json.load(response)
+    return [
+        (dt.date.fromisoformat(game["officialDate"]), int(game["gamePk"]))
+        for date_entry in payload.get("dates", [])
+        for game in date_entry.get("games", [])
+        if game.get("gameType") == "R"
+    ]
+
+
+def _ytd_official_game_pks(year: int, pull_end: dt.date) -> frozenset[int]:
+    """Official regular-season game PKs with officialDate <= pull_end."""
+    return frozenset(
+        game_pk
+        for official_date, game_pk in _official_schedule_dates(year)
+        if official_date <= pull_end
+    )
+
+
+def ytd_official_game_pks(year: int, pull_end: dt.date) -> frozenset[int]:
+    """Public alias for year-to-date official game PK coverage checks."""
+    return _ytd_official_game_pks(year, pull_end)
+
+
+def _official_game_pks_between(
+    year: int, start: dt.date, end: dt.date
+) -> frozenset[int]:
+    """Official regular-season game PKs with start <= officialDate <= end."""
+    return frozenset(
+        game_pk
+        for official_date, game_pk in _official_schedule_dates(year)
+        if start <= official_date <= end
+    )
+
+
+def _reference_statcast_schema() -> dict[str, pl.DataType]:
+    """Prefer a completed local season as the dtype template."""
+    for year in (2025, 2024, 2023):
+        path = season_path(year)
+        if path.exists():
+            return dict(pl.scan_parquet(path).collect_schema().items())
+    return {}
+
+
+def normalize_statcast_dtypes(frame: pl.DataFrame) -> pl.DataFrame:
+    """Coerce pybaseball object/string columns to the usual Savant dtypes.
+
+    Incremental YTD pulls sometimes land numeric fields as strings; without this
+    cast, Level 1 plate-discipline flags fail (``zone <= 9`` etc.).
+    """
+    if frame.is_empty():
+        return frame
+
+    reference = _reference_statcast_schema()
+    casts: list[pl.Expr] = []
+    cast_names: set[str] = set()
+
+    def _add_cast(name: str, expr: pl.Expr) -> None:
+        if name in cast_names:
+            return
+        cast_names.add(name)
+        casts.append(expr)
+
+    for name, dtype in frame.schema.items():
+        target = reference.get(name)
+        if target is None or dtype == target:
+            continue
+        if name == "game_date":
+            _add_cast(name, pl.col(name).cast(pl.Date, strict=False))
+            continue
+        if target == pl.Categorical:
+            continue
+        # String/object numerics: Float then Int when the template is integral.
+        if dtype == pl.String or dtype == pl.Object:
+            if target in (pl.Int8, pl.Int16, pl.Int32, pl.Int64, pl.UInt32, pl.UInt64):
+                _add_cast(
+                    name,
+                    pl.col(name)
+                    .cast(pl.Float64, strict=False)
+                    .round(0)
+                    .cast(target, strict=False),
+                )
+            else:
+                _add_cast(name, pl.col(name).cast(target, strict=False))
+        else:
+            _add_cast(name, pl.col(name).cast(target, strict=False))
+
+    # Always pin the join/validation keys even without a reference file.
+    for name, target in (
+        ("game_date", pl.Date),
+        ("game_year", pl.Int32),
+        ("game_pk", pl.Int64),
+    ):
+        if name in frame.columns and frame.schema[name] != target:
+            _add_cast(name, pl.col(name).cast(target, strict=False))
+
+    return frame.with_columns(casts) if casts else frame
+
+
+def _fetch_statcast_range(
+    start_date: dt.date,
+    end_date: dt.date,
     *,
-    path: Path | None = None,
     verbose: bool = True,
-) -> Path:
-    """Download and atomically store one verified MLB regular season."""
+) -> pl.DataFrame:
     try:
         from pybaseball import cache
         from pybaseball import statcast as fetch_statcast
@@ -196,26 +308,53 @@ def download_statcast_season(
         ) from exc
 
     cache.enable()
-    start_date, end_date, official_game_pks = regular_season_schedule(year)
     pandas_frame = fetch_statcast(
         start_dt=start_date.isoformat(),
         end_dt=end_date.isoformat(),
         verbose=verbose,
         parallel=True,
     )
-    frame = pl.from_pandas(pandas_frame, nan_to_null=True).with_columns(
-        pl.col("game_date").cast(pl.Date),
-        pl.col("game_year").cast(pl.Int32),
-        pl.col("game_pk").cast(pl.Int64),
+    frame = normalize_statcast_dtypes(
+        pl.from_pandas(pandas_frame, nan_to_null=True)
     )
     if "game_type" in frame.columns:
         frame = frame.filter(pl.col("game_type") == "R")
+    return frame
 
-    validate_statcast_season(
-        frame,
-        year,
-        official_game_pks=official_game_pks,
-    )
+
+def download_statcast_season(
+    year: int,
+    *,
+    path: Path | None = None,
+    verbose: bool = True,
+    end_dt: dt.date | None = None,
+) -> Path:
+    """Download and atomically store one verified MLB regular season.
+
+    For an in-progress season, pass ``end_dt`` (typically yesterday ET) to pull
+    year-to-date only. Validation then requires coverage of official games with
+    ``officialDate <= end_dt`` rather than the full remaining schedule.
+
+    Prefer :func:`update_statcast_season` for daily production refreshes — it
+    reuses the on-disk parquet and only fetches new calendar days.
+    """
+    start_date, season_end, official_game_pks = regular_season_schedule(year)
+    pull_end = min(end_dt, season_end) if end_dt is not None else season_end
+    if pull_end < start_date:
+        raise ValueError(f"end_dt {pull_end} is before season start {start_date}")
+
+    frame = _fetch_statcast_range(start_date, pull_end, verbose=verbose)
+
+    if end_dt is not None:
+        validate_statcast_season(
+            frame, year, official_game_pks=_ytd_official_game_pks(year, pull_end)
+        )
+    else:
+        validate_statcast_season(
+            frame,
+            year,
+            official_game_pks=official_game_pks,
+        )
 
     destination = path or season_path(year)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -223,6 +362,106 @@ def download_statcast_season(
     frame.write_parquet(temporary)
     temporary.replace(destination)
     return destination
+
+
+def update_statcast_season(
+    year: int,
+    *,
+    path: Path | None = None,
+    end_dt: dt.date | None = None,
+    refresh_trailing_days: int = 0,
+    verbose: bool = True,
+) -> dict[str, object]:
+    """Incrementally refresh a season parquet (production daily path).
+
+    Behavior:
+    - No local file → full YTD download from season start through ``end_dt``.
+    - Local file present → fetch only ``cached_max + 1`` .. ``end_dt`` (gap fill /
+      yesterday). Set ``refresh_trailing_days=1`` to also re-pull the last cached
+      day (late Savant corrections).
+    - Already current through ``end_dt`` and ``refresh_trailing_days=0`` → no
+      network fetch.
+
+    Returns a small report with paths and date bounds.
+    """
+    if refresh_trailing_days < 0:
+        raise ValueError("refresh_trailing_days must be >= 0")
+
+    start_date, season_end, _ = regular_season_schedule(year)
+    pull_end = min(end_dt or yesterday_et(), season_end)
+    if pull_end < start_date:
+        raise ValueError(f"end_dt {pull_end} is before season start {start_date}")
+
+    destination = path or season_path(year)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    existing: pl.DataFrame | None = None
+    cached_max: dt.date | None = None
+    if destination.exists():
+        existing = normalize_statcast_dtypes(pl.read_parquet(destination))
+        if "game_type" in existing.columns:
+            existing = existing.filter(pl.col("game_type") == "R")
+        cached_max = existing.select(pl.col("game_date").cast(pl.Date).max()).item()
+
+    if cached_max is None:
+        fetch_start = start_date
+    else:
+        fetch_start = cached_max + dt.timedelta(days=1)
+        if refresh_trailing_days > 0:
+            trailing = cached_max - dt.timedelta(days=refresh_trailing_days - 1)
+            fetch_start = min(fetch_start, max(trailing, start_date))
+
+    fetched_rows = 0
+    window_pks = (
+        _official_game_pks_between(year, fetch_start, pull_end)
+        if fetch_start <= pull_end
+        else frozenset()
+    )
+    if fetch_start <= pull_end:
+        new_frame = _fetch_statcast_range(fetch_start, pull_end, verbose=verbose)
+        fetched_rows = int(new_frame.height)
+        if window_pks:
+            observed_new = frozenset(
+                int(pk) for pk in new_frame["game_pk"].drop_nulls().unique().to_list()
+            )
+            missing = sorted(window_pks - observed_new)
+            if missing:
+                raise ValueError(
+                    f"Incremental Statcast {year} fetch {fetch_start}..{pull_end} "
+                    f"missing {len(missing)} official game_pk(s); sample={missing[:5]}. "
+                    "Retry later (Savant lag) or run a full download_statcast_season repair."
+                )
+        if existing is None or existing.is_empty():
+            combined = new_frame
+        else:
+            # Drop overlapping game_pks from cache (trailing refresh), then concat.
+            overlap = set(new_frame["game_pk"].unique().to_list())
+            kept = existing.filter(~pl.col("game_pk").is_in(list(overlap)))
+            combined = pl.concat([kept, new_frame], how="diagonal_relaxed")
+    else:
+        if existing is None:
+            raise RuntimeError("No Statcast cache and nothing to fetch")
+        combined = existing
+
+    combined = normalize_statcast_dtypes(combined)
+    validate_statcast_season(
+        combined, year, official_game_pks=_ytd_official_game_pks(year, pull_end)
+    )
+    temporary = destination.with_suffix(".tmp.parquet")
+    combined.write_parquet(temporary)
+    temporary.replace(destination)
+
+    return {
+        "path": str(destination),
+        "year": year,
+        "pull_end": pull_end.isoformat(),
+        "cached_max_before": None if cached_max is None else cached_max.isoformat(),
+        "fetch_start": fetch_start.isoformat() if fetch_start <= pull_end else None,
+        "fetched_rows": fetched_rows,
+        "total_rows": int(combined.height),
+        "max_game_date": str(combined["game_date"].max()),
+        "skipped_fetch": fetch_start > pull_end,
+    }
 
 
 def load_statcast_years(
@@ -249,10 +488,11 @@ def load_statcast_years(
                 if column in available and column not in requested
             ]
             frame = lf.select([*requested, *validation_columns]).collect()
+            frame = normalize_statcast_dtypes(frame)
             validate_statcast_season(frame, int(year))
             frame = frame.select(requested)
         else:
-            frame = lf.collect()
+            frame = normalize_statcast_dtypes(lf.collect())
             validate_statcast_season(frame, int(year))
         frames.append(frame)
     return pl.concat(frames, how="diagonal_relaxed")

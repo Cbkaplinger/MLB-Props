@@ -30,8 +30,8 @@ Flow rules:
 | [00-index.md](00-index.md) | Map of the four phases |
 | [01-architecture.md](01-architecture.md) | As-built data → model artifact path |
 | [02-leakage-and-risks.md](02-leakage-and-risks.md) | Leakage gates, priors, population risks |
-| [03-modeling-and-evaluation.md](03-modeling-and-evaluation.md) | Splits, baselines, Step 1/3/4/5 → Step 7 |
-| [04-roadmap.md](04-roadmap.md) | Remaining work: TBF, counts, live assembly |
+| [03-modeling-and-evaluation.md](03-modeling-and-evaluation.md) | Splits, baselines, Steps 1–9 → freeze, TBF/counts |
+| [04-roadmap.md](04-roadmap.md) | Live next; Phase D interim; pristine needs roles |
 
 Canonical prose lives in `docs/model-card.md`, `docs/dev-notes.md`, and
 `docs/statistical_audit_and_sequencing_report.md`. When a diagram and those

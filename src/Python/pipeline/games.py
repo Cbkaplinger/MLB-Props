@@ -8,6 +8,9 @@ one row per game, then written to ``data/processed/``:
 - ``pitch_type_games.parquet`` - one row per starter/game/canonical pitch type,
   retaining numerator/denominator pairs for feature research.
 - ``batter_games.parquet``  - one row per ``(game_pk, batter)``.
+- ``bullpen_team_games.parquet`` - one row per ``(game_pk, team)`` with
+  non-starter pitch volume / arms used (Phase C flat source).
+- ``bullpen_appearances.parquet`` - long appearance log (staging; not model input).
 - ``park_factors.parquet``  - season/stadium strikeout-factor dimension. Each
   target season uses prior seasons only and is joined at Level 3 rather than
   rolled. Other external context tables would follow the same pattern.
@@ -25,11 +28,13 @@ import polars as pl
 
 from .. import batter_features, config, identity, pitcher_features
 from ..ballpark import pregame_park_factors
+from ..bullpen import build_bullpen_appearances, build_bullpen_team_games
 from ..statcast import (
     load_statcast_years,
     plate_appearances,
     regular_season_schedule,
     validate_statcast_season,
+    ytd_official_game_pks,
 )
 
 
@@ -124,11 +129,19 @@ def build_park_factors(
 
 
 def _validate_raw_seasons(raw: pl.DataFrame, years: Iterable[int]) -> None:
-    """Verify each requested season against MLB's official game IDs."""
+    """Verify each requested season against MLB's official game IDs.
+
+    Complete seasons use the full schedule. In-progress seasons (Statcast max
+    date before the scheduled season end) validate year-to-date coverage only.
+    """
     for year in years:
-        _, _, official_game_pks = regular_season_schedule(year)
+        _, season_end, official_game_pks = regular_season_schedule(year)
+        season = raw.filter(pl.col("game_year") == year)
+        max_date = season.select(pl.col("game_date").cast(pl.Date).max()).item()
+        if max_date is not None and max_date < season_end:
+            official_game_pks = ytd_official_game_pks(int(year), max_date)
         validate_statcast_season(
-            raw.filter(pl.col("game_year") == year),
+            season,
             year,
             official_game_pks=official_game_pks,
         )
@@ -187,6 +200,14 @@ def run(
                 prior_league_k_rate=prior_league_k_rate,
             ),
             config.BATTER_GAMES_PATH,
+        ),
+        "bullpen_team_games": _write(
+            build_bullpen_team_games(raw),
+            config.BULLPEN_TEAM_GAMES_PATH,
+        ),
+        "bullpen_appearances": _write(
+            build_bullpen_appearances(raw),
+            config.BULLPEN_APPEARANCES_PATH,
         ),
         "park_factors": _write(
             build_park_factors(raw, years, prior_history),

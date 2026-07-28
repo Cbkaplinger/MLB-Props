@@ -30,6 +30,8 @@ MODEL_DIR = OUTPUT_DIR / "models"
 PITCHER_GAMES_PATH = PROCESSED_DATA_DIR / "pitcher_games.parquet"
 PITCH_TYPE_GAMES_PATH = PROCESSED_DATA_DIR / "pitch_type_games.parquet"
 BATTER_GAMES_PATH = PROCESSED_DATA_DIR / "batter_games.parquet"
+BULLPEN_TEAM_GAMES_PATH = PROCESSED_DATA_DIR / "bullpen_team_games.parquet"
+BULLPEN_APPEARANCES_PATH = PROCESSED_DATA_DIR / "bullpen_appearances.parquet"
 # Level 2 -- rolling / season-to-date
 PITCHER_ROLLING_PATH = PROCESSED_DATA_DIR / "pitcher_rolling.parquet"
 BATTER_ROLLING_PATH = PROCESSED_DATA_DIR / "batter_rolling.parquet"

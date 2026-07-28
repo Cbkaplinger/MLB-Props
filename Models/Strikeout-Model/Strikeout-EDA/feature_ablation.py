@@ -21,6 +21,7 @@ from sklearn.preprocessing import StandardScaler
 
 from Python import config
 from Python.features import TARGET, model_feature_names
+from Python.training import fit_kwargs_for_weights, resolve_sample_weights
 
 from nested_cv import fold_metadata, nested_research_folds
 
@@ -169,6 +170,21 @@ def _models() -> dict[str, object]:
     }
 
 
+def _fit(
+    model,
+    model_name: str,
+    frame: pd.DataFrame,
+    features: list[str],
+    sample_weight: str,
+) -> None:
+    weights = resolve_sample_weights(frame, sample_weight)
+    model.fit(
+        frame[features],
+        frame[TARGET],
+        **fit_kwargs_for_weights(model_name, weights),
+    )
+
+
 def _select_from_inner_results(results: pd.DataFrame) -> pd.DataFrame:
     """Select one configuration per outer fold/model using inner MAE only."""
     aggregate = (
@@ -196,7 +212,7 @@ def _select_from_inner_results(results: pd.DataFrame) -> pd.DataFrame:
     return aggregate.drop_duplicates(["outer_fold", "model"], keep="first")
 
 
-def main() -> None:
+def main(sample_weight: str = "none") -> None:
     frame = pd.read_parquet(config.PITCHER_TRAINING_PATH)
     frame["game_date"] = pd.to_datetime(frame["game_date"])
     frame = frame.dropna(subset=[TARGET, "game_date"]).sort_values("game_date")
@@ -225,7 +241,7 @@ def main() -> None:
             for model_name in _models():
                 for configuration, selected in configurations.items():
                     model = _models()[model_name]
-                    model.fit(inner.train[selected], inner.train[TARGET])
+                    _fit(model, model_name, inner.train, selected, sample_weight)
                     result = _metrics(
                         inner.validation[TARGET],
                         model.predict(inner.validation[selected]),
@@ -236,6 +252,7 @@ def main() -> None:
                             "inner_fold": inner_name,
                             "model": model_name,
                             "configuration": configuration,
+                            "sample_weight": sample_weight,
                             "n_features": len(selected),
                             "train_rows": len(inner.train),
                             "validation_rows": len(inner.validation),
@@ -268,7 +285,7 @@ def main() -> None:
         outer = nested.outer
         selected = configurations[selection.configuration]
         selected_model = _models()[selection.model]
-        selected_model.fit(outer.train[selected], outer.train[TARGET])
+        _fit(selected_model, selection.model, outer.train, selected, sample_weight)
         selected_metrics = _metrics(
             outer.validation[TARGET],
             selected_model.predict(outer.validation[selected]),
@@ -276,7 +293,7 @@ def main() -> None:
 
         core_features = configurations["core"]
         core_model = _models()[selection.model]
-        core_model.fit(outer.train[core_features], outer.train[TARGET])
+        _fit(core_model, selection.model, outer.train, core_features, sample_weight)
         core_metrics = _metrics(
             outer.validation[TARGET],
             core_model.predict(outer.validation[core_features]),
@@ -286,6 +303,7 @@ def main() -> None:
                 "outer_fold": selection.outer_fold,
                 "model": selection.model,
                 "selected_configuration": selection.configuration,
+                "sample_weight": sample_weight,
                 "n_features": len(selected),
                 "train_rows": len(outer.train),
                 "validation_rows": len(outer.validation),
@@ -332,6 +350,7 @@ def main() -> None:
     metadata = {
         "research_seasons": list(config.FEATURE_RESEARCH_SEASONS),
         "holdout_season_not_read": config.HOLDOUT_SEASON,
+        "sample_weight": sample_weight,
         "selection_metric": "mean inner-fold MAE",
         "outer_data_used_for_selection": False,
         "retired_api": "_research_folds removed; use nested_research_folds",
@@ -350,4 +369,18 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    from Python.training import SAMPLE_WEIGHT_MODES
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--sample-weight",
+        choices=SAMPLE_WEIGHT_MODES,
+        default="none",
+        help=(
+            "Optional PA weighting for ablation fits. Prefer "
+            "pa_weight_nested_compare.py for the Step 5 none-vs-pa comparison."
+        ),
+    )
+    main(sample_weight=parser.parse_args().sample_weight)

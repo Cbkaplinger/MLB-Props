@@ -1,6 +1,7 @@
-# 04 — Roadmap (remaining work)
+# 04 — Roadmap (decision-quality → live → market)
 
-Future layers after the frozen k-rate artifact. Dashed edges = not implemented.
+Research spine is **feature-frozen**. Phase 11.A–C was a **verification** pass
+(small/no lifts). Phase D interim policy is frozen. Dashed edges = not done.
 
 ```mermaid
 flowchart TB
@@ -8,57 +9,66 @@ flowchart TB
   classDef partial fill:#e65100,stroke:#ffcc80,color:#fff
   classDef missing fill:#b71c1c,stroke:#ef9a9a,color:#fff
   classDef risk fill:#4a148c,stroke:#ce93d8,color:#fff
-  classDef research fill:#0d47a1,stroke:#90caf9,color:#fff
+  classDef next fill:#01579b,stroke:#81d4fa,color:#fff
 
-  ART["Frozen k-rate artifact<br/>lightgbm_krate_*.{txt,json}"]:::built
+  FEAT["Feature research Steps 1–10<br/>production 180 LOCKED"]:::built
+  TBF["TBF Ridge thin bullpen<br/>FROZEN + joblib"]:::built
+  CNT["Count layer v1<br/>chrono scored"]:::built
 
-  OPEN["Resolve opener / piggyback<br/>selection bias via pregame role info"]:::risk
-  S5["Step 5: compare likelihoods<br/>unweighted / PA-weighted / binomial / beta-binomial"]:::missing
+  TUNE["11.A Estimator tuning<br/>HPO flat vs defaults"]:::built
+  WF["11.B Walk-forward stack<br/>expected_K MAE ~1.78"]:::built
+  CAL["11.C Calibration<br/>ECE ~0.024"]:::built
+  PHD["11.D Phase D interim policy<br/>~3.5% excluded; role labels open"]:::partial
 
-  DL["Harden live lineup path<br/>announced lineup via MLB numeric IDs"]:::partial
-  LIVE["Build live prediction assembly<br/>+ monitoring · NOT IMPLEMENTED"]:::missing
+  LIVE["Live inference assembly<br/>historical proven · 2026 refresh needed"]:::partial
+  HOLD["Pristine post-freeze holdout<br/>needs pregame role labels"]:::missing
+  MKT["Market de-vig / Kelly<br/>optional product"]:::missing
+  PARK["Park contamination cleanup"]:::risk
 
-  TBF["Leakage-safe projected TBF model<br/>lag PA / Outs / Pitches from Level 1<br/>NOT YET BUILT"]:::missing
-  BB["Count layer: beta-binomial<br/>K successes / PA trials · recommended"]:::missing
-  NB["NB with log-TBF offset<br/>challenger"]:::missing
-  POIS["Poisson GLM floor<br/>transparent baseline"]:::missing
-  EXP["expected_K = k_rate × projected_TBF<br/>then P(K ≥ n) from count layer"]:::missing
-
-  PARK["Remove neutral / international<br/>park contamination"]:::risk
-
-  S7["Step 7: registry freeze<br/>after Steps 1 / 3 / 4 / 5"]:::missing
-  SNAP["Reproducible baseline snapshot<br/>only after stability"]:::missing
-
-  ART --> OPEN --> S5
-  ART --> DL --> LIVE
-  ART --> TBF
-  TBF --> EXP
-  BB --> EXP
-  NB --> EXP
-  POIS --> EXP
-  ART --> PARK
-
-  S5 --> S7
-  LIVE --> S7
-  EXP --> S7
-  PARK --> S7
-  OPEN --> S7
-  S7 --> SNAP
+  FEAT --> TUNE
+  TBF --> TUNE
+  CNT --> WF
+  TUNE --> WF --> CAL
+  PHD --> HOLD
+  CAL --> LIVE
+  LIVE --> HOLD
+  HOLD --> MKT
+  FEAT --> PARK
 ```
 
-## TBF spine (minimal, no Level 1 rebuild)
+## Status (2026-07-28)
 
-1. Read `pitcher_games.parquet` (already has `Pitches`, `PA`, `Outs`).
-2. Add lagged workload features (`PA_P*`, `Outs_P*`, `Pitches_P*`) via rolling
-   means — Level 2 does **not** emit these today.
-3. Join onto existing `pitcher_training.parquet` on `(game_pk, pitcher)`.
-4. Target = same-game `PA`; never use same-game `PA`/`Outs`/`Pitches` as features.
-5. End-to-end props must score with **projected** TBF only.
+| Track | State |
+|---|---|
+| Feature research (Steps 1–10) | **Done** — `production` **180** |
+| TBF + count layer v1 | **Done** |
+| Phase 11.A–C model quality | **Done** — confirmatory |
+| Phase D opener/piggyback | **Interim policy** — role labels still open |
+| Live assembly | **v1 wired** — historical score works; need 2026 Level 1–2 refresh for true live |
+| Market / Kelly | **Not started** |
+| Pristine future holdout | **Blocked** on role labels |
 
-## Live assembly (minimal)
+## Why Phase 11 felt quiet
 
-1. Load frozen LightGBM `.txt` + feature list from `.json`.
-2. Pull today's slate via `daily_lineups.build_daily_slate`.
-3. As-of join pitcher form + announced opponent lineup + park factor.
-4. Predict `k_rate`; write dated prediction parquet.
-5. Block `expected_K` until the TBF model exists.
+Gates exist to catch failure modes. Here the frozen defaults already sat near a
+local optimum: nested HPO did not beat them; the stack held under walk-forward;
+calibration did not need a patch. That is the intended outcome of a healthy
+freeze — boring confirmation, not a new research story.
+
+Canonical: `docs/phase11_model_quality_gates.md`,
+`docs/phase_d_population_findings.md`, `docs/live_assembly_plan.md`.
+
+## Workload companions
+
+| Phase | Status |
+|---|---|
+| A–C rest / volume / thin bullpen | **Done** (in TBF) |
+| D opener/piggyback | **Interim policy** — `docs/phase_d_population_findings.md` |
+
+## Later (not critical path)
+
+1. Refresh Savant → Level 1–2 through yesterday (unlocks true live).
+2. Pregame role ingestion (opener / piggyback) for pristine v1.
+3. Doubleheader-safe schedule join in `daily_lineups`.
+4. Closing-line backtest + fractional Kelly.
+5. NB / mixture-over-TBF challengers; park factor hygiene.

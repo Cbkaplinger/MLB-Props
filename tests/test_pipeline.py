@@ -25,7 +25,7 @@ def _pitcher_games():
             game_pk=day, game_date=dt.date(2024, 4, day), season=2024,
             pitcher=1, player_name="Doe, J", pitcher_name="J Doe", p_throws="R",
             home_team="AAA", away_team="BBB", is_home=True, opp_team="BBB",
-            K=k, PA=pa, Outs=18, k_rate=k / pa,
+            K=k, PA=pa, Outs=18, Pitches=90, k_rate=k / pa,
             Whiffs=12, ff_velo=95.0,   # raw same-game columns -> should be dropped
         ))
     return pl.DataFrame(rows, schema_overrides={"game_date": pl.Date})
@@ -124,8 +124,44 @@ def test_level2_keeps_static_and_rolling_drops_raw():
         assert col in out.columns
     # rolling produced
     assert "k_rate_std" in out.columns and "k_rate_P5" in out.columns
+    # TBF spine: lagged volume + rest retained; raw pitch counts dropped
+    assert "PA_P5" in out.columns and "Outs_P5" in out.columns
+    assert "Pitches_P5" in out.columns
+    assert "days_rest" in out.columns and "is_season_debut" in out.columns
+    assert "rest_gap_severity" in out.columns and "is_career_mlb_debut" in out.columns
+    assert "Pitches" not in out.columns
     # raw same-game feature columns dropped
     assert "Whiffs" not in out.columns and "ff_velo" not in out.columns
+
+
+def test_level2_joins_bullpen_lookbacks():
+    bullpen = pl.DataFrame(
+        [
+            {
+                "game_pk": 1,
+                "game_date": dt.date(2024, 4, 1),
+                "team": "AAA",
+                "bullpen_pitches": 30,
+                "bullpen_pitchers_used": 2,
+                "bullpen_appearances": 2,
+                "bullpen_L_pitches": 10,
+                "bullpen_R_pitches": 20,
+                "bullpen_b2b_arms": 0,
+                "bullpen_max_pitches": 18,
+                "bullpen_heavy_outings": 0,
+                "season": 2024,
+            }
+        ],
+        schema_overrides={"game_date": pl.Date},
+    )
+    out = rolling.build_pitcher_rolling(_pitcher_games(), bullpen_team_games=bullpen)
+    assert "bullpen_pitches_L1d" in out.columns
+    assert "bullpen_L_pitches_L1d" in out.columns
+    assert "bullpen_unique_arms_L1d" in out.columns
+    # day 2 start should see day 1 pen usage in L1d
+    day2 = out.filter(pl.col("game_date") == dt.date(2024, 4, 2))
+    assert day2["bullpen_pitches_L1d"][0] == 30
+    assert day2["bullpen_pitchers_used_L1d"][0] == 2
 
 
 def test_level2_batter_keeps_join_keys():
