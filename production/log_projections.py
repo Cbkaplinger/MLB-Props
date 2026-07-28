@@ -72,10 +72,66 @@ def _line_cols(frame: pl.DataFrame) -> list[str]:
     return cols
 
 
+_DISPLAY_COLS = [
+    "starter_source",
+    "away_team",
+    "home_team",
+    "is_home",
+    "player_name",
+    "expected_K",
+    "fair_amer_3_5",
+    "fair_amer_4_5",
+    "fair_amer_5_5",
+    "fair_amer_6_5",
+    "fair_amer_7_5",
+    "fair_amer_8_5",
+]
+
+
+def _print_preferred_board(board: pl.DataFrame) -> None:
+    """Print the preferred SP board to the terminal (no notebook needed)."""
+    view = board
+    if "is_preferred" in view.columns:
+        view = view.filter(pl.col("is_preferred"))
+    cols = [c for c in _DISPLAY_COLS if c in view.columns]
+    view = view.select(cols)
+    if "starter_source" in view.columns:
+        view = view.with_columns(
+            pl.when(pl.col("starter_source") == "rotogrinders")
+            .then(pl.lit("rg"))
+            .when(pl.col("starter_source") == "mlb_probable")
+            .then(pl.lit("mlb"))
+            .otherwise(pl.col("starter_source"))
+            .alias("starter_source")
+        )
+    if "expected_K" in view.columns:
+        view = view.sort("expected_K", descending=True)
+    # Round floats for readable terminal width.
+    round_exprs = []
+    for c in view.columns:
+        if view.schema[c] in (pl.Float32, pl.Float64) and not c.startswith("fair_amer_"):
+            round_exprs.append(pl.col(c).round(3))
+    if round_exprs:
+        view = view.with_columns(round_exprs)
+
+    print()
+    print(f"Preferred SP board ({view.height} pitchers)")
+    print("-" * 72)
+    with pl.Config(
+        tbl_rows=-1,
+        tbl_cols=-1,
+        tbl_width_chars=200,
+        fmt_str_lengths=40,
+    ):
+        print(view)
+    print("-" * 72)
+
+
 def log_slate(
     *,
     game_date: date | None = None,
     allow_stale: bool = False,
+    print_board: bool = True,
 ) -> dict[str, object]:
     slate = build_daily_slate(
         game_date=game_date,
@@ -117,6 +173,9 @@ def log_slate(
         combined = batch
     combined.write_parquet(LOG_PATH)
 
+    if print_board:
+        _print_preferred_board(board)
+
     meta = {
         "logged_at_utc": logged_at,
         "path": str(LOG_PATH),
@@ -138,8 +197,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", type=date.fromisoformat, default=None)
     parser.add_argument("--allow-stale", action="store_true")
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Skip printing the preferred SP board.",
+    )
     args = parser.parse_args()
-    meta = log_slate(game_date=args.date, allow_stale=args.allow_stale)
+    meta = log_slate(
+        game_date=args.date,
+        allow_stale=args.allow_stale,
+        print_board=not args.quiet,
+    )
     print(json.dumps(meta, indent=2, default=str))
     print(f"Appended/replaced log -> {LOG_PATH}")
 

@@ -22,9 +22,9 @@ Estimate a starter’s strikeout rate before first pitch, project how many batte
 | Batters faced (TBF) | Ridge (thin bullpen, 24 features) | Projected exposure |
 | Counts / lines | Binomial / Poisson on projected TBF | Expected K and P(K ≥ L) |
 
-**Frozen rate model** (2023–2024 fit; chronological test from 2024-08-06): MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147** (~15% of game-level rate variance). Same test: train-mean MAE ≈ **0.0854**; Marcel-lite talent baseline MAE ≈ **0.0826**.
+**Frozen rate model** (2023–2024 chronological test): MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147**. Same test: Marcel-lite MAE ≈ **0.0826**; train-mean MAE ≈ **0.0854**.
 
-**Count layer** (same test partition, projected-TBF exposure): expected-K MAE / RMSE / R² ≈ **1.790 / 2.213 / 0.168**; line Briers roughly **0.12–0.22** (lines 3.5–7.5).
+**Count layer** (projected-TBF exposure): expected-K MAE / RMSE / R² ≈ **1.790 / 2.213 / 0.168**; line Briers roughly **0.12–0.22** (lines 3.5–7.5).
 
 ---
 
@@ -34,14 +34,14 @@ Estimate a starter’s strikeout rate before first pitch, project how many batte
 |---|---|
 | Estimator tuning | Keep baseline LightGBM defaults; Ridge α tuned and persisted |
 | Walk-forward stack backtest | Mean expected-K MAE ≈ **1.778** (3 expanding 2024 windows; σ ≈ 0.036) |
-| Calibration | Mean ECE ≈ **0.024** (internal chronological calibration; no sportsbook or public-projection benchmark) |
+| Calibration | Mean ECE ≈ **0.024** (no recalibration) |
 | Population policy | Metrics conditional on PA ≥ 9 (~3.5% of first pitchers excluded) |
 
 ---
 
 ## Takeaway
 
-Built and validated a leakage-safe Statcast → features → rate × exposure stack with nested chronological selection and automated leakage tests. Predictive power is modest (rate R² ≈ 0.15) but clears a Marcel-lite season-talent floor on the same chronological test. Leave-family-out results are reported per outer fold: lineup is both-fold positive for both models; several other mean deltas flip sign. The portfolio claim is ML engineering discipline under a hard pregame constraint—not a strong or market-beating predictor. Next: pregame role labels, post-freeze holdout, closing-line evaluation if practical value is the goal.
+Leakage-safe Statcast → rate × exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). Portfolio claim: ML engineering under a hard pregame constraint.
 
 ---
 

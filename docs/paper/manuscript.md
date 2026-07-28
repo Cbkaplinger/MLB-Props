@@ -13,7 +13,7 @@ Independent Researcher
 
 ## Abstract
 
-This paper presents a leakage-safe machine learning pipeline for **pregame** starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The target is game-level strikeout rate k<sub>rate</sub> = K / PA for pitchers who ultimately face at least nine batters, using only pregame features. A three-level Polars pipeline builds game aggregates, lagged rolling form, and a training frame; nested chronological cross-validation freezes a **180**-feature LightGBM [1] rate model. A companion Ridge [2] model projects batters faced (TBF). Strikeout counts use E[K] = k̂<sub>rate</sub> × TBF̂ with binomial/Poisson line probabilities [3, 4] on **projected** exposure—never same-game PA. On a 2023–2024 chronological test, frozen rate MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147**—roughly **15%** of game-level rate variance explained. That beats a train-mean floor (MAE ≈ 0.0854) and a Marcel-lite [9] season-talent baseline (MAE ≈ 0.0826) on the same test, while remaining a modest absolute R². Walk-forward expected-K MAE ≈ **1.78**; mean line ECE [5, 6] ≈ **0.024** without recalibration (internal calibration; sportsbooks still out of scope). Leave-family-out ablations report both outer folds: opponent lineup is the only family with a clearly positive ΔMAE on both folds for both models; several other mean deltas hide fold sign flips. The primary contribution is leakage-safe engineering and nested evaluation hygiene around a moderately predictive stack.
+This paper presents a leakage-safe machine learning pipeline for **pregame** starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The target is game-level strikeout rate k<sub>rate</sub> = K / PA for pitchers who ultimately face at least nine batters, using only pregame features. A three-level Polars pipeline builds game aggregates, lagged rolling form, and a training frame; nested chronological cross-validation freezes a **180**-feature LightGBM [1] rate model. A companion Ridge [2] model projects batters faced (TBF). Strikeout counts use E[K] = k̂<sub>rate</sub> × TBF̂ with binomial/Poisson line probabilities [3, 4] on **projected** exposure—never same-game PA. On a 2023–2024 chronological test, frozen rate MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147**, beating a Marcel-lite [9] season-talent baseline (MAE ≈ 0.0826) and a train-mean floor (MAE ≈ 0.0854) on the same partition. Walk-forward expected-K MAE ≈ **1.78**; mean line ECE [5, 6] ≈ **0.024** without recalibration. Leave-family-out screens retain opponent lineup as the only family with both-fold, within-fold bootstrap support; the primary contribution is leakage-safe engineering and nested evaluation around that stack.
 
 ---
 
@@ -40,7 +40,7 @@ The modeling claim is simple and compositional. A leakage-safe estimate of strik
 
 **Sabermetric rate-based pitching models.** Fielding Independent Pitching (FIP) and related estimators such as xFIP summarize pitcher skill from strikeouts, walks, hit batsmen, and home runs (or home-run rates normalized by fly-ball environment), reducing dependence on balls in play and defensive context [7, 8]. Those metrics are primarily descriptive or talent-estimation tools at the season or large-sample level. The present work is complementary: it retains FIP/xFIP-style components as *candidate features*, but the prediction target is game-level k<sub>rate</sub> under an explicit pregame information constraint, not a restatement of FIP as the forecast.
 
-**Season-level baseball projection systems.** Systems such as Marcel [9], PECOTA [10], Steamer, and ZiPS forecast season (or rest-of-season) player rates from weighted recent performance, regression to the mean, aging, and—depending on the system—comparable-player paths. They are the natural external baselines for *talent* estimation. This manuscript scores a **Marcel-lite** game-level k<sub>rate</sub> baseline (Section 6.1)—prior-season weighted K/PA with league-mean regression, without an age curve—on the same chronological test as the frozen LightGBM model. It does **not** re-implement PECOTA/Steamer/ZiPS or score against sportsbook strikeout lines. Marcel answers “does the stack beat a simple public-style talent floor?”; market competitiveness remains unverified.
+**Season-level baseball projection systems.** Systems such as Marcel [9], PECOTA [10], Steamer, and ZiPS forecast season (or rest-of-season) player rates from weighted recent performance, regression to the mean, aging, and—depending on the system—comparable-player paths. They are the natural external baselines for *talent* estimation. This manuscript scores a **Marcel-lite** game-level k<sub>rate</sub> baseline (Section 6.1)—prior-season weighted K/PA with league-mean regression, without an age curve—on the same chronological test as the frozen LightGBM model. It does not re-implement PECOTA/Steamer/ZiPS. Closing-line evaluation is out of scope (Section 9).
 
 **Chronological evaluation and leakage control.** When targets are ordered in time, randomly reshuffled cross-validation overstates accuracy by allowing future information into training folds [11]. Forecasting practice therefore prefers expanding or rolling windows and features that are known at the forecast origin. This paper treats those constraints as hard engineering rules (shifted rolling windows, prior-season park factors, date-disjoint partitions) and verifies them with tests and audits rather than as an after-the-fact caveat.
 
@@ -52,10 +52,10 @@ The modeling claim is simple and compositional. A leakage-safe estimate of strik
 
 1. **Leakage-safe feature architecture.** Same-game outcomes never enter predictors; rolling statistics are shifted; park factors use prior seasons only; chronological splits never divide a calendar date across partitions.
 2. **Nested selection into a frozen feature set.** Feature-family and window decisions are chosen on inner chronological folds that lie wholly inside each training window, then evaluated on a later held-out period. The production LightGBM feature set is frozen at **180** features.
-3. **Dual-model strikeout stack.** Unweighted LightGBM for k<sub>rate</sub>; Ridge for projected TBF; binomial count layer on projected exposure. Predictive power is modest: chronological test R² ≈ **0.147** for rate and **0.162** for TBF.
+3. **Dual-model strikeout stack.** Unweighted LightGBM for k<sub>rate</sub>; Ridge for projected TBF; binomial count layer on projected exposure. Chronological test clears a Marcel-lite talent floor (Table 3b).
 4. **Process evidence, including negative results.** PA-weighting, linear binomial / beta-binomial rate arms, nested LightGBM hyperparameter search, and several expanded feature families did not clear promotion bars—documented rather than buried.
 
-What this paper does **not** claim: large accuracy lifts, market edge, or statistically resolved feature-family rankings beyond two-fold directional consistency. Ablation ΔMAE values are mostly thousandths on two outer folds. The contributions above are engineering and evaluation discipline around a moderately predictive stack that does clear a Marcel-lite talent floor on chronological test k<sub>rate</sub>.
+What this paper does **not** claim: large accuracy lifts, market edge, or feature-family effects beyond what Table 6 and the within-fold bootstrap support. Absolute game-level R² remains limited (Section 9).
 
 ---
 
@@ -122,7 +122,7 @@ Production features fall into families such as:
 - opponent lineup aggregates;
 - park and game context (home/away, …).
 
-Expanded research candidates (P2 arsenal, count-state, BIP/BABIP, arm angle, SIERA, run-expectancy value, additional batter discipline/quality) were built and screened; **none cleared nested promotion** into the frozen LightGBM set.
+Expanded research candidates (two-start arsenal summaries, count-state, BIP/BABIP, arm angle, SIERA, run-expectancy value, additional batter discipline/quality) were built and screened; **none cleared nested promotion** into the frozen LightGBM set.
 
 ### 5.2 Stabilization and reliability
 
@@ -168,9 +168,9 @@ Likelihood comparisons on nested 2023–2024 folds showed that PA sample-weighti
 | Validation | 0.0764 | 0.0966 | 0.151 |
 | Test | **0.0787** | **0.0987** | **0.147** |
 
-**Predictive power.** Test R² ≈ 0.147 means the frozen rate model explains roughly **15%** of game-to-game k<sub>rate</sub> variance; the large majority remains unexplained. On the earlier 248-feature chronological screen (Appendix B), LightGBM reduces MAE from **0.0854** (mean baseline) to **0.0783**—about an **8%** relative MAE improvement. That gap is real and repeatable under the paper’s splits, but it is modest: the stack is a carefully constrained incremental predictor, not a high-R² system.
+On the earlier 248-feature chronological screen (Appendix B), LightGBM reduces MAE from **0.0854** (mean baseline) to **0.0783** (~**8%** relative). Absolute R² is discussed once in Section 9.
 
-**External talent baseline (Marcel-lite).** To check whether those gains beat a public-style season projection floor—not only an internal mean—the same chronological test is scored against a Tangotiger-style Marcel [9] K/PA projection: weights **3/2/1** on seasons Y−1…Y−3, **100 PA** of league-mean regression, **no age adjustment** (birthdates are absent from the project identity map), using only prior seasons (no same-season games). Rookies with no history receive the prior-year league mean. Table 3b reports the comparison.
+**External talent baseline (Marcel-lite).** The same chronological test is scored against a Tangotiger-style Marcel [9] K/PA projection: weights **3/2/1** on seasons Y−1…Y−3, **100 PA** of league-mean regression, **no age adjustment** (birthdates are absent from the project identity map), using only prior seasons. Rookies with no history receive the prior-year league mean (Table 3b).
 
 **Table 3b.** Chronological test k<sub>rate</sub> error vs external / naive baselines (test from 2024-08-06; n = 1413).
 
@@ -181,9 +181,9 @@ Likelihood comparisons on nested 2023–2024 folds showed that PA sample-weighti
 | Marcel-lite (3/2/1, no age) | 0.0826 | 0.1034 | 0.064 |
 | **Frozen LightGBM (180 feat.)** | **0.0787** | **0.0987** | **0.147** |
 
-LightGBM beats Marcel-lite by about **0.0039** MAE (~**5%** relative) and roughly doubles the R². That is a meaningful lift over a season-talent floor, still short of a large accuracy claim—and it does **not** evaluate sportsbook lines. Runner: `Models/Strikeout-Model/Strikeout-EDA/marcel_baseline.py`; artifacts under `artifacts/feature_research/marcel_baseline/`.
+LightGBM beats Marcel-lite by about **0.0039** MAE (~**5%** relative) and roughly doubles R²—a meaningful lift over a season-talent floor. Runner: `Models/Strikeout-Model/Strikeout-EDA/marcel_baseline.py`.
 
-A nested LightGBM hyperparameter search likewise did not beat freeze defaults on the held-out evaluation periods. That result is interpreted as verification that the defaults already sit near a local optimum, not as a failure of the search protocol.
+A nested LightGBM hyperparameter search did not beat freeze defaults on the held-out evaluation periods; defaults already sit near a local optimum under this protocol.
 
 ### 6.2 Projected batters faced (TBF)
 
@@ -225,7 +225,9 @@ The preceding sections define a candidate stack. Ablation evidence then asks whi
 
 ### 7.1 Protocol
 
-Held-out evaluation periods are 2024 H1 after training on 2023, and 2024 H2 after training through 2024 H1—**two outer chronological folds**. Inner chronological folds lie wholly inside each training window. Selection minimizes mean inner MAE; the later period is used only for evaluation. Automated tests enforce containment and date disjointness. The design does **not** produce confidence intervals or formal significance tests for leave-family-out ΔMAE; with two outer periods, sampling variability is not separately estimated.
+Held-out evaluation periods are 2024 H1 after training on 2023, and 2024 H2 after training through 2024 H1—**two outer chronological folds**. Inner chronological folds lie wholly inside each training window. Selection minimizes mean inner MAE; the later period is used only for evaluation. Automated tests enforce containment and date disjointness.
+
+Because a confidence interval across two fold means is nearly meaningless, uncertainty is estimated **within** each outer validation set: a paired bootstrap over games (B = 2000) of ΔMAE = MAE<sub>drop</sub> − MAE<sub>full</sub>, yielding a 95% percentile interval per fold (Table 6b). Runner: `Models/Strikeout-Model/Strikeout-EDA/ablation_bootstrap.py`.
 
 ### 7.2 Leave-family-out (248-feature screen)
 
@@ -242,12 +244,23 @@ Held-out ΔMAE vs the full model (positive = dropping the family **hurt**) is sh
 | Drop context | +0.00030 | +0.00014 | +0.00022 | +0.00008 | +0.00015 | +0.00012 |
 | Drop usage | +0.00053 | −0.00002 | +0.00025 | −0.00045 | −0.00062 | −0.00054 |
 
+**Table 6b.** Within-fold paired bootstrap 95% intervals for ΔMAE (B = 2000). ★ = interval excludes zero.
+
+| Configuration | LGBM H1 CI | LGBM H2 CI | Ridge H1 CI | Ridge H2 CI |
+|---|---|---|---|---|
+| Drop opponent lineup | [+0.0013, +0.0034]★ | [+0.0016, +0.0038]★ | [+0.0013, +0.0029]★ | [+0.0018, +0.0032]★ |
+| Drop rolling (keep STD/static) | [+0.0014, +0.0045]★ | [−0.0017, +0.0008] | [−0.0137, −0.0096]★ | [−0.0013, +0.0008] |
+| Drop pitch physics | [−0.0002, +0.0017] | [−0.0006, +0.0013] | [−0.0064, −0.0037]★ | [−0.0011, +0.0005] |
+| Drop park | [−0.0005, +0.0008] | [−0.0002, +0.0010] | [−0.0002, +0.0005] | [−0.0001, +0.0005] |
+| Drop context | [−0.0003, +0.0009] | [−0.0004, +0.0007] | [−0.0003, +0.0004] | [−0.0002, +0.0005] |
+| Drop usage | [−0.0001, +0.0011] | [−0.0006, +0.0006] | [−0.0012, +0.0003] | [−0.0011, −0.0002]★ |
+
 <figure>
 <img src="figures/fig3_ablation.png" alt="Horizontal bar chart of leave-family-out delta MAE with fold whiskers" />
-<figcaption><strong>Figure 3.</strong> Leave-family-out mean ΔMAE for LightGBM and Ridge with whiskers spanning the two outer folds (H1–H2). Positive values indicate that removing the family increased held-out error. Wide whiskers (especially Ridge rolling / physics) show that the two-fold mean alone can mislead. Table 6 remains authoritative.</figcaption>
+<figcaption><strong>Figure 3.</strong> Leave-family-out mean ΔMAE for LightGBM and Ridge with whiskers spanning the two outer folds (H1–H2). Table 6 remains authoritative for point estimates; Table 6b for within-fold uncertainty.</figcaption>
 </figure>
 
-**Interpretation.** Magnitudes remain small relative to rate MAE (~0.08). **Opponent lineup** is the only family here with a clearly positive ΔMAE on **both** folds for **both** models—that is why it is retained, still as a directional two-fold observation rather than a formal significance claim. **LightGBM rolling** is *not* both-fold consistent: dropping rolling hurts H1 (+0.003) but slightly helps H2 (−0.0005); the positive mean (+0.00125) hides a sign flip. **Ridge** improves when overlapping rolling windows are removed on both folds (large H1 effect), which is why the linear companion stays on the thinner VIF-reduced set. Park / context / usage deltas are tiny and sometimes cross zero across folds. The keep/drop story is therefore: lineup stays; everything else is too small or too fold-unstable to narrate as a resolved finding.
+**Interpretation.** **Opponent lineup** is the only configuration whose ΔMAE is positive with a bootstrap interval excluding zero on **both** folds for **both** models—sufficient to retain the family. **LightGBM rolling** hurts on H1 (CI excludes zero) but is consistent with zero on H2 (sign flip in the point estimate); the two-fold mean (+0.00125) is therefore not a stable keep signal. **Ridge** benefits from dropping overlapping rolling windows on H1 (large negative ΔMAE, CI excludes zero); H2 is near zero—hence the thinner VIF-reduced Ridge companion. Park / context / usage intervals almost all cover zero. Keep lineup; do not narrate the remaining families as resolved lifts.
 
 ### 7.3 Keep/drop on the thinned 185-feature set
 
@@ -255,7 +268,7 @@ After mean-window thinning, a greedy family prune with a strict rule—MAE must 
 
 ### 7.4 Feature-set timeline
 
-The production path compressed an earlier **248**-feature allow-list to a **185**-feature mean-window thin, then to the current **180**-feature set via a five-stem last-start physics swap. Comparing that last-start swap against the 185-feature predecessor showed small rate and expected-K improvements (k-rate MAE ≈ 0.07842 vs 0.07863; expected-K MAE ≈ 1.769 vs 1.773). The freeze encodes that decision; the deltas are below any threshold that would justify calling them a material lift. Named feature-set aliases used in the repository are listed in Appendix A.
+The production path compressed an earlier **248**-feature allow-list to a **185**-feature mean-window thin, then to the current **180**-feature set via a five-stem last-start physics swap. Comparing that last-start swap against the 185-feature predecessor showed small rate and expected-K improvements (k-rate MAE ≈ 0.07842 vs 0.07863; expected-K MAE ≈ 1.769 vs 1.773). The freeze encodes that decision; the deltas are small. Named feature-set aliases used in the repository are listed in Appendix A.
 
 **Table 7.** Feature-set timeline (sizes and roles).
 
@@ -281,39 +294,38 @@ Component metrics are necessary but incomplete. Once rate and TBF are frozen, th
 | Estimator tuning | Keep baseline LightGBM defaults; Ridge α tuned and persisted |
 | Walk-forward stack backtest | Mean expected-K MAE ≈ **1.778** across three expanding 2024 windows (σ ≈ 0.036; chronological reference ≈ 1.79) |
 | Calibration | Mean ECE ≈ **0.024**; no recalibration applied |
-| Population policy | Interim PA ≥ 9 policy; ~3.5% excluded; role labels still open |
+| Population policy | Interim PA ≥ 9 policy; ~3.5% excluded |
 
-Calibration is summarized by expected calibration error (ECE) [5, 6]. Figure 4 shows a reliability diagram for the count-layer probabilities: empirical event frequency versus predicted probability. Mean ECE ≈ **0.024** without recalibration: under chronological evaluation the stack is **internally** well calibrated. Rate-model error clears a Marcel-lite talent floor (Table 3b); count-layer probabilities are still **not** scored against sportsbook closing lines or vig-adjusted implied probabilities.
+Calibration is summarized by expected calibration error (ECE) [5, 6]. Figure 4 shows a reliability diagram for the count-layer probabilities: empirical event frequency versus predicted probability. Mean ECE ≈ **0.024** without recalibration under chronological evaluation. Rate-model error also clears the Marcel-lite floor (Table 3b).
 
 <figure>
 <img src="figures/fig4_calibration.png" alt="Reliability diagram for count-layer probabilities" />
-<figcaption><strong>Figure 4.</strong> Reliability diagram for count-layer line probabilities. Points near the diagonal indicate well-calibrated bins; the manuscript reports mean ECE ≈ 0.024 with no post-hoc recalibration. Calibration is internal to the chronological test; it is not a market benchmark.</figcaption>
+<figcaption><strong>Figure 4.</strong> Reliability diagram for count-layer line probabilities. Points near the diagonal indicate well-calibrated bins; mean ECE ≈ 0.024 with no post-hoc recalibration.</figcaption>
 </figure>
 
-These checks are **confirmatory** relative to the frozen stack’s own objectives: they did not uncover large unused gains on the internal metrics. Market edge remains an open evaluation question.
-
+These checks are confirmatory: they did not uncover large unused gains on the frozen stack’s internal metrics.
 
 ---
 
 ## 9. Limitations
 
-**Population and estimand.** Reported metrics describe conventional-length starts (PA ≥ 9), not all announced starters. Roughly **3.5%** of first-pitcher appearances in 2023–2024 fall below that cutoff, so claims do not extend to planned openers or short-workload roles until pregame role labels exist.
+**Population and estimand.** Reported metrics describe conventional-length starts (PA ≥ 9), not all announced starters. Roughly **3.5%** of first-pitcher appearances in 2023–2024 fall below that cutoff.
 
-**Predictive power.** Rate-model test R² ≈ **0.147** and TBF R² ≈ **0.162** imply that most game-level variance is unexplained. The Mean→LightGBM MAE gap on the 248-feature screen is about **8%** relative—real, not dramatic. Framing the contribution as methodological is accurate only if it is not used to obscure that ceiling.
+**Predictive power.** Rate-model test R² ≈ **0.147** and TBF R² ≈ **0.162**: most game-level variance remains unexplained. LightGBM still beats Marcel-lite and the mean floor (Table 3b); the absolute R² ceiling is the binding constraint on how strongly the stack should be sold.
 
-**Ablation uncertainty.** Leave-family-out ΔMAE values are mostly **0.0002–0.006**, estimated from **two** outer chronological periods. Table 6 now reports both folds: opponent lineup is both-fold positive for LightGBM and Ridge, but LightGBM rolling and several small families flip sign across folds. Mean-only tables would have overstated those effects. Formal confidence intervals across two fold means remain underpowered; the honest read is directional consistency, not significance.
+**Ablation design.** Only two outer chronological folds exist. Within-fold paired bootstrap (Table 6b) addresses game-sampling noise inside each fold; it does **not** replace a multi-season outer design. Families other than lineup lack stable both-fold support.
 
-**Park-factor contamination.** Neutral-site and international series are not filtered from team-keyed park factors. Verified special-event games in 2023–2024 (London, Mexico City, Little League Classic, and similar) are on the order of **~10 games** against ~**2,430** regular-season games per year (~**0.2%**). Absorbed into a prior-season venue-rate factor built from thousands of PA, that dilution is small—but it is not zeroed, and relocated parks (e.g., Rays 2025 Steinbrenner vs Tropicana blending, since fixed with an override) show that venue-key bugs can matter more than the sparse special-event share suggests.
+**Park-factor contamination.** Neutral-site and international series are not filtered from team-keyed park factors. Verified special-event games in 2023–2024 are on the order of **~10 games** against ~**2,430** regular-season games per year (~**0.2%**). Dilution is small relative to prior-season PA but not zeroed; relocated parks (e.g., Rays 2025 Steinbrenner vs Tropicana, since fixed with an override) can matter more than that sparse share.
 
-**Evaluation risk.** Early baselines consulted 2025, so that season is not a pristine final holdout for the frozen stack; the next honest final test needs genuinely post-freeze games and, preferably, pregame role labels.
+**Evaluation risk.** Early baselines consulted 2025, so that season is not a pristine final holdout; post-freeze monitoring is documented separately (`docs/post_freeze_holdout.md`).
 
-**Scope.** Marcel-lite covers the **rate** component only (no age curve; no Steamer/ZiPS/PECOTA re-implementation). This manuscript still does not evaluate probabilities against closing lines; practical edge versus priced markets is unverified. The count layer uses a point TBF forecast only: mixing a count distribution over a TBF distribution, and negative-binomial challengers with log-TBF offsets, remain future work. External context—weather, travel, catcher framing, and umpire effects—is not integrated.
+**Scope.** Marcel-lite covers the rate component only (no age curve; no Steamer/ZiPS/PECOTA). Closing lines, de-vig, and Kelly staking are out of scope. The count layer uses a point TBF forecast only. Weather, travel, catcher framing, and umpire effects are not integrated.
 
 ---
 
 ## 10. Conclusion
 
-This work delivers a leakage-safe modeling stack for pregame pitcher strikeout projection: a frozen **180**-feature LightGBM rate model, a thin Ridge TBF companion, and a projected-exposure count layer. Chronological test performance is **modest** (rate R² ≈ 0.147; walk-forward expected-K MAE ≈ 1.78; internal ECE ≈ 0.024) but clears a Marcel-lite season-talent floor on k<sub>rate</sub> (test MAE 0.0787 vs 0.0826). Nested screens document negative and small-effect results; with both outer folds reported, opponent lineup is the only leave-family-out family that is clearly positive on both folds for both models, while several mean-positive families flip sign. The resume-relevant claim is leakage discipline and nested chronological hygiene—not that the model is a strong or market-beating predictor. Next modeling steps are pregame role labels, a true post-freeze holdout, and closing-line evaluation if practical value is the goal.
+This work delivers a leakage-safe pregame strikeout stack: frozen **180**-feature LightGBM k<sub>rate</sub>, thin Ridge TBF, and a projected-exposure count layer (walk-forward expected-K MAE ≈ 1.78; ECE ≈ 0.024). On chronological test, the rate model beats Marcel-lite (MAE 0.0787 vs 0.0826). Nested screens plus within-fold bootstrap retain opponent lineup; other family deltas are small or fold-unstable. The durable claim is leakage discipline and chronological hygiene under a hard pregame constraint. Next steps for stronger empirical claims are a longer post-freeze holdout and—if desired—closing-line evaluation.
 
 ---
 
@@ -365,6 +377,7 @@ Generated research outputs under `artifacts/` are local/reproducible and typical
 | Feature / pipeline reference | `docs/dev-notes.md` |
 | Registry freeze | `docs/step10_p1_registry_freeze.md` |
 | Ablation findings | `docs/step3_*`, `step4_*`, `step5_*`, `step8_*`, `step9_*` |
+| Ablation bootstrap CIs | `Models/Strikeout-Model/Strikeout-EDA/ablation_bootstrap.py` |
 | Marcel-lite rate baseline | `Models/Strikeout-Model/Strikeout-EDA/marcel_baseline.py` |
 | TBF / count layer | `docs/tbf_first_model_findings.md`, `docs/count_layer_findings.md` |
 | Stack quality gates | `docs/phase11_model_quality_gates.md` |

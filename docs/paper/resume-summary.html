@@ -138,8 +138,8 @@ p.table-caption {
 </tr>
 </tbody>
 </table>
-<p><strong>Frozen rate model</strong> (2023–2024 fit; chronological test from 2024-08-06): MAE / RMSE / R² ≈ <strong>0.0787 / 0.0987 / 0.147</strong> (~15% of game-level rate variance). Same test: train-mean MAE ≈ <strong>0.0854</strong>; Marcel-lite talent baseline MAE ≈ <strong>0.0826</strong>.</p>
-<p><strong>Count layer</strong> (same test partition, projected-TBF exposure): expected-K MAE / RMSE / R² ≈ <strong>1.790 / 2.213 / 0.168</strong>; line Briers roughly <strong>0.12–0.22</strong> (lines 3.5–7.5).</p>
+<p><strong>Frozen rate model</strong> (2023–2024 chronological test): MAE / RMSE / R² ≈ <strong>0.0787 / 0.0987 / 0.147</strong>. Same test: Marcel-lite MAE ≈ <strong>0.0826</strong>; train-mean MAE ≈ <strong>0.0854</strong>.</p>
+<p><strong>Count layer</strong> (projected-TBF exposure): expected-K MAE / RMSE / R² ≈ <strong>1.790 / 2.213 / 0.168</strong>; line Briers roughly <strong>0.12–0.22</strong> (lines 3.5–7.5).</p>
 <hr>
 <h2>Full-stack evaluation</h2>
 <table>
@@ -160,7 +160,7 @@ p.table-caption {
 </tr>
 <tr>
 <td>Calibration</td>
-<td>Mean ECE ≈ <strong>0.024</strong> (internal chronological calibration; no sportsbook or public-projection benchmark)</td>
+<td>Mean ECE ≈ <strong>0.024</strong> (no recalibration)</td>
 </tr>
 <tr>
 <td>Population policy</td>
@@ -170,7 +170,7 @@ p.table-caption {
 </table>
 <hr>
 <h2>Takeaway</h2>
-<p>Built and validated a leakage-safe Statcast → features → rate × exposure stack with nested chronological selection and automated leakage tests. Predictive power is modest (rate R² ≈ 0.15) but clears a Marcel-lite season-talent floor on the same chronological test. Leave-family-out results are reported per outer fold: lineup is both-fold positive for both models; several other mean deltas flip sign. The portfolio claim is ML engineering discipline under a hard pregame constraint—not a strong or market-beating predictor. Next: pregame role labels, post-freeze holdout, closing-line evaluation if practical value is the goal.</p>
+<p>Leakage-safe Statcast → rate × exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). Portfolio claim: ML engineering under a hard pregame constraint.</p>
 <hr>
 <p><em>Full write-up: <code>docs/paper/manuscript.pdf</code></em></p>
 </body>
