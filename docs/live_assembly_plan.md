@@ -57,10 +57,9 @@ Outputs land in `artifacts/live_scores/`.
 
 ## Known limits
 
-- Level 1–2 now include **2026 through 2026-07-26**. Refresh daily via
-  `production/refresh_statcast.py` + `production/refresh_features.py --skip-training`.
-  Savant often lags calendar yesterday overnight — retry later if incremental
-  fetch reports missing game_pks.
+- Level 1–2 include **2026 through the latest refreshed Savant day** (see
+  `production/refresh_statcast.py`). As of 2026-07-28 refresh: through
+  **2026-07-27**. Re-run daily; Savant often lags overnight.
 - Overnight RG vs MLB probable disagreements **dual-score** both pitchers
   (`starter_source`, `is_preferred` on MLB). Pass `--no-dual-starters` for RG-only.
   Strict fail: `--require-probable-match`.

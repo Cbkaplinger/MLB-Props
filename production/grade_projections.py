@@ -40,6 +40,7 @@ def grade_log(
     *,
     slate_date: date | None = None,
     preferred_only: bool = False,
+    all_logged: bool = False,
 ) -> dict[str, object]:
     if not LOG_PATH.exists():
         raise FileNotFoundError(
@@ -51,6 +52,34 @@ def grade_log(
         )
 
     log = pl.read_parquet(LOG_PATH).with_columns(pl.col("game_date").cast(pl.Date))
+    if all_logged:
+        dates = log["game_date"].unique().sort().to_list()
+        if not dates:
+            raise ValueError("Projection log is empty.")
+        summaries = [
+            grade_log(slate_date=d, preferred_only=preferred_only, all_logged=False)
+            for d in dates
+        ]
+        combined = {
+            "mode": "all_logged",
+            "preferred_only": preferred_only,
+            "dates": [s["slate_date"] for s in summaries],
+            "per_date": summaries,
+            "n_dates": len(summaries),
+            "n_matched_total": int(sum(int(s.get("n_matched", 0)) for s in summaries)),
+        }
+        matched_maes = [
+            float(s["mae_K"])
+            for s in summaries
+            if s.get("n_matched") and "mae_K" in s
+        ]
+        if matched_maes:
+            combined["mae_K_mean_over_dates"] = float(sum(matched_maes) / len(matched_maes))
+        (LOG_DIR / "grade_summary_all.json").write_text(
+            json.dumps(combined, indent=2), encoding="utf-8"
+        )
+        return combined
+
     target = slate_date or _yesterday_et()
     day = log.filter(pl.col("game_date") == target)
     if preferred_only and "is_preferred" in day.columns:
@@ -149,8 +178,17 @@ def main() -> None:
         action="store_true",
         help="Grade only is_preferred rows (MLB on disagreement).",
     )
+    parser.add_argument(
+        "--all-logged",
+        action="store_true",
+        help="Grade every distinct game_date in the projection log.",
+    )
     args = parser.parse_args()
-    summary = grade_log(slate_date=args.date, preferred_only=args.preferred_only)
+    summary = grade_log(
+        slate_date=args.date,
+        preferred_only=args.preferred_only,
+        all_logged=args.all_logged,
+    )
     print(json.dumps(summary, indent=2))
     print(f"Wrote {GRADED_PATH}")
 

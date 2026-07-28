@@ -39,6 +39,11 @@ flowchart TB
 - **Phase D interim policy frozen** (~3.5% excluded by `PA≥9`) —
   `docs/phase_d_population_findings.md`. Pregame role labels still open for
   pristine v1.
-- **Next:** refresh 2026 Statcast → Level 1–2 for true live scoring, or ingest
-  pregame role labels for pristine v1.
+- **Next:** daily `log_projections` → next-day `grade_projections --all-logged`;
+  grow `post_freeze` holdout (`docs/post_freeze_holdout.md`); optional pregame
+  role labels for broader population claims.
+- **Deferred (not critical path):** Marcel age curve, Steamer/ZiPS/PECOTA floors,
+  closing-line / Kelly — see `diagrams/04-roadmap.md` § Later.
+- **Lineup:** training uses first-9-by-PA proxy; live uses announced RG order —
+  `docs/lineup_train_serve.md`.
 - Do not reuse scored 2025 for selection or “final” metrics.

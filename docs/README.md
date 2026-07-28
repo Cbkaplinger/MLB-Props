@@ -2,6 +2,7 @@
 
 | Doc | Role |
 |---|---|
+| `paper/manuscript.md` | Modeling paper draft (PDF: `paper/manuscript.pdf`) |
 | `model-card.md` | Intended use, leakage, frozen metrics |
 | `dev-notes.md` | Feature / pipeline implementation reference |
 | `PAPER_NOTES.md` | Experiment log and sequencing decisions |
@@ -11,6 +12,8 @@
 | `step*_findings.md` / `step*_*.md` | Closed feature-research step write-ups |
 | `tbf_*.md` / `count_layer_findings.md` | TBF spine and count-layer findings |
 | `live_assembly_plan.md` | Live slate assembly plan |
+| `post_freeze_holdout.md` | Post-lock holdout protocol + latest scores |
+| `lineup_train_serve.md` | Historical first-9-by-PA vs live announced lineup |
 | `archive/` | Superseded process evidence (not current metrics) |
 
 Phase diagrams live under `../diagrams/`. Generated research artifacts live

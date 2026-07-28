@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Leakage-Safe Pregame Pitcher Strikeout Projection</title>
+<style>
+@page { margin: 0.7in; }
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 9.8pt;
+  line-height: 1.48;
+  color: #1a1a1a;
+  max-width: 7.0in;
+  margin: 0 auto;
+}
+h1 {
+  font-size: 17pt;
+  line-height: 1.25;
+  margin: 0 0 0.35em;
+  font-weight: 700;
+}
+h2 {
+  font-size: 13pt;
+  margin: 1.35em 0 0.5em;
+  padding-bottom: 0.18em;
+  border-bottom: 1px solid #bbb;
+  font-weight: 700;
+  page-break-after: avoid;
+}
+h3 {
+  font-size: 11pt;
+  margin: 1.05em 0 0.35em;
+  font-weight: 700;
+  color: #222;
+  page-break-after: avoid;
+}
+p { margin: 0.5em 0; }
+ul, ol {
+  margin: 0.4em 0 0.65em 1.35em;
+  padding-left: 0.35em;
+}
+ol { list-style-type: decimal; }
+ul { list-style-type: disc; }
+li { margin: 0.3em 0; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.35em 0 0.95em;
+  font-size: 9.1pt;
+}
+th, td {
+  border: 1px solid #999;
+  padding: 0.32em 0.45em;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: #efefef; font-weight: 700; }
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 8.7pt;
+  background: #f4f4f4;
+  padding: 0.04em 0.22em;
+  border-radius: 2px;
+}
+hr { border: none; border-top: 1px solid #ccc; margin: 1.15em 0; }
+strong { font-weight: 700; }
+em { font-style: italic; }
+.equation {
+  display: block;
+  text-align: center;
+  margin: 0.8em 0;
+  padding: 0.5em 0.7em;
+  font-family: "Cambria Math", "Times New Roman", Times, serif;
+  font-size: 10.8pt;
+  background: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+}
+sub { font-size: 0.75em; }
+figure {
+  margin: 1em 0 1.15em;
+  page-break-inside: avoid;
+  text-align: center;
+}
+figure img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+}
+figcaption {
+  margin-top: 0.4em;
+  font-size: 9pt;
+  line-height: 1.35;
+  text-align: left;
+  color: #222;
+}
+p.table-caption {
+  margin: 0.85em 0 0.25em;
+  font-size: 9.2pt;
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+<h1>Pregame Pitcher Strikeout Projection — Project Summary</h1>
+<p><strong>Cameron Kaplinger</strong> · Independent Researcher · Portfolio artifact (July 2026)</p>
+<p>Companion to the full technical manuscript in <code>docs/paper/manuscript.md</code>.</p>
+<hr>
+<h2>Goal</h2>
+<p>Estimate a starter’s strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K ≥ L) for common prop lines L—using only information available before first pitch:</p>
+<div class="equation">k<sub>rate</sub> × TBF → E[K] → P(K ≥ L)</div>
+
+<hr>
+<h2>Models and headline metrics</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Model</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Strikeout rate</td>
+<td>Unweighted LightGBM (180 features)</td>
+<td>Frozen production rate model</td>
+</tr>
+<tr>
+<td>Batters faced (TBF)</td>
+<td>Ridge (thin bullpen, 24 features)</td>
+<td>Projected exposure</td>
+</tr>
+<tr>
+<td>Counts / lines</td>
+<td>Binomial / Poisson on projected TBF</td>
+<td>Expected K and P(K ≥ L)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Frozen rate model</strong> (2023–2024 fit; chronological test from 2024-08-06): MAE / RMSE / R² ≈ <strong>0.0787 / 0.0987 / 0.147</strong> (~15% of game-level rate variance). Same test: train-mean MAE ≈ <strong>0.0854</strong>; Marcel-lite talent baseline MAE ≈ <strong>0.0826</strong>.</p>
+<p><strong>Count layer</strong> (same test partition, projected-TBF exposure): expected-K MAE / RMSE / R² ≈ <strong>1.790 / 2.213 / 0.168</strong>; line Briers roughly <strong>0.12–0.22</strong> (lines 3.5–7.5).</p>
+<hr>
+<h2>Full-stack evaluation</h2>
+<table>
+<thead>
+<tr>
+<th>Evaluation gate</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Estimator tuning</td>
+<td>Keep baseline LightGBM defaults; Ridge α tuned and persisted</td>
+</tr>
+<tr>
+<td>Walk-forward stack backtest</td>
+<td>Mean expected-K MAE ≈ <strong>1.778</strong> (3 expanding 2024 windows; σ ≈ 0.036)</td>
+</tr>
+<tr>
+<td>Calibration</td>
+<td>Mean ECE ≈ <strong>0.024</strong> (internal chronological calibration; no sportsbook or public-projection benchmark)</td>
+</tr>
+<tr>
+<td>Population policy</td>
+<td>Metrics conditional on PA ≥ 9 (~3.5% of first pitchers excluded)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Takeaway</h2>
+<p>Built and validated a leakage-safe Statcast → features → rate × exposure stack with nested chronological selection and automated leakage tests. Predictive power is modest (rate R² ≈ 0.15) but clears a Marcel-lite season-talent floor on the same chronological test. Leave-family-out results are reported per outer fold: lineup is both-fold positive for both models; several other mean deltas flip sign. The portfolio claim is ML engineering discipline under a hard pregame constraint—not a strong or market-beating predictor. Next: pregame role labels, post-freeze holdout, closing-line evaluation if practical value is the goal.</p>
+<hr>
+<p><em>Full write-up: <code>docs/paper/manuscript.pdf</code></em></p>
+</body>
+</html>

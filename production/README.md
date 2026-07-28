@@ -67,15 +67,28 @@ python production/score_slate.py --live --allow-stale
 
 ## Projection log + grading
 
+Formal expected_K logging begins **2026-07-28** (first `projections.parquet`
+slate). Grade only after Level 1 contains that date’s finals.
+
 ```powershell
 python production/log_projections.py --allow-stale
 # After Level 1 includes that slate date:
 python production/grade_projections.py --preferred-only
-python production/grade_projections.py --date 2026-07-27 --preferred-only
+python production/grade_projections.py --date 2026-07-28 --preferred-only
+python production/grade_projections.py --all-logged --preferred-only
 ```
 
 Writes `artifacts/projection_log/projections.parquet` and `graded.parquet`.
-Dashboard later; hold off for now.
+
+## Post-freeze holdout (frozen stack, no refit)
+
+```powershell
+python production/refresh_features.py
+python production/post_freeze_holdout.py
+```
+
+See `docs/post_freeze_holdout.md`. Lineup train/serve skew:
+`docs/lineup_train_serve.md`.
 
 ## Playground demos
 
