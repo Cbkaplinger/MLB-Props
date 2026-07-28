@@ -1,0 +1,12 @@
+---
+description: Never push to remote; walk the user through git push commands
+alwaysApply: true
+---
+
+# Git push policy
+
+- Never run `git push`, `git push --force`, or any remote-publishing git command.
+- The agent may stage and commit when the user explicitly asks to commit.
+- After a commit (or when the user asks to publish), give the exact commands for the user to run themselves, step by step.
+- Do not assume push permission from phrases like "ship it", "publish", or "push the changes" — provide the commands and wait for the user to execute them.
+- Prefer: show `git status` / branch tracking context, then the precise `git push` (or `git push -u origin HEAD`) line for the user to copy.

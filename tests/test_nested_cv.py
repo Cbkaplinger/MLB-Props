@@ -9,9 +9,9 @@ import pandas as pd
 
 EDA_DIR = (
     Path(__file__).resolve().parents[1]
-    / "Models"
+    / "models"
     / "Strikeout-Model"
-    / "Strikeout-EDA"
+    / "research"
 )
 sys.path.insert(0, str(EDA_DIR))
 

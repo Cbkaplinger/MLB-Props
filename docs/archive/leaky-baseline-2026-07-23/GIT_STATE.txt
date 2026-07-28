@@ -6,13 +6,13 @@ git status --short:
  M .gitignore
  M Data/Savant-Data/regular/2025/statcast_2025_regular.parquet
  M Models/Strikeout-Model/README.md
- M Models/Strikeout-Model/Strikeout-EDA/README.md
- M Models/Strikeout-Model/Strikeout-EDA/strikeout-eda.ipynb
+ M models/Strikeout-Model/research/README.md
+ M models/Strikeout-Model/research/strikeout-eda.ipynb
  M Models/Strikeout-Model/train.py
  M README.md
  M RosterScraper/RosterScraper.py
- M docs/dev-notes.md
- M docs/model-card.md
+ M docs/reference/dev-notes.md
+ M docs/reference/model-card.md
  M src/Notebooks/batter-features.ipynb
  M src/Notebooks/batter_rolling.ipynb
  M src/Notebooks/pitcher-features.ipynb

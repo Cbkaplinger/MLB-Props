@@ -87,8 +87,8 @@ python production/refresh_features.py
 python production/post_freeze_holdout.py
 ```
 
-See `docs/post_freeze_holdout.md`. Lineup train/serve skew:
-`docs/lineup_train_serve.md`.
+See `docs/reference/post_freeze_holdout.md`. Lineup train/serve skew:
+`docs/reference/lineup_train_serve.md`.
 
 ## Playground demos
 

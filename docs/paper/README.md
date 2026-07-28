@@ -15,7 +15,7 @@ Markdown source, figures, and PDF export for the modeling write-up.
 | `render_resume_summary.py` | Resume summary → PDF |
 
 Deferred modeling follow-ons (Marcel age curve, Steamer/ZiPS, closing lines)
-live in `diagrams/04-roadmap.md` under **Later → Deferred external baselines**.
+live in `docs/diagrams/04-roadmap.md` under **Later → Deferred external baselines**.
 
 Regenerate figures and PDFs after editing:
 

@@ -3,7 +3,7 @@
 Fits nothing. Loads frozen LightGBM + Ridge TBF, scores ``pitcher_training``
 rows, and compares to actual K / PA / k_rate.
 
-Partitions (documented in ``docs/post_freeze_holdout.md``):
+Partitions (documented in ``docs/reference/post_freeze_holdout.md``):
 
 - ``post_freeze``: ``game_date >= FREEZE_DATE`` (true post-lock monitoring)
 - ``season_2025``: all 2025 rows (contaminated development history — reference only)

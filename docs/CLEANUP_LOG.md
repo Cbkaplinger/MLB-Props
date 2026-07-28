@@ -1,5 +1,33 @@
 # Repository cleanup log
 
+## Docs folder families — 2026-07-28 (late afternoon)
+
+Grouped documentation into clear folder families and renamed the strikeout
+research runners directory. No metrics or code logic changed; paths and
+cross-references were updated.
+
+### Moves
+
+- Closed research write-ups → `docs/research/` (`PAPER_NOTES.md`,
+  `statistical_audit_and_sequencing_report.md`, `step*`, `tbf_*`,
+  `count_layer_findings.md`, `phase*`, `workload_rest_bullpen_feature_plan.md`)
+- Living reference docs → `docs/reference/` (`model-card.md`, `dev-notes.md`,
+  `lineup_train_serve.md`, `live_assembly_plan.md`, `post_freeze_holdout.md`)
+- `diagrams/` → `docs/diagrams/`
+- `models/Strikeout-Model/Strikeout-EDA/` → `models/Strikeout-Model/research/`
+- `docs/README.md` rewritten as the documentation family index
+- Root `README.md` gained a repository-layout table
+
+### Left in place (intentional)
+
+- `docs/paper/`, `docs/archive/`, `docs/CLEANUP_LOG.md`
+- `src/`, `production/`, `playground/`, `scripts/`, `tests/`
+
+Runners: `scripts/reorganize_docs_families.py`,
+`scripts/rename_strikeout_eda.py` (one-shot; safe to delete later).
+
+---
+
 Cleanup completed on 2026-07-23. The canonical package remains at
 `src/Python`, the three pipeline levels and `Models/Strikeout-Model/train.py`
 are intact. A follow-up audit removed only redundant/generated files from
@@ -13,7 +41,7 @@ helpers and long-form notes moved into existing homes.
 
 ### Moves
 
-- `PAPER_NOTES.md` → `docs/PAPER_NOTES.md`
+- `PAPER_NOTES.md` → `docs/research/PAPER_NOTES.md`
 - `CLEANUP_LOG.md` → `docs/CLEANUP_LOG.md` (this file)
 - `export_notebook.py` → `scripts/export_notebook.py`
 - `export-notebook.ps1` → `scripts/export-notebook.ps1`
@@ -26,7 +54,7 @@ helpers and long-form notes moved into existing homes.
 
 ### Doc link updates
 
-- `README.md`, `docs/dev-notes.md`, `docs/statistical_audit_and_sequencing_report.md`,
+- `README.md`, `docs/reference/dev-notes.md`, `docs/research/statistical_audit_and_sequencing_report.md`,
   `docs/archive/leaky-baseline-2026-07-23/README.md`, and
   `Models/Strikeout-Model/results/README.md` point at the new paths.
 
@@ -41,22 +69,22 @@ were **left in place**. No changes to `src/Python` or
 ### Folded into documentation, then removed
 
 - `artifacts/feature_research/step1_registries/SUMMARY.md` — transient runner
-  summary; conclusions already in `docs/step1_feature_dict_vif_findings.md`
+  summary; conclusions already in `docs/research/step1_feature_dict_vif_findings.md`
   (and Step 10 freeze size update). Added an artifact-consolidation note there.
 - `artifacts/feature_research/step4_physics_windows/SUMMARY.md` — duplicated
-  the `mean_P3_P5` verdict now in `docs/step4_window_decisions.md`.
+  the `mean_P3_P5` verdict now in `docs/research/step4_window_decisions.md`.
 - `artifacts/feature_research/step5_binomial/SUMMARY.md` — pointer-only wrapper;
-  note added to `docs/step5_binomial_findings.md`.
+  note added to `docs/research/step5_binomial_findings.md`.
 - `artifacts/feature_research/step5_beta_binomial/SUMMARY.md` — redundant with
-  `docs/step5_beta_binomial_findings.md`.
+  `docs/research/step5_beta_binomial_findings.md`.
 - `artifacts/feature_research/step5_pa_weight/SUMMARY.md` — duplicated protocol
-  and metrics already in `docs/step5_pa_weight_findings.md`.
+  and metrics already in `docs/research/step5_pa_weight_findings.md`.
 
 ### Documentation sync (no unique findings lost)
 
 - `artifacts/README.md` — refreshed to current freeze language (180-feature
   Step 10 LightGBM, frozen TBF Ridge, Phase 11 / Phase D / live ops paths).
-- `docs/dev-notes.md` — noted that generated `SUMMARY.md` wrappers are retired.
+- `docs/reference/dev-notes.md` — noted that generated `SUMMARY.md` wrappers are retired.
 
 ### Deleted outright (mechanical / byte-identical)
 
@@ -79,10 +107,10 @@ deleted (hashes differed).
 Brought active docs in line with frozen k-rate (185), frozen TBF spine, and
 count-layer v1. No code or artifact deletion.
 
-Updated: `README.md`, `PAPER_NOTES.md` §12–13, `docs/model-card.md`,
-`docs/dev-notes.md`, `docs/statistical_audit_and_sequencing_report.md` Part 2–3,
-`docs/step5_*` / `step7` / `tbf_*` / `count_layer` next-steps,
-`Models/Strikeout-Model/README.md`, and `diagrams/00`–`04` + `diagrams/README.md`.
+Updated: `README.md`, `PAPER_NOTES.md` §12–13, `docs/reference/model-card.md`,
+`docs/reference/dev-notes.md`, `docs/research/statistical_audit_and_sequencing_report.md` Part 2–3,
+`docs/research/step5_*` / `step7` / `tbf_*` / `count_layer` next-steps,
+`Models/Strikeout-Model/README.md`, and `docs/diagrams/00`–`04` + `docs/diagrams/README.md`.
 
 Remaining product gaps called out consistently: **Phase 11 model quality**
 (tune / walk-forward / calibrate), Phase D opener, pristine post-freeze eval;
@@ -105,7 +133,7 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
   `rules/` directory removed.
 - `src/Notebooks/pipeline/training.pdf` — regenerable PDF export of
   `training.ipynb` with no unique content beyond the notebook. Noted in
-  `docs/dev-notes.md`; recreate via `export-notebook.ps1` /
+  `docs/reference/dev-notes.md`; recreate via `export-notebook.ps1` /
   `export_notebook.py` if needed.
 - `Models/Strikeout-Model/Saved-Models/Model-Weights/optuna_v9.db` — leftover
   Optuna study DB from the pre-purge tuning era (SHA-256
@@ -117,7 +145,7 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
 ### Documentation sync (no file deletion)
 
 - `PAPER_NOTES.md` §12 item 5 marked done with links to
-  `docs/step5_*_findings.md`; §13 clarified that projected-TBF count-layer
+  `docs/research/step5_*_findings.md`; §13 clarified that projected-TBF count-layer
   beta-binomial remains future work distinct from the closed Step 5
   rate-likelihood diagnostic.
 
@@ -338,7 +366,7 @@ they were superseded, and what replaced them.
 - **Data versioning wording:** README files now distinguish generated
   `Data/processed/` outputs from raw source-data versioning instead of claiming
   that every file under `Data/` is ignored.
-- **Future targets:** `docs/dev-notes.md` now explains why Level 1 outcomes and
+- **Future targets:** `docs/reference/dev-notes.md` now explains why Level 1 outcomes and
   reliability denominator plans for hits, walks, runs allowed, pitches, outs,
   and batters faced are intentionally preserved.
 

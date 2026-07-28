@@ -18,8 +18,8 @@ was relocated during repository cleanup.
   2023-2024 development LightGBM (comparison / process history)
 - `artifacts/models/lightgbm_krate_20260723_202255.*` — historical
   227-feature, 2025-consulting LightGBM benchmark
-- TBF + count layer: see `docs/tbf_first_model_findings.md` and
-  `docs/count_layer_findings.md` (`artifacts/models/tbf_pa_*`,
+- TBF + count layer: see `docs/research/tbf_first_model_findings.md` and
+  `docs/research/count_layer_findings.md` (`artifacts/models/tbf_pa_*`,
   `artifacts/count_layer/`)
 
 ## Superseded baseline
@@ -41,7 +41,7 @@ evidence.
 | Ridge | 227 | 2025-04-14 | 2025-04-15–2025-07-05 | 2025-07-06 | 0.1003 | 0.1313 |
 | LightGBM | 227 | 2025-04-14 | 2025-04-15–2025-07-05 | 2025-07-06 | 0.0994 | 0.1459 |
 
-`docs/PAPER_NOTES.md` is the canonical result log. No current holdout-prediction CSV
+`docs/research/PAPER_NOTES.md` is the canonical result log. No current holdout-prediction CSV
 is claimed here.
 
 ## Current frozen production (2026-07-28)
@@ -49,9 +49,9 @@ is claimed here.
 Frozen LightGBM `production` = **180** features (Step 10 P1 physics swap on
 top of Step 7 mean-window thin). Chrono cutoffs: train ≤ 2024-06-08, val
 2024-06-09→08-05, test ≥ 2024-08-06. Test MAE / RMSE / R² ≈
-**0.0787 / 0.0987 / 0.147** (`docs/step10_p1_registry_freeze.md`).
+**0.0787 / 0.0987 / 0.147** (`docs/research/step10_p1_registry_freeze.md`).
 
 This is the active frozen *feature* baseline, not a pristine final test and
 not a claim that hyperparameters or stack calibration are finished. Next:
-Phase 11 (`docs/phase11_model_quality_gates.md`). Honest final evaluation
+Phase 11 (`docs/research/phase11_model_quality_gates.md`). Honest final evaluation
 requires genuinely future post-freeze games (and Phase D population policy).

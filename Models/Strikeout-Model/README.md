@@ -29,7 +29,7 @@ python Models/Strikeout-Model/train.py --model lightgbm --sample-weight pa
 python Models/Strikeout-Model/score_count_layer.py
 
 # Historical research runners (feature freeze is closed)
-python Models/Strikeout-Model/Strikeout-EDA/step8_keep_drop.py
+python models/Strikeout-Model/research/step8_keep_drop.py
 ```
 
 LightGBM handles missing feature values natively. Ridge imputes medians and
@@ -44,16 +44,16 @@ ignored by Git.
 The frozen production gate is **180 features** (`--feature-set production`;
 Step 10 P1 physics swap). Locked artifact:
 `artifacts/models/lightgbm_krate_20260728_033241.*` (test MAE / RMSE / R² ≈
-0.0787 / 0.0987 / 0.147). See `docs/step10_p1_registry_freeze.md`. Companion
+0.0787 / 0.0987 / 0.147). See `docs/research/step10_p1_registry_freeze.md`. Companion
 `step7_185` retains the pre-P1 freeze. `pre_freeze_248` is comparison-only.
 
 **Next (not more features):** Phase 11 model quality — nested tune, walk-forward
-stack backtest, calibration (`docs/phase11_model_quality_gates.md`). Live
+stack backtest, calibration (`docs/research/phase11_model_quality_gates.md`). Live
 assembly is deferred until those gates pass.
 
 TBF + count layer: `Models/TBF-Model/train.py` and `score_count_layer.py`
-(`docs/tbf_first_model_findings.md`, `docs/count_layer_findings.md`).
+(`docs/research/tbf_first_model_findings.md`, `docs/research/count_layer_findings.md`).
 
-The `Strikeout-EDA/` notebooks and runners read Level 1 artifacts for
+The `research/` notebooks and runners read Level 1 artifacts for
 distribution, stabilization, and feature-ablation work. They are not training
 entry points.

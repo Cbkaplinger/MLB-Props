@@ -5,11 +5,30 @@ Baseball Savant data, plus a frozen projected-TBF spine and count-layer props
 research. Feature engineering is Polars-first; trainers consume model-ready
 parquet rather than rebuilding features.
 
-See `docs/model-card.md` for intended use and leakage rules,
-`docs/dev-notes.md` for the current feature reference,
-`docs/PAPER_NOTES.md` for the experiment log, and
-`diagrams/` for phase-colored architecture / leakage / modeling / roadmap
-charts (Mermaid). Status snapshot: `diagrams/00-index.md`.
+## Repository layout
+
+| Family | Path | Role |
+|---|---|---|
+| Package | `src/Python/` | Shared library (Statcast, features, pipeline L1–L3, count layer) |
+| Pipeline notebooks | `src/Notebooks/` | Level inspection notebooks |
+| Models | `models/` | Strikeout + TBF trainers (`train.py`), research runners (`Strikeout-Model/research/`), local results |
+| Production | `production/` | Daily ops CLIs (refresh → log → grade) |
+| Playground | `playground/` | Ad-hoc what-if experiments (not production) |
+| Scripts | `scripts/` | One-off research/tooling CLIs |
+| Tests | `tests/` | Pytest suite |
+| Docs — paper | `docs/paper/` | Manuscript + figures + PDF |
+| Docs — research | `docs/research/` | Step findings, experiment log, audits, phase gates |
+| Docs — reference | `docs/reference/` | Model card, dev notes, lineup/live/holdout |
+| Docs — diagrams | `docs/diagrams/` | Mermaid architecture / leakage / modeling / roadmap |
+| Docs — archive | `docs/archive/` | Superseded process evidence |
+| Data | `Data/` | Savant cache + processed parquet (often local/large) |
+| Artifacts | `artifacts/` | Generated models, fold CSVs, research outputs (gitignored) |
+
+See `docs/reference/model-card.md` for intended use and leakage rules,
+`docs/reference/dev-notes.md` for the current feature reference,
+`docs/research/PAPER_NOTES.md` for the experiment log, and
+`docs/diagrams/` for phase-colored architecture / leakage / modeling / roadmap
+charts (Mermaid). Status snapshot: `docs/diagrams/00-index.md`.
 Cleanup history: `docs/CLEANUP_LOG.md`.
 
 ## Pipeline
@@ -159,34 +178,34 @@ must be monitored; MLB IDs remain the durable identity contract.
 5. Compare builds on nested chronological outer folds only; do not reuse scored
    2025 for selection. Pristine final eval = future post-freeze games.
 
-Feature-research Steps 1–9 are closed for LightGBM; see `docs/step7_registry_freeze.md`
-and `docs/step8_feature_keep_drop_findings.md` / `docs/step9_metric_window_findings.md`.
+Feature-research Steps 1–9 are closed for LightGBM; see `docs/research/step7_registry_freeze.md`
+and `docs/research/step8_feature_keep_drop_findings.md` / `docs/research/step9_metric_window_findings.md`.
 
-## Remaining gaps (see `diagrams/04-roadmap.md`)
+## Remaining gaps (see `docs/diagrams/04-roadmap.md`)
 
 - **Phase 11.A–C:** done as verification (HPO flat; WF expected_K ≈ 1.78; ECE ≈
-  0.024) — `docs/phase11_model_quality_gates.md`.
+  0.024) — `docs/research/phase11_model_quality_gates.md`.
 - **Phase D:** interim policy frozen (~3.5% excluded by `PA≥9`) —
-  `docs/phase_d_population_findings.md`. Pregame role labels still open for
+  `docs/research/phase_d_population_findings.md`. Pregame role labels still open for
   pristine v1.
-- **Live prediction assembly:** v1 wired (`docs/live_assembly_plan.md`);
+- **Live prediction assembly:** v1 wired (`docs/reference/live_assembly_plan.md`);
   daily ops in `production/` (incremental Statcast → features → score).
 - **Pristine post-freeze holdout:** future games + role labels (not recycled 2025).
 - **Optional later:** NB count challenger; market de-vig / Kelly; park cleanup.
 
 Frozen and done for research: **180-feature** LightGBM k-rate (Step 10 P1
 physics swap), Ridge TBF
-(`docs/tbf_first_model_findings.md`), count-layer + walk-forward stack
-(`docs/count_layer_findings.md`). Rest/bullpen spine:
-`docs/workload_rest_bullpen_feature_plan.md`.
+(`docs/research/tbf_first_model_findings.md`), count-layer + walk-forward stack
+(`docs/research/count_layer_findings.md`). Rest/bullpen spine:
+`docs/research/workload_rest_bullpen_feature_plan.md`.
 
 ## Current baseline and research surface
 
 The production LightGBM gate is the **frozen 180-feature** registry (Step 7
 mean-window thin + Step 9c/10 P1 physics swap; see
-`docs/step10_p1_registry_freeze.md`). Companion `step7_185` retains the prior
+`docs/research/step10_p1_registry_freeze.md`). Companion `step7_185` retains the prior
 185-feature freeze. Chrono test MAE / RMSE / R² ≈ 0.0787 / 0.0987 / 0.147
-(`docs/step10_p1_registry_freeze.md`). This is development evidence, not an
+(`docs/research/step10_p1_registry_freeze.md`). This is development evidence, not an
 untouched final test. Next work is live assembly or role-label ingestion —
 not more feature hunting.
 
@@ -196,7 +215,7 @@ production unless `include_experimental=True`. Generated diagnostics live under
 `artifacts/feature_research/` and `artifacts/stabilization/`.
 
 Count-layer chrono test (projected TBF): expected_K MAE ≈ **1.79**; line Briers
-≈ 0.12–0.22 depending on line (`docs/count_layer_findings.md`).
+≈ 0.12–0.22 depending on line (`docs/research/count_layer_findings.md`).
 
 The older date-disjoint 227-feature evaluation that consulted 2025 remains
 historical benchmark evidence. The invalid overlapping-date run is retained

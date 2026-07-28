@@ -21,7 +21,7 @@ from Python.statcast import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-EDA_DIR = PROJECT_ROOT / "Models" / "Strikeout-Model" / "Strikeout-EDA"
+EDA_DIR = PROJECT_ROOT / "models" / "Strikeout-Model" / "research"
 if str(EDA_DIR) not in sys.path:
     sys.path.insert(0, str(EDA_DIR))
 
