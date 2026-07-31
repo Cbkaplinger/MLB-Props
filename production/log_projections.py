@@ -72,45 +72,46 @@ def _line_cols(frame: pl.DataFrame) -> list[str]:
     return cols
 
 
-_DISPLAY_COLS = [
-    "starter_source",
-    "away_team",
-    "home_team",
-    "is_home",
-    "player_name",
-    "expected_K",
-    "fair_amer_3_5",
-    "fair_amer_4_5",
-    "fair_amer_5_5",
-    "fair_amer_6_5",
-    "fair_amer_7_5",
-    "fair_amer_8_5",
-]
+def _p_over_cols(frame: pl.DataFrame) -> list[str]:
+    """Line probability columns in ascending line order (the K distribution)."""
+    cols: list[str] = []
+    for line in PROJECTION_K_LINES:
+        name = f"p_over_{str(line).replace('.', '_')}"
+        if name in frame.columns:
+            cols.append(name)
+    return cols
 
 
 def _print_preferred_board(board: pl.DataFrame) -> None:
-    """Print the preferred SP board to the terminal (no notebook needed)."""
+    """Print preferred SP board: team, name, matchup, xK, p(over) by line."""
     view = board
     if "is_preferred" in view.columns:
         view = view.filter(pl.col("is_preferred"))
-    cols = [c for c in _DISPLAY_COLS if c in view.columns]
-    view = view.select(cols)
-    if "starter_source" in view.columns:
+    if "is_home" in view.columns and "away_team" in view.columns:
         view = view.with_columns(
-            pl.when(pl.col("starter_source") == "rotogrinders")
-            .then(pl.lit("rg"))
-            .when(pl.col("starter_source") == "mlb_probable")
-            .then(pl.lit("mlb"))
-            .otherwise(pl.col("starter_source"))
-            .alias("starter_source")
+            pl.when(pl.col("is_home"))
+            .then(pl.col("home_team"))
+            .otherwise(pl.col("away_team"))
+            .alias("pitcher_team")
         )
     if "expected_K" in view.columns:
-        view = view.sort("expected_K", descending=True)
-    # Round floats for readable terminal width.
+        view = view.with_columns(pl.col("expected_K").alias("xK")).sort(
+            "expected_K", descending=True
+        )
+
+    front = [
+        c
+        for c in ("pitcher_team", "player_name", "away_team", "home_team", "xK")
+        if c in view.columns
+    ]
+    cols = front + _p_over_cols(view)
+    view = view.select(cols)
+
     round_exprs = []
     for c in view.columns:
-        if view.schema[c] in (pl.Float32, pl.Float64) and not c.startswith("fair_amer_"):
-            round_exprs.append(pl.col(c).round(3))
+        if view.schema[c] in (pl.Float32, pl.Float64):
+            digits = 3 if c == "xK" or c.startswith("p_over_") else 2
+            round_exprs.append(pl.col(c).round(digits))
     if round_exprs:
         view = view.with_columns(round_exprs)
 

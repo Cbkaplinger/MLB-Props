@@ -19,8 +19,8 @@ from scipy.stats import betabinom, binom, poisson
 from Python.likelihoods import fit_beta_binomial_kappa
 
 DEFAULT_K_LINES: tuple[float, ...] = (3.5, 4.5, 5.5, 6.5, 7.5)
-# Live / notebook projection board (includes 8.5 for longer books).
-PROJECTION_K_LINES: tuple[float, ...] = (3.5, 4.5, 5.5, 6.5, 7.5, 8.5)
+# Live / notebook / odds board (covers soft 2.5 through long 9.5 mains).
+PROJECTION_K_LINES: tuple[float, ...] = (2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5)
 
 # Above this concentration, beta-binomial ≈ binomial for prop work.
 BINOMIAL_KAPPA_FLOOR: float = 1.0e5

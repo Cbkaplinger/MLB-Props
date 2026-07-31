@@ -25,10 +25,17 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from Python import config  # noqa: E402
+from Python.projection_support import (  # noqa: E402
+    EXTREME_REST_DAYS,
+    MIN_STARTER_ACTUAL_PA,
+    mark_abbreviated_outing,
+    mark_out_of_support,
+)
 
 LOG_DIR = config.OUTPUT_DIR / "projection_log"
 LOG_PATH = LOG_DIR / "projections.parquet"
 GRADED_PATH = LOG_DIR / "graded.parquet"
+META_PATH = LOG_DIR / "last_grade.json"
 SUMMARY_PATH = LOG_DIR / "grade_summary.json"
 
 
@@ -41,6 +48,9 @@ def grade_log(
     slate_date: date | None = None,
     preferred_only: bool = False,
     all_logged: bool = False,
+    exclude_out_of_support: bool = False,
+    exclude_abbreviated: bool = False,
+    min_actual_pa: int = MIN_STARTER_ACTUAL_PA,
 ) -> dict[str, object]:
     if not LOG_PATH.exists():
         raise FileNotFoundError(
@@ -57,12 +67,22 @@ def grade_log(
         if not dates:
             raise ValueError("Projection log is empty.")
         summaries = [
-            grade_log(slate_date=d, preferred_only=preferred_only, all_logged=False)
+            grade_log(
+                slate_date=d,
+                preferred_only=preferred_only,
+                all_logged=False,
+                exclude_out_of_support=exclude_out_of_support,
+                exclude_abbreviated=exclude_abbreviated,
+                min_actual_pa=min_actual_pa,
+            )
             for d in dates
         ]
         combined = {
             "mode": "all_logged",
             "preferred_only": preferred_only,
+            "exclude_out_of_support": exclude_out_of_support,
+            "exclude_abbreviated": exclude_abbreviated,
+            "min_actual_pa": min_actual_pa,
             "dates": [s["slate_date"] for s in summaries],
             "per_date": summaries,
             "n_dates": len(summaries),
@@ -84,6 +104,7 @@ def grade_log(
     day = log.filter(pl.col("game_date") == target)
     if preferred_only and "is_preferred" in day.columns:
         day = day.filter(pl.col("is_preferred"))
+    day = mark_out_of_support(day)
     if day.is_empty():
         raise ValueError(
             f"No logged rows for {target}. "
@@ -108,14 +129,30 @@ def grade_log(
         (pl.col("k_rate_pred") - pl.col("actual_k_rate")).alias("residual_k_rate"),
         pl.col("actual_K").is_not_null().alias("has_actual"),
     )
+    graded = mark_abbreviated_outing(graded, min_pa=min_actual_pa)
 
-    matched = graded.filter(pl.col("has_actual"))
+    drop = pl.lit(False)
+    if exclude_out_of_support:
+        drop = drop | pl.col("is_out_of_support").fill_null(False)
+    if exclude_abbreviated:
+        drop = drop | pl.col("is_abbreviated_outing").fill_null(False)
+    graded_eval = graded.filter(~drop)
+
+    matched = graded_eval.filter(pl.col("has_actual"))
+    n_oos = int(graded.filter(pl.col("is_out_of_support")).height)
+    n_abbrev = int(graded.filter(pl.col("is_abbreviated_outing")).height)
     summary: dict[str, object] = {
         "slate_date": target.isoformat(),
         "preferred_only": preferred_only,
+        "exclude_out_of_support": exclude_out_of_support,
+        "exclude_abbreviated": exclude_abbreviated,
+        "min_actual_pa": min_actual_pa,
         "n_logged": day.height,
+        "n_out_of_support": n_oos,
+        "n_abbreviated_outing": n_abbrev,
+        "n_eligible_after_exclusion": int(graded_eval.height),
         "n_matched": matched.height,
-        "n_missing_actual": int(graded.filter(~pl.col("has_actual")).height),
+        "n_missing_actual": int(graded_eval.filter(~pl.col("has_actual")).height),
         "graded_path": str(GRADED_PATH),
     }
     if matched.height:
@@ -183,11 +220,36 @@ def main() -> None:
         action="store_true",
         help="Grade every distinct game_date in the projection log.",
     )
+    parser.add_argument(
+        "--exclude-out-of-support",
+        action="store_true",
+        help=(
+            "Exclude pregame OOS rows from summary metrics "
+            f"(low TBF/xK or days_rest>={EXTREME_REST_DAYS})."
+        ),
+    )
+    parser.add_argument(
+        "--exclude-abbreviated",
+        action="store_true",
+        help=(
+            "Exclude openers / early exits from summary metrics "
+            f"(actual_PA < {MIN_STARTER_ACTUAL_PA}, same as training true-start cohort)."
+        ),
+    )
+    parser.add_argument(
+        "--min-actual-pa",
+        type=int,
+        default=MIN_STARTER_ACTUAL_PA,
+        help=f"Abbreviated outing threshold (default {MIN_STARTER_ACTUAL_PA}).",
+    )
     args = parser.parse_args()
     summary = grade_log(
         slate_date=args.date,
         preferred_only=args.preferred_only,
         all_logged=args.all_logged,
+        exclude_out_of_support=args.exclude_out_of_support,
+        exclude_abbreviated=args.exclude_abbreviated,
+        min_actual_pa=args.min_actual_pa,
     )
     print(json.dumps(summary, indent=2))
     print(f"Wrote {GRADED_PATH}")

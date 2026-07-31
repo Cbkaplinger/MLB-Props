@@ -1236,57 +1236,47 @@ def build_daily_slate(
             | set(scheduled.starters["team_id"].to_list())
         )
     )
-    active = fetch_mlb_rosters(
-        team_ids,
-        game_date,
-        roster_type="active",
-        timeout=timeout,
-    )
-    active = enrich_rosters_for_matching(active, timeout=timeout)
-    try:
-        lineups = resolve_player_ids(
-            scheduled.lineups,
-            active,
-            output_column="batter",
-            aliases=aliases,
-            enrich=False,
-            timeout=timeout,
-        )
-        starters = resolve_player_ids(
-            scheduled.starters,
-            active,
-            output_column="pitcher",
-            aliases=aliases,
-            enrich=False,
-            timeout=timeout,
-        )
-    except ValueError:
-        roster_40 = fetch_mlb_rosters(
+    # Active first; widen to 40-man then full-season for IL / non-40 catchups
+    # (e.g. Chadwick Tromp on BAL fullSeason only while still on RG cards).
+    roster_frames: list[pl.DataFrame] = []
+    lineups: pl.DataFrame | None = None
+    starters: pl.DataFrame | None = None
+    last_err: ValueError | None = None
+    for roster_type in ("active", "40Man", "fullSeason"):
+        batch = fetch_mlb_rosters(
             team_ids,
             game_date,
-            roster_type="40Man",
+            roster_type=roster_type,
             timeout=timeout,
         )
-        roster_40 = enrich_rosters_for_matching(roster_40, timeout=timeout)
-        rosters = pl.concat([active, roster_40]).unique(
-            subset=["team_id", "mlb_id"]
-        )
-        lineups = resolve_player_ids(
-            scheduled.lineups,
-            rosters,
-            output_column="batter",
-            aliases=aliases,
-            enrich=False,
-            timeout=timeout,
-        )
-        starters = resolve_player_ids(
-            scheduled.starters,
-            rosters,
-            output_column="pitcher",
-            aliases=aliases,
-            enrich=False,
-            timeout=timeout,
-        )
+        batch = enrich_rosters_for_matching(batch, timeout=timeout)
+        roster_frames.append(batch)
+        rosters = pl.concat(roster_frames).unique(subset=["team_id", "mlb_id"])
+        try:
+            lineups = resolve_player_ids(
+                scheduled.lineups,
+                rosters,
+                output_column="batter",
+                aliases=aliases,
+                enrich=False,
+                timeout=timeout,
+            )
+            starters = resolve_player_ids(
+                scheduled.starters,
+                rosters,
+                output_column="pitcher",
+                aliases=aliases,
+                enrich=False,
+                timeout=timeout,
+            )
+            last_err = None
+            break
+        except ValueError as exc:
+            last_err = exc
+            continue
+    if lineups is None or starters is None:
+        assert last_err is not None
+        raise last_err
 
     resolved = DailySlate(lineups=lineups, starters=starters)
     validate_daily_slate(

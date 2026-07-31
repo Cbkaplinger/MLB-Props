@@ -76,9 +76,14 @@ python production/log_projections.py --allow-stale
 python production/grade_projections.py --preferred-only
 python production/grade_projections.py --date 2026-07-28 --preferred-only
 python production/grade_projections.py --all-logged --preferred-only
+# Drop openers / 1st-inning injury exits (actual_PA < 9) + pregame OOS from MAE:
+python production/grade_projections.py --all-logged --preferred-only `
+  --exclude-abbreviated --exclude-out-of-support
 ```
 
 Writes `artifacts/projection_log/projections.parquet` and `graded.parquet`.
+Notebook §7 (`daily_projections.ipynb`) shows previous-day / all-time tables
+and pred-vs-actual charts from the graded file.
 
 ## Post-freeze holdout (frozen stack, no refit)
 
@@ -90,6 +95,39 @@ python production/post_freeze_holdout.py
 See `docs/reference/post_freeze_holdout.md`. Lineup train/serve skew:
 `docs/reference/lineup_train_serve.md`.
 
+## Odds ledger (edge / units / CLV)
+
+Product layer — does **not** feed the strikeout trainer. Protocol:
+`docs/reference/market_clv_gates.md`.
+
+```powershell
+# After log_projections: ingest full-board quotes (repeat --quote)
+python production/log_odds_quotes.py --book novig --unit 50 --list-board
+python production/log_odds_quotes.py --book novig --unit 50 `
+  --quote "Sean Burke,6.5,-150,+130" --quote "Andre Pallante,4.5,+163,-185"
+
+# SharpAPI live poll (requires SHARPAPI_KEY in repo-root .env)
+# open replaces unclosed same-day tickets; stores tip time + minutes_to_tip_at_open
+python production/poll_odds.py --snapshot open --unit 50
+
+# Tip-aware CLV watcher (leave running; PC awake). Or one-shot close:
+.\production\run_close_watcher.ps1
+python production/close_watcher.py --once
+python production/poll_odds.py --snapshot close
+
+
+# Live recommendation board (preferred × odds × edge × units) — open the HTML
+python production/odds_board.py --unit 50 --open-html
+
+# Close + settle + exploratory threshold curve
+python production/grade_odds_ledger.py --close "Logan Webb,2026-07-29,+115,-120"
+python production/grade_odds_ledger.py --settle "Logan Webb,2026-07-29,4"
+python production/grade_odds_ledger.py --status --curve
+```
+
+Writes `artifacts/odds_log/ledger.parquet` (+ `threshold_curve.parquet`).
+SharpAPI free tier returns DraftKings + FanDuel only (60s delay). Model edge
+math stays local — do not use SharpAPI +EV as your decision signal.
 ## Playground demos
 
 Counterfactuals and toys live under `playground/` (e.g. pitcher vs every

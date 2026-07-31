@@ -43,11 +43,24 @@ probable. Filter:
 python -c "import polars as pl; df=pl.read_parquet('artifacts/live_scores/live_scores_2026-07-28.parquet'); print(df.filter(pl.col('starter_disagreement')).select('team','player_name','starter_source','expected_K','is_preferred').sort('team','starter_source'))"
 ```
 
+### Line shopper (manual odds dry-run)
+
+Paste book K lines against the projection log — no API. Uses locked gates in
+`docs/reference/market_clv_gates.md` (8% edge floor, ¼ Kelly).
+
+```powershell
+python playground/line_shopper.py
+python playground/line_shopper.py --list
+python playground/line_shopper.py --quote "Shane Bieber,4.5,+115,-145"
+python playground/line_shopper.py --quote "Bieber,4.5,115,-145" --write
+```
+
+Optional write → `artifacts/odds_log/paper_dry_run.parquet`.
+
 ## Other cool ideas (not built yet)
 
 | Demo | Why it’s fun |
 |---|---|
-| **Line shopper** | Plot model `p_over_*` → fair American odds vs a pasted book line |
 | **Rest sensitivity** | Same pitcher, sweep `days_rest` 3→8 and watch expected_K / TBF move |
 | **Opener detector** | Flag announced starters whose form / TBF looks like a bulk-guy profile |
 | **Park tour** | One pitcher, hold lineup fixed, swap `park_k_factor` across stadiums |
