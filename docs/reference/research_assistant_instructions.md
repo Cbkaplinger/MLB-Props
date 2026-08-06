@@ -21,10 +21,10 @@ Work only in: `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props`
 
 | Family | Path |
 |---|---|
-| Package | `src/Python/` |
+| Package | `src/Python/` (incl. `market.py` + `skill_stats.py`) |
 | Pipeline notebooks | `src/Notebooks/` |
 | Models | `models/Strikeout-Model/` (+ `research/`), `models/TBF-Model/` |
-| Production | `production/` |
+| Production | `production/` (incl. `results_dashboard.ipynb` — CLV skill suite) |
 | Playground / scripts / tests | `playground/`, `scripts/`, `tests/` |
 | Docs | `docs/paper/`, `research/`, `reference/`, `diagrams/`, `archive/` |
 
@@ -55,24 +55,25 @@ Live RG+MLB assembly (`daily_lineups.py` / `live_assembly.py`) is
 **inference-only**. Train uses first-9-by-PA; live uses announced RG order
 (`docs/reference/lineup_train_serve.md`).
 
-**Frozen stack (2026-07-28):**
+**Frozen stack (2026-08-03):**
 
 | Piece | Model | Notes |
 |---|---|---|
-| Rate | Unweighted LightGBM | **`production` = 180** (Step 7 thin + Step 10 P1 swap) |
+| Rate | Unweighted LightGBM | **`production` = 184** (Step 10 P1 + Step 11 discipline) |
 | TBF | Ridge | Thin bullpen (**24** feats); α persisted |
 | Counts | Binomial/Poisson | On **projected** TBF only |
 
-Artifacts: `lightgbm_krate_20260728_033241`,
+Artifacts: `lightgbm_krate_20260803_155401`,
 `tbf_pa_ridge_workload_context_bullpen_20260728_035607`.
-Companions: `step7_185`, `pre_freeze_248`, `ridge_vif` (73).
+Companions: `step10_180`, `step7_185`, `pre_freeze_248`, `ridge_vif` (73).
 
-Chrono test (from 2024-08-06): MAE/RMSE/R² ≈ **0.0787 / 0.0987 / 0.147**.
+Chrono test (from 2024-08-06): MAE/RMSE/R² ≈ **0.0780 / 0.0982 / 0.156**.
 Marcel-lite ≈ **0.0826**; mean floor ≈ **0.0854**. Walk-forward expected-K
-MAE ≈ **1.778**; mean ECE ≈ **0.024**.
+MAE ≈ **1.775** (discipline challenger screen); mean ECE ≈ **0.024** (Phase 11.C).
 
 Paper: `docs/paper/manuscript.md`. Summary: `docs/paper/resume-summary.md`.
 Status: `docs/diagrams/00-index.md`.
+Freeze: `docs/research/step11_discipline_registry_freeze.md`.
 
 ## Leakage and feature safety
 
@@ -102,17 +103,30 @@ Flag unsafe proposals explicitly.
 - Ablations: two outer folds; within-fold bootstrap B=2000 for ΔMAE. Opponent
   lineup is the only both-fold bootstrap keep; do not oversell other families.
 - `expected_K = k_rate_hat × tbf_hat` with projected exposure only.
-- Markets/CLV/Kelly out of scope until closing lines exist.
+- Markets/CLV/Kelly are a **product layer** (odds never train LightGBM) —
+  see `docs/reference/market_clv_gates.md` and `production/README.md`.
+  Statistical skill checks on the CLV ledger live in
+  `src/Python/skill_stats.py` (z-test, BCa CI, stake-weighted bootstrap,
+  rolling SE ribbon) — used by `production/results_dashboard.ipynb`
+  Sections 11-18. Floor and Kelly freezes are pre-registered and recorded in
+  `docs/research/floor_freeze_log.md`; dashboard additions in
+  `docs/research/notebook_change_log.md`.
 
 ## Production daily ops
 
 ```text
 refresh_statcast → refresh_features [--skip-training] → log_projections
+→ odds_board → poll_odds --snapshot open
+→ (tip window) close_watcher  OR  poll_odds --snapshot close
+→ grade_odds_ledger [--auto-settle-api]
 → (next day) refresh + grade_projections --all-logged --preferred-only
 ```
 
-Formal log from **2026-07-28**: `artifacts/projection_log/{projections,graded}.parquet`.
-Board + graded charts: `production/daily_projections.ipynb` (§7).
+Catch-up opens: `poll_odds --snapshot open --append` (does **not** start the
+watcher). Formal log from **2026-07-28**:
+`artifacts/projection_log/{projections,graded}.parquet`. Odds ledger:
+`artifacts/odds_log/ledger.parquet`. Morning board:
+`production/daily_projections.ipynb`.
 
 ## Reviews and notebooks
 
@@ -129,13 +143,21 @@ Level 3 construction audit: `src/Notebooks/pipeline/training.ipynb`.
 ## Remaining work
 
 **Done** (do not reopen without evidence): Steps 1/3/4/5/7–10; Phase 11
-tune/WF/calibrate; Phase D PA≥9 interim; TBF + count layer; live dual scoring;
-projection log/grade; manuscript.
+tune/WF/calibrate; Phase D PA≥9 interim; TBF + count layer; post-hoc Platt
+`p_over_*` calibration (production pointer); live dual scoring; projection
+log/grade; paper-trading board/ledger/CLV closes; manuscript;
+**2026-08-06 dashboard CLV skill suite** (`results_dashboard.ipynb` §11-18 +
+`src/Python/skill_stats.py` z-test / BCa / stake-weighted / rolling-SE) and
+the pre-registered floor-freeze log (`docs/research/floor_freeze_log.md`).
 
 **Open:** (1) grow post-freeze holdout — don’t sell recycled 2025 as pristine;
 (2) pregame role labels before broader population claims; (3) filter
-neutral/international parks; (4) optional longer outer folds, stronger external
-floors, closing-line/CLV if odds history appears; (5) commit only with owner
-approval.
+neutral/international parks; (4) grow CLV skill sample to **n_clv ≥ 150
+at floor ≥ 12%** before real bankroll; check the **BCa CLV CI on
+floor ≥ 12% excludes zero AND win-rate > 0.524 break-even at the same
+checkpoint**, per the pre-registered `next_50_checkpoint.json` rule written
+by §18b. Morning opens; settle; do not retune the 12% floor from calibrator
+edge shrinkage (raise *or* lower); optional NB/mixture count challengers and
+richer external floors; (5) commit only with owner approval.
 
 Same-game `PA` may be the TBF train/eval label, never a prediction-time feature.

@@ -1,50 +1,52 @@
 # Live assembly plan
 
-**Status:** v1 wired (2026-07-28) — historical scoring proven; daily ops under
-`production/` (incremental Statcast + feature refresh + score)  
+**Status:** shipped (2026-07-28+) — historical scoring proven; daily ops under
+`production/` (Statcast → features → log → grade → odds board → CLV ledger)  
 **See also:** `docs/research/phase11_model_quality_gates.md`,
-`docs/research/phase_d_population_findings.md`, `production/README.md`
+`docs/research/phase_d_population_findings.md`, `production/README.md`,
+`docs/reference/market_clv_gates.md`
 
 ## Goal
 
 ```text
-k_rate_hat  ← LightGBM production (180)  [frozen booster]
-tbf_hat     ← Ridge thin bullpen         [joblib]
+k_rate_hat  ← LightGBM production (184)  [frozen booster]
+tbf_hat     ← Ridge thin-bullpen TBF     [joblib]
 expected_K  ← k_rate_hat × tbf_hat
-P(K ≥ L)    ← count_layer (binomial lines)
+P(K ≥ L)    ← count_layer (binomial lines 2.5…9.5)
 ```
 
 ## Frozen inputs
 
 | Piece | Location |
 |---|---|
-| k-rate | `artifacts/models/lightgbm_krate_20260728_033241.*` |
+| k-rate | `artifacts/models/lightgbm_krate_20260803_155401.*` |
 | TBF | `artifacts/models/tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib` |
-| Features | JSON `features` list (180) + TBF 24 |
+| Features | JSON `features` list (184) + TBF 24 |
 | Code | `src/Python/live_assembly.py`, `Models/Strikeout-Model/predict_slate.py` |
 | Daily ops | `production/` (see `production/README.md`) |
+| Market / CLV | `src/Python/{market,odds_* ,sharp_odds}.py` + `production/{odds_board,poll_odds,close_watcher,grade_odds_ledger}.py` |
 
 ## Commands
 
 ```powershell
-# Preferred daily chain (ops)
-python production/run_daily.py
+# Preferred daily chain (ops) — full morning loop in production/README.md
 python production/refresh_statcast.py          # cache + only new days
 python production/refresh_features.py --skip-training
-python production/score_slate.py --live
+python production/log_projections.py
+python production/odds_board.py --unit 50
+python production/poll_odds.py --snapshot open --unit 50
 
 # Wiring proof on a date already in pitcher_training
 python Models/Strikeout-Model/predict_slate.py --historical-date 2025-09-20
 
-# Fetch slate only
+# Fetch slate only / live score without logging
 python production/score_slate.py --dry-run
-
-# Live as-of score (needs rolling through yesterday; --allow-stale for degraded)
 python production/score_slate.py --live
 python production/score_slate.py --live --allow-stale
 ```
 
-Outputs land in `artifacts/live_scores/`.
+Outputs: `artifacts/live_scores/`, `artifacts/projection_log/`,
+`artifacts/odds_log/`.
 
 ## Assembly checklist
 
@@ -53,20 +55,27 @@ Outputs land in `artifacts/live_scores/`.
 3. ~~Pregame rest / bullpen for slate date~~ — recomputed (not copied from last start)
 4. ~~Announced opp lineup aggregates~~ — as-of batter rates + production means
 5. ~~Score k-rate + TBF + count layer; log model IDs / hashes~~
-6. Team-code bridge: **`ARI` → `AZ`** for Statcast joins
+5b. ~~Post-hoc Platt on `p_over_*` → `p_over_*_cal` (optional production pointer)~~
+6. ~~Paper board + open tickets + tip-window closes~~ — `odds_board` / `poll_odds` / `close_watcher`
+7. Team-code bridge: **`ARI` → `AZ`** for Statcast joins
+
+Calibration: `src/Python/prob_calibration.py`; fit via
+`Models/Strikeout-Model/research/fit_prob_calibration.py`. Disable with
+`score_frame(..., calibration_path=False)`. Findings:
+`docs/research/prob_calibration_findings.md`.
 
 ## Known limits
 
 - Level 1–2 include **2026 through the latest refreshed Savant day** (see
-  `production/refresh_statcast.py`). As of 2026-07-28 refresh: through
-  **2026-07-27**. Re-run daily; Savant often lags overnight.
+  `production/refresh_statcast.py`). Re-run daily; Savant often lags overnight.
 - Overnight RG vs MLB probable disagreements **dual-score** both pitchers
   (`starter_source`, `is_preferred` on MLB). Pass `--no-dual-starters` for RG-only.
   Strict fail: `--require-probable-match`.
 - `--allow-stale` scores when rolling is >1 day behind the slate and sets
   `stale_days` in metadata — not for betting decisions.
-- Playground counterfactuals: `playground/whatif_pitcher.py` (pitcher vs all teams).
-
+- Playground counterfactuals: `playground/whatif_pitcher.py`. Manual quote paste:
+  `playground/line_shopper.py` (canonical paper path is SharpAPI + ledger).
+- Roster name resolve widens `active → 40Man → fullSeason` within the team.
 - Phase D: announced openers are **out of support**; metrics remain conditional
   on `PA ≥ 9` (cutoff screen 5–10 keeps 9).
 - Doubleheaders: schedule attach uses `###2` / `Game 2` markers when present,

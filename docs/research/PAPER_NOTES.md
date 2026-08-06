@@ -720,12 +720,13 @@ identity is established by the hashes above)
 
 ## 12. Required sequencing before the batters-faced (TBF) model
 
-**Status (2026-07-28):** Feature spine locked at LightGBM `production` **180**
-(Step 10). TBF + count layer chrono-scored. **Phase 11.A–C complete** as a
-*verification* pass (HPO ≈ flat; walk-forward expected_K ≈ 1.78; ECE ≈ 0.024) —
-not large metric lifts. **Phase D interim policy frozen**
-(`docs/research/phase_d_population_findings.md`). Live assembly is optional next;
-pristine v1 still needs pregame role labels.
+**Status (2026-08-03):** Feature spine locked at LightGBM `production` **184**
+(Step 11 discipline lift on Step 10 P1 spine). TBF + count layer chrono-scored.
+**Phase 11.A–C complete** as a *verification* pass (HPO ≈ flat; walk-forward
+expected_K ≈ 1.78; ECE ≈ 0.024) — not large metric lifts. **Phase D interim
+policy frozen** (`docs/research/phase_d_population_findings.md`). Live ops under
+`production/`. Parked additive screens (quality WD / age / pitcher discipline /
+vs-hand) remain research-only under `artifacts/feature_research/`.
 
 1. ~~Complete a feature dictionary with missingness rates and correlation
   clusters by family.~~ **Done** — `docs/research/step1_feature_dict_vif_findings.md`.
@@ -738,8 +739,9 @@ pristine v1 still needs pregame role labels.
 5. ~~Compare unweighted vs PA-weighted / binomial / beta-binomial.~~ **Done** —
   keep unweighted LightGBM; see `docs/research/step5_*_findings.md`.
 6. ~~Validate with nested chronological folds.~~ **Done** — `nested_cv.py`.
-7. ~~Freeze compact feature registry.~~ **Done** — **180**-feature production
-  (`docs/research/step10_p1_registry_freeze.md`; `step7_185` retained for bake-offs).
+7. ~~Freeze compact feature registry.~~ **Done** — **184**-feature production
+  (`docs/research/step11_discipline_registry_freeze.md`; `step10_180` /
+  `step7_185` retained for bake-offs).
 8. ~~Estimator / stack quality (Phase 11.A–C).~~ **Done** — confirmatory; keep
   baseline LGBM defaults + Ridge joblib (`docs/research/phase11_model_quality_gates.md`).
 9. ~~Phase D population audit + interim policy.~~ **Done** — ~3.5% of first
@@ -761,13 +763,14 @@ expected_K = frozen_k_rate × projected_tbf
 P(K ≥ line) ← Binomial / Poisson / beta-binomial with n = round(projected_tbf)
 ```
 
-Frozen inputs: LightGBM `production` (**180**, baseline hyperparams) × Ridge
+Frozen inputs: LightGBM `production` (**184**, baseline hyperparams) × Ridge
 `workload_context_bullpen` (α tuned, joblib persisted). Same-game PA never
 enters prop probabilities.
 
-Walk-forward (3 expanding 2024 windows): mean expected_K MAE ≈ **1.778**
-(σ ≈ 0.036; reference chrono test ≈ 1.79). Line Briers ≈ 0.12–0.22. Mean ECE ≈
-**0.024** (no recalibration). κ → binomial limit; Poisson essentially tied.
+Walk-forward (3 expanding 2024 windows on the 180 spine during Phase 11): mean
+expected_K MAE ≈ **1.778** (σ ≈ 0.036; reference chrono test ≈ 1.79). Discipline
+184 stack screen ≈ **1.775**. Line Briers ≈ 0.12–0.22. Mean ECE ≈ **0.024**
+(no recalibration on that gate). κ → binomial limit; Poisson essentially tied.
 
 Still open under this section:
 
@@ -782,3 +785,61 @@ Live assembly v1 is wired (`docs/reference/live_assembly_plan.md`): historical s
 
 Step 5 β-binomial was a **rate-likelihood** diagnostic on historical PA and did
 not beat unweighted LightGBM — distinct from this projected-TBF count layer.
+
+## 14. CLV skill suite + floor re-freeze (2026-08-06)
+
+**Operational, not modeling.** Adds a CLV skill dashboard (`production/results_dashboard.ipynb`
+§11-18) and a sibling skill-stats module (`src/Python/skill_stats.py`) on top
+of the existing `market.py` ledger math. Doesn't touch the strikeout stack.
+
+Motivation: the prior in-chat floor review recommended dropping the active
+floor 12% → 6–8% on a ~120-bet window with `+0.66–0.72pp` CLV at the lower
+bands, scaled to a "2-3 x away sample-size" claim. On re-running it against
+the resolved ledger (330 rows / 199 settled / 72 settled+CLV at floor≥12%,
+ledger SHA-256 `cfddcf67…49e37`), the cited effect size was stale (pre-update
+n=67 cell output) and the n-needed math (corrected) is ~620 / 375 / 655 for
+floor ≥ 6% / 8% / 12% to exclude zero at those effect sizes. Lowering the
+floor was invalidated at the input, not cosmetically.
+
+Decisions on the resolved ledger (all stored as artifacts under
+`artifacts/odds_log/`):
+
+- **Floor:** reaffirmed 12% (was 0.08; first move to 0.12 was earlier this
+  session, same-day reaffirmation here).
+- **Kelly:** ⅛-Kelly (was ¼) — sizing halved while the CLV skill gate stays
+  INCONCLUSIVE; revert to ¼ once the gate clears.
+- **Skill bar:** INCONCLUSIVE on the resolved ledger — BCa CLV CI at
+  floor ≥ 12% is `[-0.30, +1.78]` (includes 0); win-rate 0.528 barely clears
+  0.524; pseudo-ROC AUC 0.553 (real but weak); two-proportion z-test
+  `z=+1.77, p=0.077` on `clv ≥ +1.0pp` vs `clv < +1.0pp` (n=54 / 145) —
+  directionally the strongest single piece of evidence, but not yet α=0.05.
+- **Stake-weighted CLV:** `+0.262pp` vs equal-weighted `+0.471pp` — big-Kelly
+  bets drag CLV **down 0.21pp**. Sizing filter is currently amplifying the
+  less-skillful bets; this is the metric that actually governs bankroll, and
+  it materially undercuts any escalation case until it reverses.
+- **Stopping rule:** **n_clv ≥ 150** at floor ≥ 12% (currently 72), evaluated
+  on live-ledger reruns, checking BCa CLV CI excluding zero AND win-rate >
+  0.524 at the same checkpoint. Either alone is insufficient. 3-4 weeks at
+  the current grading rate is a reasonable falsifiable checkpoint.
+
+Why a new `skill_stats.py` module instead of more functions in `market.py`:
+`market.py` owns betting *mechanics* (de-vig / edge / Kelly / CLV in pp);
+`skill_stats.py` owns *judgment* (z-test, bootstrap CIs, rolling SE
+ribbon). Different reasons to change, so different files. The notebook and
+the weekly CLV-reliability artifact both pull from one home so the math has
+one test suite.
+
+Why **BCa** over the existing `market.bootstrap_mean_ci` (percentile-only):
+percentile intervals are biased and too narrow at small-n + skew, which is
+exactly the regime the per-band CLV sweep lives in (n ≈ 10-40 in many
+bands). Section 18a stays percentile-only for back-compat; BCa is the
+authoritative sweep (`artifacts/odds_log/clv_floor_bca.parquet`).
+
+Why **pre-registration as a frozen JSON** (`next_50_checkpoint.json`)
+instead of markdown: the "recursive floor-rediscovery" pattern is the actual
+disease this batch kills. A markdown promise can be edited silently; a JSON
+with the ledger SHA-256 and a frozen `prereg_rule` can be re-hashed at audit
+time. The future audit asserts the "next 50 settled bets at the 12% floor"
+were chosen from bets unsettled at the snapshot ledger — not a re-fitted slice.
+
+Canonical: `docs/research/floor_freeze_log.md` (audit record), `docs/research/notebook_change_log.md` (section-by-section dashboard additions), `docs/reference/market_clv_gates.md` (operating protocol).

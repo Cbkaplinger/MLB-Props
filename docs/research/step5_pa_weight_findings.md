@@ -36,9 +36,10 @@ python models/Strikeout-Model/research/pa_weight_nested_compare.py
 ```
 
 Next Step 5 arms (binomial / beta-binomial) are complete — keep unweighted
-LightGBM. Feature freeze is **180** (Step 10). Remaining critical path is
-Phase 11 model quality (`docs/research/phase11_model_quality_gates.md`), then Phase D /
-pristine post-freeze eval.
+LightGBM. Feature freeze later landed at **184** (Step 11; prior spine 180).
+Remaining critical path after this arm was Phase 11 model quality
+(`docs/research/phase11_model_quality_gates.md`), then Phase D / pristine
+post-freeze eval.
 
 ## Artifact consolidation note
 

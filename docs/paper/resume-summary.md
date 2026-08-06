@@ -18,7 +18,7 @@ Estimate a starter’s strikeout rate before first pitch, project how many batte
 
 | Component | Model | Role |
 |---|---|---|
-| Strikeout rate | Unweighted LightGBM (180 features) | Frozen production rate model |
+| Strikeout rate | Unweighted LightGBM (184 features) | Frozen production rate model |
 | Batters faced (TBF) | Ridge (thin bullpen, 24 features) | Projected exposure |
 | Counts / lines | Binomial / Poisson on projected TBF | Expected K and P(K ≥ L) |
 
@@ -34,14 +34,15 @@ Estimate a starter’s strikeout rate before first pitch, project how many batte
 |---|---|
 | Estimator tuning | Keep baseline LightGBM defaults; Ridge α tuned and persisted |
 | Walk-forward stack backtest | Mean expected-K MAE ≈ **1.778** (3 expanding 2024 windows; σ ≈ 0.036) |
-| Calibration | Mean ECE ≈ **0.024** (no recalibration) |
+| Calibration | Mean ECE ≈ **0.024** (11.C diagnose); production **Platt** post-hoc on `p_over_*` (chrono CV ΔECE ≈ −0.008; raw retained). Fit on 2024 walk-forward OOS predictions; not yet refit on 2026 conditions. |
 | Population policy | Metrics conditional on PA ≥ 9 (~3.5% of first pitchers excluded) |
+| **Live market pilot (exploratory)** | Paper-traded vs. real DK/FD lines, quarter-Kelly sizing off an 8% edge floor. Pre-registered gate: n≥100 CLV samples + bootstrap CI excluding 0. **Current status: inconclusive** — directionally positive mean CLV (~+0.7pp) at n≈85–90, below the pre-registered sample threshold. Not a claim of market edge. |
 
 ---
 
 ## Takeaway
 
-Leakage-safe Statcast → rate × exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). Portfolio claim: ML engineering under a hard pregame constraint.
+Leakage-safe Statcast → rate × exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). A live closing-line-value pilot against real sportsbook markets is running under a pre-registered statistical gate — currently inconclusive, to be updated once the sample resolves. Portfolio claim: ML engineering under a hard pregame constraint, extended with production deployment and live-market monitoring discipline.
 
 ---
 

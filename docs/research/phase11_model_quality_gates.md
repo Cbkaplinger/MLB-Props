@@ -17,15 +17,20 @@ near a local optimum — but it is **not** a story of large metric gains.
 |---|---|---|
 | **11.A** | Keep baseline LGBM defaults; Ridge α ≈ 123 + joblib | HPO ≈ flat vs defaults |
 | **11.B** | Mean expected_K MAE **1.778** (3 windows); pass | Stack coherent under expanding WF |
-| **11.C** | Mean ECE **0.024**; no recalibration | Probs usable; 3.5 slightly hot |
+| **11.C** | Mean ECE **0.024**; no recalibration **in-gate** | Probs usable; 3.5 slightly hot |
 | **11.D** | ~**3.5%** of first pitchers excluded by `PA≥9` | Interim policy; role labels still missing |
+
+**Follow-on (2026-08-03):** chrono-safe **Platt** post-hoc maps on WF OOS
+`p_over_*` — see `docs/research/prob_calibration_findings.md`. This does **not**
+reopen 11.C’s soft bar verdict; it is an optional honesty layer selected by
+expanding-window CV (mean ΔECE ≈ −0.008). Raw generative probs remain logged.
 
 Artifacts: `artifacts/model_quality/phase11a_*`, `phase11b_*`, `phase11c_*`,
 `phase_d_population/`.
 
 ## Why this came next (not live assembly)
 
-Feature selection is closed (`production` = **180**, Step 10 P1 swap). That does
+Feature selection is closed (`production` = **184**, Step 11 discipline lift). That does
 **not** mean the *models* or *decision stack* are ready. In a betting / pricing
 system the product is a **probability**, not a parquet of features. The correct
 sequence after a feature freeze:
@@ -51,7 +56,7 @@ Think in three layers of risk, then spend engineering time in that order:
 
 | Risk | Failure mode | Attack |
 |---|---|---|
-| **Estimation** | Defaults leave MAE / Brier on the table | Small nested HPO on *frozen* 180; persist TBF α |
+| **Estimation** | Defaults leave MAE / Brier on the table | Small nested HPO on *frozen* 184; persist TBF α |
 | **Stack coherence** | Rate looks fine, props don't | Walk-forward `k_rate × TBF → expected_K → lines` as one object |
 | **Decision quality** | Probabilities are miscalibrated / sliced | ECE, reliability, residual slices before any Kelly talk |
 
@@ -73,7 +78,7 @@ not silent registry edits).
 
 | Component | Lock |
 |---|---|
-| K-rate features | `production` 180 (`docs/research/step10_p1_registry_freeze.md`) |
+| K-rate features | `production` 184 (`docs/research/step11_discipline_registry_freeze.md`) |
 | K-rate family | Unweighted LightGBM (Step 5) |
 | TBF | Ridge + `workload_context_bullpen` |
 | Count identity | `expected_K = k_rate × projected_tbf` |
@@ -99,7 +104,7 @@ nested promotion — not silent registry edits.
 - Early stopping stays on the *inner* validation partition only.
 - Deliverable: tuned hyperparams JSON + refit artifact under
   `artifacts/models/`; compare vs current freeze
-  `lightgbm_krate_20260728_033241` on the **same** outer/test cut.
+  `lightgbm_krate_20260803_155401` on the **same** outer/test cut.
 
 ### TBF (Ridge / thin pen)
 - Search `alpha` (log grid) on the same chrono train/val discipline.

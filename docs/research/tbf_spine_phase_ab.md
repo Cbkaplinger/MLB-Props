@@ -33,8 +33,9 @@ Same-game `PA` / `Outs` / `Pitches` remain labels/oracle only (or dropped raw).
 ## Safety vs frozen k-rate
 
 All of the above are **`is_experimental_feature`** for the k-rate allow-list.
-Frozen LightGBM `production` stays at **180** features (Step 10) and does
-**not** consume them until a nested TBF (or later k-rate) promotion screen.
+Frozen LightGBM `production` is **184** features (Step 11) and does **not**
+consume these TBF covariates as k-rate inputs (they remain experimental on the
+rate path). Companion `step10_180` retains the prior 180 freeze.
 
 `model_feature_names(..., include_experimental=True)` exposes them for TBF
 research fits.

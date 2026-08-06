@@ -29,7 +29,7 @@ krate × TBF → E[K] → P(K ≥ L)
 
 **Goal.** Estimate a starter’s strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K ≥ L) for common prop lines L.
 
-**Non-goals.** Closing-line validation, de-vig / Kelly staking, and in-game (live) betting. Those are product layers; this manuscript is a **modeling** paper.
+**Non-goals.** In-game (live) betting and de-vig staking mechanics beyond what is needed to report closing-line value are out of scope; this manuscript is primarily a **modeling** paper. Section 8.5 reports an exploratory, pre-registered closing-line pilot as a secondary, clearly-labeled extension — its result is **inconclusive** as of this writing (sample below the pre-registered minimum) and should not be read as a claim of market edge.
 
 **Estimand.** Research metrics use the PA ≥ 9 cohort defined in Section 3.3.
 
@@ -52,11 +52,11 @@ krate × TBF → E[K] → P(K ≥ L)
 ## 2. Contributions
 
 1. **Leakage-safe feature architecture.** Same-game outcomes never enter predictors; rolling statistics are shifted; park factors use prior seasons only; chronological splits never divide a calendar date across partitions.
-2. **Nested selection into a frozen feature set.** Feature-family and window decisions are chosen on inner chronological folds that lie wholly inside each training window, then evaluated on a later held-out period. The production LightGBM feature set is frozen at **180** features.
+2. **Nested selection into a frozen feature set.** Feature-family and window decisions are chosen on inner chronological folds that lie wholly inside each training window, then evaluated on a later held-out period. The production LightGBM feature set is frozen at **184** features (Step 10 P1 spine of 180 plus four opposing-lineup discipline nominees).
 3. **Dual-model strikeout stack.** Unweighted LightGBM for krate; Ridge for projected TBF; binomial count layer on projected exposure. Chronological test clears a Marcel-lite talent floor (Table 3b).
 4. **Process evidence, including negative results.** PA-weighting, linear binomial / beta-binomial rate arms, nested LightGBM hyperparameter search, and several expanded feature families did not clear promotion bars—documented rather than buried.
 
-What this paper does **not** claim: large accuracy lifts, market edge, or feature-family effects beyond what Table 6 and the within-fold bootstrap support. Absolute game-level R² remains limited (Section 9).
+What this paper does **not** claim: large accuracy lifts, feature-family effects beyond what Table 6 and the within-fold bootstrap support, or a resolved market-edge finding — Section 8.5's live pilot is explicitly reported as statistically inconclusive at current sample size, not a positive result. Absolute game-level R² remains limited (Section 9).
 
 ---
 
@@ -143,7 +143,7 @@ Pearson / Spearman diagnostics and VIF cluster reduction support a separate **Ri
 
 ### 5.4 Window policy
 
-Default generation retains multiple mean windows (including a last-start mean after midseason work). Nested screens supported thinning overlapping mean windows for physics / usage / mechanics / FIP families (keep three- and five-start means; drop the ten-start mean) and a targeted last-start swap for five physics stems. The frozen production size is **180**, reduced from a prior **185**-feature mean-window thin of an earlier **248**-feature allow-list.
+Default generation retains multiple mean windows (including a last-start mean after midseason work). Nested screens supported thinning overlapping mean windows for physics / usage / mechanics / FIP families (keep three- and five-start means; drop the ten-start mean) and a targeted last-start swap for five physics stems. A later LightGBM-primary screen promoted four opposing-lineup discipline rates. The frozen production size is **184**, built from a prior **180**-feature P1 spine (itself reduced from a **185**-feature mean-window thin of an earlier **248**-feature allow-list).
 
 ---
 
@@ -165,9 +165,9 @@ Feature design supplies the inputs; the models convert those inputs into the two
 | **LightGBM (unweighted)** | **Frozen production rate model (primary)**|
 
 
-Figure 2 compares Mean, Ridge, and LightGBM chronological test error on the earlier **248**-feature date-disjoint screen (Appendix B). LightGBM achieves the lowest MAE and RMSE among the three; the frozen production model later locks a thinner **180**-feature LightGBM stack with test MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147**.
+Figure 2 compares Mean, Ridge, and LightGBM chronological test error on the earlier **248**-feature date-disjoint screen (Appendix B). LightGBM achieves the lowest MAE and RMSE among the three; the frozen production model later locks a **184**-feature LightGBM stack with test MAE / RMSE / R² ≈ **0.0780 / 0.0982 / 0.156** (prior Step-10 180-feature gate ≈ 0.0787 / 0.0987 / 0.147).
 
-**Figure 2.** Chronological test MAE and RMSE on krate for Mean, Ridge, and LightGBM under the 248-feature date-disjoint screen (Appendix B). Lower is better. The production frozen 180-feature LightGBM model’s test MAE is 0.0787, distinct from the 248-feature screen shown here.
+**Figure 2.** Chronological test MAE and RMSE on krate for Mean, Ridge, and LightGBM under the 248-feature date-disjoint screen (Appendix B). Lower is better. The production frozen 184-feature LightGBM model’s test MAE is 0.0780, distinct from the 248-feature screen shown here.
 
 Likelihood comparisons on nested 2023–2024 folds showed that PA sample-weighting did not beat unweighted game-level MAE for LightGBM or Ridge. An L2 binomial GLM and a two-stage beta-binomial challenger [3, 4] did not overturn unweighted LightGBM. With the frozen mean model, estimated concentration κ hits the binomial limit. **Decision:** keep unweighted LightGBM as the rate backbone.
 
@@ -316,7 +316,7 @@ After mean-window thinning, a greedy family prune with a strict rule—MAE must 
 
 ### 7.4 Feature-set timeline
 
-The production path compressed an earlier **248**-feature allow-list to a **185**-feature mean-window thin, then to the current **180**-feature set via a five-stem last-start physics swap. Comparing that last-start swap against the 185-feature predecessor showed small rate and expected-K improvements (k-rate MAE ≈ 0.07842 vs 0.07863; expected-K MAE ≈ 1.769 vs 1.773). The freeze encodes that decision; the deltas are small. Named feature-set aliases used in the repository are listed in Appendix A.
+The production path compressed an earlier **248**-feature allow-list to a **185**-feature mean-window thin, then to a **180**-feature P1 physics spine, then to the current **184**-feature set via four opposing-lineup discipline nominees. Comparing the last-start P1 swap against the 185-feature predecessor showed small rate and expected-K improvements (k-rate MAE ≈ 0.07842 vs 0.07863; expected-K MAE ≈ 1.769 vs 1.773). The discipline lift further improved nested and 2025 confirmation k-rate MAE under a LightGBM-primary gate. Named feature-set aliases used in the repository are listed in Appendix A.
 
 **Table 7.** Feature-set timeline (sizes and roles).
 
@@ -346,7 +346,7 @@ krate × TBF → E[K] → P(K ≥ L)
 | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Estimator tuning            | Keep baseline LightGBM defaults; Ridge α tuned and persisted                                                    |
 | Walk-forward stack backtest | Mean expected-K MAE ≈ **1.778** across three expanding 2024 windows (σ ≈ 0.036; chronological reference ≈ 1.79) |
-| Calibration                 | Mean ECE ≈ **0.024**; no recalibration applied                                                                  |
+| Calibration                 | Mean ECE ≈ **0.024** pre-recalibration; production now applies a post-hoc **Platt** map on `p_over_*` (chrono walk-forward CV selection vs. isotonic, mean ΔECE ≈ −0.008; raw probabilities retained alongside calibrated). Calibrator is fit on 2024 walk-forward OOS predictions and has not yet been refit on 2026 conditions — see Section 8.5. |
 
 
 **Table 8a.** Walk-forward expected-K MAE by window with paired bootstrap 95% intervals (B = 2000 games within window).
@@ -369,6 +369,22 @@ These checks are confirmatory: they did not uncover large unused gains on the fr
 
 ---
 
+### 8.5 Live market validation (exploratory pilot, inconclusive)
+
+Sections 6–8 evaluate the stack against historical outcomes only. This subsection reports a secondary, clearly-labeled extension: can the frozen stack's `P(K ≥ L)` generate positive **closing-line value (CLV)** against a live, liquid sportsbook market? This is a harder and different test than chronological backtesting — the closing line is the market's own best available estimate after all information (including late-breaking lineup/weather/bullpen news) is priced in, so beating it consistently is evidence of genuine pricing skill rather than a backtest artifact.
+
+**Mechanics.** Each morning, the frozen stack scores that day's slate; calibrated probabilities are matched against live DraftKings/FanDuel over/under quotes. Bets are logged to a paper ledger only when model edge (`p_model − p_market`, de-vigged) clears a fixed **8% floor**, sized via quarter-Kelly anchored so that a bet exactly at the floor at −110 is defined as 1 unit. Once each book's line closes, closing-line value is recorded as `CLV_pp = p_market(close) − p_market(bet time)` on the bet side; realized outcomes are settled from box-score strikeout totals.
+
+**Pre-registered gate.** Following standard practice for a live pilot that could otherwise be p-hacked by peeking, the acceptance criterion was fixed *before* evaluating results (`docs/reference/market_clv_gates.md`): a minimum of **n ≥ 100** props with recorded CLV, and a bootstrap 95% CI on mean CLV that excludes zero, before any PASS/FAIL judgment is drawn. Below that sample size the result is reported as **building_sample**, not evidence either way.
+
+**Result as of this writing: inconclusive.** At n≈85–90 CLV samples — below the pre-registered n=100 threshold — mean CLV is directionally positive (≈+0.7 percentage points, pooled and BET-only cohorts) but the bootstrap CI still straddles zero. **This is explicitly not a positive result; it is an underpowered one.** The honest reading is "encouraging but undecided," and the gate is designed precisely so that this sample size cannot be reported as a pass. An edge-percentile cut shows a similar pattern — realized ROI is strongest in the highest-edge decile and weak-to-negative in a middle band — but per-bin n is single digits to low teens, too small to separate signal from variance.
+
+**Caveats specific to this pilot.** (1) The Platt calibrator applied to `p_over_*` is fit on 2024 walk-forward out-of-sample predictions (Section 6.3/8) and has not been refit against 2025–2026 conditions; any live-market miscalibration specific to the current season would not yet be corrected. (2) The pilot uses paper money, not real capital, so it cannot speak to execution risk (line movement between decision and bet, book limits, or liquidity). (3) The sample spans a single week of one season — nowhere near enough for a seasonal-drift claim even setting the CLV gate aside.
+
+This subsection will be updated with the gate's resolved verdict (PASS / FAIL / INCONCLUSIVE) once n ≥ 100 is reached; readers consulting an earlier version of this manuscript should treat any live-market claim as provisional until that update.
+
+---
+
 
 
 ## 9. Limitations
@@ -383,7 +399,7 @@ These checks are confirmatory: they did not uncover large unused gains on the fr
 
 **Evaluation risk.** Early baselines consulted 2025, so that season is not a pristine final holdout; post-freeze monitoring is documented separately (`docs/reference/post_freeze_holdout.md`).
 
-**Scope.** Marcel-lite covers the rate component only (no age curve; no Steamer/ZiPS/PECOTA). Closing lines, de-vig, and Kelly staking are out of scope. The count layer uses a point TBF forecast only. Weather, travel, catcher framing, and umpire effects are not integrated.
+**Scope.** Marcel-lite covers the rate component only (no age curve; no Steamer/ZiPS/PECOTA). The count layer uses a point TBF forecast only. Weather, travel, catcher framing, and umpire effects are not integrated. Closing-line evaluation is covered only as the exploratory, statistically inconclusive pilot in Section 8.5, not as a core modeling claim.
 
 ---
 
@@ -391,7 +407,7 @@ These checks are confirmatory: they did not uncover large unused gains on the fr
 
 ## 10. Conclusion
 
-This work delivers a leakage-safe pregame strikeout stack: frozen **180**-feature LightGBM krate, thin Ridge TBF, and a projected-exposure count layer (walk-forward expected-K MAE ≈ 1.78; ECE ≈ 0.024). Nested screens plus within-fold bootstrap retain opponent lineup; other family deltas are small or fold-unstable. The durable claim is leakage discipline and chronological hygiene under a hard pregame constraint. Next steps for stronger empirical claims are a longer post-freeze holdout and—if desired—closing-line evaluation.
+This work delivers a leakage-safe pregame strikeout stack: frozen **180**-feature LightGBM krate, thin Ridge TBF, and a projected-exposure count layer (walk-forward expected-K MAE ≈ 1.78; ECE ≈ 0.024 pre-calibration). Nested screens plus within-fold bootstrap retain opponent lineup; other family deltas are small or fold-unstable. The durable claim is leakage discipline and chronological hygiene under a hard pregame constraint. An exploratory closing-line pilot (Section 8.5) is underway under a pre-registered n≥100 gate; as of this writing it is **statistically inconclusive** — directionally positive mean CLV but below the pre-registered sample threshold. Next steps for stronger empirical claims are a longer post-freeze holdout and completing that live-market pilot to a decision-grade sample.
 
 ---
 
@@ -422,7 +438,8 @@ Internal repository names, paths, and frozen-artifact identifiers are collected 
 | -------------------------- | ---- | ------------------------------------------------------------------ |
 | `pre_freeze_248`           | 248  | Pre-thin allow-list (comparison)                                   |
 | `step7_185`                | 185  | Mean-window thin freeze                                            |
-| `production`               | 180  | Current LightGBM default (185 + five-stem last-start physics swap) |
+| `step10_180`               | 180  | Prior freeze (185 + five-stem last-start physics swap)             |
+| `production`               | 184  | Current LightGBM default (`step10_180` + four discipline nominees) |
 | `ridge_vif`                | 73   | Ridge research companion                                           |
 | `workload_context_bullpen` | 24   | Frozen TBF feature set (thin bullpen)                              |
 
@@ -436,7 +453,8 @@ Internal repository names, paths, and frozen-artifact identifiers are collected 
 
 | Role                         | Artifact stem                                           |
 | ---------------------------- | ------------------------------------------------------- |
-| LightGBM k-rate (production) | `lightgbm_krate_20260728_033241`                        |
+| LightGBM k-rate (production) | `lightgbm_krate_20260803_155401`                        |
+| LightGBM k-rate (prior 180)  | `lightgbm_krate_20260728_033241`                        |
 | Ridge TBF (thin bullpen)     | `tbf_pa_ridge_workload_context_bullpen_20260728_035607` |
 
 
@@ -475,7 +493,7 @@ Generated research outputs under `artifacts/` are local/reproducible and typical
 
 ## Appendix B. Chronological baseline (248-feature, date-disjoint)
 
-For context against the frozen 180-feature gate, the earlier 2023–2024-only date-disjoint screen on the 248-feature allow-list reported:
+For context against the frozen 184-feature gate, the earlier 2023–2024-only date-disjoint screen on the 248-feature allow-list reported:
 
 **Table B1.** Chronological test metrics on the 248-feature date-disjoint screen.
 

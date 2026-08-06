@@ -519,3 +519,18 @@ MLB-Props/
 ├── .pytest_cache/                      [ignored local cache]
 └── .venv/                              [ignored local environment]
 ```
+
+## Documentation sync — 2026-07-31
+
+Brought living docs in line with shipped live ops + paper-trading / CLV
+(SharpAPI DK/FD, tip-window closes, morning board). No code changes in this
+pass.
+
+Updated: root `README.md`, `production/README.md`, `docs/README.md`,
+`docs/reference/{market_clv_gates,live_assembly_plan,model-card,dev-notes,
+lineup_train_serve,research_assistant_instructions}.md`,
+`docs/diagrams/{00-index,01-architecture,04-roadmap,README}.md`,
+`playground/README.md`, `Models/{Strikeout-Model,TBF-Model}/README.md`.
+
+Left as historical: closed `docs/research/step*` / phase write-ups and the
+modeling manuscript (product-layer non-goals remain intentional for the paper).

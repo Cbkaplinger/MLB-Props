@@ -244,6 +244,9 @@ rolling windows.
 
 ## Next after Step 9 / 9c / 10
 
-Feature window research is **closed** at production **180**. Do not reopen
+Feature window research for the Step 10 spine is **closed** at **180**
+(`step10_180`). Current `production` is **184** (Step 11 discipline lift).
+Do not reopen windows without a new nested outer protocol and pristine
+post-freeze holdout.
 greedy thinning. Critical path is Phase 11 model quality
 (`docs/research/phase11_model_quality_gates.md`).

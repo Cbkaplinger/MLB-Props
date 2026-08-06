@@ -2,13 +2,13 @@
 
 Audit date: 2026-07-24 (body); **status banner 2026-07-28**
 
-> **Current program state:** LightGBM `production` is **180** features
-> (Step 10 P1 swap; `docs/research/step10_p1_registry_freeze.md`). Feature research
-> Steps 1–10 are closed. **Phase 11.A–C complete** as verification (HPO flat;
-> walk-forward expected_K ≈ 1.78; ECE ≈ 0.024) —
-> `docs/research/phase11_model_quality_gates.md`. **Phase D interim policy frozen**
+> **Current program state:** LightGBM `production` is **184** features
+> (Step 11 discipline lift; `docs/research/step11_discipline_registry_freeze.md`).
+> Prior spine `step10_180` (180) remains for bake-offs. Feature research
+> Steps 1–11 are closed; Phase 11 model-quality gates are complete
+> (`docs/research/phase11_model_quality_gates.md`). **Phase D interim policy frozen**
 > (`docs/research/phase_d_population_findings.md`); pregame role labels still required
-> for pristine v1. Live assembly is the optional next operational step.
+> for pristine v1. Live ops under `production/`.
 > Sections below retain historical sequencing language (185 / Step 7 era) as
 > process evidence unless explicitly updated.
 

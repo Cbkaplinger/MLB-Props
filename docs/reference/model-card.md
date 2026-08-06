@@ -19,9 +19,10 @@ This repository is research code, not a validated betting system.
 - Level 1 unit: one row per qualifying starter/game.
 - Target: `k_rate = K / PA`.
 - Training, validation, and internal test seasons: 2023-2024 only.
-- Frozen production registry: **180** LightGBM features (Step 10 P1 physics
-  swap; see `docs/research/step10_p1_registry_freeze.md`). Companion `step7_185` retains
-  the prior 185-feature freeze for bake-offs.
+- Frozen production registry: **184** LightGBM features (Step 11 discipline
+  lift on Step 10 P1 spine; see
+  `docs/research/step11_discipline_registry_freeze.md`). Companion `step10_180`
+  retains the prior 180-feature freeze for bake-offs.
 - Historical holdout season: 2025. The trainer excludes it before any split or
   preprocessing fit. Earlier baseline work already consulted 2025, so it is a
   historical benchmark rather than a pristine final test.
@@ -33,12 +34,12 @@ This repository is research code, not a validated betting system.
 - Prop evaluation must use projected, never actual same-game, batters faced.
   Prefer Brier / log loss on lines over accuracy alone.
 
-The frozen date-disjoint 2023-2024 LightGBM production artifact uses **180**
-features. Test MAE / RMSE / R² ≈ 0.0787 / 0.0987 / 0.147
-(`docs/research/step10_p1_registry_freeze.md`). Artifact:
-`artifacts/models/lightgbm_krate_20260728_033241.*`. Internal chrono results are
-development evidence, not an independent final evaluation. `step7_185`,
-`pre_freeze_248`, and earlier screens remain process evidence.
+The frozen date-disjoint 2023-2024 LightGBM production artifact uses **184**
+features. Test MAE / RMSE / R² ≈ 0.0780 / 0.0982 / 0.156
+(`docs/research/step11_discipline_registry_freeze.md`). Artifact:
+`artifacts/models/lightgbm_krate_20260803_155401.*`. Internal chrono results are
+development evidence, not an independent final evaluation. `step10_180`,
+`step7_185`, `pre_freeze_248`, and earlier screens remain process evidence.
 
 ## Leakage policy
 
@@ -49,7 +50,7 @@ the game being predicted. Level 2 uses prior games only. `K`, `PA`, `Outs`, and
 
 `src/Python/features.py` is a safety gate: it accepts only approved
 lagged-feature families and context columns, and unknown numeric columns fail
-rather than silently entering training. It also enforces the **180-feature**
+rather than silently entering training. It also enforces the **184-feature**
 production allow-list by default; `step7_185`, `pre_freeze_248`, and expanded
 research candidates require an explicit feature-set / experimental opt-in.
 
@@ -93,7 +94,7 @@ quality, batted-ball shape, and run value over season-to-date and P5/P10/P20
 histories. They are represented as flat means, prior-date batting-order
 opportunity weighted means, and weighted lineup dispersion. Historical
 membership uses the first nine distinct batters by first PA and
-requires complete nine-player coverage. The frozen 180-feature production
+requires complete nine-player coverage. The frozen 184-feature production
 baseline retains only the established lineup context columns. Live
 projections substitute the RotoGrinders projected/confirmed lineup through
 `Python.daily_lineups`; every scraped name must resolve to an official
@@ -130,43 +131,54 @@ Before publishing performance or using probabilities:
   Negative-binomial challenger and TBF-distribution mixing remain optional;
 - after the feature freeze, run **Phase 11** estimator tuning, walk-forward
   stack backtest, and calibration before live or market use
-  (`docs/research/phase11_model_quality_gates.md`).
+  (`docs/research/phase11_model_quality_gates.md`) — **done**; live + paper
+  trading follow `production/README.md` and `docs/reference/market_clv_gates.md`.
 
 ## Diagrams
 
 Phase charts (keep separate; do not collapse into one mega-flowchart):
 
 - `docs/diagrams/00-index.md` — status snapshot
-- `docs/diagrams/01-architecture.md` — as-built L1→L3→train→artifact, live deferred
+- `docs/diagrams/01-architecture.md` — as-built L1→L3→train→artifact + live/CLV side branch
 - `docs/diagrams/02-leakage-and-risks.md` — priors, park contamination, ≥9 PA filter
 - `docs/diagrams/03-modeling-and-evaluation.md` — chrono splits, Steps 1–10, Phase 11
-- `docs/diagrams/04-roadmap.md` — Phase 11 → live → market
+- `docs/diagrams/04-roadmap.md` — live + paper CLV shipped; pristine / roles open
 - `docs/research/workload_rest_bullpen_feature_plan.md` — rest / bullpen / TBF (A–C done; D open)
 - `docs/research/tbf_first_model_findings.md` / `docs/research/count_layer_findings.md` — TBF + props
 - `docs/research/step5_*_findings.md` — Step 5 likelihood arm results
-- `docs/research/step10_p1_registry_freeze.md` — current feature freeze
-- `docs/research/phase11_model_quality_gates.md` — **next** engineering phase
+- `docs/research/step11_discipline_registry_freeze.md` — current feature freeze
+- `docs/research/step10_p1_registry_freeze.md` — prior 180-feature freeze
+- `docs/research/phase11_model_quality_gates.md` — model-quality verification (done)
+- `docs/reference/market_clv_gates.md` — paper-trading protocol
 
 ## Current limitations
 
 - **Projected TBF is frozen** (Ridge + thin bullpen; test MAE ≈ 2.49). Same-game
   `PA` remains label/oracle only. Lagged workload (`PA_P*` / `Outs_P*` /
   `Pitches_P*`), rest, and team bullpen L1–L3d are in Level 2 / TBF joins; they
-  are experimental for k-rate and do not enter the 180-feature freeze.
+  are experimental for k-rate and do not enter the 184-feature freeze.
 - **Count layer v1 + Phase 11 stack:** walk-forward expected_K MAE ≈ 1.78;
-  line ECE ≈ 0.024 (no recalibration). Negative-binomial / TBF-mixture
+  line ECE ≈ 0.024 at 11.C (diagnose-only). **Post-hoc Platt** maps
+  (`prob_calibration_platt_20260803_143350`) apply in `score_frame` when the
+  production pointer is set — chrono CV mean ΔECE ≈ −0.008; raw `p_over_*`
+  retained, `p_over_*_cal` used for fair odds / edge
+  (`docs/research/prob_calibration_findings.md`). Lines **2.5…9.5** (2.5/8.5/9.5
+  use nearest-line or global fallback). Negative-binomial / TBF-mixture
   challengers not built. See `docs/research/phase11_model_quality_gates.md`.
-- Daily lineup ingestion exists (`Python.daily_lineups`); live assembly is
-  optional next with opener **out-of-support** flags —
-  `docs/reference/live_assembly_plan.md`.
+- Daily lineup + live assembly + paper-trading CLV are wired
+  (`docs/reference/live_assembly_plan.md`, `market_clv_gates.md`). Odds never
+  enter training. Real bankroll waits on CLV skill sample (n≥100 props).
+  Edge floor remains **8%** until that gate; calibration-driven edge shrinkage
+  is expected and is not a floor-retune signal.
 - Step 5 nested compares favor unweighted LightGBM for the *rate* model; the
   count layer re-checked β-binomial on projected TBF (κ → binomial limit).
 - Phase D: ~3.5% of first pitchers excluded by `PA ≥ 9`; interim policy frozen
   (`docs/research/phase_d_population_findings.md`). Pregame role labels still required
   for pristine v1 claims.
 - Batter-by-pitch-type run value remains research-only.
-- Weather, travel, catcher, and market (de-vig / Kelly) inputs are not integrated.
+- Weather, travel, and catcher inputs are not integrated.
 - Neutral-site/international games can contaminate team-keyed park factors.
-- The production LightGBM gate is the **frozen 180-feature** registry
-  (`docs/research/step10_p1_registry_freeze.md`). Ridge research uses `ridge_vif` (73).
+- The production LightGBM gate is the **frozen 184-feature** registry
+  (`docs/research/step11_discipline_registry_freeze.md`). Companion `step10_180`
+  retains the prior freeze; Ridge research uses `ridge_vif` (73).
   Historical 2025 cannot serve as a pristine final test.

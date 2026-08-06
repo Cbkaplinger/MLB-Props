@@ -217,22 +217,23 @@ flags, and joins team bullpen L1–L3d lookbacks for the TBF spine. Same-game
 `PA` / `Outs` / `Pitches` remain labels/oracles, never prediction-time features.
 
 `Models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and defaults to
-`--feature-set production` (**180** frozen features via
-`Python.registries.resolve_feature_names`). Companions: `step7_185`,
-`pre_freeze_248`, `ridge_vif`. `Models/TBF-Model/train.py` +
+`--feature-set production` (**184** frozen features via
+`Python.registries.resolve_feature_names`). Companions: `step10_180`,
+`step7_185`, `pre_freeze_248`, `ridge_vif`. `Models/TBF-Model/train.py` +
 `score_count_layer.py` consume the workload spine for projected TBF and prop
 probs. The approximate 70/15/15 chronological split keeps each calendar date
 wholly inside one partition.
 
-The frozen 2023-2024 LightGBM `production` registry has **180** features
-(Step 10 P1 physics swap). Chrono cutoffs: train ≤ 2024-06-08, val
-2024-06-09→08-05, test ≥ 2024-08-06. Frozen test MAE / RMSE / R² ≈ 0.0787 /
-0.0987 / 0.147 (`docs/research/step10_p1_registry_freeze.md`; artifact
-`lightgbm_krate_20260728_033241`). `step7_185` is the pre-P1 comparison;
-`pre_freeze_248` is the pre-thin set. Next engineering phase is model quality
-(`docs/research/phase11_model_quality_gates.md`), not further feature ablation.
+The frozen 2023-2024 LightGBM `production` registry has **184** features
+(Step 10 P1 spine + Step 11 lineup-discipline lift). Chrono cutoffs: train ≤
+2024-06-08, val 2024-06-09→08-05, test ≥ 2024-08-06. Frozen test MAE / RMSE /
+R² ≈ 0.0780 / 0.0982 / 0.156
+(`docs/research/step11_discipline_registry_freeze.md`; artifact
+`lightgbm_krate_20260803_155401`). `step10_180` retains the prior freeze;
+`step7_185` / `pre_freeze_248` remain comparison-only. Feature selection is
+closed; further parked candidates live under `artifacts/feature_research/`.
 The trainer filters to `TRAIN_SEASONS` before splitting, so existing Level 3
-artifacts may retain 2025 rows without allowing them into fitting.
+artifacts may retain later-season rows without allowing them into fitting.
 
 ## Park factors and future intangibles
 
@@ -254,12 +255,14 @@ London series, Field of Dreams, and the Little League Classic) are not
 currently filtered. They remain grouped under Statcast's listed home-team
 code and can slightly contaminate that venue's factor.
 
-Future catcher, weather, travel, market, or other context belongs in separate
+Future catcher, weather, travel, or other context belongs in separate
 keyed dimension tables and is joined at Level 3 (or onto the TBF spine). It
 does not belong in player rolling files unless the feature itself represents
-lagged player form. Rest / bullpen / TBF Phases A–C are implemented and
-documented in `docs/research/workload_rest_bullpen_feature_plan.md`; remaining roadmap
-items are in `docs/diagrams/04-roadmap.md`.
+lagged player form. Market / CLV is a separate product layer
+(`docs/reference/market_clv_gates.md`) and never enters training.
+Rest / bullpen / TBF Phases A–C are implemented and documented in
+`docs/research/workload_rest_bullpen_feature_plan.md`; remaining roadmap items
+are in `docs/diagrams/04-roadmap.md`.
 
 ## Stabilization and feature selection
 
@@ -274,6 +277,33 @@ Use the denominator where reliability reaches the chosen threshold (commonly
 `r ≈ 0.5`), translate it to starts, then compare nearby windows with
 chronological cross-validation and grouped ablation. Stabilization chooses
 plausible windows; it does not prove predictive value.
+
+## CLV-skill checks (market layer)
+
+`skill_stats.py` (the **market layer** companion of `reliability.py`) contains
+the skill checks run against `artifacts/odds_log/ledger.parquet` by
+`production/results_dashboard.ipynb` Sections 11-18:
+
+- `two_proportion_z_test(s_a, n_a, s_b, n_b)` — pooled-variance z-test for
+  head-to-head win-rate comparison; used by §11 to test whether
+  `clv ≥ +1.0pp` bets win at a different rate than `clv < +1.0pp` bets;
+- `bootstrap_bca_ci(values, *, n_boot, alpha, seed, statistic)`
+  — bias-corrected-and-accelerated bootstrap CI; used by §12 / §18a because
+  `market.bootstrap_mean_ci` (percentile-only) is biased and too narrow at
+  the per-band n≈10-40. `_inverse_std_normal_cdf` is a 60-iteration bisection
+  on `_std_normal_cdf` (prior Wichura/Acklam approximation constant typos
+  were retired); `_jackknife_acceleration` is the standard BCa `a` estimator;
+- `stake_weighted_bootstrap_ci(values, weights, ...)` — BCa CI on
+  `sum(clv × stake) / sum(stake)`, the metric that governs bankroll outcomes
+  (used by §14; equal-weighted CLV is the skill metric but the sizing metric
+  is what scales to bankroll);
+- `rolling_stat_with_se(values, window, se_scale)` — rolling mean with a
+  normal-approximation ±se_scale × SE ribbon for the day-stability check
+  used by §13.
+
+All four are pure-Python (numpy imported lazily inside the BCa helpers only
+when array operations are needed), matching `market.bootstrap_mean_ci`'s
+convention. `pytest` coverage: `tests/test_skill_stats.py` (14 tests).
 
 ## Statistical safeguards checklist
 
@@ -326,8 +356,8 @@ because they require distinct defenses:
   correlated features are reduced.
 - **Expanded-feature registry:** P2 arsenal, count-state, BIP/BABIP, arm angle,
   SIERA, run value, and lineup expansions require `include_experimental=True`.
-  Frozen production is **180** features (`docs/research/step10_p1_registry_freeze.md`);
-  `step7_185` / `pre_freeze_248` are comparison-only. Definitions live under
+  Frozen production is **184** features (`docs/research/step11_discipline_registry_freeze.md`);
+  `step10_180` / `step7_185` / `pre_freeze_248` are comparison-only. Definitions live under
   `artifacts/feature_research/`.
 - **Multiple-comparisons risk:** every consulted configuration belongs in the
   `PAPER_NOTES.md` experiment log. The `2025-07-06+` partition was already
@@ -343,16 +373,18 @@ VIF caveats, nested-fold proposal, and count-model scope.
 The live Level 3 parquet contains labels, identifiers, production features, and
 research candidates. Do not treat every numeric column as a model input.
 `Python.registries.resolve_feature_names(frame, "production")` returns the
-**180** frozen features; use `"step7_185"`, `"pre_freeze_248"`, or
+**184** frozen features; use `"step10_180"`, `"step7_185"`, `"pre_freeze_248"`, or
 `"ridge_vif"` for companions.
 `Python.features.model_feature_names(..., include_experimental=True)` exposes
 the broader research-eligible surface.
 
 The current generated inventory is
 `artifacts/feature_research/expanded/feature_dictionary.csv`. Registry status
-and rationale are in `candidate_feature_registry.csv`. Step 7 freeze record:
-`docs/research/step7_registry_freeze.md`. Regenerate diagnostics in the order documented
-by `artifacts/README.md` whenever Level 3 feature logic changes.
+and rationale are in `candidate_feature_registry.csv`. Current freeze:
+`docs/research/step11_discipline_registry_freeze.md`. Prior freezes:
+`step10_p1_registry_freeze.md`, `step7_registry_freeze.md`. Regenerate
+diagnostics in the order documented by `artifacts/README.md` whenever Level 3
+feature logic changes.
 
 ## FIP constant maintenance
 
@@ -365,14 +397,20 @@ A season-level additive constant has no within-season tree-model signal.
 
 - Projected TBF is **frozen** (Ridge + thin bullpen; see
   `docs/research/tbf_first_model_findings.md`). Count layer v1 is chrono-scored
-  (`docs/research/count_layer_findings.md`). Live slate assembly and market grading
-  are not automated.
+  (`docs/research/count_layer_findings.md`; lines **2.5…9.5**). Live slate
+  assembly and paper-trading CLV are automated under `production/`
+  (`docs/reference/live_assembly_plan.md`, `market_clv_gates.md`).
+- The CLV skill gate stays **INCONCLUSIVE** at the resolved ledger: floor ≥ 12%
+  BCa CI `[-0.30, +1.78]` includes zero (n_clv = 72). Hold 12% / ⅛-Kelly until
+  **n_clv ≥ 150** at floor ≥ 12%, per
+  `docs/research/floor_freeze_log.md` and `production/results_dashboard.ipynb`
+  §18b (`artifacts/odds_log/next_50_checkpoint.json`).
 - Negative-binomial count challenger and mixing over a TBF distribution are
   not built. Step 5 rate-likelihood helpers remain in
   `src/Python/likelihoods.py`.
-- Daily lineup ingestion exists, but scheduling, retries, source-status
-  monitoring, and downstream prediction-frame assembly (k-rate + TBF + counts
-  on today's slate) are not automated.
+- Daily lineup ingestion resolves names within-team via
+  `active → 40Man → fullSeason`. Dual-starter scoring and projection log/grade
+  are in production ops.
 - Step 5 likelihood sequence is **resolved**: unweighted LightGBM remains the
   rate backbone. Count-layer β-binomial on projected TBF collapsed to binomial.
 - Phase D interim policy frozen (`docs/research/phase_d_population_findings.md`);
@@ -380,13 +418,13 @@ A season-level additive constant has no within-season tree-model signal.
 - Full batter-by-pitch-type arsenal/lineup interactions are not implemented;
   the research-only run-value audit found no pitch type or coarse family
   reliably estimable at the lower-CI `r=.50` gate.
-- Weather, travel, catcher, and market (de-vig / Kelly) inputs are not
-  integrated. Rest/bullpen/TBF companions A–C are in
-  `docs/research/workload_rest_bullpen_feature_plan.md`.
+- Weather, travel, and catcher inputs are not integrated. Rest/bullpen/TBF
+  companions A–C are in `docs/research/workload_rest_bullpen_feature_plan.md`.
 - Neutral-site/international games can contaminate team-keyed park factors.
-- The production LightGBM registry is the **frozen 180-feature** allow-list
-  (Step 10). `step7_185` / `pre_freeze_248` remain for comparisons. Ridge research uses
-  `ridge_vif` (73). The historical 2025 benchmark is not an untouched final test.
+- The production LightGBM registry is the **frozen 184-feature** allow-list
+  (Step 11). `step10_180` / `step7_185` / `pre_freeze_248` remain for comparisons.
+  Ridge research uses `ridge_vif` (73). The historical 2025 benchmark is not an
+  untouched final test.
 
 ## Validation
 

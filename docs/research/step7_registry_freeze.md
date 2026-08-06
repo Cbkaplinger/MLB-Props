@@ -1,6 +1,6 @@
 # Step 7 — LightGBM registry freeze (historical)
 
-**Status:** superseded by Step 10 P1 freeze (`docs/research/step10_p1_registry_freeze.md`)  
+**Status:** superseded by Step 11 (`docs/research/step11_discipline_registry_freeze.md`; prior Step 10 at `step10_p1_registry_freeze.md`)  
 **Date:** 2026-07-27 (original); retained as feature set `step7_185`  
 **Original artifact:** `artifacts/models/lightgbm_krate_20260727_204342.{txt,json}`  
 **Feature set then:** 185 features (mean P10 thin only)
@@ -23,7 +23,8 @@ mechanics / FIP. Step 7 applied that thin at feature selection (drop 63 mean
 
 | Set | Size | Use |
 |---|---:|---|
-| `production` | **180** | **Current** — Step 7 + Step 9c/10 P1 swap |
+| `production` | **184** | **Current** — Step 11 discipline lift (`step11_discipline_registry_freeze.md`) |
+| `step10_180` | 180 | Step 7 + Step 9c/10 P1 swap |
 | `step7_185` | 185 | This freeze (comparison) |
 | `pre_freeze_248` | 248 | Pre-thin allow-list |
 | `ridge_vif` | 73 | Ridge research |

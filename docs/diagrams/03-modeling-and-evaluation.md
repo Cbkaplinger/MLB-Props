@@ -15,7 +15,7 @@ flowchart TB
   SPLIT["Chrono date-disjoint ≈ 70/15/15<br/>train ≤ 2024-06-08<br/>val → 2024-08-05<br/>test ≥ 2024-08-06"]:::built
   NEST["Nested research folds<br/>outer 2024 h1/h2 · inner ⊂ train"]:::built
 
-  LGBM["LightGBM production 180<br/>Step 10 P1 · test MAE≈0.079"]:::built
+  LGBM["LightGBM production 184<br/>Step 11 · test MAE≈0.078"]:::built
   TBF["TBF Ridge thin bullpen<br/>test MAE≈2.49"]:::built
   CNT["Count layer<br/>expected_K MAE≈1.79"]:::built
   HOLD["2025 = historical only<br/>already consulted · not pristine"]:::risk
@@ -23,7 +23,7 @@ flowchart TB
   S1["Steps 1–5: dict · LFO · windows · likelihoods"]:::built
   S7["Step 7: freeze 185"]:::built
   S89["Steps 8–9c: keep/drop · windows · P1"]:::built
-  S10["Step 10: lock production 180"]:::built
+  S10["Step 11: lock production 184"]:::built
 
   TUNE["11.A Tune LGBM + Ridge α"]:::next
   WF["11.B Walk-forward stack backtest"]:::next

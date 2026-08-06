@@ -29,10 +29,22 @@ Not “use top 9 of the lineup” — live already does that via RG. The open wo
 
 1. Keep documenting the skew (this file).
 2. When enough `(logged announced lineup, postgame first-9)` pairs exist, **measure overlap** (Jaccard / slot agreement) and whether ΔMAE from lineup ablation still shows up under announced-only features.
-3. Do **not** rebuild the frozen 180 set from announced history until a nested chrono screen exists with historical announced lineups (we do not have a multi-year announced archive yet).
+3. Do **not** rebuild the frozen 184 set from announced history until a nested chrono screen exists with historical announced lineups (we do not have a multi-year announced archive yet).
 
 ## Ops reminder
 
 - Live: `Python.daily_lineups` → `live_assembly` opponent means from **announced** IDs.
 - History: Level 3 joins batters with `is_initial_lineup` from Level 1.
 - Projection log should record `lineup_source` / note (see `production/log_projections.py`).
+
+## Roster ID resolve (live)
+
+Scraped RotoGrinders names are matched only within the **same team's** official
+MLB Stats API roster, widening in order until every card resolves (or the run
+fails):
+
+1. **`active`** — current active roster  
+2. **`40Man`** — 40-man (covers some IL / option cases still on cards)  
+3. **`fullSeason`** — season roster (covers rare call-ups still listed on RG)
+
+Model joins continue to use numeric MLB person IDs only.

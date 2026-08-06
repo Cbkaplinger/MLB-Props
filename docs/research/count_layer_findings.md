@@ -23,7 +23,7 @@ switch to projected TBF.
 
 | Piece | Choice |
 |---|---|
-| k-rate | Step-10 LightGBM `production` (**180**, P1 swap) — `lightgbm_krate_20260728_033241` |
+| k-rate | Step-11 LightGBM `production` (**184**, discipline lift) — `lightgbm_krate_20260803_155401` |
 | projected_tbf | Ridge + `workload_context_bullpen` (thin pen, 24 feats) |
 
 ## Test partition (from 2024-08-06) — expected_K vs actual K
@@ -62,7 +62,13 @@ python -m pytest tests/test_count_layer.py -q
    `docs/research/phase11_model_quality_gates.md`).
 2. ~~**Phase D** interim population policy~~ — done
    (`docs/research/phase_d_population_findings.md`).
-3. Live / slate scoring (`docs/reference/live_assembly_plan.md`) — optional next.
-4. Pregame role labels before pristine post-freeze holdout claims.
-5. Optional product: de-vig market lines + fractional Kelly (after prices).
-6. Do **not** dump bullpen into k-rate until a nested promotion screen says so.
+3. ~~**Post-hoc `p_over_*` calibration (Platt)**~~ — production pointer set
+   (`docs/research/prob_calibration_findings.md`). Raw binomial probs retained;
+   `p_over_*_cal` feeds fair odds / edge.
+4. Live / slate scoring (`docs/reference/live_assembly_plan.md`) — shipped.
+5. Pregame role labels before pristine post-freeze holdout claims.
+6. Optional product: de-vig market lines + fractional Kelly (paper CLV sample
+   building; 8% floor locked until n≥100 clean props).
+7. Do **not** dump bullpen into k-rate until a nested promotion screen says so.
+8. Optional count-distribution challengers (NB / mixture-over-TBF) if live ECE
+   regresses after Platt.

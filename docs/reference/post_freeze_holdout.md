@@ -1,7 +1,8 @@
 # Post-freeze holdout protocol
 
-**Freeze lock:** 2026-07-28 (LightGBM `lightgbm_krate_20260728_033241`,  
+**Freeze lock:** 2026-08-03 (LightGBM `lightgbm_krate_20260803_155401`,  
 TBF `tbf_pa_ridge_workload_context_bullpen_20260728_035607`)  
+**Prior lock:** 2026-07-28 (`lightgbm_krate_20260728_033241`, 180 features)  
 **Runner:** `production/post_freeze_holdout.py`  
 **Artifacts:** `artifacts/holdout/post_freeze/`
 
@@ -9,14 +10,14 @@ TBF `tbf_pa_ridge_workload_context_bullpen_20260728_035607`)
 
 Chronological 2023–2024 test metrics in the manuscript are **not** a pristine
 final holdout: 2025 was consulted during earlier baseline work, and feature
-selection used nested 2023–2024 folds. After locking the 180-feature stack on
-2026-07-28, new games must be scored **without** reopening registries.
+selection used nested 2023–2024 folds. After locking the **184-feature** stack on
+2026-08-03, new games must be scored **without** reopening registries.
 
 ## Partitions
 
 | Name | Definition | How to read |
 |---|---|---|
-| `post_freeze` | `game_date >= 2026-07-28` | **True** post-lock monitoring (grows daily) |
+| `post_freeze` | `game_date >= 2026-08-03` | **True** post-lock monitoring (grows daily) |
 | `season_2026_pre_freeze` | 2026 rows before freeze date | Live-season check; may have been seen operationally |
 | `season_2025` | All 2025 `PA≥9` rows | **Reference only** — contaminated by prior peeking |
 
