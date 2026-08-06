@@ -8,7 +8,7 @@ in `artifacts/models/` (no retrain needed).
 
 | Artifact | Path |
 |---|---|
-| K-rate LightGBM | `artifacts/models/lightgbm_krate_20260728_033241.{txt,json}` |
+| K-rate LightGBM | `artifacts/models/lightgbm_krate_20260803_155401.{txt,json}` |
 | TBF Ridge | `artifacts/models/tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib` |
 
 Daily / playground scoring **loads** those files. Retrain only when you
@@ -45,8 +45,14 @@ python -c "import polars as pl; df=pl.read_parquet('artifacts/live_scores/live_s
 
 ### Line shopper (manual odds dry-run)
 
-Paste book K lines against the projection log — no API. Uses locked gates in
-`docs/reference/market_clv_gates.md` (8% edge floor, ¼ Kelly).
+Paste book K lines against the projection log — **no API**. Useful for a quick
+what-if. Locked gates: `docs/reference/market_clv_gates.md` (8% edge floor,
+¼ Kelly).
+
+**Canonical paper-trading path** (SharpAPI + durable ledger + tip closes) is
+`production/` — `odds_board` → `poll_odds` → `close_watcher` →
+`grade_odds_ledger`. See `production/README.md`. This playground script does
+not replace that stack.
 
 ```powershell
 python playground/line_shopper.py

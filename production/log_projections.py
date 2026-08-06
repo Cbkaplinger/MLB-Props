@@ -65,20 +65,30 @@ def _line_cols(frame: pl.DataFrame) -> list[str]:
     cols: list[str] = []
     for line in PROJECTION_K_LINES:
         stem = str(line).replace(".", "_")
-        for prefix in ("p_over_", "fair_amer_"):
-            name = f"{prefix}{stem}"
+        for name in (
+            f"p_over_{stem}",
+            f"p_over_{stem}_cal",
+            f"fair_amer_{stem}",
+        ):
             if name in frame.columns:
                 cols.append(name)
+    for meta in ("calibration_version", "calibration_method", "calibration_scope"):
+        if meta in frame.columns:
+            cols.append(meta)
     return cols
 
 
 def _p_over_cols(frame: pl.DataFrame) -> list[str]:
-    """Line probability columns in ascending line order (the K distribution)."""
+    """Display line probs: prefer calibrated when present."""
     cols: list[str] = []
     for line in PROJECTION_K_LINES:
-        name = f"p_over_{str(line).replace('.', '_')}"
-        if name in frame.columns:
-            cols.append(name)
+        stem = str(line).replace(".", "_")
+        cal = f"p_over_{stem}_cal"
+        raw = f"p_over_{stem}"
+        if cal in frame.columns:
+            cols.append(cal)
+        elif raw in frame.columns:
+            cols.append(raw)
     return cols
 
 

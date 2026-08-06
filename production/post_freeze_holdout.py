@@ -38,8 +38,8 @@ from Python.live_assembly import (  # noqa: E402
     score_frame,
 )
 
-# Feature registry locked morning of 2026-07-28 (artifact stems …033241 / …035607).
-FREEZE_DATE = date(2026, 7, 28)
+# Feature registry locked 2026-08-03 (artifact stem …155401; TBF still …035607).
+FREEZE_DATE = date(2026, 8, 3)
 OUT_DIR = config.OUTPUT_DIR / "holdout" / "post_freeze"
 
 

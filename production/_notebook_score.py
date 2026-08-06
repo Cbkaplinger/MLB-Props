@@ -18,6 +18,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+# Load .env before importing config (paths freeze at import). override=True so
+# a stale MLB_PROPS_DATA_DIR in the Jupyter parent env cannot poison the worker.
+from Python.env_load import load_project_dotenv  # noqa: E402
+
+load_project_dotenv(override=True)
+
 from Python.count_layer import PROJECTION_K_LINES  # noqa: E402
 from Python.daily_lineups import build_daily_slate  # noqa: E402
 from Python.live_assembly import (  # noqa: E402

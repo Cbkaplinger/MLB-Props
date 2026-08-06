@@ -26,16 +26,13 @@ sys.path.insert(0, str(ROOT / "src"))
 from Python import config  # noqa: E402
 from Python.env_load import load_project_dotenv  # noqa: E402
 from Python.market import DEFAULT_EDGE_FLOOR  # noqa: E402
-from Python.odds_board import p_model_over_for_line  # noqa: E402
-from Python.odds_close import dedupe_quotes, fill_closes  # noqa: E402
+from Python.odds_close import fill_closes  # noqa: E402
 from Python.odds_ledger import (  # noqa: E402
     LEDGER_PATH,
     append_open_rows,
-    norm_player_name,
     replace_open_slate,
-    score_quote_to_row,
 )
-from Python.sharp_odds import fetch_mlb_strikeout_quotes  # noqa: E402
+from Python.odds_open import poll_open_tickets  # noqa: E402
 
 LOG_PATH = config.OUTPUT_DIR / "projection_log" / "projections.parquet"
 
@@ -60,24 +57,6 @@ def _load_board(slate: date | None, preferred_only: bool) -> pl.DataFrame:
     return board
 
 
-def _match_board_row(board: pl.DataFrame, player_name: str) -> dict | None:
-    key = norm_player_name(player_name)
-    hits = board.filter(
-        pl.col("player_name").map_elements(norm_player_name, return_dtype=pl.Utf8) == key
-    )
-    if hits.is_empty():
-        last = key.split()[-1] if key else ""
-        if last:
-            hits = board.filter(
-                pl.col("player_name")
-                .map_elements(norm_player_name, return_dtype=pl.Utf8)
-                .str.contains(last, literal=True)
-            )
-    if hits.is_empty() or hits.height > 1:
-        return None
-    return hits.to_dicts()[0]
-
-
 def _poll_open(
     board: pl.DataFrame,
     *,
@@ -87,44 +66,11 @@ def _poll_open(
     dry_run: bool,
     replace: bool,
 ) -> None:
-    quotes, n_dupes = dedupe_quotes(
-        fetch_mlb_strikeout_quotes(sportsbook=book, main_only=True, is_live=False)
+    rows, unmatched, n_quotes = poll_open_tickets(
+        board, unit=unit, edge_floor=edge_floor, book=book
     )
-    print(
-        f"SharpAPI paired quotes: {len(quotes)}"
-        + (f" (dropped {n_dupes} dupes)" if n_dupes else "")
-    )
-    rows = []
-    unmatched = []
-    for q in quotes:
-        brow = _match_board_row(board, q.player_name)
-        if brow is None:
-            unmatched.append(q.player_name)
-            continue
-        col_p = p_model_over_for_line(brow, q.line)
-        if col_p is None:
-            unmatched.append(f"{q.player_name} line={q.line}")
-            continue
-        ticket = score_quote_to_row(
-            game_date=str(brow["game_date"]),
-            game_pk=brow.get("game_pk"),
-            pitcher=brow.get("pitcher"),
-            player_name=brow["player_name"],
-            line=q.line,
-            over_price=q.over_american,
-            under_price=q.under_american,
-            p_model_over=col_p,
-            book=q.sportsbook,
-            unit_dollars=unit,
-            edge_floor=edge_floor,
-            source="sharpapi",
-            event_id=q.event_id,
-            event_start_time=q.event_start_time,
-            projected_tbf=brow.get("projected_tbf"),
-            days_rest=brow.get("days_rest"),
-            expected_K=brow.get("expected_K"),
-            note="",
-        )
+    print(f"SharpAPI paired quotes: {n_quotes}")
+    for ticket in rows:
         if ticket["passes_floor"]:
             flag = "BET"
         elif "oos=" in str(ticket.get("note") or ""):
@@ -138,7 +84,6 @@ def _poll_open(
             f"{ticket['side']} {ticket['line']} @ {ticket['bet_price']:+.0f}  "
             f"edge={ticket['edge']:+.1%}  {ticket['units']:.2f}u{tip_s}"
         )
-        rows.append(ticket)
 
     n_bet = sum(1 for r in rows if r["passes_floor"])
     print(f"Matched={len(rows)}  BET={n_bet}  unmatched_or_bad_line={len(unmatched)}")

@@ -28,6 +28,7 @@ from Python.odds_ledger import (  # noqa: E402
     LEDGER_PATH,
     apply_close,
     apply_settle,
+    apply_void,
     load_ledger,
     run_threshold_curve,
     save_ledger,
@@ -58,7 +59,14 @@ def _find_tickets(ledger: pl.DataFrame, name: str, game_date: str) -> list[dict]
     return hits.to_dicts()
 
 
-def _fetch_k_from_api(game_pk: int, pitcher_id: int) -> float | None:
+def _fetch_pitcher_result(game_pk: int, pitcher_id: int) -> dict:
+    """Return ``{so, game_final, appeared}`` for ``pitcher_id`` in ``game_pk``.
+
+    ``appeared=False`` with ``game_final=True`` means the game finished but the
+    pitcher never recorded a pitching stat line (scratch, rainout/rescheduled
+    with a different starter, bullpen game, etc.) — a void, not a pending
+    settle that will eventually resolve.
+    """
     try:
         with urlopen(
             f"https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live",
@@ -66,16 +74,27 @@ def _fetch_k_from_api(game_pk: int, pitcher_id: int) -> float | None:
         ) as resp:
             feed = json.loads(resp.read().decode())
     except Exception:  # noqa: BLE001
-        return None
+        return {"so": None, "game_final": False, "appeared": False}
+    status = feed.get("gameData", {}).get("status", {})
+    game_final = str(status.get("abstractGameState") or "") == "Final"
+    detailed = str(status.get("detailedState") or "")
+    if detailed in {"Postponed", "Cancelled", "Suspended"}:
+        return {"so": None, "game_final": True, "appeared": False, "detailed": detailed}
     teams = feed.get("liveData", {}).get("boxscore", {}).get("teams", {})
     for side in ("away", "home"):
         for _, pdata in teams.get(side, {}).get("players", {}).items():
             if int(pdata.get("person", {}).get("id") or 0) != int(pitcher_id):
                 continue
-            so = pdata.get("stats", {}).get("pitching", {}).get("strikeOuts")
+            pitching = pdata.get("stats", {}).get("pitching", {})
+            so = pitching.get("strikeOuts")
             if so is not None:
-                return float(so)
-    return None
+                return {"so": float(so), "game_final": game_final, "appeared": True}
+            return {"so": None, "game_final": game_final, "appeared": bool(pitching)}
+    return {"so": None, "game_final": game_final, "appeared": False}
+
+
+def _fetch_k_from_api(game_pk: int, pitcher_id: int) -> float | None:
+    return _fetch_pitcher_result(game_pk, pitcher_id)["so"]
 
 
 def main() -> None:
@@ -85,6 +104,21 @@ def main() -> None:
     p.add_argument("--curve", action="store_true", help="Print threshold curve on settled bets")
     p.add_argument("--status", action="store_true", help="Summarize ledger")
     p.add_argument("--auto-settle-api", action="store_true", help="Fill missing K via MLB API")
+    p.add_argument(
+        "--void",
+        action="append",
+        default=[],
+        help="Name,date — mark ticket(s) void/no-action (scratch, PPD, etc.)",
+    )
+    p.add_argument(
+        "--void-scratches",
+        action="store_true",
+        help=(
+            "With --auto-settle-api: auto-void open tickets whose game is Final/"
+            "Postponed/Cancelled but the pitcher never recorded a pitching line "
+            "(probable-starter scratch) instead of leaving them open forever"
+        ),
+    )
     args = p.parse_args()
 
     if not LEDGER_PATH.exists() and not args.status:
@@ -123,6 +157,18 @@ def main() -> None:
             )
             print(f"close set: {t['player_name']} {t['side']} {t['line']}")
 
+    for raw in args.void:
+        name, gdate = (p.strip() for p in raw.split(",", 1))
+        tickets = _find_tickets(ledger, name, gdate)
+        if not tickets:
+            raise SystemExit(f"No ticket for void {raw!r}")
+        for t in tickets:
+            if t.get("status") in {"settled", "void"}:
+                print(f"already {t['status']}: {t['ticket_id']}")
+                continue
+            ledger = apply_void(ledger, ticket_id=t["ticket_id"], reason="manual")
+            print(f"voided: {t['player_name']} ({gdate})")
+
     for raw in args.settle:
         name, gdate, k = _parse_settle(raw)
         tickets = _find_tickets(ledger, name, gdate)
@@ -141,11 +187,14 @@ def main() -> None:
             pk, pid = t.get("game_pk"), t.get("pitcher")
             if pk is None or pid is None:
                 continue
-            k = _fetch_k_from_api(int(pk), int(pid))
-            if k is None:
-                continue
-            ledger = apply_settle(ledger, ticket_id=t["ticket_id"], settle_value=k)
-            print(f"API settle: {t['player_name']} K={k}")
+            res = _fetch_pitcher_result(int(pk), int(pid))
+            if res["so"] is not None:
+                ledger = apply_settle(ledger, ticket_id=t["ticket_id"], settle_value=res["so"])
+                print(f"API settle: {t['player_name']} K={res['so']}")
+            elif args.void_scratches and res["game_final"] and not res["appeared"]:
+                reason = res.get("detailed") or "scratched"
+                ledger = apply_void(ledger, ticket_id=t["ticket_id"], reason=reason)
+                print(f"API void ({reason}): {t['player_name']}")
 
     save_ledger(ledger)
 
