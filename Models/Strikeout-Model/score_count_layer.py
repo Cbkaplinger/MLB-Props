@@ -62,7 +62,7 @@ try:
 except ImportError:  # pragma: no cover
     lgb = None
 
-_DEFAULT_KRATE = MODEL_DIR / "lightgbm_krate_20260728_033241.txt"
+_DEFAULT_KRATE = MODEL_DIR / "lightgbm_krate_20260803_155401.txt"
 _COUNT_DIR = OUTPUT_DIR / "count_layer"
 
 

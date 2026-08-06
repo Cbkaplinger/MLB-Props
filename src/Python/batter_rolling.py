@@ -65,6 +65,15 @@ DEFAULT_EXTRA_RATE_STATS: dict[str, tuple[str, str]] = {
 }
 ROLLING_RATE_STATS: frozenset[str] = frozenset(DEFAULT_EXTRA_RATE_STATS)
 
+# Season-to-date only (sparse within-game hand samples; no short rolling windows).
+DEFAULT_HAND_SPLIT_RATE_STATS: dict[str, tuple[str, str]] = {
+    "zswing_rate": ("ZSwings", "InZone"),
+    "swing_rate": ("Swings", "Pitches"),
+    "zcontact_rate": ("ZContacts", "ZSwings"),
+    "bb_rate": ("BB", "PA"),
+    "whiff_rate": ("Whiffs", "Swings"),
+}
+
 
 def _prior_rate(num: str, den: str, by: list[str]) -> pl.Expr:
     """Expanding rate using only rows *before* the current one (shift-free).
@@ -149,6 +158,22 @@ def add_leakage_safe_k(
         *[
             (_prior_rate(num, den, ["batter", "season"]), f"{name}_std")
             for name, (num, den) in extras.items()
+        ],
+        *[
+            (
+                _prior_rate(f"{num}_vL", f"{den}_vL", ["batter", "season"]),
+                f"{name}_std_vL",
+            )
+            for name, (num, den) in DEFAULT_HAND_SPLIT_RATE_STATS.items()
+            if f"{num}_vL" in df.columns and f"{den}_vL" in df.columns
+        ],
+        *[
+            (
+                _prior_rate(f"{num}_vR", f"{den}_vR", ["batter", "season"]),
+                f"{name}_std_vR",
+            )
+            for name, (num, den) in DEFAULT_HAND_SPLIT_RATE_STATS.items()
+            if f"{num}_vR" in df.columns and f"{den}_vR" in df.columns
         ],
         *[
             (_rolling_rate("K", "PA", w, min_games), f"k_rate_P{w}")

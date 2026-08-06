@@ -217,6 +217,49 @@ def test_attach_schedule_disambiguates_doubleheaders_by_game_number() -> None:
     assert slate.starters["game_pk"].n_unique() == 2
 
 
+def test_attach_schedule_error_mentions_overnight_lag() -> None:
+    parsed = _parsed()
+    wrong_day = pl.DataFrame(
+        {
+            "game_pk": [999],
+            "game_date": [GAME_DATE],
+            "game_time": [datetime(2026, 7, 23, 16, 15, tzinfo=timezone.utc)],
+            "game_status": ["Scheduled"],
+            "game_number": [1],
+            "double_header": ["N"],
+            "away_team": ["NYY"],
+            "home_team": ["BOS"],
+            "away_team_id": [147],
+            "home_team_id": [111],
+            "away_probable_pitcher_id": [1],
+            "home_probable_pitcher_id": [2],
+        }
+    )
+    with pytest.raises(ValueError, match="overnight|SLATE_DATE|yesterday"):
+        daily_lineups.attach_schedule(parsed, wrong_day)
+
+
+def test_rg_schedule_mismatch_message_points_at_inferred_date() -> None:
+    msg = daily_lineups._rg_schedule_mismatch_message(
+        requested=date(2026, 8, 3),
+        unmatched=[{"away_team": "WSH", "home_team": "ATL"}],
+        schedule=pl.DataFrame(
+            {
+                "away_team": ["LAD"],
+                "home_team": ["CHC"],
+                "away_team_id": [119],
+                "home_team_id": [112],
+            }
+        ),
+        inferred=date(2026, 8, 2),
+        inferred_n=1,
+        n_cards=1,
+    )
+    assert "2026-08-03" in msg
+    assert "2026-08-02" in msg
+    assert "SLATE_DATE" in msg
+    assert "WSH@ATL" in msg
+
 def test_resolve_player_ids_is_scoped_to_official_team_roster() -> None:
     frame = _parsed().lineups.head(1)
     rosters = pl.DataFrame(

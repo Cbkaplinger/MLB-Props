@@ -95,9 +95,16 @@ def test_experimental_candidates_require_explicit_research_opt_in() -> None:
             "PA_P5": [22.0],
             "days_rest_capped": [4],
             "is_season_debut": [0],
+            "ff_strike_shrunk_P10": [0.62],
+            "sl_csw_P20": [0.31],
+            "ch_swstr_rate_shrunk_P5": [0.18],
         }
     )
-    assert model_feature_names(frame) == ("whiff_rate_P5",)
+    assert model_feature_names(frame) == (
+        "whiff_rate_P5",
+        "opp_lineup_zswing_P10",
+        "opp_lineup_bb",
+    )
     assert model_feature_names(frame, include_experimental=True) == (
         "whiff_rate_P5",
         "has_thrown_ff_P2",
@@ -112,6 +119,9 @@ def test_experimental_candidates_require_explicit_research_opt_in() -> None:
         "PA_P5",
         "days_rest_capped",
         "is_season_debut",
+        "ff_strike_shrunk_P10",
+        "sl_csw_P20",
+        "ch_swstr_rate_shrunk_P5",
     )
 
 

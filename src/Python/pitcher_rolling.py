@@ -41,6 +41,9 @@ DEFAULT_RATE_STATS: dict[str, tuple[str, str]] = {
     "chase_rate": ("Chases", "OutZone"),
     "zone_rate": ("InZone", "Pitches"),
     "contact_rate": ("Contacts", "Swings"),
+    "zswing_rate": ("ZSwings", "InZone"),
+    "swing_rate": ("Swings", "Pitches"),
+    "zcontact_rate": ("ZContacts", "ZSwings"),
     "gb_rate": ("GB", "BIP"),
     "hr_rate": ("HR", "PA"),
     "bip_rate": ("BIP", "Pitches"),
@@ -655,6 +658,206 @@ def add_pitch_type_rv_features(
             how="left",
             validate="1:1",
         )
+    return out
+
+
+# Per-pitch-type command/stuff-blended rate candidates (Tier 1 research, see
+# docs/research/pitch_type_strike_csw_findings.md). Not in DEFAULT_RATE_STATS /
+# DEFAULT_MEAN_COLS and not wired into pipeline.rolling.build_pitcher_rolling by
+# default -- opt in via add_pitch_type_rate_features until/unless a lift test
+# clears the promotion bar.
+DEFAULT_PITCH_TYPE_RATE_STATS: dict[str, tuple[str, str]] = {
+    # Named "strike"/"csw" (not "strike_rate"/"csw_rate") so per-pitch-type
+    # columns don't collide with the reserved deterministic-redundancy naming
+    # in features.py (aggregate csw_rate/strike_rate are excluded there as
+    # exact algebraic identities of other already-modeled aggregate rates;
+    # that identity does not hold per pitch type since we don't yet track
+    # per-pitch-type cs_rate/ball_rate to complete it).
+    "strike": ("StrikesPlusBIP", "Pitches"),
+    "csw": ("CSW", "Pitches"),
+    "swstr_rate": ("Whiffs", "Pitches"),
+}
+DEFAULT_PITCH_TYPE_RATE_WINDOWS: tuple[int, ...] = (5, 10, 20, 30)
+
+# Tier 2 (docs/research/pitch_type_strike_csw_findings.md): per-pitch-type wOBA/xwOBA
+# allowed. Denominator is PAs *ending* on that pitch type (not pitches), which is a
+# much smaller per-start sample than the Tier-1 rate stats above (median 2-7 per
+# start vs. 12-31 pitches/start), so windows run wider and shrinkage matters even
+# more. Also opt-in only, via add_pitch_type_rate_features.
+DEFAULT_PITCH_TYPE_WOBA_STATS: dict[str, tuple[str, str]] = {
+    "wOBA": ("wOBA_num", "wOBA_den"),
+    "xwOBA": ("xwOBA_num", "wOBA_den"),
+}
+DEFAULT_PITCH_TYPE_WOBA_WINDOWS: tuple[int, ...] = (10, 20, 30, 40)
+
+
+def add_pitch_type_rate_features(
+    starts: pl.DataFrame,
+    pitch_type_games: pl.DataFrame,
+    *,
+    stats: Mapping[str, tuple[str, str]] = DEFAULT_PITCH_TYPE_RATE_STATS,
+    prior_strength: float,
+    windows: Iterable[int] = DEFAULT_PITCH_TYPE_RATE_WINDOWS,
+    min_games: int = 1,
+    pitch_types: Iterable[str] = _PITCH_TYPES,
+) -> pl.DataFrame:
+    """Join shrunk + unshrunk per-pitch-type rate candidates onto the start spine.
+
+    Generalizes :func:`add_pitch_type_rv_features` to any numerator/denominator
+    rate stat (``strike_rate``, ``csw_rate``, ``swstr_rate``, ...). Per pitch
+    type, per ``stat``, per ``window`` this emits two experimental columns:
+
+    - ``{pt}_{stat}_shrunk_P{w}``: empirical-Bayes shrunk toward the pitch-type
+      league rate as of strictly prior dates (same recipe as the RV helper --
+      ``(Σnum + m·league_prior) / (Σden + m)``).
+    - ``{pt}_{stat}_P{w}``: the plain pitch-weighted rolling rate with no
+      shrinkage, so a lift test can compare shrunk vs. unshrunk directly and
+      confirm shrinkage is pulling its weight for low-usage pitch types.
+
+    The league prior uses only dates strictly before the projected date, and
+    pitcher rolling counts use complete prior starts (including zero pitches
+    of a type), matching :func:`add_pitch_type_rv_features`.
+    """
+    if prior_strength <= 0:
+        raise ValueError("prior_strength must be positive")
+    if not stats:
+        raise ValueError("stats must be non-empty")
+    required_starts = {"game_pk", "pitcher", "game_date"}
+    if missing := sorted(required_starts - set(starts.columns)):
+        raise ValueError(f"starts is missing pitch-type rate keys: {missing}")
+    required_types = {"game_pk", "pitcher", "game_date", "pitch_type"}
+    for num_col, den_col in stats.values():
+        required_types |= {num_col, den_col}
+    if missing := sorted(required_types - set(pitch_type_games.columns)):
+        raise ValueError(f"pitch_type_games is missing rate columns: {missing}")
+
+    pitch_types = list(pitch_types)
+    windows = list(windows)
+    dates = starts.select("game_pk", "pitcher", "game_date")
+    pitch_type_frame = pl.DataFrame({"pitch_type": pitch_types})
+
+    out = starts
+    for stat_name, (num_col, den_col) in stats.items():
+        grid = (
+            dates.join(pitch_type_frame, how="cross")
+            .join(
+                pitch_type_games.select(
+                    "game_pk", "pitcher", "pitch_type", num_col, den_col
+                ),
+                on=["game_pk", "pitcher", "pitch_type"],
+                how="left",
+                validate="1:1",
+            )
+            .with_columns(
+                pl.col(num_col).fill_null(0.0),
+                pl.col(den_col).fill_null(0),
+            )
+        )
+        daily_totals = pitch_type_games.group_by("pitch_type", "game_date").agg(
+            pl.col(num_col).sum().alias("_daily_num"),
+            pl.col(den_col).sum().alias("_daily_den"),
+        )
+        daily = (
+            dates.select("game_date")
+            .unique()
+            .join(pitch_type_frame, how="cross")
+            .join(daily_totals, on=["pitch_type", "game_date"], how="left")
+            .with_columns(
+                pl.col("_daily_num").fill_null(0.0),
+                pl.col("_daily_den").fill_null(0),
+            )
+            .sort(["pitch_type", "game_date"])
+            .with_columns(
+                pl.col("_daily_num")
+                .cum_sum()
+                .shift(1)
+                .over("pitch_type")
+                .fill_null(0.0)
+                .alias("_league_prior_num"),
+                pl.col("_daily_den")
+                .cum_sum()
+                .shift(1)
+                .over("pitch_type")
+                .fill_null(0)
+                .alias("_league_prior_den"),
+            )
+            .select(
+                "pitch_type",
+                "game_date",
+                "_league_prior_num",
+                "_league_prior_den",
+            )
+        )
+        grid = (
+            grid.join(daily, on=["pitch_type", "game_date"], how="left")
+            .sort(["pitcher", "pitch_type", "game_date", "game_pk"])
+            .with_columns(
+                pl.when(pl.col("_league_prior_den") > 0)
+                .then(pl.col("_league_prior_num") / pl.col("_league_prior_den"))
+                .otherwise(None)
+                .alias("_league_prior_mean")
+            )
+        )
+
+        specs: list[tuple[pl.Expr, str]] = []
+        for window in windows:
+            numerator = _rolling_sum_column(
+                num_col, window, min_games, over=["pitcher", "pitch_type"]
+            )
+            denominator = _rolling_sum_column(
+                den_col, window, min_games, over=["pitcher", "pitch_type"]
+            )
+            specs.append(
+                (
+                    pl.when(pl.col("_league_prior_mean").is_not_null())
+                    .then(
+                        (numerator + prior_strength * pl.col("_league_prior_mean"))
+                        / (denominator + prior_strength)
+                    )
+                    .otherwise(None),
+                    f"{stat_name}_shrunk_P{window}",
+                )
+            )
+            specs.append(
+                (
+                    pl.when(denominator > 0)
+                    .then(numerator / denominator)
+                    .otherwise(None),
+                    f"{stat_name}_P{window}",
+                )
+            )
+        temporary = [
+            f"__pitch_type_rate_{stat_name}_{index}" for index in range(len(specs))
+        ]
+        grid = (
+            grid.with_columns(
+                expr.alias(temp)
+                for temp, (expr, _name) in zip(temporary, specs, strict=True)
+            )
+            .with_columns(
+                pl.col(temp)
+                .first()
+                .over(["pitcher", "pitch_type", "game_date"])
+                .alias(name)
+                for temp, (_expr, name) in zip(temporary, specs, strict=True)
+            )
+            .drop(temporary)
+        )
+        for pitch_type in pitch_types:
+            selected = grid.filter(pl.col("pitch_type") == pitch_type).select(
+                "game_pk",
+                "pitcher",
+                *(
+                    pl.col(name).alias(f"{pitch_type}_{name}")
+                    for _expr, name in specs
+                ),
+            )
+            out = out.join(
+                selected,
+                on=["game_pk", "pitcher"],
+                how="left",
+                validate="1:1",
+            )
     return out
 
 

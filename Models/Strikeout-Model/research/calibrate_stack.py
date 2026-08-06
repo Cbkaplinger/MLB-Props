@@ -6,12 +6,12 @@ Reads ``artifacts/model_quality/phase11b_walkforward/walkforward_predictions.par
 - k_rate residual bias by predicted-rate bin
 - binomial vs poisson note (kappa already at binomial limit in 11.B)
 
-Does **not** fit isotonic/temperature on the reported test pool. If ECE is
-materially bad, a follow-up should fit recalibration inside each expanding
-train window only.
+Diagnose-only. To **fit/apply** post-hoc Platt/isotonic maps, use
+``Models/Strikeout-Model/research/fit_prob_calibration.py`` and
+``src/Python/prob_calibration.py`` (see ``docs/research/prob_calibration_findings.md``).
 
 Examples:
-    python models/Strikeout-Model/research/calibrate_stack.py
+    python Models/Strikeout-Model/research/calibrate_stack.py
 """
 
 from __future__ import annotations

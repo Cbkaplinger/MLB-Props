@@ -59,7 +59,7 @@ DEFAULT_WINDOWS: tuple[tuple[str, str, str], ...] = (
 )
 
 RIDGE_ALPHA_GRID = tuple(float(x) for x in np.logspace(-2, 3, 12))
-BASELINE_FREEZE = "lightgbm_krate_20260728_033241"
+BASELINE_FREEZE = "lightgbm_krate_20260803_155401"
 EXPECTED_K_BASELINE_MAE = 1.79  # count_layer chrono test reference
 
 
@@ -310,14 +310,25 @@ def _run_window(
     return row, scored
 
 
-def main(*, dry_run: bool, tune_alpha: bool) -> None:
+def main(
+    *,
+    dry_run: bool,
+    tune_alpha: bool,
+    feature_set: str = "production",
+    output_dir: Path | None = None,
+) -> None:
     frame = _load_frame()
-    k_features = list(resolve_feature_names(frame, "production"))
+    k_features = list(resolve_feature_names(frame, feature_set))
     assert_pa_not_in_features(k_features)
     tbf_features = list(tbf_feature_names(frame, TBF_DEFAULT_FEATURE_SET))
     assert_tbf_label_not_in_features(tbf_features)
 
-    output_dir = config.OUTPUT_DIR / "model_quality" / "phase11b_walkforward"
+    if output_dir is None:
+        suffix = "" if feature_set == "production" else f"_{feature_set}"
+        output_dir = (
+            config.OUTPUT_DIR / "model_quality" / f"phase11b_walkforward{suffix}"
+        )
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     window_plan = []
@@ -388,6 +399,7 @@ def main(*, dry_run: bool, tune_alpha: bool) -> None:
     brier_cols = [c for c in outer.columns if c.startswith("brier_bin_")]
     summary = {
         "phase": "11.B",
+        "k_rate_feature_set": feature_set,
         "k_rate_estimator": "lightgbm_baseline_defaults",
         "compare_freeze_artifact": BASELINE_FREEZE,
         "tbf_estimator": "ridge_workload_context_bullpen",
@@ -428,6 +440,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
+        "--feature-set",
+        default="production",
+        help="k-rate feature registry (default: production).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Optional output directory override.",
+    )
+    parser.add_argument(
         "--tune-alpha",
         action="store_true",
         default=True,
@@ -439,4 +461,9 @@ if __name__ == "__main__":
         help="Use 11.A alpha ≈ 123 instead of per-window search.",
     )
     args = parser.parse_args()
-    main(dry_run=args.dry_run, tune_alpha=not args.fixed_alpha)
+    main(
+        dry_run=args.dry_run,
+        tune_alpha=not args.fixed_alpha,
+        feature_set=args.feature_set,
+        output_dir=Path(args.output_dir) if args.output_dir else None,
+    )

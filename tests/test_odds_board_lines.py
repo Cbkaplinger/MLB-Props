@@ -19,6 +19,16 @@ def test_p_model_over_uses_column_when_present() -> None:
     assert p_model_over_for_line(row, 3.5) == 0.42
 
 
+def test_p_model_over_prefers_calibrated_column() -> None:
+    row = {
+        "p_over_4_5": 0.66,
+        "p_over_4_5_cal": 0.54,
+        "k_rate_pred": 0.22,
+        "projected_tbf": 22.0,
+    }
+    assert p_model_over_for_line(row, 4.5) == 0.54
+
+
 def test_p_model_over_falls_back_for_missing_line() -> None:
     # Assad-style: logged slate without p_over_2_5
     rate, tbf = 0.173, 19.14

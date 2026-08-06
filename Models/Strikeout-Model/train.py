@@ -244,10 +244,10 @@ if __name__ == "__main__":
         choices=FEATURE_SETS,
         default="production",
         help=(
-            "Feature registry. 'production' is Step 7 thin + Step 9c P1 physics "
-            "swap (~180 features); 'step7_185' is the pre-P1 freeze; "
-            "'pre_freeze_248' is the prior full allow-list; "
-            "'ridge_vif' is the Step 1 Ridge research registry."
+            "Feature registry. 'production' is Step 10 P1 spine + Step 11 "
+            "discipline lift (184 features); 'step10_180' is the prior freeze; "
+            "'step7_185' is the pre-P1 freeze; 'pre_freeze_248' is the prior "
+            "full allow-list; 'ridge_vif' is the Step 1 Ridge research registry."
         ),
     )
     args = parser.parse_args()

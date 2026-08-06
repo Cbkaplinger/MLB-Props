@@ -226,8 +226,16 @@ def fill_closes(
     quotes: list[StrikeoutQuote] | None = None,
     allow_cross_book: bool = True,
     mark_misses_unavailable: bool = False,
+    status_override: str | None = None,
+    is_live: bool | None = False,
 ) -> dict[str, Any]:
-    """Fetch SharpAPI (unless quotes given) and fill CLV on matching open tickets."""
+    """Fetch SharpAPI (unless quotes given) and fill CLV on matching open tickets.
+
+    ``status_override`` tags a successful fill with a custom ``close_status``
+    instead of the usual ``ok``/``ok_cross_book`` (used for the post-tip live-odds
+    fallback so those closes stay distinguishable from a true pregame close).
+    ``is_live`` is forwarded to the SharpAPI fetch when ``quotes`` is not given.
+    """
     ledger = load_ledger()
     need = open_needing_close(ledger, slate=slate)
     empty = {
@@ -239,6 +247,7 @@ def fill_closes(
         "n_unavailable": 0,
         "n_quotes": 0,
         "misses": [],
+        "miss_ticket_ids": [],
         "updated": False,
     }
     if need.is_empty():
@@ -252,7 +261,7 @@ def fill_closes(
 
     if quotes is None:
         quotes, n_dupes = dedupe_quotes(
-            fetch_mlb_strikeout_quotes(sportsbook=book, main_only=True, is_live=False)
+            fetch_mlb_strikeout_quotes(sportsbook=book, main_only=True, is_live=is_live)
         )
     else:
         quotes, n_dupes = dedupe_quotes(quotes)
@@ -265,6 +274,7 @@ def fill_closes(
     n_cross = 0
     n_unavail = 0
     misses: list[str] = []
+    miss_ticket_ids: list[str] = []
     closed_at = datetime.now(timezone.utc)
 
     for r in rows:
@@ -280,6 +290,7 @@ def fill_closes(
             n_miss += 1
             label = f"{r.get('player_name')} {r.get('book')} line={r.get('line')}"
             misses.append(label)
+            miss_ticket_ids.append(str(r["ticket_id"]))
             if mark_misses_unavailable and not dry_run:
                 updated = mark_close_unavailable(
                     updated,
@@ -290,7 +301,7 @@ def fill_closes(
             continue
         if abs(float(q.line) - float(r["line"])) > 1e-9:
             n_line_fallback += 1
-        status = "ok_cross_book" if mode == "cross_book" else "ok"
+        status = status_override or ("ok_cross_book" if mode == "cross_book" else "ok")
         if mode == "cross_book":
             n_cross += 1
         updated = apply_close(
@@ -315,6 +326,7 @@ def fill_closes(
         "n_quotes": len(quotes),
         "n_dupes_dropped": n_dupes,
         "misses": misses,
+        "miss_ticket_ids": miss_ticket_ids,
         "updated": (n_upd > 0 or n_unavail > 0) and not dry_run,
         "path": str(LEDGER_PATH),
     }

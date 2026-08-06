@@ -104,6 +104,11 @@ _PRODUCTION_LINEUP_FEATURES = frozenset(
         "opp_lineup_whiff",
         "opp_lineup_swstr",
         "opp_lineup_chase",
+        # 2026-08-03 discipline lift (frozen production 184).
+        "opp_lineup_zswing_P10",
+        "opp_lineup_swing_P10",
+        "opp_lineup_zcontact_P20",
+        "opp_lineup_bb",
     }
 )
 _ROLLING_FEATURE_RE = re.compile(r"(_P\d+|_std(?:_vL|_vR|_shrunk)?)$")
@@ -115,8 +120,10 @@ _EXPERIMENTAL_FEATURE_RE = re.compile(
     r"has_thrown_[a-z]{2}_P2|"
     r"[a-z]{2}_usage_P2|"
     r"[a-z]{2}_rv_shrunk_P\d+|"
+    r"[a-z]{2}_(?:strike|csw|swstr_rate|wOBA|xwOBA)(?:_shrunk)?_P\d+|"
     r"(?:bip_rate|babip|first_pitch_strike_rate|ahead_rate|behind_rate|"
-    r"two_strike_reach_rate|putaway_rate|arm_angle|siera_mlb|rv_per_100)"
+    r"two_strike_reach_rate|putaway_rate|arm_angle|siera_mlb|rv_per_100|"
+    r"zswing_rate|swing_rate|zcontact_rate)"
     r"_(?:P\d+|std)|"
     # TBF spine: lagged volume + rest stay out of frozen k-rate until promoted.
     r"(?:PA|Outs|Pitches)_P\d+|"
@@ -129,9 +136,13 @@ _EXPERIMENTAL_FEATURE_RE = re.compile(
 _EXPERIMENTAL_LINEUP_DISCIPLINE_RE = re.compile(
     r"^opp_lineup_(?:zswing|swing|zcontact|bb)(?:_P(?:5|10|20))?$"
 )
+_EXPERIMENTAL_LINEUP_VS_HAND_RE = re.compile(
+    r"^opp_lineup_(?:zswing|swing|zcontact|bb|whiff)_vs_hand$"
+)
 _LINEUP_RESEARCH_FEATURE_RE = re.compile(
     r"^opp_lineup_(?:"
     r"k(?:_vs_hand)?|whiff|swstr|chase|zswing|swing|zcontact|bb|"
+    r"(?:zswing|swing|zcontact|bb|whiff)_vs_hand|"
     r"babip|hard_hit|barrel|sweet_spot|avg_ev|avg_la|xba|woba|xwoba|"
     r"hr|fb|hr_fb|pull_air|rv_per_pitch"
     r")(?:_P(?:5|10|20))?(?:_order_(?:weighted|sd))?$"
@@ -155,6 +166,7 @@ def is_experimental_feature(feature: str) -> bool:
     return (
         _EXPERIMENTAL_FEATURE_RE.match(feature) is not None
         or _EXPERIMENTAL_LINEUP_DISCIPLINE_RE.match(feature) is not None
+        or _EXPERIMENTAL_LINEUP_VS_HAND_RE.match(feature) is not None
         or _LINEUP_RESEARCH_FEATURE_RE.match(feature) is not None
     )
 

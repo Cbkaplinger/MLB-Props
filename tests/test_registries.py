@@ -1,4 +1,4 @@
-"""Tests for feature-set registries (Step 1 / Step 7 / Step 9c)."""
+"""Tests for feature-set registries (Step 1 / Step 7 / Step 9c / Step 11)."""
 
 from __future__ import annotations
 
@@ -6,9 +6,12 @@ import pandas as pd
 import pytest
 
 from Python.registries import (
+    DISCIPLINE_LIFT_FEATURES,
     FEATURE_SETS,
     production_features,
+    production_plus_discipline_features,
     resolve_feature_names,
+    step10_180_features,
     step7_185_features,
 )
 
@@ -23,6 +26,10 @@ def _toy_frame(*, with_p1: bool = False) -> pd.DataFrame:
         "opp_lineup_whiff": [0.25, 0.26],
         "opp_lineup_swstr": [0.11, 0.12],
         "opp_lineup_chase": [0.28, 0.29],
+        "opp_lineup_zswing_P10": [0.65, 0.66],
+        "opp_lineup_swing_P10": [0.47, 0.48],
+        "opp_lineup_zcontact_P20": [0.82, 0.83],
+        "opp_lineup_bb": [0.08, 0.09],
         "ff_velo_P3": [94.0, 95.0],
         "ff_velo_P5": [94.1, 95.1],
         "ff_velo_P10": [94.2, 95.2],
@@ -99,25 +106,59 @@ def test_step7_185_drops_mean_family_p10(monkeypatch: pytest.MonkeyPatch) -> Non
     assert "k_rate_P5" in features
 
 
-def test_production_applies_p1_swap(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_step10_180_applies_p1_swap(monkeypatch: pytest.MonkeyPatch) -> None:
     import Python.registries as registries
 
     monkeypatch.setattr(registries, "_family_map", _family_patch)
-    features = production_features(_toy_frame(with_p1=True))
+    features = step10_180_features(_toy_frame(with_p1=True))
     assert "ff_velo_P1" in features
     assert "cu_vaa_P1" in features
     assert "ff_velo_P3" not in features
     assert "ff_velo_P5" not in features
     assert "ff_velo_P10" not in features
     assert "k_rate_P5" in features
+    for feature in DISCIPLINE_LIFT_FEATURES:
+        assert feature not in features
 
 
-def test_production_requires_p1_columns(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_production_includes_discipline_lift(monkeypatch: pytest.MonkeyPatch) -> None:
+    import Python.registries as registries
+
+    monkeypatch.setattr(registries, "_family_map", _family_patch)
+    features = production_features(_toy_frame(with_p1=True))
+    core = step10_180_features(_toy_frame(with_p1=True))
+    assert len(features) == len(core) + len(DISCIPLINE_LIFT_FEATURES)
+    for feature in DISCIPLINE_LIFT_FEATURES:
+        assert feature in features
+
+
+def test_production_plus_discipline_aliases_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import Python.registries as registries
+
+    monkeypatch.setattr(registries, "_family_map", _family_patch)
+    frame = _toy_frame(with_p1=True)
+    assert production_plus_discipline_features(frame) == production_features(frame)
+
+
+def test_production_requires_discipline_columns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import Python.registries as registries
+
+    monkeypatch.setattr(registries, "_family_map", _family_patch)
+    frame = _toy_frame(with_p1=True).drop(columns=["opp_lineup_bb"])
+    with pytest.raises(ValueError, match="discipline"):
+        production_features(frame)
+
+
+def test_step10_requires_p1_columns(monkeypatch: pytest.MonkeyPatch) -> None:
     import Python.registries as registries
 
     monkeypatch.setattr(registries, "_family_map", _family_patch)
     with pytest.raises(ValueError, match="requires P1"):
-        production_features(_toy_frame(with_p1=False))
+        step10_180_features(_toy_frame(with_p1=False))
 
 
 def test_resolve_feature_names_rejects_unknown_set() -> None:
@@ -126,4 +167,11 @@ def test_resolve_feature_names_rejects_unknown_set() -> None:
 
 
 def test_feature_sets_constant() -> None:
-    assert FEATURE_SETS == ("production", "step7_185", "pre_freeze_248", "ridge_vif")
+    assert FEATURE_SETS == (
+        "production",
+        "production_plus_discipline",
+        "step10_180",
+        "step7_185",
+        "pre_freeze_248",
+        "ridge_vif",
+    )

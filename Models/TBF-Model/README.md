@@ -13,7 +13,6 @@ python Models/TBF-Model/train.py --model ridge --feature-set workload_context_bu
 python Models/Strikeout-Model/score_count_layer.py
 ```
 
-See `docs/research/tbf_first_model_findings.md`. **Next for the stack:** Phase 11
-estimator tune (including persist Ridge α / joblib) → walk-forward backtest →
-calibration (`docs/research/phase11_model_quality_gates.md`). Live assembly is deferred
-until those gates.
+See `docs/research/tbf_first_model_findings.md`. Phase 11 stack gates are **done**
+(`docs/research/phase11_model_quality_gates.md`). Live scoring + paper CLV:
+`production/README.md`, `docs/reference/market_clv_gates.md`.

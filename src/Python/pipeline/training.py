@@ -76,6 +76,13 @@ _RESEARCH_LINEUP_RATE_COLUMNS = {
     for output, source in _RESEARCH_LINEUP_BASES.items()
     for suffix in ("", "_P5", "_P10", "_P20")
 }
+_LINEUP_VS_HAND_RATE_SOURCES = {
+    "opp_lineup_zswing_vs_hand": ("zswing_rate_std_vR", "zswing_rate_std_vL"),
+    "opp_lineup_swing_vs_hand": ("swing_rate_std_vR", "swing_rate_std_vL"),
+    "opp_lineup_zcontact_vs_hand": ("zcontact_rate_std_vR", "zcontact_rate_std_vL"),
+    "opp_lineup_bb_vs_hand": ("bb_rate_std_vR", "bb_rate_std_vL"),
+    "opp_lineup_whiff_vs_hand": ("whiff_rate_std_vR", "whiff_rate_std_vL"),
+}
 _LINEUP_RATE_COLUMNS = {
     **_RESEARCH_LINEUP_RATE_COLUMNS,
     **_BASE_LINEUP_RATE_COLUMNS,
@@ -131,12 +138,19 @@ def opposing_lineup_features(
         for source in dict.fromkeys(available_rates.values())
         if source not in {"k_rate_std", "k_rate_std_vL", "k_rate_std_vR"}
     ]
+    hand_split_columns = [
+        column
+        for right, left in _LINEUP_VS_HAND_RATE_SOURCES.values()
+        for column in (right, left)
+        if column in batters.columns and column not in rate_source_columns
+    ]
     has_lineup_weight = "lineup_pa_weight" in batters.columns
     joined = keys.join(
         batters.filter(pl.col("is_initial_lineup")).select(
             "game_pk", "batter", "bat_team", "k_rate_std", "k_rate_std_vL",
             "k_rate_std_vR", *optional_columns,
             *rate_source_columns,
+            *hand_split_columns,
         ),
         left_on=["game_pk", "opp_team"],
         right_on=["game_pk", "bat_team"],
@@ -148,6 +162,16 @@ def opposing_lineup_features(
         .then(pl.col("k_rate_std_vL"))
         .otherwise(None)
         .alias("_k_vs_hand"),
+        *(
+            pl.when(pl.col("p_throws") == "R")
+            .then(pl.col(right))
+            .when(pl.col("p_throws") == "L")
+            .then(pl.col(left))
+            .otherwise(None)
+            .alias(f"_{output.removeprefix('opp_lineup_')}")
+            for output, (right, left) in _LINEUP_VS_HAND_RATE_SOURCES.items()
+            if right in batters.columns and left in batters.columns
+        ),
         (
             pl.col("lineup_pa_weight")
             if has_lineup_weight
@@ -193,6 +217,10 @@ def opposing_lineup_features(
         weighted_mean("_k_vs_hand", "opp_lineup_k_vs_hand_order_weighted"),
         weighted_sd("_k_vs_hand", "opp_lineup_k_vs_hand_order_sd"),
     ]
+    for output, (right, left) in _LINEUP_VS_HAND_RATE_SOURCES.items():
+        alias = f"_{output.removeprefix('opp_lineup_')}"
+        if alias in joined.columns:
+            aggregations.append(pl.col(alias).mean().alias(output))
     aggregations.extend(
         pl.col(source).mean().alias(output)
         for output, source in available_rates.items()

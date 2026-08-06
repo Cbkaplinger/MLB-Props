@@ -25,6 +25,12 @@ from Python.bullpen import add_bullpen_lookback_features
 from Python.count_layer import DEFAULT_K_LINES, PROJECTION_K_LINES, attach_count_predictions
 from Python.daily_lineups import DailySlate
 from Python import identity
+from Python.prob_calibration import (
+    apply_prob_calibration,
+    default_bundle_path,
+    load_bundle,
+    p_over_col,
+)
 from Python.training import lightgbm_matrix, predict_nonnegative
 
 # DFS / MLB abbreviations → Statcast team codes used in Level 1–3.
@@ -36,7 +42,7 @@ _TO_STATCAST_TEAM: dict[str, str] = {
 }
 
 _DEFAULT_KRATE = config.MODEL_DIR
-DEFAULT_KRATE_STEM = config.MODEL_DIR / "lightgbm_krate_20260728_033241"
+DEFAULT_KRATE_STEM = config.MODEL_DIR / "lightgbm_krate_20260803_155401"
 DEFAULT_TBF_JOBLIB = (
     config.MODEL_DIR / "tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib"
 )
@@ -121,12 +127,22 @@ def attach_fair_american_odds(
     frame: pd.DataFrame,
     *,
     lines: Sequence[float] = PROJECTION_K_LINES,
+    prefer_calibrated: bool = True,
 ) -> pd.DataFrame:
-    """Add ``fair_amer_{line}`` columns from ``p_over_{line}`` probabilities."""
+    """Add ``fair_amer_{line}`` from calibrated ``p_over_*_cal`` when present.
+
+    Falls back to raw ``p_over_*``. Does not modify probability columns.
+    """
     out = frame.copy()
     for line in lines:
-        p_key = f"p_over_{str(line).replace('.', '_')}"
-        a_key = f"fair_amer_{str(line).replace('.', '_')}"
+        raw_key = p_over_col(line, calibrated=False)
+        cal_key = p_over_col(line, calibrated=True)
+        a_key = f"fair_amer_{line_to_stem(line)}"
+        p_key = (
+            cal_key
+            if prefer_calibrated and cal_key in out.columns
+            else raw_key
+        )
         if p_key not in out.columns:
             continue
         out[a_key] = [
@@ -136,14 +152,25 @@ def attach_fair_american_odds(
     return out
 
 
+def line_to_stem(line: float) -> str:
+    return str(line).replace(".", "_")
+
+
 def score_frame(
     frame: pd.DataFrame,
     *,
     krate_stem: Path = DEFAULT_KRATE_STEM,
     tbf_joblib: Path = DEFAULT_TBF_JOBLIB,
     lines: Sequence[float] | None = None,
+    calibration_path: Path | None | bool = True,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Score a feature frame with frozen k-rate + TBF + binomial count layer."""
+    """Score a feature frame with frozen k-rate + TBF + binomial count layer.
+
+    ``calibration_path``:
+      - ``True`` (default): load production calibrator pointer if present
+      - ``Path``: load that joblib
+      - ``False`` / ``None``: skip post-hoc calibration (raw ``p_over_*`` only)
+    """
     line_set = tuple(lines) if lines is not None else DEFAULT_K_LINES
     booster, k_features, k_meta = load_krate_booster(krate_stem)
     tbf = load_tbf_bundle(tbf_joblib)
@@ -178,7 +205,32 @@ def score_frame(
         lines=line_set,
         kappa=None,
     )
-    scored = attach_fair_american_odds(scored, lines=line_set)
+
+    cal_meta: dict[str, Any] = {
+        "calibration_applied": False,
+        "calibration_version": None,
+        "calibration_path": None,
+    }
+    path: Path | None
+    if calibration_path is True:
+        path = default_bundle_path()
+    elif calibration_path is False or calibration_path is None:
+        path = None
+    else:
+        path = Path(calibration_path)
+
+    if path is not None and path.exists():
+        bundle = load_bundle(path)
+        scored = apply_prob_calibration(scored, bundle, lines=line_set)
+        cal_meta = {
+            "calibration_applied": True,
+            "calibration_version": bundle.version,
+            "calibration_method": bundle.method,
+            "calibration_path": str(path),
+            "calibration_fit_cutoff": bundle.fit_cutoff,
+        }
+
+    scored = attach_fair_american_odds(scored, lines=line_set, prefer_calibrated=True)
     report = {
         "k_rate_model": str(krate_stem.with_suffix(".txt")),
         "k_rate_sha256": _sha256(krate_stem.with_suffix(".txt")),
@@ -194,6 +246,7 @@ def score_frame(
         "mean_expected_K": float(np.mean(scored["expected_K"])),
         "approved_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "k_rate_registry": k_meta.get("registry_freeze"),
+        **cal_meta,
     }
     return scored, report
 
@@ -247,10 +300,20 @@ def daily_projection_board(
     line_cols: list[str] = []
     for line in lines:
         stem = str(line).replace(".", "_")
-        for prefix in ("p_over_", "fair_amer_"):
-            col = f"{prefix}{stem}"
+        for col in (
+            f"p_over_{stem}",
+            f"p_over_{stem}_cal",
+            f"fair_amer_{stem}",
+        ):
             if col in frame.columns:
                 line_cols.append(col)
+    for meta_col in (
+        "calibration_version",
+        "calibration_method",
+        "calibration_scope",
+    ):
+        if meta_col in frame.columns and meta_col not in base_cols:
+            base_cols.append(meta_col)
 
     board = pl.from_pandas(frame[base_cols + line_cols])
     if "starter_source" in board.columns:
@@ -337,6 +400,10 @@ def _live_lineup_aggregates(
             "whiff_rate_std",
             "swstr_rate_std",
             "chase_rate_std",
+            "zswing_rate_P10",
+            "swing_rate_P10",
+            "zcontact_rate_P20",
+            "bb_rate_std",
         )
         if c in latest.columns
     ]
@@ -364,14 +431,23 @@ def _live_lineup_aggregates(
         .otherwise(None)
         .alias("_k_vs_hand")
     )
-    return joined.group_by("game_pk", "pitcher").agg(
+    aggregations = [
         pl.col("batter").count().alias("opp_lineup_size"),
         pl.col("k_rate_std").mean().alias("opp_lineup_k"),
         pl.col("_k_vs_hand").mean().alias("opp_lineup_k_vs_hand"),
         pl.col("whiff_rate_std").mean().alias("opp_lineup_whiff"),
         pl.col("swstr_rate_std").mean().alias("opp_lineup_swstr"),
         pl.col("chase_rate_std").mean().alias("opp_lineup_chase"),
-    )
+    ]
+    for source, output in (
+        ("zswing_rate_P10", "opp_lineup_zswing_P10"),
+        ("swing_rate_P10", "opp_lineup_swing_P10"),
+        ("zcontact_rate_P20", "opp_lineup_zcontact_P20"),
+        ("bb_rate_std", "opp_lineup_bb"),
+    ):
+        if source in joined.columns:
+            aggregations.append(pl.col(source).mean().alias(output))
+    return joined.group_by("game_pk", "pitcher").agg(aggregations)
 
 
 def expand_dual_starter_slate(slate: DailySlate) -> DailySlate:

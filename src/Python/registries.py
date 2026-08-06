@@ -1,13 +1,16 @@
 """Explicit feature-set registries for LightGBM production and Ridge VIF research.
 
 Step 7 froze LightGBM production as the Step 4 mean-window thin (drop P10 on
-physics/usage/mechanics/FIP). Step 9c amends production: five physics/usage
-stems swap onto last-start ``P1`` (drop their ``P3``/``P5``) after nested
-agreement + chrono bake-off win vs the 185-feature set.
+physics/usage/mechanics/FIP). Step 9c amends that thin with a five-stem
+last-start ``P1`` swap (``step10_180``).
 
-``step7_185`` keeps the pre-P1 production list for comparisons.
-``pre_freeze_248`` remains the full safety-gated allow-list. Ridge uses the
-separate VIF registry.
+2026-08-03 promotes four opposing-lineup discipline nominees into
+``production`` (184). ``step10_180`` keeps the prior freeze for bake-offs.
+``production_plus_discipline`` remains as a backward-compatible alias of
+``production``.
+
+``step7_185`` keeps the pre-P1 list. ``pre_freeze_248`` remains the full
+safety-gated allow-list. Ridge uses the separate VIF registry.
 """
 
 from __future__ import annotations
@@ -20,7 +23,22 @@ import pandas as pd
 from Python import config
 from Python.features import model_feature_names, validate_pregame_features
 
-FEATURE_SETS = ("production", "step7_185", "pre_freeze_248", "ridge_vif")
+FEATURE_SETS = (
+    "production",
+    "production_plus_discipline",  # alias of production (post 2026-08-03 freeze)
+    "step10_180",
+    "step7_185",
+    "pre_freeze_248",
+    "ridge_vif",
+)
+
+# Phase-3 / 2026-08-03 LGBM lift nominees (nested both-fold + 2025 confirm).
+DISCIPLINE_LIFT_FEATURES = (
+    "opp_lineup_zswing_P10",
+    "opp_lineup_swing_P10",
+    "opp_lineup_zcontact_P20",
+    "opp_lineup_bb",
+)
 
 # Mean-window families thinned at LightGBM freeze (Step 4): drop P10.
 _MEAN_WINDOW_FAMILIES = frozenset(
@@ -67,8 +85,17 @@ def _family_map() -> dict[str, str]:
 
 
 def eligible_baseline_features(frame: pd.DataFrame) -> tuple[str, ...]:
-    """Full safety-gated allow-list before the Step 7 window thin (248)."""
-    return model_feature_names(frame)
+    """Full safety-gated allow-list before the Step 7 window thin (248).
+
+    Excludes the Step-11 discipline-lift columns so historical ``pre_freeze_248``
+    / ``step7_185`` / ``step10_180`` sizes stay comparable; production re-adds
+    them explicitly.
+    """
+    return tuple(
+        feature
+        for feature in model_feature_names(frame)
+        if feature not in DISCIPLINE_LIFT_FEATURES
+    )
 
 
 def pre_freeze_248_features(frame: pd.DataFrame) -> tuple[str, ...]:
@@ -124,9 +151,28 @@ def _apply_p1_physics_swap(
     return validate_pregame_features(selected)
 
 
-def production_features(frame: pd.DataFrame) -> tuple[str, ...]:
-    """Frozen LightGBM production registry (Step 7 thin + Step 9c P1 swap)."""
+def step10_180_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Prior frozen LightGBM spine (Step 7 thin + Step 9c P1 swap; 180)."""
     return _apply_p1_physics_swap(step7_185_features(frame), frame)
+
+
+def production_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Frozen LightGBM production registry (step10_180 + discipline lift)."""
+    core = list(step10_180_features(frame))
+    missing = [
+        feature for feature in DISCIPLINE_LIFT_FEATURES if feature not in frame.columns
+    ]
+    if missing:
+        raise ValueError(
+            "production registry requires opposing-lineup discipline columns "
+            f"on the Level 3 frame. Missing: {missing}"
+        )
+    return validate_pregame_features([*core, *DISCIPLINE_LIFT_FEATURES])
+
+
+def production_plus_discipline_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Backward-compatible alias of :func:`production_features` (184)."""
+    return production_features(frame)
 
 
 # Backward-compatible alias used in Step 1 docs/scripts.
@@ -167,8 +213,10 @@ def resolve_feature_names(
         raise ValueError(
             f"unsupported feature set {feature_set!r}; expected one of {FEATURE_SETS}"
         )
-    if feature_set == "production":
+    if feature_set in {"production", "production_plus_discipline"}:
         return production_features(frame)
+    if feature_set == "step10_180":
+        return step10_180_features(frame)
     if feature_set == "step7_185":
         return step7_185_features(frame)
     if feature_set == "pre_freeze_248":
@@ -184,6 +232,7 @@ def registry_metadata(feature_set: str, features: tuple[str, ...]) -> dict[str, 
         "ridge_vif_explicit_drops": sorted(_RIDGE_VIF_EXPLICIT_DROPS),
         "mean_window_families_thinned_at_freeze": sorted(_MEAN_WINDOW_FAMILIES),
         "p1_physics_swap_stems": sorted(_P1_PHYSICS_SWAP_STEMS),
+        "discipline_lift_features": list(DISCIPLINE_LIFT_FEATURES),
         "dictionary_path": str(_DICTIONARY_PATH),
         "vif_reduced_path": str(_VIF_REDUCED_PATH),
     }

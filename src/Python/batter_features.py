@@ -152,11 +152,25 @@ def build_batter_games(df: pl.DataFrame) -> pl.DataFrame:
             pl.col("delta_run_exp").is_not_null().sum().alias("RV_den"),
             # plate discipline (swings, chases, contact, zone)
             *discipline_count_exprs(),
-            # splits vs pitcher handedness (for vs-LHP / vs-RHP K%)
+            # splits vs pitcher handedness (for vs-LHP / vs-RHP rates)
             (pl.col("is_pa") & vL).sum().alias("PA_vL"),
             (pl.col("is_k") & vL).sum().alias("K_vL"),
+            (pl.col("is_bb") & vL).sum().alias("BB_vL"),
             (pl.col("is_pa") & vR).sum().alias("PA_vR"),
             (pl.col("is_k") & vR).sum().alias("K_vR"),
+            (pl.col("is_bb") & vR).sum().alias("BB_vR"),
+            vL.sum().alias("Pitches_vL"),
+            vR.sum().alias("Pitches_vR"),
+            (pl.col("is_swing") & vL).sum().alias("Swings_vL"),
+            (pl.col("is_swing") & vR).sum().alias("Swings_vR"),
+            (pl.col("is_whiff") & vL).sum().alias("Whiffs_vL"),
+            (pl.col("is_whiff") & vR).sum().alias("Whiffs_vR"),
+            (pl.col("is_in_zone") & vL).sum().alias("InZone_vL"),
+            (pl.col("is_in_zone") & vR).sum().alias("InZone_vR"),
+            (pl.col("is_zswing") & vL).sum().alias("ZSwings_vL"),
+            (pl.col("is_zswing") & vR).sum().alias("ZSwings_vR"),
+            (pl.col("is_zcontact") & vL).sum().alias("ZContacts_vL"),
+            (pl.col("is_zcontact") & vR).sum().alias("ZContacts_vR"),
         )
         .sort(["game_pk", "bat_team", "_first_ab", "batter"])
         .with_columns(

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
 import json
 from pathlib import Path
@@ -486,6 +486,59 @@ def fetch_mlb_person_name_parts(
             "use_name": pl.String,
             "nick_name": pl.String,
             "last_name": pl.String,
+        },
+        orient="row",
+    )
+
+
+def fetch_mlb_person_search(
+    names: tuple[str, ...],
+    *,
+    timeout: float = 30.0,
+) -> pl.DataFrame:
+    """Search MLB people by name; used as a last resort for same-day callups
+    whose transaction hasn't yet propagated to the team roster endpoint.
+
+    ``team_id`` is the person's MLB *parent organization* id (falling back to
+    their raw ``currentTeam`` id), since a just-recalled player's
+    ``currentTeam`` often still points at their Triple-A affiliate for a few
+    hours after the transaction. ``parentOrgId`` already tracks the correct
+    big-league club in that window, so callers should match against it.
+    """
+    rows: list[dict[str, int | str | None]] = []
+    seen_ids: set[int] = set()
+    for name in dict.fromkeys(n.strip() for n in names if n and n.strip()):
+        query = urlencode({"names": name, "hydrate": "currentTeam"})
+        try:
+            payload = json.loads(
+                _fetch_bytes(f"{MLB_PEOPLE_URL}/search?{query}", timeout=timeout)
+            )
+        except Exception:
+            continue
+        for person in payload.get("people", []):
+            person_id = person.get("id")
+            full_name = person.get("fullName")
+            if person_id is None or not full_name:
+                continue
+            person_id = int(person_id)
+            if person_id in seen_ids:
+                continue
+            seen_ids.add(person_id)
+            current_team = person.get("currentTeam") or {}
+            team_id = current_team.get("parentOrgId") or current_team.get("id")
+            rows.append(
+                {
+                    "team_id": team_id,
+                    "mlb_id": person_id,
+                    "player_name": full_name,
+                }
+            )
+    return pl.DataFrame(
+        rows,
+        schema={
+            "team_id": pl.Int64,
+            "mlb_id": pl.Int64,
+            "player_name": pl.String,
         },
         orient="row",
     )
@@ -1018,6 +1071,132 @@ def resolve_player_ids(
     return resolved.rename({"mlb_id": output_column}).drop("_name_key")
 
 
+def _rg_card_matchups(slate: DailySlate) -> list[tuple[int, int, str, str]]:
+    """Unique RG cards as (away_id, home_id, away_code, home_code)."""
+    if slate.starters.is_empty():
+        return []
+    cards = (
+        slate.starters.select(
+            "away_team_id", "home_team_id", "away_team", "home_team"
+        )
+        .unique()
+        .sort(["away_team", "home_team"])
+    )
+    return [
+        (
+            int(row["away_team_id"]),
+            int(row["home_team_id"]),
+            str(row["away_team"]),
+            str(row["home_team"]),
+        )
+        for row in cards.iter_rows(named=True)
+    ]
+
+
+def _schedule_match_count(
+    matchups: list[tuple[int, int, str, str]],
+    schedule: pl.DataFrame,
+) -> int:
+    if not matchups or schedule.is_empty():
+        return 0
+    keys = {
+        (int(a), int(h))
+        for a, h in zip(
+            schedule["away_team_id"].to_list(),
+            schedule["home_team_id"].to_list(),
+        )
+    }
+    return sum(1 for away_id, home_id, _, _ in matchups if (away_id, home_id) in keys)
+
+
+def infer_rotogrinders_slate_date(
+    slate: DailySlate,
+    *,
+    requested: date,
+    timeout: float = 30.0,
+    window_days: int = 2,
+) -> tuple[date | None, int]:
+    """Find the nearby MLB date whose schedule best matches RG team pairs.
+
+    RotoGrinders' public lineups page has no reliable date URL and often lags
+    overnight (still showing yesterday after ET midnight). Returns
+    ``(best_date, n_matched)`` or ``(None, 0)`` when nothing overlaps.
+
+    Tie-break when consecutive series days share the same team pairs: prefer
+    the calendar day closest to ``requested`` (then the most recent past day).
+    """
+    matchups = _rg_card_matchups(slate)
+    if not matchups:
+        return None, 0
+    best_date: date | None = None
+    best_n = 0
+    best_key: tuple[int, int, int, int] | None = None
+    for offset in range(-window_days, window_days + 1):
+        day = requested + timedelta(days=offset)
+        n = _schedule_match_count(
+            matchups, fetch_mlb_schedule(day, timeout=timeout)
+        )
+        if n == 0:
+            continue
+        # Maximize matches; minimize distance; prefer past over future; prefer
+        # more recent past on equal distance (overnight = yesterday).
+        key = (
+            n,
+            -abs((day - requested).days),
+            0 if day <= requested else -1,
+            day.toordinal(),
+        )
+        if best_key is None or key > best_key:
+            best_key = key
+            best_n = n
+            best_date = day
+    return best_date, best_n
+
+
+def _rg_schedule_mismatch_message(
+    *,
+    requested: date,
+    unmatched: list[dict[str, object]],
+    schedule: pl.DataFrame,
+    inferred: date | None,
+    inferred_n: int,
+    n_cards: int,
+) -> str:
+    sched_pairs = (
+        sorted(
+            f"{a}@{h}"
+            for a, h in zip(
+                schedule["away_team"].to_list(),
+                schedule["home_team"].to_list(),
+            )
+        )
+        if not schedule.is_empty()
+        else []
+    )
+    rg_pairs = [
+        f"{u.get('away_team')}@{u.get('home_team')}" for u in unmatched[:8]
+    ]
+    lines = [
+        f"RotoGrinders cards do not match the MLB schedule for {requested.isoformat()}.",
+        f"MLB has {schedule.height} game(s)"
+        + (f" ({', '.join(sched_pairs[:8])}" + ("…" if len(sched_pairs) > 8 else "") + ")" if sched_pairs else "")
+        + ".",
+        f"Unmatched RG cards ({n_cards}): {', '.join(rg_pairs)}"
+        + ("…" if len(unmatched) > 8 else "")
+        + ".",
+    ]
+    if inferred is not None and inferred != requested and inferred_n > 0:
+        lines.append(
+            f"Those matchups look like {inferred.isoformat()} "
+            f"({inferred_n}/{n_cards} team pairs). "
+            "RotoGrinders often lags overnight until the morning flip. "
+            f"Pass game_date={inferred.isoformat()} "
+            f"(notebook: SLATE_DATE = date.fromisoformat('{inferred.isoformat()}')) "
+            "to score that slate, or wait for RG to publish today."
+        )
+    return " ".join(lines)
+
+
 def attach_schedule(slate: DailySlate, schedule: pl.DataFrame) -> DailySlate:
     """Attach official game IDs and probable pitchers to parsed source rows.
 
@@ -1114,6 +1293,15 @@ def attach_schedule(slate: DailySlate, schedule: pl.DataFrame) -> DailySlate:
         )
 
     if not assignments:
+        requested = cards["game_date"][0] if cards.height else None
+        if requested is not None:
+            raise ValueError(
+                "Could not attach any RotoGrinders cards to the MLB schedule "
+                f"for {requested}. MLB games={schedule.height}. Unmatched: {unmatched}. "
+                "If this is overnight, RotoGrinders may still be serving "
+                "yesterday — set game_date / SLATE_DATE to that date, or wait "
+                "for the morning flip."
+            )
         raise ValueError(
             "Could not attach any RotoGrinders cards to the MLB schedule: "
             f"{unmatched}"
@@ -1226,10 +1414,32 @@ def build_daily_slate(
         fetch_rotogrinders_html(timeout=timeout),
         game_date=game_date,
     )
-    scheduled = attach_schedule(
-        parsed,
-        fetch_mlb_schedule(game_date, timeout=timeout),
-    )
+    schedule = fetch_mlb_schedule(game_date, timeout=timeout)
+    matchups = _rg_card_matchups(parsed)
+    n_matched = _schedule_match_count(matchups, schedule)
+    if matchups and n_matched == 0:
+        inferred, inferred_n = infer_rotogrinders_slate_date(
+            parsed, requested=game_date, timeout=timeout
+        )
+        unmatched = [
+            {
+                "away_team": away,
+                "home_team": home,
+                "rg_game_number": 1,
+            }
+            for _, _, away, home in matchups
+        ]
+        raise ValueError(
+            _rg_schedule_mismatch_message(
+                requested=game_date,
+                unmatched=unmatched,
+                schedule=schedule,
+                inferred=inferred,
+                inferred_n=inferred_n,
+                n_cards=len(matchups),
+            )
+        )
+    scheduled = attach_schedule(parsed, schedule)
     team_ids = tuple(
         sorted(
             set(scheduled.lineups["team_id"].to_list())
@@ -1276,7 +1486,82 @@ def build_daily_slate(
             continue
     if lineups is None or starters is None:
         assert last_err is not None
-        raise last_err
+        # Last resort: same-day callups/debuts whose transaction hasn't yet
+        # propagated to the team roster endpoint (e.g. George Lombard Jr.,
+        # Cristian Pache being activated the morning of their debut). Search
+        # MLB people-by-name directly and accept matches whose current team
+        # is one of today's scheduled clubs.
+        unresolved_lineups = resolve_player_ids(
+            scheduled.lineups,
+            rosters,
+            output_column="batter",
+            aliases=aliases,
+            enrich=False,
+            require_complete=False,
+            timeout=timeout,
+        )
+        unresolved_starters = resolve_player_ids(
+            scheduled.starters,
+            rosters,
+            output_column="pitcher",
+            aliases=aliases,
+            enrich=False,
+            require_complete=False,
+            timeout=timeout,
+        )
+        missing_names = tuple(
+            sorted(
+                set(
+                    unresolved_lineups.filter(pl.col("batter").is_null())[
+                        "player_name"
+                    ].to_list()
+                )
+                | set(
+                    unresolved_starters.filter(pl.col("pitcher").is_null())[
+                        "player_name"
+                    ].to_list()
+                )
+            )
+        )
+        found = (
+            fetch_mlb_person_search(missing_names, timeout=timeout)
+            if missing_names
+            else pl.DataFrame(
+                schema={
+                    "team_id": pl.Int64,
+                    "mlb_id": pl.Int64,
+                    "player_name": pl.String,
+                }
+            )
+        )
+        found = found.filter(pl.col("team_id").is_in(team_ids))
+        if not found.is_empty():
+            rosters = pl.concat([rosters, enrich_rosters_for_matching(found, timeout=timeout)]).unique(
+                subset=["team_id", "mlb_id"]
+            )
+            try:
+                lineups = resolve_player_ids(
+                    scheduled.lineups,
+                    rosters,
+                    output_column="batter",
+                    aliases=aliases,
+                    enrich=False,
+                    timeout=timeout,
+                )
+                starters = resolve_player_ids(
+                    scheduled.starters,
+                    rosters,
+                    output_column="pitcher",
+                    aliases=aliases,
+                    enrich=False,
+                    timeout=timeout,
+                )
+                last_err = None
+            except ValueError as exc:
+                last_err = exc
+        if lineups is None or starters is None:
+            assert last_err is not None
+            raise last_err
 
     resolved = DailySlate(lineups=lineups, starters=starters)
     validate_daily_slate(

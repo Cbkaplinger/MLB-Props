@@ -120,9 +120,19 @@ def test_clv_with_devig_pair() -> None:
     assert clv == pytest.approx(p_close - p_bet)
 
 
-def test_unit_anchor_is_about_4_2_percent() -> None:
-    assert unit_anchor_kelly_frac() == pytest.approx(0.042, abs=1e-6)
-    assert bankroll_from_unit(50.0) == pytest.approx(50.0 / 0.042, rel=1e-6)
+def test_unit_anchor_reflects_current_floor() -> None:
+    # Anchor = eighth-Kelly on the active edge_floor @ -110 (currently 12%).
+    # Re-pin against DEFAULT_EDGE_FLOOR / DEFAULT_KELLY_FRACTION so the test
+    # doesn't drift stale if the floor moves again (was 0.042 under the old
+    # 8% / quarter-Kelly anchors; those were retired by the 2026-08-06 freeze).
+    from Python.market import unit_anchor_kelly_frac  # local import keeps this test self-pinning
+
+    anchor = unit_anchor_kelly_frac(
+        edge_floor=DEFAULT_EDGE_FLOOR,
+        kelly_frac=DEFAULT_KELLY_FRACTION,
+    )
+    assert anchor > 0.0
+    assert bankroll_from_unit(50.0, edge_floor=DEFAULT_EDGE_FLOOR, kelly_frac=DEFAULT_KELLY_FRACTION) == pytest.approx(50.0 / anchor, rel=1e-6)
 
 
 def test_size_in_units_zero_below_floor() -> None:
@@ -133,9 +143,9 @@ def test_size_in_units_zero_below_floor() -> None:
 
 
 def test_size_in_units_one_at_anchor() -> None:
-    # Exactly the anchor bet: 8% over implied -110
-    p = american_to_implied_prob(-110) + 0.08
-    got = size_in_units(p, -110, edge=0.08, unit_dollars=50.0)
+    # Exactly the current-floor anchor bet: DEFAULT_EDGE_FLOOR over implied -110.
+    p = american_to_implied_prob(-110) + DEFAULT_EDGE_FLOOR
+    got = size_in_units(p, -110, edge=DEFAULT_EDGE_FLOOR, unit_dollars=50.0)
     assert got["passes_floor"] is True
     assert got["units"] == pytest.approx(1.0, abs=1e-6)
     assert got["stake"] == pytest.approx(50.0, abs=1e-4)

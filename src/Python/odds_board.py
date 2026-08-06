@@ -38,18 +38,22 @@ def _line_to_col(line: float) -> str:
 
 
 def p_model_over_for_line(board_row: dict[str, Any], line: float) -> float | None:
-    """Model P(over) at ``line`` from logged ``p_over_*`` or binomial fallback.
+    """Model P(over) at ``line`` from logged probs (prefer calibrated).
 
-    Fallback uses ``k_rate_pred`` × ``projected_tbf`` when the slate was logged
-    before that line existed in ``PROJECTION_K_LINES`` (e.g. Assad @ 2.5).
+    Preference order:
+      1. ``p_over_*_cal`` (post-hoc calibrated)
+      2. ``p_over_*`` (raw count-layer)
+      3. binomial fallback from ``k_rate_pred`` × ``projected_tbf``
     """
     col = _line_to_col(line)
-    raw = board_row.get(col)
-    if raw is not None:
-        try:
-            return float(raw)
-        except (TypeError, ValueError):
-            pass
+    cal_col = f"{col}_cal"
+    for key in (cal_col, col):
+        raw = board_row.get(key)
+        if raw is not None:
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                pass
 
     rate = board_row.get("k_rate_pred")
     tbf = board_row.get("projected_tbf")

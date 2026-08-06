@@ -200,6 +200,64 @@ def test_pitch_type_rv_is_shrunk_with_prior_dates_and_complete_start_windows():
     assert pitcher_one["ff_rv_shrunk_P2"][2] == pytest.approx(1.5)
 
 
+def test_pitch_type_rate_features_shrunk_and_unshrunk_with_prior_dates():
+    starts = _starts(
+        [
+            _s(1, 5, 20, pitcher=1, gp=101),
+            _s(2, 5, 20, pitcher=1, gp=102),
+            _s(3, 5, 20, pitcher=1, gp=103),
+            _s(1, 5, 20, pitcher=2, gp=201),
+        ]
+    )
+    pitch_types = pl.DataFrame(
+        [
+            {
+                "game_pk": 101,
+                "pitcher": 1,
+                "game_date": dt.date(2024, 4, 1),
+                "pitch_type": "ff",
+                "CSW": 20.0,
+                "Pitches": 100,
+            },
+            {
+                "game_pk": 201,
+                "pitcher": 2,
+                "game_date": dt.date(2024, 4, 1),
+                "pitch_type": "ff",
+                "CSW": 40.0,
+                "Pitches": 100,
+            },
+            {
+                "game_pk": 103,
+                "pitcher": 1,
+                "game_date": dt.date(2024, 4, 3),
+                "pitch_type": "ff",
+                "CSW": 99.0,
+                "Pitches": 100,
+            },
+        ],
+        schema_overrides={"game_date": pl.Date},
+    )
+    out = pr.add_pitch_type_rate_features(
+        starts,
+        pitch_types,
+        stats={"csw": ("CSW", "Pitches")},
+        prior_strength=100,
+        windows=(2,),
+    ).sort(["pitcher", "game_date"])
+    pitcher_one = out.filter(pl.col("pitcher") == 1)
+    assert pitcher_one["ff_csw_shrunk_P2"][0] is None
+    assert pitcher_one["ff_csw_P2"][0] is None
+    # Prior league mean after day 1 is (20+40)/200 = 0.3; pitcher one
+    # contributes 20/100; EB total = (20 + 100*0.3) / (100 + 100) = 0.25.
+    assert pitcher_one["ff_csw_shrunk_P2"][1] == pytest.approx(0.25)
+    # Unshrunk uses only the pitcher's own prior CSW/Pitches: 20/100 = 0.2.
+    assert pitcher_one["ff_csw_P2"][1] == pytest.approx(0.20)
+    # Day 2 contains zero FF pitches but still consumes one of the two starts.
+    assert pitcher_one["ff_csw_shrunk_P2"][2] == pytest.approx(0.25)
+    assert pitcher_one["ff_csw_P2"][2] == pytest.approx(0.20)
+
+
 def test_expected_stats_are_denominator_weighted():
     df = pr.add_rolling_pitcher_features(
         _starts(

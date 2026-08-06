@@ -11,8 +11,15 @@ from typing import Literal
 BetSide = Literal["over", "under"]
 
 # Pre-registered defaults (market_clv_gates.md)
-DEFAULT_EDGE_FLOOR = 0.08
-DEFAULT_KELLY_FRACTION = 0.25
+# Edge floor raised from 0.08 -> 0.12 on 2026-08-06 after the flat-1u edge-floor
+# sweep (production/results_dashboard.ipynb Section 10) showed flat-1u ROI turns
+# positive at floor=12% (flat ROI = +1.68% at n=47) while the 8-12% bucket is
+# structurally negative (flat ROI = -7.0% at floor=8% over 70 settled bets).
+# Pre-registered protocol: every quote is still logged and CLV'd regardless of
+# floor (passes_floor / stake only gates sizing); flat-1u sweep stays policy-blind
+# so we can detect whether 12% in turn becomes too low.
+DEFAULT_EDGE_FLOOR = 0.12
+DEFAULT_KELLY_FRACTION = 0.125
 
 
 def american_to_implied_prob(american: float) -> float:
@@ -206,7 +213,12 @@ def unit_anchor_kelly_frac(
 ) -> float:
     """Bankroll fraction that defines 1 unit.
 
-    Default: 8% edge at -110 → ~4.2% of bankroll under quarter-Kelly.
+    Default uses the *current* ``DEFAULT_EDGE_FLOOR`` / ``DEFAULT_KELLY_FRACTION``
+    (12% floor, 1/8 Kelly as of the 2026-08-06 floor + Kelly freezes — see
+    ``docs/reference/market_clv_gates.md``). 1u at that anchor is ~3.15% of
+    bankroll. The earlier "8% @ -110 ≈ 4.2%" wording was the pre-freeze value
+    and is kept here only as a historical note: re-pin callers/tests against
+    the function, not the literal in the docstring.
     """
     p_mkt = american_to_implied_prob(ref_american)
     p_model = min(max(p_mkt + float(edge_floor), 1e-6), 1.0 - 1e-6)

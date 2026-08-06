@@ -14,6 +14,7 @@ from run_stabilization import StatSpec, analyze
 PITCH_DISCIPLINE_SPECS = (
     ("whiff_rate", "Whiffs", "Swings", tuple(range(25, 1001, 25))),
     ("swstr_rate", "Whiffs", "Pitches", tuple(range(50, 2001, 50))),
+    ("strike_rate", "StrikesPlusBIP", "Pitches", tuple(range(50, 2001, 50))),
     ("ball_rate", "Balls", "Pitches", tuple(range(50, 2001, 50))),
     ("csw_rate", "CSW", "Pitches", tuple(range(50, 2001, 50))),
     ("chase_rate", "Chases", "OutZone", tuple(range(25, 1001, 25))),
@@ -36,14 +37,22 @@ def descriptive_summary(frame: pl.DataFrame) -> pl.DataFrame:
         "Pitches", "Swings", "Whiffs", "Balls", "CSW", "OutZone", "Chases",
         "BIP", "GB", "WeakContact", "HardHit", "Barrels", "EV_den", "xBA_den",
         "wOBA_num", "wOBA_den", "xwOBA_num",
-        "RV_num", "RV_den",
+        "RV_num", "RV_den", "StrikesPlusBIP",
+    )
+    games_per_type = frame.group_by("pitch_type").agg(
+        pl.len().alias("games_thrown")
     )
     return (
         frame.group_by("pitch_type")
         .agg(*(pl.col(column).sum() for column in totals))
+        .join(games_per_type, on="pitch_type")
         .with_columns(
+            (pl.col("Pitches") / pl.col("games_thrown")).alias(
+                "pitches_per_game_thrown"
+            ),
             (pl.col("Whiffs") / pl.col("Swings")).alias("whiff_rate"),
             (pl.col("Whiffs") / pl.col("Pitches")).alias("swstr_rate"),
+            (pl.col("StrikesPlusBIP") / pl.col("Pitches")).alias("strike_rate"),
             (pl.col("Balls") / pl.col("Pitches")).alias("ball_rate"),
             (pl.col("CSW") / pl.col("Pitches")).alias("csw_rate"),
             (pl.col("Chases") / pl.col("OutZone")).alias("chase_rate"),

@@ -525,6 +525,39 @@ def apply_settle(
     return pl.DataFrame(out)
 
 
+def apply_void(
+    ledger: pl.DataFrame,
+    *,
+    ticket_id: str,
+    reason: str = "no_action",
+) -> pl.DataFrame:
+    """Mark a ticket void/no-action (pitcher scratched, game postponed, etc.).
+
+    No pnl impact: stake is treated as refunded, so voided tickets are excluded
+    from ``settled_bets``/CLV and threshold-curve stats.
+    """
+    rows = ledger.to_dicts()
+    out = []
+    for r in rows:
+        if r.get("ticket_id") != ticket_id:
+            out.append(r)
+            continue
+        note = str(r.get("note") or "")
+        tag = f"void={reason}"
+        if tag not in note:
+            note = f"{note} | {tag}".strip(" |")
+        out.append(
+            {
+                **r,
+                "status": "void",
+                "result": "void",
+                "pnl": 0.0,
+                "note": note,
+            }
+        )
+    return pl.DataFrame(out)
+
+
 def save_ledger(frame: pl.DataFrame, path: Path = LEDGER_PATH) -> None:
     ensure_odds_dir()
     frame.write_parquet(path)

@@ -540,6 +540,7 @@ def build_pitch_type_games(
         .rename({"canon_pitch": "pitch_type"})
         .with_columns(
             (pl.col("CS") + pl.col("Whiffs")).alias("CSW"),
+            (pl.col("Strikes") + pl.col("BIP")).alias("StrikesPlusBIP"),
             (
                 pl.col("Pitches")
                 - pl.col("Strikes")
@@ -564,6 +565,7 @@ def build_pitch_type_games(
     return (
         grouped.with_columns(
             rate("Pitches", "TotalPitches", "usage_rate"),
+            rate("StrikesPlusBIP", "Pitches", "strike_rate"),
             rate("Whiffs", "Pitches", "swstr_rate"),
             rate("Whiffs", "Swings", "whiff_rate"),
             rate("Balls", "Pitches", "ball_rate"),
