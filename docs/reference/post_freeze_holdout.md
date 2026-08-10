@@ -3,7 +3,7 @@
 **Freeze lock:** 2026-08-03 (LightGBM `lightgbm_krate_20260803_155401`,  
 TBF `tbf_pa_ridge_workload_context_bullpen_20260728_035607`)  
 **Prior lock:** 2026-07-28 (`lightgbm_krate_20260728_033241`, 180 features)  
-**Runner:** `production/post_freeze_holdout.py`  
+**Runner:** `production/projections/post_freeze_holdout.py`  
 **Artifacts:** `artifacts/holdout/post_freeze/`
 
 ## Why this exists
@@ -44,11 +44,15 @@ Formal expected_K logging started **2026-07-28** (`artifacts/projection_log/`).
 There is **no** logged slate for 2026-07-27 in the projection log.
 
 ```powershell
-python production/log_projections.py --allow-stale   # today
+python production/projections/log_projections.py --allow-stale   # today
 # After Savant + Level 1 include that date's finals:
-python production/grade_projections.py --preferred-only
-python production/grade_projections.py --all-logged --preferred-only
+python production/projections/grade_projections.py --preferred-only
+python production/projections/grade_projections.py --all-logged --preferred-only
 ```
 
 `post_freeze` holdout uses Level 3 historical lineup proxies; graded logs use
 **announced** RG lineups from the live path. See `docs/reference/lineup_train_serve.md`.
+
+For daily live-drift decomposition and monitoring (k-rate vs TBF error, matchup
+tier concentration, and scorecard PASS/WARN flags), see
+`docs/reference/results_dashboard_diagnostics.md`.

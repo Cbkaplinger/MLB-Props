@@ -101,7 +101,7 @@ on the stale numbers in the user prompt.
   (the pre-freeze 8% / quarter-Kelly value) was retired by this same freeze.
 - `src/Python/skill_stats.py`: `two_proportion_z_test`, `bootstrap_bca_ci`,
   `stake_weighted_bootstrap_ci`, `rolling_stat_with_se`.
-- `production/results_dashboard.ipynb`: Sections 11-18.
+- `production/notebooks/results_dashboard.ipynb`: Sections 11-18.
 
 **Ledger cell-hash:** `cfddcf674c20da314fab1243c52fa2a637e875cec3c09ce825b8ebe60ac49e37`
 (SHA-256 of `artifacts/odds_log/ledger.parquet`, 330 rows / 199 settled, computed

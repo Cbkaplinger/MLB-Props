@@ -3,9 +3,9 @@
 **Status:** locked operating protocol for the betting product layer  
 **Scope:** odds never enter the strikeout trainer  
 **Code:** `src/Python/market.py`, `skill_stats.py`, `odds_ledger.py`, `odds_close.py`, `odds_board.py`, `sharp_odds.py`  
-**Ops:** `production/odds_board.py`, `poll_odds.py`, `close_watcher.py`, `grade_odds_ledger.py`  
-**Protocol UI:** `production/daily_projections.ipynb` (morning board + CLV skill tracker)  
-**Skill dashboard:** `production/results_dashboard.ipynb` (Sections 11-18, CLV skill suite) — see `docs/research/notebook_change_log.md`
+**Ops:** `production/odds/odds_board.py`, `poll_odds.py`, `close_watcher.py`, `grade_odds_ledger.py`  
+**Protocol UI:** `production/notebooks/daily_projections.ipynb` (morning board + CLV skill tracker)  
+**Skill dashboard:** `production/notebooks/results_dashboard.ipynb` (Sections 11-20, CLV skill suite + appendices) — see `docs/research/notebook_change_log.md`
 
 ## Separation of concerns
 
@@ -58,7 +58,7 @@ one ticket per `(game_date, pitcher, line)` — keep the **highest-edge** book
 | Kelly fraction | **0.125** (eighth-Kelly; halved from 0.25 on 2026-08-06 while CLV skill gate is INCONCLUSIVE) |
 | Min sample | **n_clv ≥ 150** settled props with CLV at **floor ≥ 12%** (deduped; BET + skip both count) before any floor/Kelly move; see `floor_freeze_log.md` for the stopping rule |
 | Skill bar | Mean `CLV_pp > 0` with **BCa** bootstrap CI excluding 0 (`src/Python/skill_stats.py:bootstrap_bca_ci`; percentile bootstrap is biased at the per-band n≈10-40 and was retired for this purpose) |
-| Skill companions | (a) win-rate vs 0.524 break-even at the same band, and (b) `clv_pp` pseudo-ROC AUC > 0.5 (`results_dashboard.ipynb` §11/§16) |
+| Skill companions | (a) win-rate vs 0.524 break-even at the same band, and (b) `clv_pp` pseudo-ROC AUC > 0.5 (`production/notebooks/results_dashboard.ipynb` §11/§16) |
 | Real bankroll | Only after the skill bar AND the win-rate vs break-even gate clear on the live ledger together |
 | Threshold sweep | **Exploratory only** until n_clv ≥ 150; floor freezes are pre-registered and recorded in `docs/research/floor_freeze_log.md`. Never crown max-ROI on one sample — see *Recursive floor-rediscovery* below |
 
@@ -74,7 +74,7 @@ owns the canonical cell-hash + stopping rule going forward; this section
 keeps the prose narrative).
 
 - **Trigger:** n_clv=125 over 120 settled-flat bets (past the n≥100 precondition),
-  flat-1u ROI sweep in `production/results_dashboard.ipynb` Section 10.
+  flat-1u ROI sweep in `production/notebooks/results_dashboard.ipynb` Section 10.
 - **Evidence:** flat-1u ROI at floor=8% = **−7.03%** over 70 settled (structurally
   losing segment visible only after lifting the implicit `stake>0` filter);
   flat-1u ROI **turns positive at floor=12% = +1.68%** over n=47 settled; flat
@@ -117,7 +117,7 @@ keeps the prose narrative).
   recorded as a frozen artifact at
   `artifacts/odds_log/next_50_checkpoint.json` (timestamp + ledger SHA-256 +
   universe-as-of counts + the full `prereg_rule` dictionary) by
-  `production/results_dashboard.ipynb` §18b. The future audit reads the JSON
+  `production/notebooks/results_dashboard.ipynb` §18b. The future audit reads the JSON
   to assert the "next 50 settled bets at the 12% floor" were chosen from bets
   unsettled *as of this snapshot*, not a re-fitted slice. This is the actual
   fix for "recursive floor-rediscovery" — see that heading below.
@@ -146,7 +146,7 @@ Morning
   4. poll_odds --snapshot open --unit 50
        (REPLACES unclosed same-day tickets — first lock of the day)
   5. grade_odds_ledger --status
-  6. Open production/daily_projections.ipynb (optional human board)
+  6. Open production/notebooks/daily_projections.ipynb (optional human board)
 
 Catch-up (late markets)
   poll_odds --snapshot open --append --unit 50
@@ -160,7 +160,7 @@ After finals
   grade_odds_ledger --auto-settle-api --status --curve
 
 Weekly / at n_clv ≥ 150 at floor ≥ 12%
-  Inspect Production/results_dashboard.ipynb Sections 11-18:
+  Inspect `production/notebooks/results_dashboard.ipynb` Sections 11-20:
     §11 CLV reliability+relaibility.parquet + two-proportion z-test
     §12 band-discrete flat-1u ROI + edge_band_discrete.parquet (BCa CIs)
     §13 rolling 30-bet CLV with ±2 SE ribbon (day-stability check)
@@ -210,7 +210,7 @@ after pre-freeze-vs-post-freeze held-out agreement — never on a single-sample
 sweep.
 
 The pre-registered next-50-bet decision rule lives at
-`artifacts/odds_log/next_50_checkpoint.json` and is written by `results_dashboard.ipynb`
+`artifacts/odds_log/next_50_checkpoint.json` and is written by `production/notebooks/results_dashboard.ipynb`
 §18b. It is the operational anchor against the **recursive floor-rediscovery**
 pattern: the future audit can assert the "next 50 settled at floor=12%" were
 chosen from bets unsettled at the snapshot ledger SHA-256, not a re-fitted
@@ -224,7 +224,7 @@ single ~120-bet window, sees positive ROI at a band below the active floor,
 argues "lower the floor" — then immediately sees a stale cell output, builds
 a sample-size n-needed estimate off the stale effect size, and recommends a
 move. The resolved ledger invalidates the move; the original argument was
-variance layered on stale output. Sections 11-18 strip every step where that
+variance layered on stale output. Sections 11-20 strip every step where that
 kind of slippage can re-emerge:
 
 - §11 + §16 turn the 53.8%/39.0% one-shot z-test into a persistent,
@@ -256,7 +256,7 @@ artifacts/projection_log/                      # model boards + graded.parquet
 `artifacts/` is gitignored — never commit ledgers or API dumps. The
 `clv_reliability`, `edge_band_discrete`, `clv_floor_bca`, and
 `next_50_checkpoint` artifacts are written by
-`production/results_dashboard.ipynb` Sections 11-18 — see
+`production/notebooks/results_dashboard.ipynb` Sections 11-20 — see
 `docs/research/notebook_change_log.md` for the section-by-section inventory.
 
 ## Tracking fields (tip vs open/close)
@@ -296,7 +296,7 @@ appends — no stacked replace re-runs.
    only; floor moves are pre-registered in `docs/research/floor_freeze_log.md`  
 10. Real bankroll only if CLV skill bar clears AND win-rate clears 0.524 at
     the same checkpoint  
-11. Dashboard Sections 11-18 — **done 2026-08-06** (CLV skill suite:
+11. Dashboard Sections 11-20 — **done 2026-08-06** (CLV skill suite:
     reliability+z-test, band-discrete, rolling, stake-weighted, histograms,
     pseudo-ROC, outcome-pairing, BCa sweep, pre-registration); see
     `docs/research/notebook_change_log.md`

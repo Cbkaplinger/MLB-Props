@@ -30,7 +30,7 @@ Meta:
 | `research/step10_p1_registry_freeze.md` | Prior 180-feature freeze (`step10_180`) |
 | `research/tbf_*.md` / `count_layer_findings.md` | TBF spine and count-layer findings |
 | `research/floor_freeze_log.md` | Auditable record of every edge-floor / Kelly-fraction decision (canonical cell-hashes + stopping rules) |
-| `research/notebook_change_log.md` | Per-batch log of `production/results_dashboard.ipynb` additions |
+| `research/notebook_change_log.md` | Per-batch log of `production/notebooks/results_dashboard.ipynb` additions |
 
 ## Reference (living)
 
@@ -39,6 +39,8 @@ Meta:
 | `reference/model-card.md` | Intended use, leakage, frozen metrics |
 | `reference/dev-notes.md` | Feature / pipeline implementation reference (incl. `skill_stats.py`) |
 | `reference/market_clv_gates.md` | Paper-trading protocol (edge floor, CLV, dashboard §11-18, daily loop) |
+| `reference/daily_kpi_protocol.md` | Daily KPI thresholds, WARN actions, and dynamic gate policy |
+| `reference/repo_waste_sweep_checklist.md` | Cleanup checklist for low-value surface area |
 | `reference/post_freeze_holdout.md` | Post-lock holdout protocol + latest scores |
 | `reference/lineup_train_serve.md` | Historical first-9-by-PA vs live announced lineup |
 | `reference/live_assembly_plan.md` | Live slate assembly → log / odds / CLV |

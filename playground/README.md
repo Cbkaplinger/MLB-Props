@@ -32,7 +32,7 @@ most recent batting order 1–9 from `batter_rolling`.
 ### Dual RG vs MLB starters (production live)
 
 ```powershell
-python production/score_slate.py --live --allow-stale
+python production/ops/score_slate.py --live --allow-stale
 ```
 
 On disagreement you get two rows per team (`starter_source` =

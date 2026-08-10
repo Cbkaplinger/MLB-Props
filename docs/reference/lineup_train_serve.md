@@ -35,7 +35,7 @@ Not “use top 9 of the lineup” — live already does that via RG. The open wo
 
 - Live: `Python.daily_lineups` → `live_assembly` opponent means from **announced** IDs.
 - History: Level 3 joins batters with `is_initial_lineup` from Level 1.
-- Projection log should record `lineup_source` / note (see `production/log_projections.py`).
+- Projection log should record `lineup_source` / note (see `production/projections/log_projections.py`).
 
 ## Roster ID resolve (live)
 

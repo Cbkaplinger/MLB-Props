@@ -54,9 +54,9 @@ flowchart TB
 | Phase D opener/piggyback | **Interim policy** — role labels still open |
 | Live assembly | **Shipped** — `production/` refresh → log → grade (`docs/reference/live_assembly_plan.md`) |
 | Paper trading / CLV | **Shipped ops; sample building** — edge floor **12%** + ⅛ Kelly (frozen 2026-08-06) + tip closes (`docs/reference/market_clv_gates.md`) |
-| CLV skill suite (dashboard) | **Shipped 2026-08-06** — `production/results_dashboard.ipynb` §11-18: reliability plot + two-proportion z-test / band-discrete flat-1u / rolling 30-bet / stake-weighted / per-band histograms / pseudo-ROC / outcome-pairing scatter / **BCa**-CLV sweep / pre-registered next-50-bet checkpoint (`docs/research/notebook_change_log.md`) |
+| CLV skill suite (dashboard) | **Shipped 2026-08-06** — `production/notebooks/results_dashboard.ipynb` §11-18: reliability plot + two-proportion z-test / band-discrete flat-1u / rolling 30-bet / stake-weighted / per-band histograms / pseudo-ROC / outcome-pairing scatter / **BCa**-CLV sweep / pre-registered next-50-bet checkpoint (`docs/research/notebook_change_log.md`) |
 | Floor + Kelly freeze | **Logged** — `docs/research/floor_freeze_log.md` (ledger SHA-256 `cfddcf67…49e37`, n_clv = 72 at floor ≥ 12%, gate = n_clv ≥ 150); skill bar INCONCLUSIVE on resolved ledger (BCa CI `[-0.30, +1.78]` includes zero) |
-| Pristine future holdout | **Protocol live** — `production/post_freeze_holdout.py` (`docs/reference/post_freeze_holdout.md`); grows with `game_date >= 2026-07-28` |
+| Pristine future holdout | **Protocol live** — `production/projections/post_freeze_holdout.py` (`docs/reference/post_freeze_holdout.md`); grows with `game_date >= 2026-07-28` |
 | Lineup train/serve | **Documented** — first-9-by-PA vs announced; roster cascade `active → 40Man → fullSeason` |
 
 ## Why Phase 11 felt quiet
@@ -87,7 +87,7 @@ Canonical: `docs/research/phase11_model_quality_gates.md`,
 2. Grow CLV sample to **n_clv ≥ 150 at floor ≥ 12%** (currently ~72). The
    pre-registered next-50-bet decision rule is frozen at
    `artifacts/odds_log/next_50_checkpoint.json`
-   (`production/results_dashboard.ipynb` §18b); on hit, escalate KB stake
+   (`production/notebooks/results_dashboard.ipynb` §18b); on hit, escalate KB stake
    size; on miss, revert to ¼ Kelly at the 12% floor; on hold, re-evaluate at
    `n_clv = 200`. Floor/Kelly changes are recorded in
    `docs/research/floor_freeze_log.md`.

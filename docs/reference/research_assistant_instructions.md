@@ -107,7 +107,7 @@ Flag unsafe proposals explicitly.
   see `docs/reference/market_clv_gates.md` and `production/README.md`.
   Statistical skill checks on the CLV ledger live in
   `src/Python/skill_stats.py` (z-test, BCa CI, stake-weighted bootstrap,
-  rolling SE ribbon) — used by `production/results_dashboard.ipynb`
+  rolling SE ribbon) — used by `production/notebooks/results_dashboard.ipynb`
   Sections 11-18. Floor and Kelly freezes are pre-registered and recorded in
   `docs/research/floor_freeze_log.md`; dashboard additions in
   `docs/research/notebook_change_log.md`.
@@ -126,7 +126,7 @@ Catch-up opens: `poll_odds --snapshot open --append` (does **not** start the
 watcher). Formal log from **2026-07-28**:
 `artifacts/projection_log/{projections,graded}.parquet`. Odds ledger:
 `artifacts/odds_log/ledger.parquet`. Morning board:
-`production/daily_projections.ipynb`.
+`production/notebooks/daily_projections.ipynb`.
 
 ## Reviews and notebooks
 

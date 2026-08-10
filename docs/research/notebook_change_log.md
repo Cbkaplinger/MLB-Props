@@ -1,7 +1,7 @@
 # Notebook change log
 
 This file tracks every substantial change to
-`production/results_dashboard.ipynb` and the support modules its new sections
+`production/notebooks/results_dashboard.ipynb` and the support modules its new sections
 lean on (`src/Python/skill_stats.py`, `tests/test_skill_stats.py`,
 `tests/test_market.py`). The intent is the same as `floor_freeze_log.md`: no
 silent dashboard additions. If a chart moves or a CI method changes, the

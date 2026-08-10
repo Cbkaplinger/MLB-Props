@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from Python.count_layer import PROJECTION_K_LINES, p_strikeouts_ge
-from Python.odds_board import _line_to_col, p_model_over_for_line, score_quote_against_board
+import polars as pl
+
+from Python.odds_board import (
+    _line_to_col,
+    apply_quality_gate,
+    p_model_over_for_line,
+    quality_gate_hold_reason,
+    score_quote_against_board,
+)
 from Python.sharp_odds import StrikeoutQuote
 
 
@@ -72,3 +80,63 @@ def test_score_quote_accepts_line_2_5_via_fallback() -> None:
     assert scored["line"] == 2.5
     assert scored["player_name"] == "Javier Assad"
     assert 0.0 < scored["p_model_over"] < 1.0
+
+
+def test_quality_gate_holds_risky_rows_when_enabled() -> None:
+    frame = pl.DataFrame(
+        [
+            {
+                "recommendation": "BET",
+                "side": "under",
+                "edge": 0.13,
+                "days_rest": 12.0,
+                "opp_lineup_k_vs_hand": 0.24,
+                "passes_floor": True,
+            },
+            {
+                "recommendation": "BET",
+                "side": "over",
+                "edge": 0.16,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+        ]
+    )
+    out, meta = apply_quality_gate(frame, enabled=True)
+    assert meta["quality_gate_enabled"] is True
+    assert out.filter(pl.col("recommendation") == "HOLD").height >= 1
+    assert "quality_gate_reason" in out.columns
+
+
+def test_quality_gate_noop_when_disabled() -> None:
+    frame = pl.DataFrame(
+        [
+            {
+                "recommendation": "BET",
+                "side": "under",
+                "edge": 0.20,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.20,
+                "passes_floor": True,
+            }
+        ]
+    )
+    out, meta = apply_quality_gate(frame, enabled=False)
+    assert meta["quality_gate_enabled"] is False
+    assert out["recommendation"][0] == "BET"
+
+
+def test_quality_gate_hold_reason_rules() -> None:
+    # dynamic min edge via explicit n_warn
+    reason = quality_gate_hold_reason(
+        edge=0.13,
+        side="under",
+        days_rest=12.0,
+        matchup_tier="avg_matchup",
+        n_warn=3,
+    )
+    assert reason is not None
+    assert "matchup_tier_risk" in reason
+    assert "under_long_rest_risk" in reason
+    assert "edge_below_dynamic_min" in reason

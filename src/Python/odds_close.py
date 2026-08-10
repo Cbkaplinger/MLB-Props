@@ -1,7 +1,7 @@
 """Tip-aware closing-line fill for the odds ledger (Free-tier SharpAPI).
 
-Used by ``production/poll_odds.py --snapshot close`` and
-``production/close_watcher.py``.
+Used by ``production/odds/poll_odds.py --snapshot close`` and
+``production/odds/close_watcher.py``.
 """
 
 from __future__ import annotations

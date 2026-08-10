@@ -788,7 +788,7 @@ not beat unweighted LightGBM — distinct from this projected-TBF count layer.
 
 ## 14. CLV skill suite + floor re-freeze (2026-08-06)
 
-**Operational, not modeling.** Adds a CLV skill dashboard (`production/results_dashboard.ipynb`
+**Operational, not modeling.** Adds a CLV skill dashboard (`production/notebooks/results_dashboard.ipynb`
 §11-18) and a sibling skill-stats module (`src/Python/skill_stats.py`) on top
 of the existing `market.py` ledger math. Doesn't touch the strikeout stack.
 

@@ -1,7 +1,7 @@
 """Shared open-snapshot quote matching (SharpAPI → ledger tickets).
 
-Used by ``production/poll_odds.py --snapshot open`` and by
-``production/close_watcher.py``'s late-open sweep, which re-polls for
+Used by ``production/odds/poll_odds.py --snapshot open`` and by
+``production/odds/close_watcher.py``'s late-open sweep, which re-polls for
 starters whose markets weren't posted yet at the morning open snapshot.
 """
 
@@ -12,7 +12,7 @@ from typing import Any
 import polars as pl
 
 from Python.market import DEFAULT_EDGE_FLOOR
-from Python.odds_board import p_model_over_for_line
+from Python.odds_board import p_model_over_for_line, quality_gate_hold_reason
 from Python.odds_close import dedupe_quotes
 from Python.odds_ledger import norm_player_name, score_quote_to_row
 from Python.sharp_odds import fetch_mlb_strikeout_quotes
@@ -43,6 +43,8 @@ def poll_open_tickets(
     edge_floor: float = DEFAULT_EDGE_FLOOR,
     book: str | None = None,
     quotes: list | None = None,
+    quality_gate: bool = False,
+    kpi_policy_path: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[str], int]:
     """Fetch (or reuse) open quotes and score them against ``board``.
 
@@ -83,6 +85,34 @@ def poll_open_tickets(
             expected_K=brow.get("expected_K"),
             note="",
         )
+        if quality_gate and ticket.get("passes_floor"):
+            tier = None
+            try:
+                okv = brow.get("opp_lineup_k_vs_hand")
+                if okv is not None:
+                    v = float(okv)
+                    if v >= 0.23:
+                        tier = "favorable_matchup"
+                    elif v >= 0.20:
+                        tier = "avg_matchup"
+                    else:
+                        tier = "weak_matchup"
+            except (TypeError, ValueError):
+                tier = None
+            hold_reason = quality_gate_hold_reason(
+                edge=float(ticket.get("edge") or 0.0),
+                side=str(ticket.get("side") or ""),
+                days_rest=(float(brow.get("days_rest")) if brow.get("days_rest") is not None else None),
+                matchup_tier=tier,
+                kpi_policy_path=kpi_policy_path,
+            )
+            if hold_reason:
+                ticket["passes_floor"] = False
+                ticket["units"] = 0.0
+                ticket["stake"] = 0.0
+                note = str(ticket.get("note") or "")
+                tag = f"quality_gate_hold={hold_reason}"
+                ticket["note"] = f"{note} | {tag}".strip(" |")
         rows.append(ticket)
     return rows, unmatched, len(quotes)
 

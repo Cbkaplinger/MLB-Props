@@ -1,0 +1,33 @@
+{
+  "kpi": {
+    "min_joined": 100,
+    "mae_k_rate_warn": 0.075,
+    "abs_under_tbf_bias_warn": 1.5,
+    "worst_tier_mae_warn": 0.078,
+    "abs_long_rest_bias_warn": 3.0,
+    "long_rest_min_n": 8,
+    "chrono_min_dates": 24,
+    "warn_persist_snapshots": 3
+  },
+  "quality_gate": {
+    "dynamic_min_edge": {
+      "base": 0.12,
+      "elevated": 0.14,
+      "elevated_when_n_warn_gte": 2
+    },
+    "rules": {
+      "block_matchup_tier": true,
+      "matchup_tiers_blocked": [
+        "avg_matchup",
+        "favorable_matchup"
+      ],
+      "block_under_long_rest": true,
+      "under_long_rest_min_days": 10,
+      "block_edge_below_min": true
+    }
+  },
+  "state_actions": {
+    "healthy_max_warn": 1,
+    "caution_max_warn": 3
+  }
+}

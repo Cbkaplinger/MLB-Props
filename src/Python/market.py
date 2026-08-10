@@ -12,7 +12,7 @@ BetSide = Literal["over", "under"]
 
 # Pre-registered defaults (market_clv_gates.md)
 # Edge floor raised from 0.08 -> 0.12 on 2026-08-06 after the flat-1u edge-floor
-# sweep (production/results_dashboard.ipynb Section 10) showed flat-1u ROI turns
+# sweep (production/notebooks/results_dashboard.ipynb Section 10) showed flat-1u ROI turns
 # positive at floor=12% (flat ROI = +1.68% at n=47) while the 8-12% bucket is
 # structurally negative (flat ROI = -7.0% at floor=8% over 70 settled bets).
 # Pre-registered protocol: every quote is still logged and CLV'd regardless of

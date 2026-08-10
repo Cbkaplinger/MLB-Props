@@ -13,7 +13,7 @@ Independent Researcher
 
 ## Abstract
 
-This paper presents a leakage-safe machine learning pipeline for **pregame** starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The target is game-level strikeout rate krate = K / PA for pitchers who ultimately face at least nine batters, using only pregame features. A three-level Polars pipeline builds game aggregates, lagged rolling form, and a training frame; nested chronological cross-validation freezes a **180**-feature LightGBM [1] rate model as the primary rate result. Ridge [2] is a linear sanity check in rate screens and the production projected-TBF companion. Strikeout counts use E[K] = k̂rate × TBF̂ with binomial/Poisson line probabilities [3, 4] on **projected** exposure—never same-game PA. On a 2023–2024 chronological test, frozen rate MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147**, beating a Marcel-lite [9] season-talent baseline (MAE ≈ 0.0826) and a train-mean floor (MAE ≈ 0.0854) on the same partition. Walk-forward expected-K MAE ≈ **1.78**; mean line ECE [5, 6] ≈ **0.024** without recalibration. Leave-family-out screens retain opponent lineup as the only family with both-fold, within-fold bootstrap support; the primary contribution is leakage-safe engineering and nested evaluation around that stack.
+This paper presents a leakage-safe machine learning pipeline for **pregame** starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The target is game-level strikeout rate krate = K / PA for pitchers who ultimately face at least nine batters, using only pregame features. A three-level Polars pipeline builds game aggregates, lagged rolling form, and a training frame; nested chronological cross-validation established a **180**-feature LightGBM [1] development freeze, later promoted to the current **184**-feature production variant, as the primary rate model. Ridge [2] is a linear sanity check in rate screens and the production projected-TBF companion. Strikeout counts use E[K] = k̂rate × TBF̂ with binomial/Poisson line probabilities [3, 4] on **projected** exposure—never same-game PA. On a 2023–2024 chronological test, frozen rate MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147**, beating a Marcel-lite [9] season-talent baseline (MAE ≈ 0.0826) and a train-mean floor (MAE ≈ 0.0854) on the same partition. Walk-forward expected-K MAE ≈ **1.78**; mean line ECE [5, 6] ≈ **0.024** without recalibration. Leave-family-out screens retain opponent lineup as the only family with both-fold, within-fold bootstrap support; the primary contribution is leakage-safe engineering and nested evaluation around that stack.
 
 ---
 
@@ -29,7 +29,7 @@ krate × TBF → E[K] → P(K ≥ L)
 
 **Goal.** Estimate a starter’s strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K ≥ L) for common prop lines L.
 
-**Non-goals.** In-game (live) betting and de-vig staking mechanics beyond what is needed to report closing-line value are out of scope; this manuscript is primarily a **modeling** paper. Section 8.5 reports an exploratory, pre-registered closing-line pilot as a secondary, clearly-labeled extension — its result is **inconclusive** as of this writing (sample below the pre-registered minimum) and should not be read as a claim of market edge.
+**Non-goals.** In-game (live) betting and de-vig staking mechanics beyond what is needed to report closing-line value are out of scope; this manuscript is primarily a **modeling** paper. Section 8.5 reports an exploratory, pre-registered closing-line pilot as a secondary, clearly-labeled extension — its result remains **decision-inconclusive** as of this writing and should not be read as a claim of market edge.
 
 **Estimand.** Research metrics use the PA ≥ 9 cohort defined in Section 3.3.
 
@@ -56,7 +56,7 @@ krate × TBF → E[K] → P(K ≥ L)
 3. **Dual-model strikeout stack.** Unweighted LightGBM for krate; Ridge for projected TBF; binomial count layer on projected exposure. Chronological test clears a Marcel-lite talent floor (Table 3b).
 4. **Process evidence, including negative results.** PA-weighting, linear binomial / beta-binomial rate arms, nested LightGBM hyperparameter search, and several expanded feature families did not clear promotion bars—documented rather than buried.
 
-What this paper does **not** claim: large accuracy lifts, feature-family effects beyond what Table 6 and the within-fold bootstrap support, or a resolved market-edge finding — Section 8.5's live pilot is explicitly reported as statistically inconclusive at current sample size, not a positive result. Absolute game-level R² remains limited (Section 9).
+What this paper does **not** claim: large accuracy lifts, feature-family effects beyond what Table 6 and the within-fold bootstrap support, or a resolved market-edge finding — Section 8.5's live pilot is explicitly reported as decision-inconclusive at current sample size, not a positive result. Absolute game-level R² remains limited (Section 9).
 
 ---
 
@@ -205,7 +205,7 @@ The logit target does not help (MAE rises by ~0.002) and is not adopted into the
 | Train-mean constant             | 0.0854     | 0.1070     | −0.001    |
 | Prior-season K/PA (regressed)   | 0.0830     | 0.1038     | 0.056     |
 | Marcel-lite (3/2/1, no age)     | 0.0826     | 0.1034     | 0.064     |
-| **Frozen LightGBM (180 feat.)** | **0.0787** | **0.0987** | **0.147** |
+| **Prior freeze LightGBM (180 feat.)** | **0.0787** | **0.0987** | **0.147** |
 
 
 LightGBM beats Marcel-lite by about **0.0039** MAE (~**5%** relative) and the train-mean floor by about **0.0067** MAE (~**8%** relative), roughly doubling R² versus Marcel-lite. Runner: `models/Strikeout-Model/research/marcel_baseline.py`.
@@ -325,7 +325,7 @@ The production path compressed an earlier **248**-feature allow-list to a **185*
 | ------------------------- | ------- | ----------------------------------------------------- |
 | Pre-thin allow-list       | 248     | Comparison baseline                                   |
 | Mean-window thin          | 185     | Intermediate freeze                                   |
-| **Production (current)**  | **180** | **Current** (185 + five-stem last-start physics swap) |
+| **Production (current)**  | **184** | **Current** (`step10_180` + four opposing-lineup discipline nominees) |
 | Ridge VIF companion       | 73      | Linear-model research set                             |
 
 
@@ -373,15 +373,15 @@ These checks are confirmatory: they did not uncover large unused gains on the fr
 
 Sections 6–8 evaluate the stack against historical outcomes only. This subsection reports a secondary, clearly-labeled extension: can the frozen stack's `P(K ≥ L)` generate positive **closing-line value (CLV)** against a live, liquid sportsbook market? This is a harder and different test than chronological backtesting — the closing line is the market's own best available estimate after all information (including late-breaking lineup/weather/bullpen news) is priced in, so beating it consistently is evidence of genuine pricing skill rather than a backtest artifact.
 
-**Mechanics.** Each morning, the frozen stack scores that day's slate; calibrated probabilities are matched against live DraftKings/FanDuel over/under quotes. Bets are logged to a paper ledger only when model edge (`p_model − p_market`, de-vigged) clears a fixed **8% floor**, sized via quarter-Kelly anchored so that a bet exactly at the floor at −110 is defined as 1 unit. Once each book's line closes, closing-line value is recorded as `CLV_pp = p_market(close) − p_market(bet time)` on the bet side; realized outcomes are settled from box-score strikeout totals.
+**Mechanics.** Each morning, the frozen stack scores that day's slate; calibrated probabilities are matched against live DraftKings/FanDuel over/under quotes. Bets are logged to a paper ledger when model edge (`p_model − p_market`, de-vigged) clears the active policy floor (initially 8% in the pilot, later refrozen to 12% under the documented gate policy), sized via quarter-Kelly anchored so that a bet exactly at the active floor at −110 is defined as 1 unit. Once each book's line closes, closing-line value is recorded as `CLV_pp = p_market(close) − p_market(bet time)` on the bet side; realized outcomes are settled from box-score strikeout totals.
 
 **Pre-registered gate.** Following standard practice for a live pilot that could otherwise be p-hacked by peeking, the acceptance criterion was fixed *before* evaluating results (`docs/reference/market_clv_gates.md`): a minimum of **n ≥ 100** props with recorded CLV, and a bootstrap 95% CI on mean CLV that excludes zero, before any PASS/FAIL judgment is drawn. Below that sample size the result is reported as **building_sample**, not evidence either way.
 
-**Result as of this writing: inconclusive.** At n≈85–90 CLV samples — below the pre-registered n=100 threshold — mean CLV is directionally positive (≈+0.7 percentage points, pooled and BET-only cohorts) but the bootstrap CI still straddles zero. **This is explicitly not a positive result; it is an underpowered one.** The honest reading is "encouraging but undecided," and the gate is designed precisely so that this sample size cannot be reported as a pass. An edge-percentile cut shows a similar pattern — realized ROI is strongest in the highest-edge decile and weak-to-negative in a middle band — but per-bin n is single digits to low teens, too small to separate signal from variance.
+**Result as of this writing: still inconclusive at decision level.** On the deduped prop sample used by the dashboard (`n_clv = 192` with 238 settled props), mean CLV is directionally positive but the bootstrap interval still straddles zero (mean ≈ `+0.54pp`, 95% CI ≈ `[-0.08pp, +1.16pp]`). The honest read remains "not yet resolved" rather than pass/fail certainty. With sample now above the minimum gate, the uncertainty is less about reaching n and more about whether the edge is robust after accounting for model recalibration drift and known under-side workload bias observed in live diagnostics.
 
-**Caveats specific to this pilot.** (1) The Platt calibrator applied to `p_over_*` is fit on 2024 walk-forward out-of-sample predictions (Section 6.3/8) and has not been refit against 2025–2026 conditions; any live-market miscalibration specific to the current season would not yet be corrected. (2) The pilot uses paper money, not real capital, so it cannot speak to execution risk (line movement between decision and bet, book limits, or liquidity). (3) The sample spans a single week of one season — nowhere near enough for a seasonal-drift claim even setting the CLV gate aside.
+**Caveats specific to this pilot.** (1) The Platt calibrator applied to `p_over_*` is fit on 2024 walk-forward out-of-sample predictions (Section 6.3/8) and has not been refit against 2026 conditions; live diagnostics currently flag k-rate calibration (`mae_err_k_rate`) and under-side workload bias (`under_bias_tbf`) as active WARN items. (2) The pilot uses paper money, not real capital, so it cannot speak to execution risk (line movement between decision and bet, book limits, or liquidity). (3) The sample is still one-season and policy-evolving, so estimates should be interpreted as monitoring results rather than final market-efficiency claims.
 
-This subsection will be updated with the gate's resolved verdict (PASS / FAIL / INCONCLUSIVE) once n ≥ 100 is reached; readers consulting an earlier version of this manuscript should treat any live-market claim as provisional until that update.
+This subsection should be treated as a rolling monitoring snapshot. A resolved verdict should require both sample adequacy and stable calibration/regime checks, not sample size alone.
 
 ---
 
@@ -399,7 +399,7 @@ This subsection will be updated with the gate's resolved verdict (PASS / FAIL / 
 
 **Evaluation risk.** Early baselines consulted 2025, so that season is not a pristine final holdout; post-freeze monitoring is documented separately (`docs/reference/post_freeze_holdout.md`).
 
-**Scope.** Marcel-lite covers the rate component only (no age curve; no Steamer/ZiPS/PECOTA). The count layer uses a point TBF forecast only. Weather, travel, catcher framing, and umpire effects are not integrated. Closing-line evaluation is covered only as the exploratory, statistically inconclusive pilot in Section 8.5, not as a core modeling claim.
+**Scope.** Marcel-lite covers the rate component only (no age curve; no Steamer/ZiPS/PECOTA). The count layer uses a point TBF forecast only. Weather, travel, catcher framing, and umpire effects are not integrated. Closing-line evaluation is covered only as the exploratory, decision-inconclusive pilot in Section 8.5, not as a core modeling claim.
 
 ---
 
@@ -407,7 +407,7 @@ This subsection will be updated with the gate's resolved verdict (PASS / FAIL / 
 
 ## 10. Conclusion
 
-This work delivers a leakage-safe pregame strikeout stack: frozen **180**-feature LightGBM krate, thin Ridge TBF, and a projected-exposure count layer (walk-forward expected-K MAE ≈ 1.78; ECE ≈ 0.024 pre-calibration). Nested screens plus within-fold bootstrap retain opponent lineup; other family deltas are small or fold-unstable. The durable claim is leakage discipline and chronological hygiene under a hard pregame constraint. An exploratory closing-line pilot (Section 8.5) is underway under a pre-registered n≥100 gate; as of this writing it is **statistically inconclusive** — directionally positive mean CLV but below the pre-registered sample threshold. Next steps for stronger empirical claims are a longer post-freeze holdout and completing that live-market pilot to a decision-grade sample.
+This work delivers a leakage-safe pregame strikeout stack: frozen LightGBM krate (180-feature freeze with a 184-feature production promotion), thin Ridge TBF, and a projected-exposure count layer (walk-forward expected-K MAE ≈ 1.78; ECE ≈ 0.024 pre-calibration). Nested screens plus within-fold bootstrap retain opponent lineup; other family deltas are small or fold-unstable. The durable claim is leakage discipline and chronological hygiene under a hard pregame constraint. The live closing-line pilot (Section 8.5) has reached decision-scale sample but remains inconclusive because uncertainty intervals still cross zero and calibration/workload warnings remain active. The immediate empirical priority is therefore calibration and workload-bias stabilization, followed by continued post-freeze monitoring to resolve the pilot under a stable policy regime.
 
 ---
 

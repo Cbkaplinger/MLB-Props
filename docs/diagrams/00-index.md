@@ -45,7 +45,7 @@ flowchart TB
 - **Live + paper trading shipped:** morning log/grade → SharpAPI `odds_board` →
   `poll_odds open` → tip-window `close_watcher` → settle/CLV skill tracker —
   `production/README.md`, `docs/reference/market_clv_gates.md`.
-- **CLV skill suite shipped (2026-08-06):** `production/results_dashboard.ipynb`
+- **CLV skill suite shipped (2026-08-06):** `production/notebooks/results_dashboard.ipynb`
   §11-18: reliability+z-test / band-discrete / rolling 30-bet /
   stake-weighted / per-band histograms / pseudo-ROC / outcome-pairing /
   BCa-CLV sweep / pre-registered next-50-bet checkpoint — see

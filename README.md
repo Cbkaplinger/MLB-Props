@@ -119,7 +119,7 @@ python -c "from Python.statcast import download_statcast_season; download_statca
 Daily / in-season refresh (reuse cache; only fetch new days through yesterday ET):
 
 ```powershell
-python production/refresh_statcast.py
+python production/ops/refresh_statcast.py
 # or: python -c "from Python.statcast import update_statcast_season; print(update_statcast_season(2026))"
 ```
 

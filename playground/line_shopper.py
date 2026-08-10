@@ -81,7 +81,7 @@ def _load_board(*, slate: date | None, preferred_only: bool) -> pl.DataFrame:
     if not LOG_PATH.exists():
         raise SystemExit(
             f"Missing {LOG_PATH}. Run:\n"
-            "  python production/log_projections.py --allow-stale"
+            "  python production/projections/log_projections.py --allow-stale"
         )
     df = pl.read_parquet(LOG_PATH)
     if "game_date" not in df.columns:

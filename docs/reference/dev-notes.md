@@ -282,7 +282,7 @@ plausible windows; it does not prove predictive value.
 
 `skill_stats.py` (the **market layer** companion of `reliability.py`) contains
 the skill checks run against `artifacts/odds_log/ledger.parquet` by
-`production/results_dashboard.ipynb` Sections 11-18:
+`production/notebooks/results_dashboard.ipynb` Sections 11-18:
 
 - `two_proportion_z_test(s_a, n_a, s_b, n_b)` — pooled-variance z-test for
   head-to-head win-rate comparison; used by §11 to test whether
@@ -403,7 +403,7 @@ A season-level additive constant has no within-season tree-model signal.
 - The CLV skill gate stays **INCONCLUSIVE** at the resolved ledger: floor ≥ 12%
   BCa CI `[-0.30, +1.78]` includes zero (n_clv = 72). Hold 12% / ⅛-Kelly until
   **n_clv ≥ 150** at floor ≥ 12%, per
-  `docs/research/floor_freeze_log.md` and `production/results_dashboard.ipynb`
+  `docs/research/floor_freeze_log.md` and `production/notebooks/results_dashboard.ipynb`
   §18b (`artifacts/odds_log/next_50_checkpoint.json`).
 - Negative-binomial count challenger and mixing over a TBF distribution are
   not built. Step 5 rate-likelihood helpers remain in

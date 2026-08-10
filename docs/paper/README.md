@@ -27,3 +27,13 @@ python docs/paper/render_resume_summary.py
 
 Requires Playwright Chromium (`python -m playwright install chromium`) and
 matplotlib (research extras).
+
+## Editorial targets (resume-ready)
+
+- Keep main manuscript at or below ~15 pages in PDF export.
+- Prioritize clear narrative over exhaustive logs:
+  1. problem + leakage-safe setup,
+  2. frozen model results vs baselines,
+  3. current live-monitoring status + limitations,
+  4. decision-grade next steps.
+- Move low-value detail to appendices or `docs/research/`.

@@ -30,19 +30,19 @@ P(K ≥ L)    ← count_layer (binomial lines 2.5…9.5)
 
 ```powershell
 # Preferred daily chain (ops) — full morning loop in production/README.md
-python production/refresh_statcast.py          # cache + only new days
-python production/refresh_features.py --skip-training
-python production/log_projections.py
-python production/odds_board.py --unit 50
-python production/poll_odds.py --snapshot open --unit 50
+python production/ops/refresh_statcast.py          # cache + only new days
+python production/ops/refresh_features.py --skip-training
+python production/projections/log_projections.py
+python production/odds/odds_board.py --unit 50
+python production/odds/poll_odds.py --snapshot open --unit 50
 
 # Wiring proof on a date already in pitcher_training
 python Models/Strikeout-Model/predict_slate.py --historical-date 2025-09-20
 
 # Fetch slate only / live score without logging
-python production/score_slate.py --dry-run
-python production/score_slate.py --live
-python production/score_slate.py --live --allow-stale
+python production/ops/score_slate.py --dry-run
+python production/ops/score_slate.py --live
+python production/ops/score_slate.py --live --allow-stale
 ```
 
 Outputs: `artifacts/live_scores/`, `artifacts/projection_log/`,
@@ -67,7 +67,7 @@ Calibration: `src/Python/prob_calibration.py`; fit via
 ## Known limits
 
 - Level 1–2 include **2026 through the latest refreshed Savant day** (see
-  `production/refresh_statcast.py`). Re-run daily; Savant often lags overnight.
+  `production/ops/refresh_statcast.py`). Re-run daily; Savant often lags overnight.
 - Overnight RG vs MLB probable disagreements **dual-score** both pitchers
   (`starter_source`, `is_preferred` on MLB). Pass `--no-dual-starters` for RG-only.
   Strict fail: `--require-probable-match`.

@@ -13,6 +13,7 @@ from typing import Any
 import polars as pl
 
 from Python import config
+from Python.kpi_policy import load_kpi_policy
 from Python.count_layer import p_strikeouts_ge
 from Python.market import (
     DEFAULT_EDGE_FLOOR,
@@ -27,6 +28,7 @@ LOG_PATH = config.OUTPUT_DIR / "projection_log" / "projections.parquet"
 BOARD_PARQUET = ODDS_DIR / "recommendations.parquet"
 BOARD_HTML = ODDS_DIR / "recommendations.html"
 BOARD_META = ODDS_DIR / "recommendations_meta.json"
+SCORECARD_DAILY = ODDS_DIR / "model_health_scorecard_daily.parquet"
 
 
 def _norm_name(s: str) -> str:
@@ -82,7 +84,7 @@ def load_projection_board(
 ) -> pl.DataFrame:
     if not LOG_PATH.exists():
         raise FileNotFoundError(
-            f"Missing {LOG_PATH}. Run production/log_projections.py first."
+            f"Missing {LOG_PATH}. Run production/projections/log_projections.py first."
         )
     df = pl.read_parquet(LOG_PATH)
     if df["game_date"].dtype == pl.Datetime:
@@ -172,6 +174,7 @@ def score_quote_against_board(
         else None,
         "projected_tbf": board_row.get("projected_tbf"),
         "days_rest": board_row.get("days_rest"),
+        "opp_lineup_k_vs_hand": board_row.get("opp_lineup_k_vs_hand"),
         "book": quote.sportsbook,
         "line": float(quote.line),
         "over_price": float(quote.over_american),
@@ -191,6 +194,154 @@ def score_quote_against_board(
         "event_start_time": quote.event_start_time,
         "oos_reason": oos,
         "recommendation": "BET" if passes else ("OOS" if oos else "skip"),
+    }
+
+
+def latest_scorecard_warns() -> int | None:
+    """Read latest model-health warning count if available."""
+    if not SCORECARD_DAILY.exists():
+        return None
+    try:
+        df = pl.read_parquet(SCORECARD_DAILY)
+    except Exception:
+        return None
+    if df.is_empty() or "n_warn" not in df.columns:
+        return None
+    sort_col = "snapshot_utc" if "snapshot_utc" in df.columns else df.columns[0]
+    row = df.sort(sort_col).tail(1).to_dicts()
+    if not row:
+        return None
+    try:
+        return int(row[0].get("n_warn"))
+    except (TypeError, ValueError):
+        return None
+
+
+def apply_quality_gate(
+    frame: pl.DataFrame,
+    *,
+    enabled: bool,
+    kpi_policy_path: str | Path | None = None,
+) -> tuple[pl.DataFrame, dict[str, Any]]:
+    """Apply a conservative quality gate to BET rows and annotate reasons.
+
+    This does not alter model probabilities. It changes recommendation labels
+    from BET -> HOLD when risk rules trigger.
+    """
+    if frame.is_empty():
+        return frame, {
+            "quality_gate_enabled": enabled,
+            "quality_gate_n_hold": 0,
+            "quality_gate_n_warn": None,
+        }
+
+    base = frame.with_columns(
+        pl.col("recommendation").alias("recommendation_pre_gate"),
+        pl.lit(False).alias("quality_gate_block"),
+        pl.lit("").alias("quality_gate_reason"),
+    )
+    if not enabled:
+        return base, {
+            "quality_gate_enabled": False,
+            "quality_gate_n_hold": 0,
+            "quality_gate_n_warn": latest_scorecard_warns(),
+        }
+
+    policy = load_kpi_policy(kpi_policy_path)
+    qg = policy.get("quality_gate", {})
+    dyn = qg.get("dynamic_min_edge", {})
+    rules = qg.get("rules", {})
+    n_warn = latest_scorecard_warns()
+    min_edge = float(dyn.get("base", 0.12))
+    elevated = float(dyn.get("elevated", 0.14))
+    elevated_when = int(dyn.get("elevated_when_n_warn_gte", 2))
+    if n_warn is not None and n_warn >= elevated_when:
+        min_edge = elevated
+
+    gated = base
+    if "opp_lineup_k_vs_hand" in gated.columns:
+        try:
+            gated = gated.with_columns(
+                pl.col("opp_lineup_k_vs_hand")
+                .qcut(
+                    3,
+                    labels=["weak_matchup", "avg_matchup", "favorable_matchup"],
+                    allow_duplicates=True,
+                )
+                .alias("matchup_tier")
+            )
+        except Exception:
+            gated = gated.with_columns(pl.lit(None).alias("matchup_tier"))
+    else:
+        gated = gated.with_columns(pl.lit(None).alias("matchup_tier"))
+
+    cond_core = pl.col("recommendation_pre_gate") == "BET"
+    side_col = "best_side" if "best_side" in gated.columns else "side"
+    blocked_tiers = rules.get("matchup_tiers_blocked", ["avg_matchup", "favorable_matchup"])
+    cond_matchup = (
+        cond_core
+        & pl.lit(bool(rules.get("block_matchup_tier", True)))
+        & pl.col("matchup_tier").is_in(blocked_tiers)
+    )
+    long_rest_min_days = float(rules.get("under_long_rest_min_days", 10))
+    cond_rest = (
+        cond_core
+        & pl.lit(bool(rules.get("block_under_long_rest", True)))
+        & pl.col(side_col).eq("under")
+        & pl.col("days_rest").is_not_null()
+        & (pl.col("days_rest") >= long_rest_min_days)
+    )
+    cond_edge = (
+        cond_core
+        & pl.lit(bool(rules.get("block_edge_below_min", True)))
+        & (pl.col("edge") < float(min_edge))
+    )
+
+    gated = gated.with_columns(
+        (cond_matchup | cond_rest | cond_edge).alias("quality_gate_block")
+    )
+    gated = gated.with_columns(
+        pl.when(pl.col("quality_gate_block"))
+        .then(
+            pl.concat_str(
+                [
+                    pl.when(cond_matchup)
+                    .then(pl.lit("matchup_tier_risk"))
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_rest)
+                    .then(pl.lit("under_long_rest_risk"))
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_edge)
+                    .then(pl.lit("edge_below_dynamic_min"))
+                    .otherwise(pl.lit("")),
+                ],
+                separator=";",
+            )
+            .str.replace_all(r"(;)+", ";")
+            .str.strip_chars(";")
+        )
+        .otherwise(pl.lit(""))
+        .alias("quality_gate_reason")
+    )
+    gated = gated.with_columns(
+        pl.when(
+            pl.col("quality_gate_block") & pl.col("recommendation_pre_gate").eq("BET")
+        )
+        .then(pl.lit("HOLD"))
+        .otherwise(pl.col("recommendation_pre_gate"))
+        .alias("recommendation")
+    )
+
+    n_hold = int(
+        gated.filter(
+            pl.col("recommendation_pre_gate").eq("BET") & pl.col("recommendation").eq("HOLD")
+        ).height
+    )
+    return gated, {
+        "quality_gate_enabled": True,
+        "quality_gate_n_hold": n_hold,
+        "quality_gate_n_warn": n_warn,
+        "quality_gate_min_edge": min_edge,
     }
 
 
@@ -230,6 +381,8 @@ def build_recommendations(
     sportsbook: str | None = None,
     quotes: list[StrikeoutQuote] | None = None,
     best_book_only: bool = True,
+    quality_gate: bool = False,
+    kpi_policy_path: str | Path | None = None,
 ) -> tuple[pl.DataFrame, dict[str, Any]]:
     """Return recommendation frame + meta (fetches SharpAPI unless quotes given).
 
@@ -265,6 +418,18 @@ def build_recommendations(
         else:
             frame = frame.sort(["passes_floor", "edge"], descending=[True, True])
 
+        frame, gate_meta = apply_quality_gate(
+            frame,
+            enabled=quality_gate,
+            kpi_policy_path=kpi_policy_path,
+        )
+    else:
+        gate_meta = {
+            "quality_gate_enabled": quality_gate,
+            "quality_gate_n_hold": 0,
+            "quality_gate_n_warn": latest_scorecard_warns(),
+        }
+
     matched_names = {
         _norm_name(str(n))
         for n in (frame["player_name"].to_list() if not frame.is_empty() else [])
@@ -282,8 +447,11 @@ def build_recommendations(
         "n_quotes": len(quotes),
         "n_matched_raw": n_matched_raw,
         "n_matched": frame.height,
-        "n_bet": int(frame.filter(pl.col("passes_floor")).height)
-        if not frame.is_empty() and "passes_floor" in frame.columns
+        "n_bet": int(frame.filter(pl.col("recommendation") == "BET").height)
+        if not frame.is_empty() and "recommendation" in frame.columns
+        else 0,
+        "n_hold": int(frame.filter(pl.col("recommendation") == "HOLD").height)
+        if not frame.is_empty() and "recommendation" in frame.columns
         else 0,
         "n_unmatched": len(unmatched),
         "unmatched_sample": unmatched[:12],
@@ -293,8 +461,46 @@ def build_recommendations(
         "edge_floor": edge_floor,
         "sportsbook_filter": sportsbook,
         "best_book_only": best_book_only,
+        **gate_meta,
     }
     return frame, meta
+
+
+def quality_gate_hold_reason(
+    *,
+    edge: float,
+    side: str,
+    days_rest: float | None,
+    matchup_tier: str | None,
+    n_warn: int | None = None,
+    kpi_policy_path: str | Path | None = None,
+) -> str | None:
+    """Return semicolon-joined hold reasons for a single ticket context."""
+    policy = load_kpi_policy(kpi_policy_path)
+    qg = policy.get("quality_gate", {})
+    dyn = qg.get("dynamic_min_edge", {})
+    rules = qg.get("rules", {})
+    warns = latest_scorecard_warns() if n_warn is None else n_warn
+    min_edge = float(dyn.get("base", 0.12))
+    elevated = float(dyn.get("elevated", 0.14))
+    elevated_when = int(dyn.get("elevated_when_n_warn_gte", 2))
+    if warns is not None and warns >= elevated_when:
+        min_edge = elevated
+    reasons: list[str] = []
+    blocked_tiers = set(rules.get("matchup_tiers_blocked", ["avg_matchup", "favorable_matchup"]))
+    if bool(rules.get("block_matchup_tier", True)) and matchup_tier in blocked_tiers:
+        reasons.append("matchup_tier_risk")
+    long_rest_min_days = float(rules.get("under_long_rest_min_days", 10))
+    if (
+        bool(rules.get("block_under_long_rest", True))
+        and side == "under"
+        and days_rest is not None
+        and float(days_rest) >= long_rest_min_days
+    ):
+        reasons.append("under_long_rest_risk")
+    if bool(rules.get("block_edge_below_min", True)) and float(edge) < min_edge:
+        reasons.append("edge_below_dynamic_min")
+    return ";".join(reasons) if reasons else None
 
 
 def recommendations_to_html(frame: pl.DataFrame, meta: dict[str, Any]) -> str:
