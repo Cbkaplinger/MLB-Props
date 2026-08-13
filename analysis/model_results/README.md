@@ -19,6 +19,16 @@ It is intentionally smaller and more narrative than
 
 ## Recommended daily flow
 
-1. Run `production/notebooks/results_dashboard.ipynb` sections that refresh artifacts.
-2. Run `analysis/model_results/model_results_story.ipynb` top-to-bottom.
-3. Read the scorecard section first, then review flagged slices.
+1. Run settle flow so ledger state is current:
+   - `production/odds/grade_odds_ledger.py --auto-settle-api --void-scratches --status --curve`
+2. Refresh analysis notebooks:
+   - `powershell -ExecutionPolicy Bypass -File production/ops/run_analysis_notebooks.ps1`
+3. Read `model_results_story.ipynb` scorecard section first, then review flagged slices.
+4. Open focused ops monitors for faster triage when needed:
+   - `production/notebooks/results_kpi_monitor.ipynb`
+   - `production/notebooks/results_calibration_lab.ipynb`
+   - `production/notebooks/results_gate_policy.ipynb`
+   - `production/notebooks/results_pnl_clv.ipynb`
+5. Promote chrono recalibration winner only after `>=15` distinct settled dates.
+6. Use daily action helper for next-step focus:
+   - `production/ops/kpi_daily_action.py`

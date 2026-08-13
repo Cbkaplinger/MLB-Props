@@ -1,6 +1,6 @@
-# Pregame Pitcher Strikeout Projection — Project Summary
+# Pregame Pitcher Strikeout Projection - Resume Project Summary
 
-**Cameron Kaplinger** · Independent Researcher · Portfolio artifact (July 2026)
+**Cameron Kaplinger** - AI Engineer (Data Science background) - Portfolio artifact (updated Aug 2026)
 
 Companion to the full technical manuscript in `docs/paper/manuscript.md`.
 
@@ -11,6 +11,14 @@ Companion to the full technical manuscript in `docs/paper/manuscript.md`.
 Estimate a starter’s strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K ≥ L) for common prop lines L—using only information available before first pitch:
 
 <div class="equation">k<sub>rate</sub> × TBF → E[K] → P(K ≥ L)</div>
+
+## Professional positioning
+
+This project demonstrates a blended profile across:
+
+- **AI/ML engineering:** end-to-end feature pipeline design, model freeze discipline, reproducible artifact/version controls, and production monitoring hooks.
+- **Applied statistics:** chronological validation, bootstrap uncertainty intervals, calibration diagnostics, and explicit leakage audits.
+- **Quant decisioning:** de-vig edge construction, CLV-based pre-registered decision gates, and policy-threshold governance under uncertainty.
 
 ---
 
@@ -36,13 +44,16 @@ Estimate a starter’s strikeout rate before first pitch, project how many batte
 | Walk-forward stack backtest | Mean expected-K MAE ≈ **1.778** (3 expanding 2024 windows; σ ≈ 0.036) |
 | Calibration | Mean ECE ≈ **0.024** (11.C diagnose); production **Platt** post-hoc on `p_over_*` (chrono CV ΔECE ≈ −0.008; raw retained). Fit on 2024 walk-forward OOS predictions; not yet refit on 2026 conditions. |
 | Population policy | Metrics conditional on PA ≥ 9 (~3.5% of first pitchers excluded) |
-| **Live market pilot (exploratory)** | Paper-traded vs. real DK/FD lines, quarter-Kelly sizing off an 8% edge floor. Pre-registered gate: n≥100 CLV samples + bootstrap CI excluding 0. **Current status: inconclusive** — directionally positive mean CLV (~+0.7pp) at n≈85–90, below the pre-registered sample threshold. Not a claim of market edge. |
+| Exogenous-exit governance | Source-tagged anomaly overrides + training mask + confidence-aware rolling contamination policy are shipped; current walk-forward A/B effect is neutral under low historical tag density |
+| **Live market pilot (exploratory)** | Paper-traded vs. real DK/FD lines with conservative policy gating. Pre-registered gate: n>=100 CLV samples + bootstrap CI excluding 0. **Current status: inconclusive** — sample is decision-scale (`n_clv=192`), mean CLV is positive (~+0.54pp), but CI still crosses 0 (`[-0.08pp, +1.16pp]`). Not a claim of market edge. |
 
 ---
 
-## Takeaway
+## Resume-ready takeaway
 
-Leakage-safe Statcast → rate × exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). A live closing-line-value pilot against real sportsbook markets is running under a pre-registered statistical gate — currently inconclusive, to be updated once the sample resolves. Portfolio claim: ML engineering under a hard pregame constraint, extended with production deployment and live-market monitoring discipline.
+Leakage-safe Statcast -> rate x exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). A live CLV pilot against real sportsbook markets is running under pre-registered statistical gates and remains decision-inconclusive at manuscript freeze.
+
+**Portfolio claim:** production-minded ML engineering under a strict information constraint, strengthened by statistical rigor and quant-style decision governance.
 
 ---
 

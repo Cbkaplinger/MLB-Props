@@ -103,6 +103,11 @@ def poll_open_tickets(
                 edge=float(ticket.get("edge") or 0.0),
                 side=str(ticket.get("side") or ""),
                 days_rest=(float(brow.get("days_rest")) if brow.get("days_rest") is not None else None),
+                projected_tbf=(
+                    float(brow.get("projected_tbf"))
+                    if brow.get("projected_tbf") is not None
+                    else None
+                ),
                 matchup_tier=tier,
                 kpi_policy_path=kpi_policy_path,
             )

@@ -46,3 +46,6 @@ flowchart TB
   same-game fields). Prefer grouped permutation / drop-column importance.
 - Live announced lineups (`daily_lineups.py`) replace the historical proxy at
   inference time only — never during Level 3 training construction.
+- Gate changes are policy-controlled (`production/ops/kpi_policy.json`) and
+  validated through scenario sweeps (`production/ops/policy_simulator.py`) plus
+  focused monitor notebooks under `production/notebooks/`.

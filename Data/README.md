@@ -1,17 +1,18 @@
 # Local data layout
 
-Generated parquet artifacts under `Data/processed/` and the player-ID
-dimension under `Data/dimensions/` are excluded from Git. Raw source-data
+Generated parquet artifacts under `data/processed/` and the player-ID
+dimension under `data/dimensions/` are excluded from Git. Raw source-data
 versioning is handled separately.
 
 ```text
-Data/
+data/
 ├─ Savant-Data/
 │  └─ regular/
 │     ├─ 2022/statcast_2022_regular.parquet
 │     ├─ 2023/statcast_2023_regular.parquet
 │     ├─ 2024/statcast_2024_regular.parquet
-│     └─ 2025/statcast_2025_regular.parquet
+│     ├─ 2025/statcast_2025_regular.parquet
+│     └─ 2026/statcast_2026_regular.parquet
 └─ processed/
    ├─ pitcher_games.parquet
    ├─ pitch_type_games.parquet

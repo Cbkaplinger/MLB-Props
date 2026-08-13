@@ -1,7 +1,7 @@
 # 03 — Modeling and evaluation status
 
-Chronological evaluation of the strikeout-rate model, research gates through
-the Step 10 feature freeze, and **Phase 11** model-quality work that comes next.
+Chronological evaluation of the strikeout-rate model, frozen feature gates,
+and the shipped model-quality + calibration governance loop.
 
 ```mermaid
 flowchart TB
@@ -25,9 +25,12 @@ flowchart TB
   S89["Steps 8–9c: keep/drop · windows · P1"]:::built
   S10["Step 11: lock production 184"]:::built
 
-  TUNE["11.A Tune LGBM + Ridge α"]:::next
-  WF["11.B Walk-forward stack backtest"]:::next
-  CAL["11.C Calibration / ECE"]:::next
+  TUNE["11.A Tune LGBM + Ridge α<br/>done (flat/no lift)"]:::built
+  WF["11.B Walk-forward stack backtest<br/>done"]:::built
+  CAL["11.C Calibration / ECE<br/>done + monitored"]:::built
+  ANOM["Exit-anomaly policy eval<br/>A/B + sensitivity wired"]:::built
+  ANOMRES["Current result:<br/>neutral under low historical coverage"]:::risk
+  PMON["Focused monitors + KPI policy<br/>KPI/calibration/gate/PnL notebooks"]:::built
   NEXT["Pristine test =<br/>future post-freeze games"]:::missing
 
   SEAS --> SPLIT
@@ -40,7 +43,8 @@ flowchart TB
   LGBM --> TBF --> CNT
   S10 --> TUNE --> WF --> CAL
   CNT --> WF
-  CAL --> NEXT
+  CAL --> PMON --> NEXT
+  WF --> ANOM --> ANOMRES
 ```
 
 ## Notes
@@ -51,5 +55,11 @@ flowchart TB
 - Count metrics: prefer **Brier / log loss** over accuracy
   (`Python.count_layer.line_market_metrics`).
 - Phase 11 plan: `docs/research/phase11_model_quality_gates.md`.
+- Anomaly model-quality runners:
+  `scripts/run_walkforward_anomaly_ab.py`,
+  `scripts/run_walkforward_anomaly_sensitivity.py`.
+- Focused ops loop: `production/notebooks/results_kpi_monitor.ipynb`,
+  `results_calibration_lab.ipynb`, `results_gate_policy.ipynb`,
+  `results_pnl_clv.ipynb`, plus `production/ops/policy_simulator.py`.
 - Freeze record: `docs/research/step10_p1_registry_freeze.md`.
 - Archived leaky baselines: `docs/archive/leaky-baseline-2026-07-23/`.

@@ -47,11 +47,47 @@ Quick routing: "I need to do X -> run Y".
   - `production/notebooks/results_dashboard.ipynb`
 - Daily projections notebook:
   - `production/notebooks/daily_projections.ipynb`
+- Focused monitors:
+  - `production/notebooks/results_kpi_monitor.ipynb`
+  - `production/notebooks/results_calibration_lab.ipynb`
+  - `production/notebooks/results_gate_policy.ipynb`
+  - `production/notebooks/results_pnl_clv.ipynb`
+  - `production/notebooks/results_recommendation_audit.ipynb`
+  - `production/notebooks/results_bettable_cohort.ipynb`
+- Daily operator flow (execute essential notebooks in order):
+  - `powershell -ExecutionPolicy Bypass -File production/ops/run_daily_operator_flow.ps1`
+  - options:
+    - `-SkipArtifactCheck`
+    - `-IncludeCalibration`
+    - `-IncludeGatePolicy`
+    - `-IncludeDeepDive`
+- Notebook routing map:
+  - `production/notebooks/README.md`
 - Concise model-results story:
   - `analysis/model_results/model_results_story.ipynb`
 - One-command notebook refresh:
   - `powershell -ExecutionPolicy Bypass -File production/ops/run_analysis_notebooks.ps1`
   - dashboard only: `powershell -ExecutionPolicy Bypass -File production/ops/run_analysis_notebooks.ps1 -NoStory`
+
+## Policy Simulation
+
+- Edge-floor scenario sweep:
+  - `python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"`
+
+## Exit-Anomaly Commands
+
+- Build source-backed override table:
+  - `python scripts/build_exit_anomaly_overrides.py`
+- Rebuild training mask:
+  - `python scripts/build_exit_anomaly_training_mask.py`
+- Process impact report:
+  - `python scripts/report_exit_anomaly_impact.py`
+- Rolling contamination report:
+  - `python scripts/report_rolling_anomaly_policy_impact.py`
+- Walk-forward A/B:
+  - `python scripts/run_walkforward_anomaly_ab.py`
+- Walk-forward sensitivity grid:
+  - `python scripts/run_walkforward_anomaly_sensitivity.py`
 
 ## Pre-Notebook Artifact Check
 

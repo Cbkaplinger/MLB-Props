@@ -21,7 +21,7 @@ parquet rather than rebuilding features.
 | Docs — reference | `docs/reference/` | Model card, dev notes, lineup/live/holdout |
 | Docs — diagrams | `docs/diagrams/` | Mermaid architecture / leakage / modeling / roadmap |
 | Docs — archive | `docs/archive/` | Superseded process evidence |
-| Data | `Data/` | Savant cache + processed parquet (often local/large) |
+| Data | `data/` | Savant cache + processed parquet (often local/large) |
 | Artifacts | `artifacts/` | Generated models, fold CSVs, research outputs (gitignored) |
 
 See `docs/reference/model-card.md` for intended use and leakage rules,
@@ -92,7 +92,7 @@ python -m pip install -e ".[research,dev]"
 The activation helper keeps project bytecode under the root `.pycache/`
 instead of creating `__pycache__` folders throughout the source tree.
 
-Set the raw Savant location if it is not under the repository's `Data/`
+Set the raw Savant location if it is not under the repository's `data/`
 directory:
 
 ```powershell
@@ -107,7 +107,8 @@ regular/
 ├─ 2022/statcast_2022_regular.parquet  (prior-only context)
 ├─ 2023/statcast_2023_regular.parquet
 ├─ 2024/statcast_2024_regular.parquet
-└─ 2025/statcast_2025_regular.parquet
+├─ 2025/statcast_2025_regular.parquet
+└─ 2026/statcast_2026_regular.parquet  (current projection season)
 ```
 
 Download and validate a season against MLB's official schedule:
@@ -126,6 +127,20 @@ python production/ops/refresh_statcast.py
 Ops CLIs for the live stack live under `production/` (not a web backend) —
 see `production/README.md`.
 
+Daily analysis loop:
+
+1. Settle and refresh ledger: `python production/odds/grade_odds_ledger.py --auto-settle-api --void-scratches --status --curve`
+2. Refresh analysis notebooks: `powershell -ExecutionPolicy Bypass -File production/ops/run_analysis_notebooks.ps1`
+3. Read decision order:
+   - `analysis/model_results/model_results_story.ipynb` (fast action queue)
+   - `production/notebooks/results_kpi_monitor.ipynb` (fast health gate)
+   - `production/notebooks/results_calibration_lab.ipynb` (matchup/rest pockets)
+   - `production/notebooks/results_gate_policy.ipynb` (edge-floor simulations)
+   - `production/notebooks/results_pnl_clv.ipynb` (bankroll + CLV trend)
+   - `production/notebooks/results_dashboard.ipynb` (deep-dive verification)
+4. Chrono recalibration winner selection is only promoted when Section 19 has
+   at least `15` distinct dates.
+
 ## Build data
 
 Run the entire pipeline:
@@ -142,7 +157,7 @@ python -m Python.pipeline.rolling
 python -m Python.pipeline.training
 ```
 
-Artifacts default to `Data/processed/`. Override the data root with
+Artifacts default to `data/processed/`. Override the data root with
 `MLB_PROPS_DATA_DIR`.
 
 ## Build daily projection inputs
@@ -161,7 +176,7 @@ python -m Python.daily_lineups --require-confirmed
 ```
 
 The command writes dated `daily_lineups_YYYY-MM-DD.parquet` and
-`daily_starters_YYYY-MM-DD.parquet` files under `Data/processed/`. Every team
+`daily_starters_YYYY-MM-DD.parquet` files under `data/processed/`. Every team
 must have nine unique batting-order positions and resolved MLB IDs or the run
 fails. RotoGrinders is an external HTML source whose markup and permitted use
 must be monitored; MLB IDs remain the durable identity contract.
@@ -191,23 +206,27 @@ and `docs/research/step8_feature_keep_drop_findings.md` / `docs/research/step9_m
 - **Live prediction assembly:** v1 wired (`docs/reference/live_assembly_plan.md`);
   daily ops in `production/` (incremental Statcast → features → score).
 - **Pristine post-freeze holdout:** future games + role labels (not recycled 2025).
+- **Exit-anomaly governance:** shipped override/mask/report loop, confidence-aware
+  rolling contamination policy, and walk-forward A/B + sensitivity runners;
+  current historical-tag density implies neutral aggregate deltas so far.
 - **Optional later:** NB count challenger; market de-vig / Kelly; park cleanup.
 
-Frozen and done for research: **180-feature** LightGBM k-rate (Step 10 P1
-physics swap), Ridge TBF
+Frozen and done for research: **184-feature** LightGBM production k-rate
+(Step 10 P1 spine + Step 11 discipline lift), Ridge TBF
 (`docs/research/tbf_first_model_findings.md`), count-layer + walk-forward stack
 (`docs/research/count_layer_findings.md`). Rest/bullpen spine:
 `docs/research/workload_rest_bullpen_feature_plan.md`.
 
 ## Current baseline and research surface
 
-The production LightGBM gate is the **frozen 180-feature** registry (Step 7
-mean-window thin + Step 9c/10 P1 physics swap; see
-`docs/research/step10_p1_registry_freeze.md`). Companion `step7_185` retains the prior
-185-feature freeze. Chrono test MAE / RMSE / R² ≈ 0.0787 / 0.0987 / 0.147
-(`docs/research/step10_p1_registry_freeze.md`). This is development evidence, not an
-untouched final test. Next work is live assembly or role-label ingestion —
-not more feature hunting.
+The production LightGBM gate is the **frozen 184-feature** registry
+(`feature_set=production`; see `docs/research/step11_discipline_registry_freeze.md`).
+Companion `step10_180` retains the prior 180-feature freeze and `step7_185`
+retains the prior 185-feature freeze for bake-offs. Chrono test MAE / RMSE / R²
+for the current production freeze ≈ 0.0780 / 0.0982 / 0.156
+(`docs/research/step11_discipline_registry_freeze.md`). This is development
+evidence, not an untouched final test. Next work is calibration/workload
+stability and post-freeze monitoring — not more feature hunting.
 
 Companion sets: `step7_185`, `pre_freeze_248` (comparison) and `ridge_vif`
 (73-feature Ridge research). Expanded research candidates remain outside
@@ -233,6 +252,6 @@ Export a notebook to PDF through Chromium:
 python -m pytest
 ```
 
-Generated files under `Data/processed/` and `artifacts/` are local-only and
+Generated files under `data/processed/` and `artifacts/` are local-only and
 must not be committed. Raw source-data versioning is handled separately from
 those generated-output rules.

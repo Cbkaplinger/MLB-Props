@@ -18,7 +18,7 @@ DEFAULT_POLICY: dict[str, Any] = {
         "worst_tier_mae_warn": 0.078,
         "abs_long_rest_bias_warn": 3.0,
         "long_rest_min_n": 8,
-        "chrono_min_dates": 24,
+        "chrono_min_dates": 15,
         "warn_persist_snapshots": 3,
     },
     "quality_gate": {
@@ -32,7 +32,30 @@ DEFAULT_POLICY: dict[str, Any] = {
             "matchup_tiers_blocked": ["avg_matchup", "favorable_matchup"],
             "block_under_long_rest": True,
             "under_long_rest_min_days": 10,
+            "block_any_long_rest": True,
+            "any_long_rest_min_days": 10,
+            "block_low_projected_tbf": True,
+            "low_projected_tbf_min": 15.0,
             "block_edge_below_min": True,
+        },
+    },
+    "operating_profile": {
+        "name": "A_edge12",
+        "filters": {
+            "rest_max_exclusive": 45.0,
+            "tbf_min": 15.0,
+        },
+        "profiles": {
+            "A_edge12": {
+                "edge_min": 0.12,
+            },
+            "B_edge14": {
+                "edge_min": 0.14,
+            },
+            "C_over14_under12": {
+                "edge_min_over": 0.14,
+                "edge_min_under": 0.12,
+            },
         },
     },
     "state_actions": {

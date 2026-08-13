@@ -30,7 +30,7 @@ Policy values are sourced from:
 | `abs(under_bias_tbf)` | `<= 1.50` | Larger magnitude indicates under-side workload bias risk. |
 | `worst_matchup_tier_mae_err_k_rate` | `<= 0.078` (only if tier n is sufficient) | Flags concentrated matchup-tier failure pockets. |
 | `abs(long_rest_bias_tbf)` | `<= 3.00` when `n_long_rest >= 8` | Flags long-rest workload instability. |
-| chrono dates for Section 19 | `>= 24` | Below this, do not promote recalibration winner yet. |
+| chrono dates for Section 19 | `>= 15` | Below this, do not promote recalibration winner yet. |
 
 ## Action policy (if WARN persists)
 
@@ -42,7 +42,7 @@ Policy values are sourced from:
   - Keep or tighten under-side gate controls until bias improves.
 - matchup-tier WARN for 3+ snapshots:
   - Run targeted matchup-family diagnostics and ablations.
-- `n_dates < 24`:
+- `n_dates < 15`:
   - Keep accumulating settled dates; no calibration promotion decision.
 
 ## Dynamic gate policy
@@ -83,3 +83,16 @@ Whenever thresholds are changed, log the reason and supporting snapshot hashes i
 6. Optional automation:
    - `production/ops/kpi_daily_action.py`
    - `production/ops/weekly_kpi_report.py`
+   - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"`
+   - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --side-thresholds "over:0.14,under:0.10"`
+
+## Focused notebook split (faster monitoring loop)
+
+Use these focused notebooks for repeatable, lower-latency monitoring:
+
+- `production/notebooks/results_kpi_monitor.ipynb` (daily KPI/WARN scan)
+- `production/notebooks/results_calibration_lab.ipynb` (matchup/rest pockets)
+- `production/notebooks/results_gate_policy.ipynb` (edge-floor policy simulation)
+- `production/notebooks/results_pnl_clv.ipynb` (bankroll + CLV trend)
+
+Keep `production/notebooks/results_dashboard.ipynb` as the deep-dive archive view.

@@ -8,6 +8,8 @@ This checklist tracks low-value surface area and safe cleanup opportunities.
 - **Legacy production root shims:** no active root-level shim scripts detected in `production/`.
 - **Notebook output bloat risk:** keep outputs out of commits when possible; rely on artifacts for persistent metrics.
 - **Docs drift risk:** policy text should link to canonical docs instead of duplicating long rationale.
+- **Dashboard sprawl risk:** deep-dive cells are now complemented by focused monitors (`results_kpi_monitor`, `results_calibration_lab`, `results_gate_policy`, `results_pnl_clv`).
+- **2026-08-11 dependency audit:** every `production/notebooks/*.ipynb` and `production/ops/*.py` file is still referenced by docs/scripts/notebooks; no safe deletions in those folders yet.
 
 ## Safe keep/delete guidance
 
@@ -22,6 +24,19 @@ This checklist tracks low-value surface area and safe cleanup opportunities.
 - Any saved terminal snippets/aliases still using pre-refactor `production/<script>.py` paths
 - Historical one-off scratch scripts under `scripts/` (only if no runbook references remain)
 - Large committed notebook outputs if they are not needed for review history
+- Verbose duplicate guidance across markdown docs when canonical path already exists in:
+  - `docs/reference/repo_canonical_map.md`
+  - `docs/reference/daily_kpi_protocol.md`
+  - `production/README.md`
+- Date-tagged non-protected artifact files (dry-run + allowlist):
+  - `python scripts/prune_artifacts.py --min-age-days 45`
+
+### Explicitly protected (do not delete)
+
+- `production/notebooks/*.ipynb` current set (deep-dive + focused monitors)
+- `production/ops/*.py` current set (daily ops + KPI/policy tooling)
+- Core model/data pipeline modules under `src/Python/`
+- `artifacts/{models,projection_log,odds_log,feature_research,stabilization,count_layer}/`
 
 ## Before deleting anything
 

@@ -3,6 +3,34 @@
 Running log of findings, bugs, and decisions for an eventual writeup.
 Update incrementally as work happens -- do not reconstruct retroactively.
 
+## Read this first (de-dup guide)
+
+For current state and day-to-day policy, do not re-derive from the full log.
+Use:
+
+- `docs/research/README.md` (research index)
+- `docs/research/step11_discipline_registry_freeze.md` (current production freeze)
+- `docs/research/phase11_model_quality_gates.md` (gate outcomes)
+- `docs/research/prob_calibration_findings.md` (calibration status)
+- `docs/reference/daily_kpi_protocol.md` and `production/ops/kpi_policy.json` (live policy)
+
+This file remains the chronological evidence ledger.
+
+## 0. 2026-08 anomaly-governance update
+
+- Added postgame exogenous-exit governance layer:
+  - source-tagged override table (`exit_anomaly_type/confidence/source/note`)
+  - training mask artifact
+  - rolling-window contamination policy (high=0.0, medium=0.5, low=1.0)
+- Added process reports:
+  - all-vs-core impact report (with quality PASS/WARN)
+  - rolling-policy impact report (with policy version + PASS/WARN)
+- Added walk-forward evaluators:
+  - baseline vs anomaly-policy A/B
+  - medium-weight sensitivity (`0.25/0.50/0.75`) + local effect checks
+- Historical 2023-2024 backfill currently yields low anomaly density; observed
+  walk-forward deltas are neutral at present coverage.
+
 ## 1. Problem framing
 
 > One paragraph: what is being predicted (pregame k_rate = K/PA for starters),

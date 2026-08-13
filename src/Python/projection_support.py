@@ -18,7 +18,9 @@ import polars as pl
 from Python import config
 
 # Shared with grading / notebook intent.
-EXTREME_REST_DAYS = 120
+# Long-layoff starts beyond this point are unstable in current TBF diagnostics
+# and should be treated as out-of-support pregame.
+EXTREME_REST_DAYS = 45
 # Starter K props assume a full outing. Ridge can emit ~4 PA after weird rest;
 # that is not a usable strikeout projection.
 MIN_STARTER_PROJECTED_TBF = 12.0

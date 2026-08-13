@@ -41,6 +41,11 @@ def main() -> None:
         help="Stop after data refresh.",
     )
     parser.add_argument(
+        "--skip-exit-anomaly-refresh",
+        action="store_true",
+        help="Skip exit anomaly override/mask refresh.",
+    )
+    parser.add_argument(
         "--refresh-trailing-days",
         type=int,
         default=0,
@@ -77,6 +82,10 @@ def main() -> None:
         if args.skip_training:
             feat_args.append("--skip-training")
         _run(PROD / "refresh_features.py", feat_args)
+
+    if not args.skip_exit_anomaly_refresh:
+        _run(ROOT / "scripts" / "build_exit_anomaly_overrides.py", [])
+        _run(ROOT / "scripts" / "build_exit_anomaly_training_mask.py", [])
 
     if args.skip_score:
         print("Skipped scoring (--skip-score).")

@@ -48,6 +48,10 @@ include same-game `K`, `PA`, `Outs`, actual TBF, and any statistic containing
 the game being predicted. Level 2 uses prior games only. `K`, `PA`, `Outs`, and
 `k_rate` are retained in Level 3 solely as labels/evaluation fields.
 
+Exit-anomaly labels are postgame governance tags only. They are used for
+process diagnostics, training-mask experiments, and optional rolling-update
+weighting, not as inference-time predictors.
+
 `src/Python/features.py` is a safety gate: it accepts only approved
 lagged-feature families and context columns, and unknown numeric columns fail
 rather than silently entering training. It also enforces the **184-feature**
@@ -133,6 +137,9 @@ Before publishing performance or using probabilities:
   stack backtest, and calibration before live or market use
   (`docs/research/phase11_model_quality_gates.md`) — **done**; live + paper
   trading follow `production/README.md` and `docs/reference/market_clv_gates.md`.
+- anomaly-governance checks: build override/mask artifacts, run all-vs-core
+  impact report, run rolling-policy report, and verify PASS/WARN fields before
+  changing policy weights.
 
 ## Diagrams
 
@@ -175,6 +182,8 @@ Phase charts (keep separate; do not collapse into one mega-flowchart):
 - Phase D: ~3.5% of first pitchers excluded by `PA ≥ 9`; interim policy frozen
   (`docs/research/phase_d_population_findings.md`). Pregame role labels still required
   for pristine v1 claims.
+- Historical anomaly-tag coverage in development seasons is currently sparse,
+  so walk-forward anomaly A/B effects are neutral at current sample size.
 - Batter-by-pitch-type run value remains research-only.
 - Weather, travel, and catcher inputs are not integrated.
 - Neutral-site/international games can contaminate team-keyed park factors.

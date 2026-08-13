@@ -14,24 +14,24 @@ it is not a second implementation.
 python -c "from Python.pipeline import run_all; run_all()"
 
 # Benchmarks (unweighted baseline)
-python Models/Strikeout-Model/train.py --model mean
-python Models/Strikeout-Model/train.py --model ridge
+python models/Strikeout-Model/train.py --model mean
+python models/Strikeout-Model/train.py --model ridge
 
 # LightGBM (default: production 184)
-python Models/Strikeout-Model/train.py --model lightgbm
-python Models/Strikeout-Model/train.py --model lightgbm --feature-set step10_180
-python Models/Strikeout-Model/train.py --model lightgbm --feature-set step7_185
+python models/Strikeout-Model/train.py --model lightgbm
+python models/Strikeout-Model/train.py --model lightgbm --feature-set step10_180
+python models/Strikeout-Model/train.py --model lightgbm --feature-set step7_185
 
 # Step 5 PA-weighted diagnostic arm (same features; PA is weight only)
-python Models/Strikeout-Model/train.py --model ridge --sample-weight pa
-python Models/Strikeout-Model/train.py --model lightgbm --sample-weight pa
+python models/Strikeout-Model/train.py --model ridge --sample-weight pa
+python models/Strikeout-Model/train.py --model lightgbm --sample-weight pa
 
 # Count layer: expected_K = k_rate × projected_tbf (+ line probs)
-python Models/Strikeout-Model/score_count_layer.py
+python models/Strikeout-Model/score_count_layer.py
 
 # Post-hoc Platt/isotonic on p_over_* (chrono CV; does not retrain rate/TBF)
-python Models/Strikeout-Model/research/fit_prob_calibration.py --method both
-python Models/Strikeout-Model/research/fit_prob_calibration.py --method both --set-production
+python models/Strikeout-Model/research/fit_prob_calibration.py --method both
+python models/Strikeout-Model/research/fit_prob_calibration.py --method both --set-production
 
 # Historical research runners (feature freeze is closed)
 python models/Strikeout-Model/research/step8_keep_drop.py
@@ -53,12 +53,16 @@ Step 10 P1 spine + Step 11 lineup-discipline lift). Locked artifact:
 Companion `step10_180` retains the prior 180-feature freeze; `step7_185` and
 `pre_freeze_248` remain comparison-only.
 
+Daily production operation and diagnostics run under `production/`:
+- `production/INDEX.md`
+- `production/RUNBOOK.md`
+
 Phase 11 model quality (tune / walk-forward / calibrate) is **done** —
 `docs/research/phase11_model_quality_gates.md`. Daily scoring + paper-trading
 CLV live under `production/` (`production/README.md`,
 `docs/reference/market_clv_gates.md`). Count lines: **2.5…9.5**.
 
-TBF + count layer: `Models/TBF-Model/train.py` and `score_count_layer.py`
+TBF + count layer: `models/TBF-Model/train.py` and `score_count_layer.py`
 (`docs/research/tbf_first_model_findings.md`, `docs/research/count_layer_findings.md`).
 
 The `research/` notebooks and runners read Level 1 artifacts for

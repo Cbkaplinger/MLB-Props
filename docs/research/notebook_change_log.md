@@ -1,11 +1,16 @@
 # Notebook change log
 
-This file tracks every substantial change to
-`production/notebooks/results_dashboard.ipynb` and the support modules its new sections
-lean on (`src/Python/skill_stats.py`, `tests/test_skill_stats.py`,
-`tests/test_market.py`). The intent is the same as `floor_freeze_log.md`: no
-silent dashboard additions. If a chart moves or a CI method changes, the
-reason and the section number land here in chronological order.
+This file tracks substantial monitoring-surface changes:
+
+- `production/notebooks/results_dashboard.ipynb` (deep-dive)
+- `production/notebooks/results_kpi_monitor.ipynb`
+- `production/notebooks/results_calibration_lab.ipynb`
+- `production/notebooks/results_gate_policy.ipynb`
+- `production/notebooks/results_pnl_clv.ipynb`
+
+and support modules they rely on (`src/Python/skill_stats.py`,
+`production/ops/policy_simulator.py`, relevant tests). The intent matches
+`floor_freeze_log.md`: no silent monitoring/policy changes.
 
 ## Conventions
 
@@ -18,7 +23,7 @@ reason and the section number land here in chronological order.
 - Section numbers are stable: a new logical section gets the next free number
   (currently 19+), it does not re-use a removed one's slot.
 
-## Artifacts written by the dashboard (current inventory)
+## Artifacts written by dashboard/monitors (current inventory)
 
 | Path | Section | What's in it |
 | --- | --- | --- |
@@ -27,6 +32,8 @@ reason and the section number land here in chronological order.
 | `artifacts/odds_log/edge_band_discrete.parquet` | 12 | per-`[f, f+1)` edge band: n, flat-1u ROI, mean CLV, BCa CI, win rate |
 | `artifacts/odds_log/clv_floor_bca.parquet` | 18 | edge-floor CLV sweep recomputed with BCa (the authoritative sweep) |
 | `artifacts/odds_log/next_50_checkpoint.json` | 18 | pre-registered next-50-bet decision rule + ledger snapshot + SHA-256 |
+| `artifacts/odds_log/policy_scenario_sweep.parquet` | gate policy monitor / simulator | edge-floor scenario snapshots by scope (`all`, `over`, `under`) |
+| `artifacts/odds_log/policy_scenario_sweep_latest.csv` | gate policy monitor / simulator | latest scenario output (human-readable export) |
 
 ---
 

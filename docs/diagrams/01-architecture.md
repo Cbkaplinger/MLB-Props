@@ -29,6 +29,9 @@ flowchart TB
   P11["Phase 11 · model quality<br/>tune · walk-forward · calibrate DONE"]:::built
   DL["daily_lineups.py<br/>RotoGrinders + MLB IDs"]:::built
   LIVE["Live assembly + production ops<br/>log · grade · odds · CLV"]:::built
+  ANOM["Exit-anomaly governance<br/>override tags · training mask<br/>rolling contamination policy"]:::built
+  REP["Anomaly reports<br/>process + rolling PASS/WARN"]:::built
+  MON["Focused monitors + policy simulator<br/>KPI · calibration · gate · PnL"]:::built
   MKT["Paper trading product<br/>SharpAPI DK/FD · tip closes"]:::partial
 
   OPEN["Open risk<br/>opener / piggyback population"]:::risk
@@ -41,7 +44,9 @@ flowchart TB
   TBF --> P11
   EXP --> P11
   P11 --> LIVE
+  P11 --> ANOM --> REP
   DL --> LIVE
+  LIVE --> MON
   LIVE --> MKT
   ART -.-> OPEN
   ART --> REG
@@ -59,4 +64,9 @@ flowchart TB
 - Companion feature set `step7_185` retains the pre-P1 freeze for bake-offs.
 - Phase 11 gates: `docs/research/phase11_model_quality_gates.md` (done).
 - Live ops: `production/README.md`; market protocol: `docs/reference/market_clv_gates.md`.
+- Focused monitoring loop: `production/notebooks/results_kpi_monitor.ipynb`,
+  `results_calibration_lab.ipynb`, `results_gate_policy.ipynb`,
+  `results_pnl_clv.ipynb`, and `production/ops/policy_simulator.py`.
+- Exit-anomaly layer is postgame governance only (no pregame leakage): source tags,
+  training mask, rolling-policy weighting, and walk-forward A/B harness.
 - `PROJECTION_SEASON = 2026` exists in config for forward park/projection work.

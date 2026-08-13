@@ -291,6 +291,23 @@ def apply_quality_gate(
         & pl.col("days_rest").is_not_null()
         & (pl.col("days_rest") >= long_rest_min_days)
     )
+    any_long_rest_min_days = float(rules.get("any_long_rest_min_days", 10))
+    cond_rest_any = (
+        cond_core
+        & pl.lit(bool(rules.get("block_any_long_rest", False)))
+        & pl.col("days_rest").is_not_null()
+        & (pl.col("days_rest") >= any_long_rest_min_days)
+    )
+    low_tbf_min = float(rules.get("low_projected_tbf_min", 15.0))
+    if "projected_tbf" in gated.columns:
+        cond_low_tbf = (
+            cond_core
+            & pl.lit(bool(rules.get("block_low_projected_tbf", False)))
+            & pl.col("projected_tbf").is_not_null()
+            & (pl.col("projected_tbf") < low_tbf_min)
+        )
+    else:
+        cond_low_tbf = pl.lit(False)
     cond_edge = (
         cond_core
         & pl.lit(bool(rules.get("block_edge_below_min", True)))
@@ -298,7 +315,7 @@ def apply_quality_gate(
     )
 
     gated = gated.with_columns(
-        (cond_matchup | cond_rest | cond_edge).alias("quality_gate_block")
+        (cond_matchup | cond_rest | cond_rest_any | cond_low_tbf | cond_edge).alias("quality_gate_block")
     )
     gated = gated.with_columns(
         pl.when(pl.col("quality_gate_block"))
@@ -310,6 +327,12 @@ def apply_quality_gate(
                     .otherwise(pl.lit("")),
                     pl.when(cond_rest)
                     .then(pl.lit("under_long_rest_risk"))
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_rest_any)
+                    .then(pl.lit("any_long_rest_risk"))
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_low_tbf)
+                    .then(pl.lit("low_projected_tbf_risk"))
                     .otherwise(pl.lit("")),
                     pl.when(cond_edge)
                     .then(pl.lit("edge_below_dynamic_min"))
@@ -471,6 +494,7 @@ def quality_gate_hold_reason(
     edge: float,
     side: str,
     days_rest: float | None,
+    projected_tbf: float | None = None,
     matchup_tier: str | None,
     n_warn: int | None = None,
     kpi_policy_path: str | Path | None = None,
@@ -498,6 +522,20 @@ def quality_gate_hold_reason(
         and float(days_rest) >= long_rest_min_days
     ):
         reasons.append("under_long_rest_risk")
+    any_long_rest_min_days = float(rules.get("any_long_rest_min_days", 10))
+    if (
+        bool(rules.get("block_any_long_rest", False))
+        and days_rest is not None
+        and float(days_rest) >= any_long_rest_min_days
+    ):
+        reasons.append("any_long_rest_risk")
+    low_tbf_min = float(rules.get("low_projected_tbf_min", 15.0))
+    if (
+        bool(rules.get("block_low_projected_tbf", False))
+        and projected_tbf is not None
+        and float(projected_tbf) < low_tbf_min
+    ):
+        reasons.append("low_projected_tbf_risk")
     if bool(rules.get("block_edge_below_min", True)) and float(edge) < min_edge:
         reasons.append("edge_below_dynamic_min")
     return ";".join(reasons) if reasons else None

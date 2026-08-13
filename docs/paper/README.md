@@ -17,6 +17,11 @@ Markdown source, figures, and PDF export for the modeling write-up.
 Deferred modeling follow-ons (Marcel age curve, Steamer/ZiPS, closing lines)
 live in `docs/diagrams/04-roadmap.md` under **Later → Deferred external baselines**.
 
+Live monitoring and policy governance now run through the focused notebook split
+and simulator tooling in `production/notebooks/results_*.ipynb` and
+`production/ops/policy_simulator.py`; cite these as the canonical product-layer
+status references instead of embedding volatile daily numbers directly in the manuscript.
+
 Regenerate figures and PDFs after editing:
 
 ```powershell

@@ -54,7 +54,12 @@ Interpretation:
 
 ## Daily operating loop
 
-1. Run `production/notebooks/results_dashboard.ipynb` through section 20.
+1. Run focused monitors first:
+   - `production/notebooks/results_kpi_monitor.ipynb`
+   - `production/notebooks/results_calibration_lab.ipynb`
+   - `production/notebooks/results_gate_policy.ipynb`
+2. Run `production/notebooks/results_dashboard.ipynb` through section 20 only when
+   deep-dive verification is needed.
 2. Confirm artifacts updated:
    - `k_error_decomposition.parquet`
    - `k_error_decomposition_daily.parquet`
@@ -64,7 +69,9 @@ Interpretation:
    - matchup-tier k-rate errors (`avg_matchup` / `favorable_matchup`),
    - under-side `bias_tbf`,
    - long-rest (`10+`) workload bias.
-5. Follow the formal daily action policy:
+5. Run scenario policy sweep and compare side-specific behavior:
+   - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"`
+6. Follow the formal daily action policy:
    - `docs/reference/daily_kpi_protocol.md`
 
 ## Notes

@@ -21,10 +21,16 @@ flowchart TB
   CAL["11.C Calibration<br/>ECE ~0.024 diagnose"]:::built
   PCAL["Post-hoc Platt p_over<br/>prod pointer 2026-08-03"]:::built
   PHD["11.D Phase D interim policy<br/>~3.5% excluded; role labels open"]:::partial
+  ANOM["Exit-anomaly governance<br/>shipped in ops + reports"]:::built
+  ANOMEFF["WF impact under current tags<br/>neutral (low historical density)"]:::risk
 
   LIVE["Live inference assembly<br/>production daily ops"]:::built
   MKT["Paper trading / CLV<br/>SharpAPI DK+FD · ledger"]:::partial
-  SKILL["CLV skill suite<br/>§11-18 · skill_stats.py"]:::built
+  SKILL["CLV skill suite<br/>§11-20 incl. scorecard"]:::built
+  KPI["Daily KPI protocol + policy JSON<br/>dynamic gate states"]:::built
+  SPLIT["Focused monitor split<br/>KPI · calibration · gate · PnL"]:::built
+  PSIM["Policy simulator<br/>edge-floor sweeps by side"]:::built
+  GATE["Quality gate (BET->HOLD)<br/>matchup/rest/dynamic edge"]:::built
   HOLD["Pristine post-freeze holdout<br/>needs pregame role labels"]:::missing
   PARK["Park contamination cleanup"]:::risk
 
@@ -36,14 +42,21 @@ flowchart TB
   PHD --> HOLD
   CAL --> LIVE
   PCAL --> LIVE
+  CAL --> ANOM --> ANOMEFF
   LIVE --> MKT
+  LIVE --> GATE
+  SKILL --> KPI
+  SKILL --> SPLIT
+  KPI --> GATE
+  PSIM --> GATE
+  SPLIT --> PSIM
   LIVE --> HOLD
   MKT --> SKILL
   SKILL -.->|"n_clv ≥ 150 + BCa CI"| HOLD
   FEAT --> PARK
 ```
 
-## Status (2026-08-06)
+## Status (2026-08-11)
 
 | Track | State |
 |---|---|
@@ -54,10 +67,17 @@ flowchart TB
 | Phase D opener/piggyback | **Interim policy** — role labels still open |
 | Live assembly | **Shipped** — `production/` refresh → log → grade (`docs/reference/live_assembly_plan.md`) |
 | Paper trading / CLV | **Shipped ops; sample building** — edge floor **12%** + ⅛ Kelly (frozen 2026-08-06) + tip closes (`docs/reference/market_clv_gates.md`) |
-| CLV skill suite (dashboard) | **Shipped 2026-08-06** — `production/notebooks/results_dashboard.ipynb` §11-18: reliability plot + two-proportion z-test / band-discrete flat-1u / rolling 30-bet / stake-weighted / per-band histograms / pseudo-ROC / outcome-pairing scatter / **BCa**-CLV sweep / pre-registered next-50-bet checkpoint (`docs/research/notebook_change_log.md`) |
-| Floor + Kelly freeze | **Logged** — `docs/research/floor_freeze_log.md` (ledger SHA-256 `cfddcf67…49e37`, n_clv = 72 at floor ≥ 12%, gate = n_clv ≥ 150); skill bar INCONCLUSIVE on resolved ledger (BCa CI `[-0.30, +1.78]` includes zero) |
+| CLV skill suite (dashboard) | **Shipped 2026-08-06** — `production/notebooks/results_dashboard.ipynb` §11-20: reliability, residual decomposition, chrono recalibration test, and daily scorecard (`docs/research/notebook_change_log.md`) |
+| Focused monitor split | **Shipped 2026-08-11** — `results_kpi_monitor`, `results_calibration_lab`, `results_gate_policy`, `results_pnl_clv` |
+| Policy simulator CLI | **Shipped 2026-08-11** — `production/ops/policy_simulator.py` writing scenario artifacts |
+| Daily KPI + dynamic gate policy | **Shipped** — `production/ops/kpi_policy.json`, `production/ops/kpi_daily_action.py`, `docs/reference/daily_kpi_protocol.md` |
+| Quality gate in live odds flow | **Shipped** — `production/odds/odds_board.py` and `production/odds/poll_odds.py` (`--quality-gate`) |
+| Floor + Kelly freeze | **Logged** — `docs/research/floor_freeze_log.md`; skill bar remains INCONCLUSIVE while CLV confidence intervals still cross zero |
 | Pristine future holdout | **Protocol live** — `production/projections/post_freeze_holdout.py` (`docs/reference/post_freeze_holdout.md`); grows with `game_date >= 2026-07-28` |
 | Lineup train/serve | **Documented** — first-9-by-PA vs announced; roster cascade `active → 40Man → fullSeason` |
+| Chrono recalibration promotion gate | **In progress** — compare raw vs isotonic vs Platt after `>=15` distinct dates |
+| Exit-anomaly governance | **Shipped** — override/mask/report loop + rolling-policy PASS/WARN + WF A/B/sensitivity runners |
+| Historical anomaly effect size | **Neutral so far** — low tagged density in 2023-2024 backfill |
 
 ## Why Phase 11 felt quiet
 
@@ -84,7 +104,7 @@ Canonical: `docs/research/phase11_model_quality_gates.md`,
 ### Ops / live
 
 1. Grow post-freeze holdout; settle discipline after finals; optional always-on host for `close_watcher`.
-2. Grow CLV sample to **n_clv ≥ 150 at floor ≥ 12%** (currently ~72). The
+2. Continue CLV sample growth and confidence tightening at floor ≥ 12%. The
    pre-registered next-50-bet decision rule is frozen at
    `artifacts/odds_log/next_50_checkpoint.json`
    (`production/notebooks/results_dashboard.ipynb` §18b); on hit, escalate KB stake
@@ -97,9 +117,9 @@ Canonical: `docs/research/phase11_model_quality_gates.md`,
 
 ### Model / count-layer challengers
 
-5. Negative-binomial / mixture-over-TBF challengers (count layer, not rate features)
+6. Negative-binomial / mixture-over-TBF challengers (count layer, not rate features)
    — still open if live ECE regresses after Platt.
-6. Longer outer folds / stronger external floors if the goal shifts beyond leakage-safe stack.
+7. Longer outer folds / stronger external floors if the goal shifts beyond leakage-safe stack.
 
 Post-hoc **Platt** on `p_over_*` is shipped (not a count-family change):
 `docs/research/prob_calibration_findings.md`.

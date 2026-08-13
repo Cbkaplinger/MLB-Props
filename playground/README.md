@@ -46,8 +46,8 @@ python -c "import polars as pl; df=pl.read_parquet('artifacts/live_scores/live_s
 ### Line shopper (manual odds dry-run)
 
 Paste book K lines against the projection log — **no API**. Useful for a quick
-what-if. Locked gates: `docs/reference/market_clv_gates.md` (8% edge floor,
-¼ Kelly).
+what-if. Locked gates: `docs/reference/market_clv_gates.md` (currently 12%
+edge floor, 1/8 Kelly under the active freeze policy).
 
 **Canonical paper-trading path** (SharpAPI + durable ledger + tip closes) is
 `production/` — `odds_board` → `poll_odds` → `close_watcher` →

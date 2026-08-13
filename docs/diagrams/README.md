@@ -31,9 +31,10 @@ Flow rules:
 | [01-architecture.md](01-architecture.md) | As-built data → model artifact path |
 | [02-leakage-and-risks.md](02-leakage-and-risks.md) | Leakage gates, priors, population risks |
 | [03-modeling-and-evaluation.md](03-modeling-and-evaluation.md) | Splits, baselines, Steps 1–9 → freeze, TBF/counts |
-| [04-roadmap.md](04-roadmap.md) | Paper CLV shipped; Phase D interim; pristine needs roles |
+| [04-roadmap.md](04-roadmap.md) | Paper CLV shipped; focused monitor split + policy simulator; pristine needs roles |
 
 Canonical prose: `docs/reference/model-card.md`, `dev-notes.md`,
 `market_clv_gates.md`, `live_assembly_plan.md`, and
 `docs/research/statistical_audit_and_sequencing_report.md`. When a diagram and
-those docs disagree, fix both. Ops runbook: `production/README.md`.
+those docs disagree, fix both. Exit-anomaly governance canonical doc:
+`docs/reference/exit_anomaly_protocol.md`. Ops runbook: `production/README.md`.
