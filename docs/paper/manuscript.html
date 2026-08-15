@@ -669,7 +669,7 @@ P(K ≥ L) via Binomial / Poisson with n = round(TBF̂)</p>
 <h3>8.5 Live market validation (exploratory pilot, inconclusive)</h3>
 <p>Sections 6–8 evaluate historical predictive quality. This subsection asks a different question: can frozen <code>P(K ≥ L)</code> estimates translate to positive <strong>closing-line value (CLV)</strong> in a live sportsbook market?</p>
 <p><strong>Pilot mechanics (fixed before review).</strong> Morning scores are matched to live DraftKings/FanDuel over/under quotes. A paper bet is logged when de-vig edge (<code>p_model − p_market</code>) clears policy floor, with one-eighth Kelly sizing anchored so a floor-edge bet at −110 equals 1 unit. After close, CLV is recorded as <code>CLV_pp = p_market(close) − p_market(bet time)</code> on the bet side; outcomes settle from box-score strikeouts.</p>
-<p><strong>Pre-registered decision gate.</strong> As documented in <code>docs/reference/market_clv_gates.md</code>, verdict requires both (a) <strong>n ≥ 100</strong> CLV-tagged props and (b) a bootstrap 95% confidence interval (CI) on mean CLV excluding zero.</p>
+<p><strong>Decision gate policy.</strong> As documented in <code>docs/reference/market_clv_gates.md</code>, verdict uses the active policy thresholds (currently <code>n_clv &gt;= 150</code> plus bootstrap CI criteria). Treat this section as an as-of snapshot; the reference doc is canonical for live thresholds.</p>
 <p><strong>Current status: decision-inconclusive.</strong> On the deduped best-line sample used by operations (<code>n_clv = 192</code>, 238 settled), mean CLV is positive but CI still crosses zero (mean ≈ <code>+0.54pp</code>, 95% CI ≈ <code>[-0.08pp, +1.16pp]</code>). The current interpretation remains unresolved, not pass/fail.</p>
 <p><strong>Interpretation constraints.</strong> The active Platt map is trained on 2024 walk-forward OOS predictions and not yet refit to 2026 conditions; live diagnostics still show calibration/workload warning pockets (<code>mae_err_k_rate</code>, <code>under_bias_tbf</code>). The pilot is also paper-traded and one-season/policy-evolving. These results are therefore monitoring evidence, not a final market-efficiency claim.</p>
 <p>Operationally, this pilot is governed through focused KPI, calibration, gate-policy, and PnL/CLV monitoring surfaces, plus side-aware policy sweeps (implementation map in Appendix A).</p>
@@ -806,7 +806,7 @@ P(K ≥ L) via Binomial / Poisson with n = round(TBF̂)</p>
 </tr>
 <tr>
 <td>Registry freeze</td>
-<td><code>docs/research/step10_p1_registry_freeze.md</code></td>
+<td><code>docs/research/step11_discipline_registry_freeze.md</code></td>
 </tr>
 <tr>
 <td>Ablation findings</td>
@@ -854,11 +854,11 @@ P(K ≥ L) via Binomial / Poisson with n = round(TBF̂)</p>
 </tr>
 <tr>
 <td>Rate trainer</td>
-<td><code>Models/Strikeout-Model/train.py</code></td>
+<td><code>models/Strikeout-Model/train.py</code></td>
 </tr>
 <tr>
 <td>TBF trainer</td>
-<td><code>Models/TBF-Model/train.py</code></td>
+<td><code>models/TBF-Model/train.py</code></td>
 </tr>
 <tr>
 <td>Superseded overlapping-date baseline archive</td>

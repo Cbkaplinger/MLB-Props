@@ -5,7 +5,7 @@
 Cameron Kaplinger  
 Independent Researcher
 
-*Technical manuscript · July 2026*
+*Technical manuscript · Updated Aug 2026*
 
 **Acknowledgments.** Baseball Savant / Statcast pitch-level data provided the empirical foundation for this work.
 
@@ -378,7 +378,10 @@ Sections 6–8 evaluate historical predictive quality. This subsection asks a di
 
 **Pilot mechanics (fixed before review).** Morning scores are matched to live DraftKings/FanDuel over/under quotes. A paper bet is logged when de-vig edge (`p_model − p_market`) clears policy floor, with one-eighth Kelly sizing anchored so a floor-edge bet at −110 equals 1 unit. After close, CLV is recorded as `CLV_pp = p_market(close) − p_market(bet time)` on the bet side; outcomes settle from box-score strikeouts.
 
-**Pre-registered decision gate.** As documented in `docs/reference/market_clv_gates.md`, verdict requires both (a) **n ≥ 100** CLV-tagged props and (b) a bootstrap 95% confidence interval (CI) on mean CLV excluding zero.
+**Decision gate policy.** As documented in `docs/reference/market_clv_gates.md`,
+verdict uses the active policy thresholds (currently CLV checkpoint
+`n_clv >= 150` plus bootstrap CI criteria). Treat this section as an
+as-of snapshot; the reference doc is canonical for live thresholds.
 
 **Current status: decision-inconclusive.** On the deduped best-line sample used by operations (`n_clv = 192`, 238 settled), mean CLV is positive but CI still crosses zero (mean ≈ `+0.54pp`, 95% CI ≈ `[-0.08pp, +1.16pp]`). The current interpretation remains unresolved, not pass/fail.
 
@@ -506,7 +509,7 @@ Generated research outputs under `artifacts/` are local/reproducible and typical
 | Model card                                   | `docs/reference/model-card.md`                                               |
 | Research log                                 | `docs/research/PAPER_NOTES.md`                                              |
 | Feature / pipeline reference                 | `docs/reference/dev-notes.md`                                                |
-| Registry freeze                              | `docs/research/step10_p1_registry_freeze.md`                                |
+| Registry freeze                              | `docs/research/step11_discipline_registry_freeze.md`                         |
 | Ablation findings                            | `docs/research/step3_*`, `step4_*`, `step5_*`, `step8_*`, `step9_*`         |
 | Ablation bootstrap CIs                       | `models/Strikeout-Model/research/ablation_bootstrap.py`       |
 | Marcel-lite rate baseline                    | `models/Strikeout-Model/research/marcel_baseline.py`          |
@@ -518,8 +521,8 @@ Generated research outputs under `artifacts/` are local/reproducible and typical
 | Architecture diagrams                        | `docs/diagrams/`                                                        |
 | Canonical package                            | `src/Python/`                                                      |
 | Feature safety gate                          | `src/Python/features.py`                                           |
-| Rate trainer                                 | `Models/Strikeout-Model/train.py`                                  |
-| TBF trainer                                  | `Models/TBF-Model/train.py`                                        |
+| Rate trainer                                 | `models/Strikeout-Model/train.py`                                  |
+| TBF trainer                                  | `models/TBF-Model/train.py`                                        |
 | Superseded overlapping-date baseline archive | `docs/archive/leaky-baseline-2026-07-23/`                          |
 
 

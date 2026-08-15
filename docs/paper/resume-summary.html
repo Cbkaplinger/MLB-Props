@@ -175,7 +175,7 @@ p.table-caption {
 </tr>
 <tr>
 <td><strong>Live market pilot (exploratory)</strong></td>
-<td>Paper-traded vs. real DK/FD lines with conservative policy gating. Pre-registered gate: n&gt;=100 CLV samples + bootstrap CI excluding 0. <strong>Current status: inconclusive</strong> — sample is decision-scale (<code>n_clv=192</code>), mean CLV is positive (~+0.54pp), but CI still crosses 0 (<code>[-0.08pp, +1.16pp]</code>). Not a claim of market edge.</td>
+<td>Paper-traded vs. real DK/FD lines with conservative policy gating. Active decision gate uses CLV sample size and CI checks per <code>docs/reference/market_clv_gates.md</code> (current checkpoint: <code>n_clv &gt;= 150</code> plus CI test). <strong>Current status: inconclusive</strong> — mean CLV is positive, but CI still crosses 0 at the current snapshot; not a claim of market edge.</td>
 </tr>
 </tbody>
 </table>

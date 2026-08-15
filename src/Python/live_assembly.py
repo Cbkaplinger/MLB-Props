@@ -25,6 +25,7 @@ from Python.bullpen import add_bullpen_lookback_features
 from Python.count_layer import DEFAULT_K_LINES, PROJECTION_K_LINES, attach_count_predictions
 from Python.daily_lineups import DailySlate
 from Python import identity
+from Python.projection_support import EXTREME_REST_DAYS, mark_out_of_support
 from Python.prob_calibration import (
     apply_prob_calibration,
     default_bundle_path,
@@ -231,6 +232,8 @@ def score_frame(
         }
 
     scored = attach_fair_american_odds(scored, lines=line_set, prefer_calibrated=True)
+    # Add pregame support gating to flag opener/piggyback-like rows before sizing.
+    scored = mark_out_of_support(pl.from_pandas(scored)).to_pandas()
     report = {
         "k_rate_model": str(krate_stem.with_suffix(".txt")),
         "k_rate_sha256": _sha256(krate_stem.with_suffix(".txt")),
@@ -244,8 +247,15 @@ def score_frame(
         "mean_k_rate_pred": float(np.mean(k_hat)),
         "mean_projected_tbf": float(np.mean(tbf_hat)),
         "mean_expected_K": float(np.mean(scored["expected_K"])),
+        "n_out_of_support": int(scored["is_out_of_support"].fillna(False).sum())
+        if "is_out_of_support" in scored.columns
+        else 0,
         "approved_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "k_rate_registry": k_meta.get("registry_freeze"),
+        "out_of_support_policy": (
+            "mark projected_tbf/expected_K instability and extreme rest as OOS; "
+            f"days_rest>={EXTREME_REST_DAYS} always OOS"
+        ),
         **cal_meta,
     }
     return scored, report

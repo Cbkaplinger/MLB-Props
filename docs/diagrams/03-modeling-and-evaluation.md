@@ -61,5 +61,6 @@ flowchart TB
 - Focused ops loop: `production/notebooks/results_kpi_monitor.ipynb`,
   `results_calibration_lab.ipynb`, `results_gate_policy.ipynb`,
   `results_pnl_clv.ipynb`, plus `production/ops/policy_simulator.py`.
-- Freeze record: `docs/research/step10_p1_registry_freeze.md`.
+- Current freeze record: `docs/research/step11_discipline_registry_freeze.md`.
+- Prior freeze record: `docs/research/step10_p1_registry_freeze.md`.
 - Archived leaky baselines: `docs/archive/leaky-baseline-2026-07-23/`.

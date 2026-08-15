@@ -174,9 +174,11 @@ Phase charts (keep separate; do not collapse into one mega-flowchart):
   challengers not built. See `docs/research/phase11_model_quality_gates.md`.
 - Daily lineup + live assembly + paper-trading CLV are wired
   (`docs/reference/live_assembly_plan.md`, `market_clv_gates.md`). Odds never
-  enter training. Real bankroll waits on CLV skill sample (n≥100 props).
-  Edge floor remains **8%** until that gate; calibration-driven edge shrinkage
-  is expected and is not a floor-retune signal.
+  enter training. Real bankroll promotion waits on CLV skill sample under the
+  active policy gate (`n_clv >= 150` with CI-based checks in
+  `docs/reference/market_clv_gates.md`).
+  The active operating floor is policy-controlled (currently 12%) and should
+  only be changed through the documented freeze/governance process.
 - Step 5 nested compares favor unweighted LightGBM for the *rate* model; the
   count layer re-checked β-binomial on projected TBF (κ → binomial limit).
 - Phase D: ~3.5% of first pitchers excluded by `PA ≥ 9`; interim policy frozen

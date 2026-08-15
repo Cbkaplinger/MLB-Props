@@ -22,7 +22,7 @@ flowchart TB
 
   BP["ballpark.py<br/>season Y uses only seasons before Y<br/>unseen venue = 1.0"]:::built
   LINEUP["Historical lineup proxy<br/>first 9 distinct batters by first PA<br/>is_initial_lineup"]:::built
-  GATE["features.py allowlist<br/>reject unexpected numeric columns<br/>248 production · 315 research-only"]:::built
+  GATE["features.py allowlist<br/>reject unexpected numeric columns<br/>184 production freeze · expanded research families"]:::built
   DET["Deterministic redundancy removed<br/>Contact≈1−Whiff · CSW≈SwStr+CS"]:::built
   VIF["Multicollinearity · VIF clusters<br/>165-feat & 74-feat Ridge proposals<br/>do NOT replace 248-feature gate"]:::research
 

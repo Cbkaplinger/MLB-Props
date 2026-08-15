@@ -45,7 +45,7 @@ This project demonstrates a blended profile across:
 | Calibration | Mean ECE ≈ **0.024** (11.C diagnose); production **Platt** post-hoc on `p_over_*` (chrono CV ΔECE ≈ −0.008; raw retained). Fit on 2024 walk-forward OOS predictions; not yet refit on 2026 conditions. |
 | Population policy | Metrics conditional on PA ≥ 9 (~3.5% of first pitchers excluded) |
 | Exogenous-exit governance | Source-tagged anomaly overrides + training mask + confidence-aware rolling contamination policy are shipped; current walk-forward A/B effect is neutral under low historical tag density |
-| **Live market pilot (exploratory)** | Paper-traded vs. real DK/FD lines with conservative policy gating. Pre-registered gate: n>=100 CLV samples + bootstrap CI excluding 0. **Current status: inconclusive** — sample is decision-scale (`n_clv=192`), mean CLV is positive (~+0.54pp), but CI still crosses 0 (`[-0.08pp, +1.16pp]`). Not a claim of market edge. |
+| **Live market pilot (exploratory)** | Paper-traded vs. real DK/FD lines with conservative policy gating. Active decision gate uses CLV sample size and CI checks per `docs/reference/market_clv_gates.md` (current checkpoint: `n_clv >= 150` plus CI test). **Current status: inconclusive** — mean CLV is positive, but CI still crosses 0 at the current snapshot; not a claim of market edge. |
 
 ---
 

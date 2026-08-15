@@ -16,6 +16,7 @@ from Python.kpi_policy import DEFAULT_POLICY_PATH, load_kpi_policy  # noqa: E402
 
 SCORECARD_PATH = ROOT / "artifacts" / "odds_log" / "model_health_scorecard_daily.parquet"
 DECOMP_PATH = ROOT / "artifacts" / "odds_log" / "k_error_decomposition.parquet"
+LEDGER_PATH = ROOT / "artifacts" / "odds_log" / "ledger.parquet"
 
 
 def _action_for_latest(latest: dict, *, policy: dict) -> tuple[str, list[str]]:
@@ -47,6 +48,66 @@ def _action_for_latest(latest: dict, *, policy: dict) -> tuple[str, list[str]]:
     if n_warn <= caution_max:
         return "GATE_CAUTION", ["multi_warn_state"]
     return "GATE_STRICT", ["risk_state"]
+
+
+def _over_clv_health() -> tuple[float | None, int]:
+    if not LEDGER_PATH.exists():
+        return None, 0
+    led = pl.read_parquet(LEDGER_PATH)
+    if led.is_empty():
+        return None, 0
+    over = led.filter(
+        (pl.col("status") == "settled")
+        & (pl.col("side") == "over")
+        & pl.col("clv_pp").is_not_null()
+        & (pl.col("stake").cast(pl.Float64).fill_null(0.0) > 0.0)
+    )
+    if over.is_empty():
+        return None, 0
+    return float(over["clv_pp"].cast(pl.Float64).mean()), int(over.height)
+
+
+def _promotion_gate_status(
+    latest: dict,
+    *,
+    policy: dict,
+    n_dates: int,
+) -> tuple[bool, list[str], dict[str, object]]:
+    cfg = policy.get("recalibration_promotion", {})
+    kpi = policy.get("kpi", {})
+    min_dates = int(cfg.get("min_dates", kpi.get("chrono_min_dates", 15)))
+    max_warn = int(cfg.get("max_warn_for_promotion", 1))
+    require_k_rate_below_warn = bool(cfg.get("require_k_rate_below_warn", True))
+    require_non_negative_over_clv = bool(cfg.get("require_non_negative_over_clv_pp", True))
+    min_over_clv_samples = int(cfg.get("min_over_clv_samples", 20))
+    k_rate_warn = float(kpi.get("mae_k_rate_warn", 0.075))
+
+    over_clv_pp, over_clv_n = _over_clv_health()
+    blockers: list[str] = []
+
+    n_warn = int(latest.get("n_warn") or 0)
+    mae = float(latest.get("mae_err_k_rate") or 0.0)
+    if n_dates < min_dates:
+        blockers.append(f"n_dates<{min_dates}")
+    if n_warn > max_warn:
+        blockers.append(f"n_warn>{max_warn}")
+    if require_k_rate_below_warn and mae > k_rate_warn:
+        blockers.append(f"mae_err_k_rate>{k_rate_warn:.3f}")
+    if require_non_negative_over_clv:
+        if over_clv_n < min_over_clv_samples:
+            blockers.append(f"over_clv_n<{min_over_clv_samples}")
+        elif over_clv_pp is not None and over_clv_pp < 0.0:
+            blockers.append("over_mean_clv_pp<0")
+
+    detail: dict[str, object] = {
+        "promotion_min_dates": min_dates,
+        "promotion_max_warn": max_warn,
+        "promotion_k_rate_warn_threshold": k_rate_warn,
+        "promotion_over_clv_n": over_clv_n,
+        "promotion_over_mean_clv_pp": over_clv_pp,
+        "promotion_min_over_clv_samples": min_over_clv_samples,
+    }
+    return len(blockers) == 0, blockers, detail
 
 
 def main() -> None:
@@ -92,6 +153,12 @@ def main() -> None:
                     "chrono_days_remaining": max(0, chrono_min - n_dates),
                 }
             )
+            promote_ready, blockers, detail = _promotion_gate_status(
+                latest, policy=policy, n_dates=n_dates
+            )
+            out["recalibration_promote_ready"] = promote_ready
+            out["recalibration_promote_blockers"] = blockers
+            out.update(detail)
 
     if args.json:
         print(json.dumps(out, indent=2))
@@ -108,6 +175,8 @@ def main() -> None:
         "n_joined",
         "n_dates",
         "chrono_days_remaining",
+        "recalibration_promote_ready",
+        "recalibration_promote_blockers",
     ):
         if key in out:
             print(f"{key}: {out[key]}")

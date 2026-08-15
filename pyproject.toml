@@ -24,10 +24,12 @@ research = [
     "matplotlib",
     "nbconvert",
     "pybaseball",
+    "plotly",
     "scikit-learn",
     "scipy",
     "seaborn",
     "statsmodels",
+    "streamlit",
 ]
 dev = ["pytest"]
 

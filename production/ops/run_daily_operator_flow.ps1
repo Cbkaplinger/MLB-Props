@@ -2,7 +2,8 @@ param(
     [switch]$SkipArtifactCheck,
     [switch]$IncludeCalibration,
     [switch]$IncludeGatePolicy,
-    [switch]$IncludeDeepDive
+    [switch]$IncludeDeepDive,
+    [switch]$IncludeSummary
 )
 
 Set-StrictMode -Version Latest
@@ -60,6 +61,12 @@ if ($IncludeGatePolicy) {
 
 if ($IncludeDeepDive) {
     Run-Notebook "production\notebooks\results_dashboard.ipynb" "[extra]"
+}
+
+if ($IncludeSummary) {
+    Write-Host "`n[extra] Building daily operator summary artifacts..."
+    & $python (Join-Path $repoRoot "production\ops\build_daily_operator_summary.py")
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 Write-Host "`nDaily operator notebook flow complete."

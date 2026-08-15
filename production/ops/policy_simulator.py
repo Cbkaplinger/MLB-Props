@@ -23,6 +23,8 @@ ODDS_DIR = ROOT / "artifacts" / "odds_log"
 REC_PATH = ODDS_DIR / "recommendations.parquet"
 OUT_SWEEP = ODDS_DIR / "policy_scenario_sweep.parquet"
 OUT_LATEST_CSV = ODDS_DIR / "policy_scenario_sweep_latest.csv"
+OUT_PROFILE_SCAN = ODDS_DIR / "policy_side_profile_scan.parquet"
+OUT_PROFILE_SCAN_LATEST = ODDS_DIR / "policy_side_profile_scan_latest.csv"
 
 
 def _parse_thresholds(raw: str) -> list[float]:
@@ -182,6 +184,67 @@ def _scenario_rows_dual_floor(
     return rows
 
 
+def _parse_opt_thresholds(raw: str | None) -> list[float] | None:
+    if raw is None:
+        return None
+    vals = _parse_thresholds(raw)
+    return vals if vals else None
+
+
+def _dual_floor_profile_scan(
+    settled: pl.DataFrame,
+    *,
+    over_floors: list[float],
+    under_floors: list[float],
+    min_bets: int = 20,
+) -> pl.DataFrame:
+    rows: list[dict[str, object]] = []
+    if settled.is_empty() or "side" not in settled.columns:
+        return pl.DataFrame(rows)
+    for over_floor in over_floors:
+        for under_floor in under_floors:
+            sel = settled.filter(
+                ((pl.col("side") == "over") & (pl.col("edge").cast(pl.Float64) >= over_floor))
+                | ((pl.col("side") == "under") & (pl.col("edge").cast(pl.Float64) >= under_floor))
+            )
+            if sel.is_empty():
+                continue
+            n = int(sel.height)
+            stake = float(sel["stake"].cast(pl.Float64).sum())
+            pnl = float(sel["pnl"].cast(pl.Float64).sum())
+            clv_mean = (
+                float(sel.filter(pl.col("clv_pp").is_not_null())["clv_pp"].cast(pl.Float64).mean())
+                if sel.filter(pl.col("clv_pp").is_not_null()).height > 0
+                else None
+            )
+            over = sel.filter(pl.col("side") == "over")
+            under = sel.filter(pl.col("side") == "under")
+            rows.append(
+                {
+                    "snapshot_utc": datetime.now(timezone.utc).isoformat(),
+                    "edge_floor_over": float(over_floor),
+                    "edge_floor_under": float(under_floor),
+                    "n_bets": n,
+                    "stake": stake,
+                    "pnl": pnl,
+                    "roi": (pnl / stake) if stake > 0 else None,
+                    "mean_clv_pp": clv_mean,
+                    "over_n": int(over.height),
+                    "under_n": int(under.height),
+                    "over_roi": (float(over["pnl"].cast(pl.Float64).sum()) / float(over["stake"].cast(pl.Float64).sum()))
+                    if over.height and float(over["stake"].cast(pl.Float64).sum()) > 0
+                    else None,
+                    "under_roi": (float(under["pnl"].cast(pl.Float64).sum()) / float(under["stake"].cast(pl.Float64).sum()))
+                    if under.height and float(under["stake"].cast(pl.Float64).sum()) > 0
+                    else None,
+                    "is_eligible": bool(n >= min_bets),
+                }
+            )
+    if not rows:
+        return pl.DataFrame()
+    return pl.DataFrame(rows).sort(["roi", "n_bets"], descending=[True, True])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -197,10 +260,30 @@ def main() -> None:
         help="Optional side-specific floor map, e.g. 'over:0.14,under:0.10'.",
     )
     parser.add_argument("--slate-date", type=str, default=None, help="Optional YYYY-MM-DD for rec count snapshot.")
+    parser.add_argument(
+        "--profile-over-floors",
+        type=str,
+        default=None,
+        help="Optional comma-separated over-side floors for dual-floor profile scan.",
+    )
+    parser.add_argument(
+        "--profile-under-floors",
+        type=str,
+        default=None,
+        help="Optional comma-separated under-side floors for dual-floor profile scan.",
+    )
+    parser.add_argument(
+        "--profile-min-bets",
+        type=int,
+        default=20,
+        help="Minimum historical bet count to treat profile as eligible.",
+    )
     args = parser.parse_args()
 
     thresholds = _parse_thresholds(args.thresholds)
     side_thresholds = _parse_side_threshold_map(args.side_thresholds) if args.side_thresholds else None
+    profile_over = _parse_opt_thresholds(args.profile_over_floors)
+    profile_under = _parse_opt_thresholds(args.profile_under_floors)
 
     led = load_ledger()
     settled = (
@@ -219,6 +302,14 @@ def main() -> None:
     if side_thresholds is not None:
         scenario_rows.extend(_scenario_rows_dual_floor(settled, side_thresholds))
     scenario = pl.DataFrame(scenario_rows) if scenario_rows else pl.DataFrame()
+    profile_scan = pl.DataFrame()
+    if profile_over is not None and profile_under is not None:
+        profile_scan = _dual_floor_profile_scan(
+            settled,
+            over_floors=profile_over,
+            under_floors=profile_under,
+            min_bets=max(1, int(args.profile_min_bets)),
+        )
 
     if OUT_SWEEP.exists() and not scenario.is_empty():
         hist = pl.read_parquet(OUT_SWEEP)
@@ -228,6 +319,14 @@ def main() -> None:
     if not out.is_empty():
         out.write_parquet(OUT_SWEEP)
         scenario.write_csv(OUT_LATEST_CSV)
+    if not profile_scan.is_empty():
+        if OUT_PROFILE_SCAN.exists():
+            prof_hist = pl.read_parquet(OUT_PROFILE_SCAN)
+            prof_out = pl.concat([prof_hist, profile_scan], how="diagonal_relaxed")
+        else:
+            prof_out = profile_scan
+        prof_out.write_parquet(OUT_PROFILE_SCAN)
+        profile_scan.write_csv(OUT_PROFILE_SCAN_LATEST)
 
     rec_counts = _latest_recommendation_counts(args.slate_date)
     if not rec_counts.is_empty():
@@ -243,6 +342,15 @@ def main() -> None:
     print("--- latest scenario rows ---")
     for row in scenario.sort(["scope", "edge_floor"]).to_dicts():
         print(row)
+    if not profile_scan.is_empty():
+        best = profile_scan.filter(pl.col("is_eligible"))
+        if not best.is_empty():
+            pick = best.sort(["roi", "mean_clv_pp", "n_bets"], descending=[True, True, True]).head(1)
+            print("--- best eligible side profile ---")
+            print(pick.to_dicts()[0])
+        else:
+            print("--- side profile scan ---")
+            print("No profile met --profile-min-bets eligibility.")
 
 
 if __name__ == "__main__":

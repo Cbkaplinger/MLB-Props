@@ -205,6 +205,17 @@ def _write_gate_next_n_artifact(ledger: pl.DataFrame, *, next_n: int) -> None:
     )
 
 
+def _status_counts_ascii(ledger: pl.DataFrame) -> list[str]:
+    """Return plain ASCII status-count lines for robust terminal output."""
+    counts = (
+        ledger.group_by("status")
+        .agg(pl.len().alias("count"))
+        .sort("count", descending=True)
+        .to_dicts()
+    )
+    return [f"status={r['status']} count={int(r['count'])}" for r in counts]
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--settle", action="append", default=[], help="Name,date,K")
@@ -258,13 +269,8 @@ def main() -> None:
         else:
             print(f"ledger={LEDGER_PATH}  n={ledger.height}")
             if "status" in ledger.columns:
-                # Avoid Unicode table rendering issues on some Windows terminals.
-                counts = (
-                    ledger.group_by("status")
-                    .agg(pl.len().alias("count"))
-                    .sort("count", descending=True)
-                )
-                print(counts)
+                for line in _status_counts_ascii(ledger):
+                    print(line)
             settled = settled_bets(ledger)
             if settled.height:
                 pnl = float(settled["pnl"].sum())
