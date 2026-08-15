@@ -71,6 +71,8 @@ Interpretation:
    - long-rest (`10+`) workload bias.
 5. Run scenario policy sweep and compare side-specific behavior:
    - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"`
+   - side-specific check:
+     - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18,0.20" --side-thresholds "over:0.18,under:0.12"`
 6. Follow the formal daily action policy:
    - `docs/reference/daily_kpi_protocol.md`
 
@@ -81,6 +83,8 @@ Interpretation:
   in these diagnostics.
 - Recalibration in section 19 is a diagnostic gate. Do not deploy any mapping
   to production until chronological fold results remain stable over enough dates.
+- During `RECALIBRATE`, prefer side-specific profile defaults from policy
+  (currently `D_over18_under12`) and treat threshold recommendations as provisional.
 
 For a concise narrative-first daily read, use
 `analysis/model_results/model_results_story.ipynb`.

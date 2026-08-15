@@ -62,6 +62,17 @@ one ticket per `(game_date, pitcher, line)` — keep the **highest-edge** book
 | Real bankroll | Only after the skill bar AND the win-rate vs break-even gate clear on the live ledger together |
 | Threshold sweep | **Exploratory only** until n_clv ≥ 150; floor freezes are pre-registered and recorded in `docs/research/floor_freeze_log.md`. Never crown max-ROI on one sample — see *Recursive floor-rediscovery* below |
 
+### Side-specific operating profile (current)
+
+Current live policy (`production/ops/kpi_policy.json`) uses profile `D_over18_under12`:
+
+- over-side minimum edge: `0.18`
+- under-side minimum edge: `0.12`
+
+This is a product-layer risk control due to observed side asymmetry and does not
+change the pre-registered global floor framework above. Re-check daily while
+`kpi_daily_action` remains in `RECALIBRATE`.
+
 ### Floor freeze — 2026-08-06 (0.08 → 0.12, reaffirmed 0.12 same day)
 
 Single-sample decision on the live ledger, not a held-out time split. Logged

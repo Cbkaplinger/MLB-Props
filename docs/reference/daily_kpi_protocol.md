@@ -45,6 +45,25 @@ Policy values are sourced from:
 - `n_dates < 15`:
   - Keep accumulating settled dates; no calibration promotion decision.
 
+## Recalibration Promotion Checklist
+
+Promotion decision should be explicit and repeatable (no ad-hoc pointer flips).
+
+- Use `production/ops/kpi_daily_action.py --json` and require:
+  - `recalibration_promote_ready=true`
+  - empty `recalibration_promote_blockers`
+- Default blockers (policy-driven via `production/ops/kpi_policy.json`):
+  - not enough chronological dates,
+  - WARN count still elevated,
+  - k-rate MAE still above warn threshold,
+  - over-side CLV quality not yet stable.
+- If blockers remain, continue accumulating + diagnostics; do not repoint production calibration.
+- If promotion is ready, run a documented repoint step and record:
+  - prior pointer artifact,
+  - new pointer artifact,
+  - supporting KPI snapshot hashes
+  in `docs/research/floor_freeze_log.md`.
+
 ## Dynamic gate policy
 
 Quality-gate settings should respond to diagnostics:
@@ -55,6 +74,13 @@ Quality-gate settings should respond to diagnostics:
   - hold under + long-rest risk, require stronger edge in risky tiers.
 - **Risk state (4+ WARN):**
   - strict policy, block known-risk slices and increase minimum edge floor.
+
+Current side-policy note (2026-08-15):
+
+- default live operating profile is `D_over18_under12`
+  - `edge_min_over=0.18`
+  - `edge_min_under=0.12`
+- rationale: side asymmetry (over-side instability vs under-side strength) while recalibration promotion blockers remain active.
 
 Use `gate_next_n_comparison.parquet` to monitor whether gating is helping:
 
@@ -82,9 +108,12 @@ Whenever thresholds are changed, log the reason and supporting snapshot hashes i
 5. If threshold/policy changed, record it in freeze log.
 6. Optional automation:
    - `production/ops/kpi_daily_action.py`
+   - `production/ops/run_daily_kpi_loop.py`
    - `production/ops/weekly_kpi_report.py`
    - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"`
-   - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --side-thresholds "over:0.14,under:0.10"`
+  - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18,0.20" --side-thresholds "over:0.18,under:0.12"`
+   - `production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --profile-over-floors "0.12,0.14,0.16,0.18" --profile-under-floors "0.10,0.12,0.14" --profile-min-bets 25`
+   - `production/ops/build_daily_operator_summary.py`
 
 ## Focused notebook split (faster monitoring loop)
 

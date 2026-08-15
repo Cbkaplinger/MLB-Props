@@ -31,7 +31,7 @@
     }
   },
   "operating_profile": {
-    "name": "A_edge12",
+    "name": "D_over18_under12",
     "filters": {
       "rest_max_exclusive": 45.0,
       "tbf_min": 15.0
@@ -46,11 +46,22 @@
       "C_over14_under12": {
         "edge_min_over": 0.14,
         "edge_min_under": 0.12
+      },
+      "D_over18_under12": {
+        "edge_min_over": 0.18,
+        "edge_min_under": 0.12
       }
     }
   },
   "state_actions": {
     "healthy_max_warn": 1,
     "caution_max_warn": 3
+  },
+  "recalibration_promotion": {
+    "min_dates": 15,
+    "max_warn_for_promotion": 1,
+    "require_k_rate_below_warn": true,
+    "require_non_negative_over_clv_pp": true,
+    "min_over_clv_samples": 20
   }
 }

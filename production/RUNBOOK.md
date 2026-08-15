@@ -20,6 +20,12 @@ and should not be duplicated here.
 7. grade_odds_ledger --status
 ```
 
+One command equivalent:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File production/ops/run_morning_workflow.ps1
+```
+
 ## Core Commands
 
 From repo root:
@@ -49,6 +55,8 @@ Diagnostics-first risk gating (optional, not default):
 .\.venv\Scripts\python.exe production/odds/close_watcher.py
 # or:
 .\production\odds\run_close_watcher.ps1
+# or background launcher:
+powershell -ExecutionPolicy Bypass -File production/ops/start_close_watcher_background.ps1
 ```
 
 One-shot close fill fallback:
@@ -69,7 +77,29 @@ Append only; do not replace open snapshot after morning lock:
 
 ```powershell
 .\.venv\Scripts\python.exe production/odds/grade_odds_ledger.py --auto-settle-api --void-scratches --status --curve
+# or:
+powershell -ExecutionPolicy Bypass -File production/ops/run_end_of_day_settle.ps1
 ```
+
+## Daily Scheduler (Windows Task Scheduler)
+
+Create/update automated tasks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:30 -WatcherStartTime 11:30 -SettleTime 03:00
+```
+
+Recommended schedule:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:30 -WatcherStartTime 11:30 -SettleTime 03:00
+```
+
+Creates:
+
+- `MLBProps_MorningWorkflow`
+- `MLBProps_CloseWatcherStart`
+- `MLBProps_EndOfDaySettle`
 
 The settle script also writes a gate-monitoring artifact each run:
 
@@ -133,9 +163,54 @@ Automation helpers:
 
 ```powershell
 .\.venv\Scripts\python.exe production/ops/kpi_daily_action.py
+.\.venv\Scripts\python.exe production/ops/run_daily_kpi_loop.py
+.\.venv\Scripts\python.exe production/ops/calibration_snapshot.py --compare
+.\.venv\Scripts\python.exe production/ops/build_daily_operator_summary.py
 .\.venv\Scripts\python.exe production/ops/weekly_kpi_report.py
 .\.venv\Scripts\python.exe production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"
+.\.venv\Scripts\python.exe production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --profile-over-floors "0.12,0.14,0.16,0.18" --profile-under-floors "0.10,0.12,0.14" --profile-min-bets 25
 ```
+
+Current operating profile:
+
+- `D_over18_under12` (from `production/ops/kpi_policy.json`)
+  - `edge_min_over=0.18`
+  - `edge_min_under=0.12`
+- treat this as provisional while `production/ops/kpi_daily_action.py --json` reports `action=RECALIBRATE`.
+- run this check at least once per day:
+
+```powershell
+.\.venv\Scripts\python.exe production/ops/kpi_daily_action.py --json
+```
+
+Artifact dedupe (report-first, safe workflow):
+
+```powershell
+.\.venv\Scripts\python.exe production/ops/prune_artifacts.py --target artifacts/model_quality --dry-run
+# review artifacts/odds_log/prune_artifacts_last_report.json
+# then apply:
+.\.venv\Scripts\python.exe production/ops/prune_artifacts.py --target artifacts/model_quality --apply
+```
+
+Recalibration promotion gate check:
+
+```powershell
+.\.venv\Scripts\python.exe production/ops/kpi_daily_action.py --json
+```
+
+Promote only when `recalibration_promote_ready` is true and blockers are empty.
+
+## Streamlit Operator App
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run production/app/dashboard_streamlit.py
+```
+
+App intent:
+- fast daily action + blocker visibility,
+- calibration day-over-day tracking,
+- side-floor scenario + profile scans,
+- realized performance drilldown.
 
 ## Exit-Anomaly Labels (Ejections / Weather / Suspensions)
 

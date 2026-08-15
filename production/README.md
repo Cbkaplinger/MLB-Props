@@ -18,6 +18,10 @@ odds/CLV tracking, and holdout monitoring.
 - Model diagnostics workflow: `docs/reference/results_dashboard_diagnostics.md`
 - Daily KPI and dynamic gate policy: `docs/reference/daily_kpi_protocol.md`
 - One-command notebook refresh script: `production/ops/run_analysis_notebooks.ps1`
+- Daily KPI loop + calibration snapshots: `production/ops/run_daily_kpi_loop.py`,
+  `production/ops/calibration_snapshot.py`
+- Artifact dedupe utility (report-first): `production/ops/prune_artifacts.py`
+- Streamlit operator app: `production/app/dashboard_streamlit.py`
 
 ## Notebook Entry Points
 
@@ -33,6 +37,20 @@ odds/CLV tracking, and holdout monitoring.
 - Notebook routing map: `production/notebooks/README.md`
 - One-command daily operator flow: `production/ops/run_daily_operator_flow.ps1`
 
+## Streamlit Operator Dashboard
+
+Run from repo root:
+
+```powershell
+python -m streamlit run production/app/dashboard_streamlit.py
+```
+
+The app reads existing artifacts and presents:
+- daily action + promotion blockers,
+- calibration trend/snapshot deltas,
+- policy sweep and side-profile scans,
+- realized daily and rolling performance.
+
 ## Policy Simulation
 
 Run scenario sweeps on edge-floor policy:
@@ -44,13 +62,20 @@ python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16
 Run side-specific edge floors (for stricter `over`, looser `under`):
 
 ```powershell
-python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --side-thresholds "over:0.14,under:0.10"
+python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18,0.20" --side-thresholds "over:0.18,under:0.12"
 ```
 
 Writes:
 
 - `artifacts/odds_log/policy_scenario_sweep.parquet` (historical snapshots)
 - `artifacts/odds_log/policy_scenario_sweep_latest.csv` (latest run only)
+
+Current live policy default (from `production/ops/kpi_policy.json`):
+
+- profile: `D_over18_under12`
+- over floor: `0.18`
+- under floor: `0.12`
+- context: keep this side-specific profile while `kpi_daily_action` remains in `RECALIBRATE`.
 
 ## Exit-Anomaly Governance
 

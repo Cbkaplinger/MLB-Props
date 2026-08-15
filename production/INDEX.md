@@ -14,8 +14,26 @@ Quick routing: "I need to do X -> run Y".
   - `python production/ops/run_daily.py --allow-stale`
 - Daily KPI action recommendation:
   - `python production/ops/kpi_daily_action.py`
+- One-command daily KPI loop (settle/grade/notebooks/KPI summary):
+  - `python production/ops/run_daily_kpi_loop.py`
+- One-page operator summary artifacts:
+  - `python production/ops/build_daily_operator_summary.py`
+- Artifact dedupe (report-first dry run):
+  - `python production/ops/prune_artifacts.py --target artifacts/model_quality --dry-run`
+- Artifact dedupe apply (after reviewing report):
+  - `python production/ops/prune_artifacts.py --target artifacts/model_quality --apply`
+- Capture calibration snapshot and day-over-day deltas:
+  - `python production/ops/calibration_snapshot.py --compare`
 - Weekly KPI artifact refresh:
   - `python production/ops/weekly_kpi_report.py`
+- One-command morning workflow (model slate + board + open ledger + status):
+  - `powershell -ExecutionPolicy Bypass -File production/ops/run_morning_workflow.ps1`
+- One-command end-of-day settle:
+  - `powershell -ExecutionPolicy Bypass -File production/ops/run_end_of_day_settle.ps1`
+- Start close watcher in background:
+  - `powershell -ExecutionPolicy Bypass -File production/ops/start_close_watcher_background.ps1`
+- Create/update daily scheduled automation tasks:
+  - `powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:30 -WatcherStartTime 11:30 -SettleTime 03:00`
 
 ## Projection Logging and Grading
 
@@ -69,10 +87,18 @@ Quick routing: "I need to do X -> run Y".
   - `powershell -ExecutionPolicy Bypass -File production/ops/run_analysis_notebooks.ps1`
   - dashboard only: `powershell -ExecutionPolicy Bypass -File production/ops/run_analysis_notebooks.ps1 -NoStory`
 
+## Streamlit App
+
+- Operator dashboard app:
+  - `streamlit run production/app/dashboard_streamlit.py`
+
 ## Policy Simulation
 
 - Edge-floor scenario sweep:
   - `python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"`
+- Side-specific profile scan (stricter overs vs looser unders):
+  - `python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --profile-over-floors "0.12,0.14,0.16,0.18" --profile-under-floors "0.10,0.12,0.14" --profile-min-bets 25`
+  - current live profile in policy: `D_over18_under12` (`over=0.18`, `under=0.12`)
 
 ## Exit-Anomaly Commands
 
