@@ -4,11 +4,11 @@ captured_at_utc=2026-07-23T18:27:38.0125474Z
 
 git status --short:
  M .gitignore
- M Data/Savant-Data/regular/2025/statcast_2025_regular.parquet
- M Models/Strikeout-Model/README.md
+ M data/Savant-data/regular/2025/statcast_2025_regular.parquet
+ M models/Strikeout-Model/README.md
  M models/Strikeout-Model/research/README.md
  M models/Strikeout-Model/research/strikeout-eda.ipynb
- M Models/Strikeout-Model/train.py
+ M models/Strikeout-Model/train.py
  M README.md
  M RosterScraper/RosterScraper.py
  M docs/reference/dev-notes.md

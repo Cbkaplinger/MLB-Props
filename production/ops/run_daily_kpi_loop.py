@@ -130,8 +130,20 @@ def main() -> None:
     )
     steps.append(
         _run_step(
+            "build_validation_ops_report",
+            [str(PYTHON), "production/ops/build_validation_ops_report.py"],
+        )
+    )
+    steps.append(
+        _run_step(
             "build_operator_summary",
             [str(PYTHON), "production/ops/build_daily_operator_summary.py"],
+        )
+    )
+    steps.append(
+        _run_step(
+            "build_policy_governance_report",
+            [str(PYTHON), "production/ops/build_policy_governance_report.py"],
         )
     )
     summary = {

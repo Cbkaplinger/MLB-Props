@@ -12,8 +12,8 @@ in `artifacts/models/` (no retrain needed).
 | TBF Ridge | `artifacts/models/tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib` |
 
 Daily / playground scoring **loads** those files. Retrain only when you
-intentionally change the freeze (`Models/Strikeout-Model/train.py`,
-`Models/TBF-Model/train.py`).
+intentionally change the freeze (`models/Strikeout-Model/train.py`,
+`models/TBF-Model/train.py`).
 
 ## Demos
 

@@ -1,4 +1,5 @@
 game_pk,pitcher,game_date,exit_anomaly_flag,exit_anomaly_type,exit_anomaly_confidence,exit_anomaly_source,note
+824514,592288,2026-08-17,true,opener_bulk_surprise,low,starter_disagreement_heuristic,Starter source disagreement heuristic; verify with official feed/game notes.
 824561,663436,2026-08-13,true,ejection,high,manual_override,Davis Martin ejected in start; treat as exogenous exit for process diagnostics/training mask.
 822698,800600,2026-08-12,true,opener_bulk_surprise,low,starter_disagreement_heuristic,Starter source disagreement heuristic; verify with official feed/game notes.
 824807,554430,2026-08-02,true,weather_shortened,medium,game_status,MLB status detailedState=Completed Early: Rain; weather_context=rain/storm

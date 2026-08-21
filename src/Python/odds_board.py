@@ -7,6 +7,8 @@ local de-vig / edge / unit sizing. Product layer only.
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from functools import lru_cache
+import json
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,16 @@ BOARD_PARQUET = ODDS_DIR / "recommendations.parquet"
 BOARD_HTML = ODDS_DIR / "recommendations.html"
 BOARD_META = ODDS_DIR / "recommendations_meta.json"
 SCORECARD_DAILY = ODDS_DIR / "model_health_scorecard_daily.parquet"
+LINE_PRICE_CORR_PATH = ODDS_DIR / "line_price_correction_table.parquet"
+LINE_PRICE_CORR_APPROVED_PATH = ODDS_DIR / "line_price_correction_table_approved.parquet"
+CALIBRATION_DEPLOY_MATRIX_PATH = ODDS_DIR / "calibration_deploy_matrix.parquet"
+LINE_FLOOR_POLICY_PATH = (
+    config.PROJECT_ROOT
+    / "production"
+    / "ops"
+    / "market_research"
+    / "line_floor_policy.json"
+)
 
 
 def _norm_name(s: str) -> str:
@@ -37,6 +49,161 @@ def _norm_name(s: str) -> str:
 
 def _line_to_col(line: float) -> str:
     return f"p_over_{int(line)}_{int(round((line - int(line)) * 10))}"
+
+
+def _line_key(line: float) -> str:
+    return f"{float(line):.1f}"
+
+
+def _load_line_floor_map() -> dict[str, float]:
+    if not LINE_FLOOR_POLICY_PATH.exists():
+        return {}
+    try:
+        payload = json.loads(LINE_FLOOR_POLICY_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    raw = payload.get("line_edge_floors", {}) if isinstance(payload, dict) else {}
+    out: dict[str, float] = {}
+    for key, value in raw.items():
+        try:
+            out[str(key)] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _price_bucket(price: float) -> str:
+    p = float(price)
+    if p <= -170:
+        return "fav_le_-170"
+    if p <= -140:
+        return "fav_-169_to_-140"
+    if p <= -115:
+        return "fav_-139_to_-115"
+    if p <= -105:
+        return "coin_-114_to_-105"
+    if p <= 105:
+        return "coin_-104_to_+105"
+    if p <= 130:
+        return "dog_+106_to_+130"
+    if p <= 160:
+        return "dog_+131_to_+160"
+    return "dog_gt_+160"
+
+
+def _load_line_price_offsets() -> dict[tuple[float, str], float]:
+    """Collapsed correction offsets keyed by (line, over_price_bucket)."""
+    use_path = (
+        LINE_PRICE_CORR_APPROVED_PATH
+        if LINE_PRICE_CORR_APPROVED_PATH.exists()
+        else LINE_PRICE_CORR_PATH
+    )
+    if not use_path.exists():
+        return {}
+    table = pl.read_parquet(use_path)
+    if table.is_empty():
+        return {}
+    offset_col = "prob_offset_final" if "prob_offset_final" in table.columns else "prob_offset"
+    collapsed = (
+        table.group_by(["line", "over_price_bucket"])
+        .agg(
+            ((pl.col(offset_col) * pl.col("n")).sum() / pl.col("n").sum()).alias(
+                "prob_offset"
+            )
+        )
+        .to_dicts()
+    )
+    out: dict[tuple[float, str], float] = {}
+    for r in collapsed:
+        out[(float(r["line"]), str(r["over_price_bucket"]))] = float(r["prob_offset"])
+    return out
+
+
+def _load_deploy_segment_states() -> dict[tuple[float, str, str], str]:
+    if not CALIBRATION_DEPLOY_MATRIX_PATH.exists():
+        return {}
+    table = pl.read_parquet(CALIBRATION_DEPLOY_MATRIX_PATH)
+    if table.is_empty() or "deploy_state" not in table.columns:
+        return {}
+    return {
+        (
+            float(r["line"]),
+            str(r["over_price_bucket"]),
+            str(r["maturity_bucket"]),
+        ): str(r["deploy_state"])
+        for r in table.select(
+            "line", "over_price_bucket", "maturity_bucket", "deploy_state"
+        ).to_dicts()
+    }
+
+
+def _bucket_from_starts(starts: int) -> str:
+    if starts < 10:
+        return "early_lt10"
+    if starts < 20:
+        return "mid_10_19"
+    return "mature_20_plus"
+
+
+@lru_cache(maxsize=32)
+def _historical_starts_by_pitcher(game_date_iso: str) -> dict[str, int]:
+    """Approx prior starts from logged projection history before game date."""
+    if not LOG_PATH.exists():
+        return {}
+    try:
+        cutoff = date.fromisoformat(str(game_date_iso))
+        hist = pl.read_parquet(LOG_PATH)
+    except Exception:
+        return {}
+    if hist.is_empty() or "game_date" not in hist.columns or "player_name" not in hist.columns:
+        return {}
+    try:
+        counts = (
+            hist.with_columns(
+                pl.col("game_date").cast(pl.Date).alias("game_date"),
+                pl.col("player_name")
+                .cast(pl.Utf8)
+                .map_elements(_norm_name, return_dtype=pl.Utf8)
+                .alias("player_norm"),
+            )
+            .filter(pl.col("game_date") < pl.lit(cutoff))
+            .group_by("player_norm")
+            .agg(pl.col("game_date").n_unique().alias("prior_starts_in_season"))
+            .to_dicts()
+        )
+    except Exception:
+        return {}
+    return {
+        str(r["player_norm"]): int(r["prior_starts_in_season"])
+        for r in counts
+        if r.get("player_norm") is not None and r.get("prior_starts_in_season") is not None
+    }
+
+
+def _maturity_bucket(board_row: dict[str, Any]) -> str:
+    raw = board_row.get("maturity_bucket")
+    if raw is not None:
+        raw_str = str(raw).strip().lower()
+        if raw_str not in {"", "unknown", "none", "null", "nan"}:
+            return str(raw)
+    starts = board_row.get("prior_starts_in_season")
+    try:
+        return _bucket_from_starts(int(starts))
+    except (TypeError, ValueError):
+        pass
+    gdate = board_row.get("game_date")
+    pname = board_row.get("player_name")
+    if gdate is None or pname is None:
+        return "unknown"
+    try:
+        gdate_iso = str(gdate)[:10]
+        key = _norm_name(str(pname))
+        prior = _historical_starts_by_pitcher(gdate_iso).get(key)
+        if prior is not None:
+            return _bucket_from_starts(int(prior))
+    except Exception:
+        return "unknown"
+    return "unknown"
 
 
 def p_model_over_for_line(board_row: dict[str, Any], line: float) -> float | None:
@@ -139,11 +306,38 @@ def score_quote_against_board(
     *,
     unit_dollars: float = 50.0,
     edge_floor: float = DEFAULT_EDGE_FLOOR,
+    prob_offset_map: dict[tuple[float, str], float] | None = None,
+    line_floor_map: dict[str, float] | None = None,
+    deploy_segment_states: dict[tuple[float, str, str], str] | None = None,
 ) -> dict[str, Any] | None:
     col = _line_to_col(quote.line)
     p_over = p_model_over_for_line(board_row, quote.line)
     if p_over is None:
         return None
+    over_price_bucket = _price_bucket(float(quote.over_american))
+    maturity_bucket = _maturity_bucket(board_row)
+    correction_key = (float(quote.line), over_price_bucket)
+    offset = (
+        float(prob_offset_map.get(correction_key, 0.0))
+        if prob_offset_map is not None
+        else 0.0
+    )
+    p_over = min(max(float(p_over) + offset, 1e-6), 1.0 - 1e-6)
+    effective_floor = (
+        float(line_floor_map.get(_line_key(quote.line), edge_floor))
+        if line_floor_map is not None
+        else float(edge_floor)
+    )
+    segment_key = (
+        float(quote.line),
+        over_price_bucket,
+        maturity_bucket,
+    )
+    segment_state = "UNSPECIFIED"
+    segment_allowed = True
+    if deploy_segment_states is not None and len(deploy_segment_states) > 0:
+        segment_state = str(deploy_segment_states.get(segment_key, "UNSPECIFIED"))
+        segment_allowed = segment_state != "OFF"
     over_ev = evaluate_side(p_over, quote.over_american, quote.under_american, "over")
     under_ev = evaluate_side(
         1.0 - p_over, quote.over_american, quote.under_american, "under"
@@ -153,13 +347,13 @@ def score_quote_against_board(
         float(best["p_model"]),
         float(best["price_american"]),
         edge=float(best["edge"]),
-        edge_floor=edge_floor,
+        edge_floor=effective_floor,
         unit_dollars=unit_dollars,
     )
     fair_key = col.replace("p_over_", "fair_amer_", 1)
     oos = row_oos_reason(board_row)
     in_support = oos is None
-    passes = bool(sizing["passes_floor"]) and in_support
+    passes = bool(sizing["passes_floor"]) and in_support and segment_allowed
     return {
         "game_date": str(board_row.get("game_date")),
         "game_pk": board_row.get("game_pk"),
@@ -177,16 +371,25 @@ def score_quote_against_board(
         "opp_lineup_k_vs_hand": board_row.get("opp_lineup_k_vs_hand"),
         "book": quote.sportsbook,
         "line": float(quote.line),
+        "maturity_bucket": maturity_bucket,
+        "over_price_bucket": over_price_bucket,
         "over_price": float(quote.over_american),
         "under_price": float(quote.under_american),
         "fair_amer_model": board_row.get(fair_key),
         "p_model_over": round(p_over, 3),
+        "prob_correction_offset": round(offset, 5),
         "best_side": best["side"],
         "best_price": float(best["price_american"]),
         "p_model": round(float(best["p_model"]), 3),
         "p_market": round(float(best["p_market"]), 3),
         "edge": round(float(best["edge"]), 4),
+        "edge_floor_effective": round(float(effective_floor), 4),
         "passes_floor": passes,
+        "segment_allowed": segment_allowed,
+        "segment_state": segment_state,
+        "policy_reason": ""
+        if segment_allowed
+        else "segment_disabled_by_deploy_matrix",
         "units": round(float(sizing["units"]), 2) if in_support else 0.0,
         "stake": round(float(sizing["stake"]), 2) if in_support else 0.0,
         "over_edge": round(float(over_ev["edge"]), 4),
@@ -406,6 +609,10 @@ def build_recommendations(
     best_book_only: bool = True,
     quality_gate: bool = False,
     kpi_policy_path: str | Path | None = None,
+    apply_line_price_correction: bool = False,
+    apply_line_floors: bool = False,
+    apply_deploy_matrix_filter: bool = False,
+    side_edge_floors: dict[str, float] | None = None,
 ) -> tuple[pl.DataFrame, dict[str, Any]]:
     """Return recommendation frame + meta (fetches SharpAPI unless quotes given).
 
@@ -420,13 +627,24 @@ def build_recommendations(
     quotes = _dedupe_quotes(quotes)
     rows: list[dict[str, Any]] = []
     unmatched: list[str] = []
+    prob_offset_map = _load_line_price_offsets() if apply_line_price_correction else None
+    line_floor_map = _load_line_floor_map() if apply_line_floors else None
+    deploy_segment_states = (
+        _load_deploy_segment_states() if apply_deploy_matrix_filter else None
+    )
     for q in quotes:
         brow = _match_row(board, q.player_name)
         if brow is None:
             unmatched.append(q.player_name)
             continue
         scored = score_quote_against_board(
-            brow, q, unit_dollars=unit_dollars, edge_floor=edge_floor
+            brow,
+            q,
+            unit_dollars=unit_dollars,
+            edge_floor=edge_floor,
+            prob_offset_map=prob_offset_map,
+            line_floor_map=line_floor_map,
+            deploy_segment_states=deploy_segment_states,
         )
         if scored is None:
             unmatched.append(f"{q.player_name}@{q.line}")
@@ -436,6 +654,39 @@ def build_recommendations(
     frame = pl.DataFrame(rows) if rows else pl.DataFrame()
     n_matched_raw = frame.height
     if not frame.is_empty():
+        if side_edge_floors:
+            over_floor = float(side_edge_floors.get("over", edge_floor))
+            under_floor = float(side_edge_floors.get("under", edge_floor))
+            side_min_edge = (
+                pl.when(pl.col("best_side") == "over")
+                .then(pl.lit(over_floor))
+                .otherwise(pl.lit(under_floor))
+            )
+            frame = frame.with_columns(
+                side_min_edge.alias("side_min_edge_floor"),
+                (pl.col("edge") >= side_min_edge).alias("passes_side_floor"),
+            ).with_columns(
+                (
+                    pl.col("passes_floor")
+                    & pl.col("passes_side_floor")
+                    & pl.col("segment_allowed")
+                ).alias("passes_floor"),
+                pl.when(
+                    pl.col("recommendation").eq("BET")
+                    & (~pl.col("passes_side_floor"))
+                )
+                .then(pl.lit("skip"))
+                .otherwise(pl.col("recommendation"))
+                .alias("recommendation"),
+                pl.when(
+                    pl.col("policy_reason").eq("")
+                    & (~pl.col("passes_side_floor"))
+                )
+                .then(pl.lit("below_side_floor"))
+                .otherwise(pl.col("policy_reason"))
+                .alias("policy_reason"),
+            )
+
         if best_book_only:
             frame = keep_best_book_per_pitcher(frame)
         else:
@@ -484,6 +735,38 @@ def build_recommendations(
         "edge_floor": edge_floor,
         "sportsbook_filter": sportsbook,
         "best_book_only": best_book_only,
+        "line_price_correction_applied": bool(apply_line_price_correction),
+        "line_price_correction_segments": len(prob_offset_map or {}),
+        "line_floor_policy_applied": bool(apply_line_floors),
+        "line_floor_policy_segments": len(line_floor_map or {}),
+        "deploy_matrix_filter_applied": bool(apply_deploy_matrix_filter),
+        "deploy_matrix_segments_tracked": len(deploy_segment_states or {}),
+        "deploy_matrix_segments_on": int(
+            sum(
+                1
+                for state in (deploy_segment_states or {}).values()
+                if str(state) == "ON"
+            )
+        ),
+        "deploy_matrix_segments_off": int(
+            sum(
+                1
+                for state in (deploy_segment_states or {}).values()
+                if str(state) == "OFF"
+            )
+        ),
+        "side_edge_floors_applied": bool(side_edge_floors),
+        "side_edge_floor_over": float(side_edge_floors.get("over"))
+        if side_edge_floors and "over" in side_edge_floors
+        else None,
+        "side_edge_floor_under": float(side_edge_floors.get("under"))
+        if side_edge_floors and "under" in side_edge_floors
+        else None,
+        "n_segment_filtered": int(
+            frame.filter(~pl.col("segment_allowed")).height
+            if not frame.is_empty() and "segment_allowed" in frame.columns
+            else 0
+        ),
         **gate_meta,
     }
     return frame, meta

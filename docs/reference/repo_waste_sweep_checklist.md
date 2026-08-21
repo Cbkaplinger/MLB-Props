@@ -10,6 +10,7 @@ This checklist tracks low-value surface area and safe cleanup opportunities.
 - **Docs drift risk:** policy text should link to canonical docs instead of duplicating long rationale.
 - **Dashboard sprawl risk:** deep-dive cells are now complemented by focused monitors (`results_kpi_monitor`, `results_calibration_lab`, `results_gate_policy`, `results_pnl_clv`).
 - **2026-08-11 dependency audit:** every `production/notebooks/*.ipynb` and `production/ops/*.py` file is still referenced by docs/scripts/notebooks; no safe deletions in those folders yet.
+- **2026-08-18 quality passthrough:** `keep/hold/delete` workflow formalized in `.cursor/skills/repo-quality-passthrough/`; canonical casing policy set to lowercase references (`data`, `models`, `artifacts`) with staged migration only.
 
 ## Safe keep/delete guidance
 
@@ -30,6 +31,7 @@ This checklist tracks low-value surface area and safe cleanup opportunities.
   - `production/README.md`
 - Date-tagged non-protected artifact files (dry-run + allowlist):
   - `python scripts/prune_artifacts.py --min-age-days 45`
+- Cache-only files/folders (`__pycache__`, `.pyc`, `.pytest_cache`) whenever present outside virtual env.
 
 ### Explicitly protected (do not delete)
 
@@ -37,6 +39,7 @@ This checklist tracks low-value surface area and safe cleanup opportunities.
 - `production/ops/*.py` current set (daily ops + KPI/policy tooling)
 - Core model/data pipeline modules under `src/Python/`
 - `artifacts/{models,projection_log,odds_log,feature_research,stabilization,count_layer}/`
+- `production/ops/kpi_policy.json` and `production/ops/exit_anomaly_overrides.csv`
 
 ## Before deleting anything
 

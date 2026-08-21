@@ -77,6 +77,61 @@ def test_pitcher_whiff_swstr_and_ball_rate_names_match_denominators():
     assert df["ball_rate_std"][1] == pytest.approx(36 / 90)
 
 
+def test_two_strike_csw_rate_and_interaction_derivations():
+    df = pr.add_rolling_pitcher_features(
+        _starts(
+            [
+                _s(
+                    1,
+                    6,
+                    20,
+                    Whiffs=10,
+                    CSW=30,
+                    Pitches=100,
+                    PutAwayK=6,
+                    TwoStrikeCSW=12,
+                    TwoStrikePitches=40,
+                    wOBA_num=3.2,
+                    xwOBA_num=4.0,
+                    wOBA_den=10,
+                ),
+                _s(
+                    2,
+                    4,
+                    20,
+                    Whiffs=8,
+                    CSW=24,
+                    Pitches=100,
+                    PutAwayK=4,
+                    TwoStrikeCSW=10,
+                    TwoStrikePitches=35,
+                    wOBA_num=2.5,
+                    xwOBA_num=2.8,
+                    wOBA_den=10,
+                ),
+            ]
+        ),
+        rate_stats={
+            "k_rate": ("K", "PA"),
+            "swstr_rate": ("Whiffs", "Pitches"),
+            "csw_rate": ("CSW", "Pitches"),
+            "putaway_rate": ("PutAwayK", "TwoStrikePitches"),
+            "two_strike_csw_rate": ("TwoStrikeCSW", "TwoStrikePitches"),
+            "wOBA": ("wOBA_num", "wOBA_den"),
+            "xwOBA": ("xwOBA_num", "wOBA_den"),
+        },
+        mean_cols=[],
+        rate_windows=(5,),
+        season_to_date=True,
+    ).sort("game_date")
+    # row 2 std values are based on row 1 only
+    assert df["two_strike_csw_rate_std"][1] == pytest.approx(12 / 40)
+    assert df["csw_two_strike_gap_std"][1] == pytest.approx((12 / 40) - (30 / 100))
+    assert df["csw_putaway_gap_std"][1] == pytest.approx((12 / 40) - (6 / 40))
+    assert df["k_minus_swstr_x2_std"][1] == pytest.approx((6 / 20) - 2 * (10 / 100))
+    assert df["xwoba_minus_woba_std"][1] == pytest.approx((4.0 / 10) - (3.2 / 10))
+
+
 def test_mean_column_rolls_and_shifts():
     df = pr.add_rolling_pitcher_features(
         _starts([_s(1, 0, 20, ff_velo=96.0), _s(2, 0, 20, ff_velo=94.0)]),

@@ -1,7 +1,7 @@
 """Reproduce feature redundancy and target-dispersion diagnostics.
 
 All fitted statistics use only the chronological training partition from
-``Models/Strikeout-Model/train.py``. Correlation analysis is intentionally
+``models/Strikeout-Model/train.py``. Correlation analysis is intentionally
 sequenced Pearson -> targeted Spearman -> narrow Kendall, followed by VIF
 grouping that reloads the saved Pearson matrix.
 """

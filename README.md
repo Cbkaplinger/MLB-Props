@@ -54,7 +54,7 @@ raw Savant parquet
 Level 1 groups pitch-level data into auditable game records. Level 2 produces
 pregame rolling/season-to-date player form and retains static game context.
 Level 3 joins opponent-lineup and prior-season park context.
-`Models/Strikeout-Model/train.py` reads `pitcher_training.parquet`.
+`models/Strikeout-Model/train.py` reads `pitcher_training.parquet`.
 
 Key modules:
 
@@ -185,16 +185,18 @@ must be monitored; MLB IDs remain the durable identity contract.
 
 1. Build Level 1–3 when inputs change (`python -c "from Python.pipeline import run_all; run_all()"`).
 2. Train the frozen k-rate model:
-   `python Models/Strikeout-Model/train.py --model lightgbm --feature-set production`.
+   `python models/Strikeout-Model/train.py --model lightgbm --feature-set production`.
 3. Train the frozen TBF spine:
-   `python Models/TBF-Model/train.py --model ridge --feature-set workload_context_bullpen`.
+   `python models/TBF-Model/train.py --model ridge --feature-set workload_context_bullpen`.
 4. Score the count layer (expected_K + line probs):
-   `python Models/Strikeout-Model/score_count_layer.py`.
+   `python models/Strikeout-Model/score_count_layer.py`.
 5. Compare builds on nested chronological outer folds only; do not reuse scored
    2025 for selection. Pristine final eval = future post-freeze games.
 
 Feature-research Steps 1–9 are closed for LightGBM; see `docs/research/step7_registry_freeze.md`
 and `docs/research/step8_feature_keep_drop_findings.md` / `docs/research/step9_metric_window_findings.md`.
+The current expanded freeze decision and consensus-search evidence are documented in
+`docs/research/final58_consensus_freeze_2026-08-20.md`.
 
 ## Remaining gaps (see `docs/diagrams/04-roadmap.md`)
 
@@ -211,22 +213,22 @@ and `docs/research/step8_feature_keep_drop_findings.md` / `docs/research/step9_m
   current historical-tag density implies neutral aggregate deltas so far.
 - **Optional later:** NB count challenger; market de-vig / Kelly; park cleanup.
 
-Frozen and done for research: **184-feature** LightGBM production k-rate
-(Step 10 P1 spine + Step 11 discipline lift), Ridge TBF
-(`docs/research/tbf_first_model_findings.md`), count-layer + walk-forward stack
-(`docs/research/count_layer_findings.md`). Rest/bullpen spine:
-`docs/research/workload_rest_bullpen_feature_plan.md`.
+Current MAE-first freeze candidate: **58-feature consensus** LightGBM k-rate
+(`feature_set=production_final58_consensus`) from merged-chunk winner and
+consensus-pool search (`docs/research/final58_consensus_freeze_2026-08-20.md`).
+Money-gate incumbent remains `production_oof72_monotone` until post-tuning and
+risk-adjusted policy checks are complete. Ridge TBF
+(`docs/research/tbf_first_model_findings.md`) and count-layer stack
+(`docs/research/count_layer_findings.md`) remain unchanged.
 
 ## Current baseline and research surface
 
-The production LightGBM gate is the **frozen 184-feature** registry
-(`feature_set=production`; see `docs/research/step11_discipline_registry_freeze.md`).
-Companion `step10_180` retains the prior 180-feature freeze and `step7_185`
-retains the prior 185-feature freeze for bake-offs. Chrono test MAE / RMSE / R²
-for the current production freeze ≈ 0.0780 / 0.0982 / 0.156
-(`docs/research/step11_discipline_registry_freeze.md`). This is development
-evidence, not an untouched final test. Next work is calibration/workload
-stability and post-freeze monitoring — not more feature hunting.
+The active research freeze for model-family ablations is now
+`production_final58_consensus` (58 features, walk-forward expected_K MAE
+≈ 1.76694 in consensus sweep), with `production_oof72_monotone` retained as the
+current money-facing challenger under governance replay. Prior freeze registries
+(`production`, `step10_180`, `step7_185`) remain available for backtests and
+comparisons.
 
 Companion sets: `step7_185`, `pre_freeze_248` (comparison) and `ridge_vif`
 (73-feature Ridge research). Expanded research candidates remain outside

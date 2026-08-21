@@ -32,6 +32,10 @@ PATHS = {
     "decomp_daily": ODDS_DIR / "k_error_decomposition_daily.parquet",
     "policy_sweep": ODDS_DIR / "policy_scenario_sweep.parquet",
     "policy_profile": ODDS_DIR / "policy_side_profile_scan.parquet",
+    "decision_scoreboard": ODDS_DIR / "decision_scoreboard_daily.parquet",
+    "validation_ops": ODDS_DIR / "validation_ops_daily.json",
+    "go_no_go": ODDS_DIR / "go_no_go_checklist_daily.json",
+    "policy_replay": ODDS_DIR / "policy_replay_daily.json",
     "ledger": ODDS_DIR / "ledger.parquet",
     "graded": PROJ_DIR / "graded.parquet",
     "recommendations": ODDS_DIR / "recommendations.parquet",
@@ -905,6 +909,10 @@ scorecard_daily = _read_parquet(PATHS["scorecard_daily"])
 decomp_daily = _read_parquet(PATHS["decomp_daily"])
 policy_sweep = _read_parquet(PATHS["policy_sweep"])
 policy_profile = _read_parquet(PATHS["policy_profile"])
+decision_scoreboard = _read_parquet(PATHS["decision_scoreboard"])
+validation_ops = _read_json(PATHS["validation_ops"])
+go_no_go = _read_json(PATHS["go_no_go"])
+policy_replay = _read_json(PATHS["policy_replay"])
 ledger = _read_parquet(PATHS["ledger"])
 graded = _read_parquet(PATHS["graded"])
 recommendations = _read_parquet(PATHS["recommendations"])
@@ -1763,6 +1771,91 @@ with tab_policy:
     st.caption(
         "How to read: this section compares threshold policies; goal is positive ROI with enough bet count to remain deployable."
     )
+    st.markdown("#### Decision Scoreboard (all vs balanced vs profit_lock)")
+    if not decision_scoreboard.is_empty():
+        latest_scoreboard = decision_scoreboard.sort("snapshot_utc").tail(3)
+        view_cols = [
+            c
+            for c in (
+                "policy",
+                "n",
+                "realized_roi",
+                "xroi_close_ref",
+                "xroi_model",
+                "mean_clv_pp",
+                "pct_positive_clv",
+                "roi_ci_lo",
+                "roi_ci_hi",
+                "clv_ci_lo",
+                "clv_ci_hi",
+                "rolling_roi_50",
+                "max_drawdown_dollars",
+            )
+            if c in latest_scoreboard.columns
+        ]
+        _styled_table(latest_scoreboard.select(view_cols), limit=10)
+        if validation_ops:
+            st.caption(
+                f"Promotion CI gate: {validation_ops.get('promotion_ci_gate_pass')} | "
+                f"Profit-lock auto-downgrade: {validation_ops.get('profit_lock_auto_downgrade')} | "
+                f"Primary benchmark: {validation_ops.get('primary_benchmark', 'xroi_close_ref')}"
+            )
+            dq_alerts = validation_ops.get("data_quality", {}).get("alerts", [])
+            if dq_alerts:
+                st.warning(f"Data quality alerts: {', '.join(str(a) for a in dq_alerts)}")
+    else:
+        st.info("Decision scoreboard is not available yet. Run production/ops/build_validation_ops_report.py.")
+
+    st.markdown("#### Why CAUTION/NO-GO (actionable)")
+    if go_no_go:
+        status = str(go_no_go.get("status", "n/a"))
+        failed_crit = int(go_no_go.get("n_failed_critical_gates") or 0)
+        failed_adv = int(go_no_go.get("n_failed_advisory_gates") or 0)
+        g0, g1, g2 = st.columns(3)
+        g0.metric("Current governance status", status)
+        g1.metric("Failed critical gates", failed_crit)
+        g2.metric("Failed advisory gates", failed_adv)
+
+        fix_map = {
+            "ledger_sync": "Run poll_open from recommendations and verify rec BET count equals ledger BET count for today.",
+            "unspecified_segments": "Review UNSPECIFIED segment keys and either map them in deploy matrix or explicitly tolerate them.",
+            "data_quality_alerts": "Backfill missing closes and re-run settle so close-reference metrics are trustworthy.",
+            "policy_ci_gate": "Keep sizing conservative until ROI and CLV lower CIs improve with more stable settled sample.",
+            "volume_gate": "Do not overreact to one slate; accumulate additional slates before changing thresholds.",
+            "replay_ci_gate": "Use replay report to test threshold/sizing changes; only promote when ROI lower CI turns non-negative.",
+        }
+        gate_rows: list[dict[str, Any]] = []
+        for gate in go_no_go.get("gates", []):
+            if not isinstance(gate, dict):
+                continue
+            name = str(gate.get("name") or "unknown")
+            gate_rows.append(
+                {
+                    "gate": name,
+                    "severity": str(gate.get("severity") or "advisory"),
+                    "pass": bool(gate.get("pass")),
+                    "detail": json.dumps(gate.get("detail", {})),
+                    "next_step": fix_map.get(name, "Review gate detail and re-run governance report."),
+                }
+            )
+        if gate_rows:
+            _styled_table(pl.DataFrame(gate_rows), limit=20)
+        st.caption(
+            "Interpretation: critical gate failures are process blockers (NO-GO); advisory failures indicate confidence/sizing caution, not necessarily no edge."
+        )
+    else:
+        st.info("Governance checklist not available yet. Run production/ops/build_policy_governance_report.py.")
+
+    if policy_replay:
+        replay_rows = [
+            r
+            for r in policy_replay.get("scenarios", [])
+            if isinstance(r, dict)
+        ]
+        if replay_rows:
+            st.markdown("#### Counterfactual replay scenarios")
+            _styled_table(pl.DataFrame(replay_rows), limit=10)
+
     latest_sweep = _latest_scenario_rows(policy_sweep)
     if not latest_sweep.is_empty():
         best_row = latest_sweep.sort(["roi", "n_bets"], descending=[True, True]).head(1)

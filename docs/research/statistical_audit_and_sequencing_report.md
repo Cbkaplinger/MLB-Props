@@ -432,7 +432,7 @@ is:
 - internal test: 2024-08-06 through 2024-09-30 (1,413 rows).
 
 Resolution pointer: `src/Python/config.py`,
-`Models/Strikeout-Model/train.py`, `tests/test_train.py`, and
+`models/Strikeout-Model/train.py`, `tests/test_train.py`, and
 `artifacts/models/lightgbm_krate_20260724_142209.json`.
 
 ## Part 2: Required sequencing before a TBF model
@@ -644,7 +644,7 @@ market grading remain open; NB challenger and TBF-distribution mixing are not
 built.
 
 Workload covariates (`PA_P*` / `Outs_P*` / `Pitches_P*`, rest, bullpen L1–L3d)
-are emitted from Level 2 / joins and consumed by `Models/TBF-Model/train.py`
+are emitted from Level 2 / joins and consumed by `models/TBF-Model/train.py`
 (`src/Python/tbf.py`). Same-game `PA` remains the TBF training target and an
 evaluation oracle only.
 

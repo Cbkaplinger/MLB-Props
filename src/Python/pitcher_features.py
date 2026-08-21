@@ -44,6 +44,8 @@ CANON_PITCH: dict[str, str] = {
     "CH": "ch",
     "FS": "fs", "SF": "fs",
 }
+STATCAST_FIELD_CENTER_X = 125.42
+AIR_BALL_TYPES: tuple[str, ...] = ("fly_ball", "line_drive")
 
 
 def siera_mlb_expr(
@@ -123,6 +125,7 @@ BUILD_COLUMNS: tuple[str, ...] = (
     "release_extension", "release_pos_x", "release_pos_z", "arm_angle",
     "vy0", "vz0", "ay", "az",
     "launch_speed", "launch_angle", "launch_speed_angle",
+    "hc_x",
     "estimated_ba_using_speedangle", "estimated_woba_using_speedangle",
     "woba_value", "woba_denom", "bat_score", "post_bat_score",
     "delta_run_exp", "delta_pitcher_run_exp",
@@ -151,6 +154,38 @@ def _pitch_level(df: pl.DataFrame) -> pl.DataFrame:
         (pl.col("bb_type") == "ground_ball").alias("is_gb"),
         (pl.col("bb_type") == "popup").alias("is_popup"),
         (pl.col("bb_type") == "fly_ball").alias("is_ofb"),
+        pl.col("bb_type").is_in(AIR_BALL_TYPES).alias("is_air_ball"),
+        (
+            pl.col("bb_type").is_in(AIR_BALL_TYPES)
+            & (
+                ((pl.col("stand") == "R") & (pl.col("hc_x") < STATCAST_FIELD_CENTER_X))
+                | ((pl.col("stand") == "L") & (pl.col("hc_x") > STATCAST_FIELD_CENTER_X))
+            )
+        ).alias("is_pull_air_allowed"),
+        (
+            pl.col("bb_type").is_in(AIR_BALL_TYPES)
+            & (
+                ((pl.col("stand") == "R") & (pl.col("hc_x") > STATCAST_FIELD_CENTER_X))
+                | ((pl.col("stand") == "L") & (pl.col("hc_x") < STATCAST_FIELD_CENTER_X))
+            )
+        ).alias("is_oppo_air_allowed"),
+        (
+            pl.col("bb_type").is_in(AIR_BALL_TYPES)
+            & pl.col("stand").is_in(["R", "L"])
+            & pl.col("hc_x").is_not_null()
+            & (
+                ~(
+                    ((pl.col("stand") == "R") & (pl.col("hc_x") < STATCAST_FIELD_CENTER_X))
+                    | ((pl.col("stand") == "L") & (pl.col("hc_x") > STATCAST_FIELD_CENTER_X))
+                )
+            )
+            & (
+                ~(
+                    ((pl.col("stand") == "R") & (pl.col("hc_x") > STATCAST_FIELD_CENTER_X))
+                    | ((pl.col("stand") == "L") & (pl.col("hc_x") < STATCAST_FIELD_CENTER_X))
+                )
+            )
+        ).alias("is_center_air_allowed"),
         (
             pl.col("is_pa")
             & ~pl.col("is_k")
@@ -169,6 +204,10 @@ def _pitch_level(df: pl.DataFrame) -> pl.DataFrame:
         (count_known & (pl.col("strikes") == pl.col("balls"))).alias("is_neutral_count"),
         (count_known & (pl.col("strikes") < pl.col("balls"))).alias("is_behind_count"),
         two_strikes.alias("is_two_strike_pitch"),
+        (
+            two_strikes
+            & (pl.col("is_called_strike") | pl.col("is_whiff"))
+        ).alias("is_two_strike_csw"),
         (two_strikes & pl.col("is_k")).alias("is_putaway_k"),
         (-pl.col("delta_run_exp")).alias("pitcher_rv"),
         pl.when(pl.col("events").is_in(OUTS_THREE)).then(3)
@@ -284,6 +323,10 @@ def build_pitcher_starts(
             pl.col("is_gb").sum().alias("GB"),
             pl.col("is_popup").sum().alias("PU"),
             pl.col("is_ofb").sum().alias("OFB"),
+            pl.col("is_air_ball").sum().alias("AirBallsAllowed"),
+            pl.col("is_pull_air_allowed").sum().alias("PullAirAllowed"),
+            pl.col("is_oppo_air_allowed").sum().alias("OppoAirAllowed"),
+            pl.col("is_center_air_allowed").sum().alias("CenterAirAllowed"),
             pl.col("outs_on_play").sum().alias("Outs"),
             pl.col("run_delta").sum().alias("Runs"),
             pl.col("is_babip_hit").sum().alias("BABIP_num"),
@@ -299,6 +342,7 @@ def build_pitcher_starts(
                 .n_unique()
             ).alias("TwoStrikePA"),
             pl.col("is_two_strike_pitch").sum().alias("TwoStrikePitches"),
+            pl.col("is_two_strike_csw").sum().alias("TwoStrikeCSW"),
             pl.col("is_putaway_k").sum().alias("PutAwayK"),
             pl.col("pitcher_rv").sum().alias("RV_num"),
             pl.col("pitcher_rv").is_not_null().sum().alias("RV_den"),
@@ -487,6 +531,10 @@ def build_pitch_type_games(
             pl.col("is_fb").sum().alias("FB"),
             pl.col("is_popup").sum().alias("PU"),
             pl.col("is_ofb").sum().alias("OFB"),
+            pl.col("is_air_ball").sum().alias("AirBallsAllowed"),
+            pl.col("is_pull_air_allowed").sum().alias("PullAirAllowed"),
+            pl.col("is_oppo_air_allowed").sum().alias("OppoAirAllowed"),
+            pl.col("is_center_air_allowed").sum().alias("CenterAirAllowed"),
             *discipline_count_exprs(),
             (
                 (pl.col("type") == "X") & (pl.col("launch_speed") >= 95.0)
@@ -572,6 +620,10 @@ def build_pitch_type_games(
             rate("CSW", "Pitches", "csw_rate"),
             rate("Chases", "OutZone", "chase_rate"),
             rate("GB", "BIP", "gb_rate"),
+            rate("PU", "FB", "iffb_rate"),
+            rate("PullAirAllowed", "AirBallsAllowed", "pull_air_allowed_rate"),
+            rate("OppoAirAllowed", "AirBallsAllowed", "oppo_air_allowed_rate"),
+            rate("CenterAirAllowed", "AirBallsAllowed", "center_air_allowed_rate"),
             rate("HardHit", "EV_den", "hard_hit_rate"),
             rate("Barrels", "xBA_den", "barrel_rate"),
             rate("WeakContact", "xBA_den", "weak_contact_rate"),

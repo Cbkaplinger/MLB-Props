@@ -5,7 +5,7 @@
 **Date:** 2026-07-27 (Step 1); production size updated 2026-07-28  
 **Code:** `src/Python/registries.py`, `scripts/finalize_step1_registries.py`  
 **Artifacts:** `artifacts/feature_research/step1_registries/`  
-**Trainer:** `python Models/Strikeout-Model/train.py --feature-set {production,step7_185,pre_freeze_248,ridge_vif}`
+**Trainer:** `python models/Strikeout-Model/train.py --feature-set {production,step7_185,pre_freeze_248,ridge_vif}`
 
 ## Decisions
 

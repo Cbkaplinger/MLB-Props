@@ -2,6 +2,14 @@
 
 This file is the cleanup anchor for "what is canonical vs optional vs archive."
 
+## Canonical casing policy
+
+- Canonical root naming is lowercase for family references in code/docs:
+  - `data/`
+  - `models/`
+  - `artifacts/`
+- Top-level tracked roots were canonicalized in the 2026-08-18 passthrough (`Data` -> `data`, `Models` -> `models`); keep new references lowercase.
+
 ## Canonical daily surfaces
 
 - `production/ops/run_daily.py` (morning refresh/score entrypoint)
@@ -23,6 +31,22 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
 
 - `playground/` scripts (what-if and manual dry-runs only)
 - `docs/archive/` (historical evidence only)
+- `analysis/` notebooks (research narrative surface)
+
+## Keep/Hold/Delete classification protocol
+
+Apply one status per candidate file:
+
+- `keep`: currently referenced, pipeline-critical, or provenance-critical.
+- `hold`: uncertain value, possible future use, or pending owner decision.
+- `delete`: proven duplicate/generated/disposable with zero critical references.
+
+Required checks before `delete`:
+
+1. No references in `production/`, `docs/`, `scripts/`, notebooks, or scheduler wrappers.
+2. No imports/usages in `src/Python/` or `tests/`.
+3. Duplicate claims are verified by hash or byte-equivalence.
+4. Morning + settle smoke commands remain runnable.
 
 ## Deletion policy for bloat control
 
@@ -44,3 +68,5 @@ Delete only after all checks pass:
 - `src/Python/` modeling and ops modules.
 - `production/odds/` and `production/projections/`.
 - Frozen model docs under `docs/research/` that are cited by manuscript/reference docs.
+- Current `production/notebooks/*.ipynb` set.
+- Policy/config surfaces under `production/ops/` (including `kpi_policy.json` and anomaly overrides).

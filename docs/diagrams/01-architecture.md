@@ -19,11 +19,11 @@ flowchart TB
   L3["Level 3 · pipeline/training.py<br/>pitcher_training · batter_training<br/>lineup + prior-season park_k_factor"]:::built
 
   FEAT["features.py + registries.py<br/>production 184 · Step 11"]:::built
-  TRAIN["Models/Strikeout-Model/train.py<br/>Mean · Ridge · LightGBM"]:::built
+  TRAIN["models/Strikeout-Model/train.py<br/>Mean · Ridge · LightGBM"]:::built
   CV["Chronological date-disjoint split<br/>TRAIN_SEASONS = 2023–2024 only<br/>train ≤ 2024-06-08<br/>val → 2024-08-05 · test from 08-06<br/>2025 = historical, not pristine"]:::built
   ART["Frozen k-rate artifact<br/>lightgbm_krate_20260803_155401 · 184"]:::built
 
-  TBF["Projected TBF · Models/TBF-Model<br/>Ridge + workload_context_bullpen"]:::built
+  TBF["Projected TBF · models/TBF-Model<br/>Ridge + workload_context_bullpen"]:::built
   EXP["count_layer.py<br/>expected_K + P(K≥line)<br/>chrono eval DONE"]:::built
 
   P11["Phase 11 · model quality<br/>tune · walk-forward · calibrate DONE"]:::built

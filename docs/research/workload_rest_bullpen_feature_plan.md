@@ -16,7 +16,7 @@ workload** track, not as ad-hoc dumps into the k-rate allow-list.
 | Concept | Current behavior |
 |---|---|
 | Opposing offense | **Individual batters**, collapsed to lineup aggregates. Level 1 has per-batter games; Level 2 rolls each batter; Level 3 joins the opponent’s first nine (`is_initial_lineup`) and builds means / research order-weighted stats. **Not** team-wide roster rolls. |
-| Starter TBF | Same-game `PA` is a **label/oracle only**. Level 2/3 emit lagged `PA_P*` / `Outs_P*` / `Pitches_P*` plus rest covariates. Fitted `projected_tbf` via `Models/TBF-Model/train.py`. |
+| Starter TBF | Same-game `PA` is a **label/oracle only**. Level 2/3 emit lagged `PA_P*` / `Outs_P*` / `Pitches_P*` plus rest covariates. Fitted `projected_tbf` via `models/TBF-Model/train.py`. |
 | Bullpen usage | **Phase C (+ enrich):** appearance log + flat L1–L3d pitches / arms / unique / L–R / B2B / max / heavy. |
 | Days of rest | **Phase A + A.1:** `days_rest`, `days_rest_capped`, `is_season_debut`, `rest_is_long_gap`, `rest_gap_severity`, `is_career_mlb_debut`. |
 | Nested bullpen event lists | **Staging only** (`bullpen_appearances.parquet`). Model inputs are flat scalars — Ridge/LGBM cannot consume nested lists. |

@@ -134,7 +134,11 @@ def _print_preferred_board(board: pl.DataFrame) -> None:
         tbl_width_chars=200,
         fmt_str_lengths=40,
     ):
-        print(view)
+        try:
+            print(view)
+        except UnicodeEncodeError:
+            # Windows cp1252 terminals can fail on box-drawing characters.
+            print(view.to_dicts())
     print("-" * 72)
 
 

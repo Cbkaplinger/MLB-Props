@@ -2,7 +2,7 @@
 
 **Status:** first chrono evaluation complete (research; not live betting)  
 **Date:** 2026-07-27  
-**Runner:** `Models/Strikeout-Model/score_count_layer.py`  
+**Runner:** `models/Strikeout-Model/score_count_layer.py`  
 **Code:** `src/Python/count_layer.py`  
 **Artifact:** `artifacts/count_layer/count_layer_*.json`
 
@@ -52,7 +52,7 @@ k-rate mean, global BB dispersion is not needed (same story as Step 5).
 ## Pickup
 
 ```powershell
-python Models/Strikeout-Model/score_count_layer.py
+python models/Strikeout-Model/score_count_layer.py
 python -m pytest tests/test_count_layer.py -q
 ```
 

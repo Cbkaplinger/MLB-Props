@@ -30,6 +30,6 @@ mechanics / FIP. Step 7 applied that thin at feature selection (drop 63 mean
 | `ridge_vif` | 73 | Ridge research |
 
 ```powershell
-python Models/Strikeout-Model/train.py --model lightgbm --feature-set production
-python Models/Strikeout-Model/train.py --model lightgbm --feature-set step7_185
+python models/Strikeout-Model/train.py --model lightgbm --feature-set production
+python models/Strikeout-Model/train.py --model lightgbm --feature-set step7_185
 ```

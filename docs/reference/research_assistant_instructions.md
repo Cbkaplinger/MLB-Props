@@ -15,7 +15,7 @@ Work only in: `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props`
   pipeline. Prefer **Polars**; pandas only at plot/sklearn/LightGBM boundaries.
 - No commit/push/reset/amend/discard unless the owner asks. Never `git push` —
   give the owner the exact command.
-- Keep generated data/models local (`Data/`, `artifacts/`). Notebooks may be
+- Keep generated data/models local (`data/`, `artifacts/`). Notebooks may be
   stale; verify/rerun. Notebooks and `production/` call library functions —
   never reimplement trainers, features, or splits.
 

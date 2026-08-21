@@ -2,7 +2,7 @@
 
 **Status:** **frozen** for paper / props spine  
 **Date:** 2026-07-27  
-**Trainer:** `Models/TBF-Model/train.py`  
+**Trainer:** `models/TBF-Model/train.py`  
 **Frozen choice:** **Ridge** + **`workload_context_bullpen`** (thin pen, 24 features)  
 **Target:** same-game `PA` (historical TBF oracle)
 
@@ -39,5 +39,5 @@ and opener caveats — not more TBF feature hunting.
 ## Pickup
 
 ```powershell
-python Models/TBF-Model/train.py --model ridge --feature-set workload_context_bullpen
+python models/TBF-Model/train.py --model ridge --feature-set workload_context_bullpen
 ```

@@ -27,4 +27,16 @@ Write-Host "Running end-of-day settle..."
 & $python @args
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "Building validation ops report..."
+& $python "production/ops/build_validation_ops_report.py"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host "Building daily operator summary..."
+& $python "production/ops/build_daily_operator_summary.py"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host "Building policy governance report..."
+& $python "production/ops/build_policy_governance_report.py"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "End-of-day settle complete."

@@ -2,7 +2,7 @@
 
 **Status:** research complete; **production pointer set** (2026-08-03)  
 **Code:** `src/Python/prob_calibration.py`  
-**Fit / CV:** `Models/Strikeout-Model/research/fit_prob_calibration.py`  
+**Fit / CV:** `models/Strikeout-Model/research/fit_prob_calibration.py`  
 **Artifacts:** `artifacts/models/prob_calibration_platt_20260803_143350.{joblib,json}`  
 **Pointer:** `artifacts/models/prob_calibration_production.json`  
 **Report:** `artifacts/model_quality/prob_calibration/fit_report_platt_20260803_143350.json`
@@ -72,10 +72,10 @@ Disable with `score_frame(..., calibration_path=False)`.
 
 ```powershell
 # Re-fit + CV report (does not move production pointer unless flagged)
-python Models/Strikeout-Model/research/fit_prob_calibration.py --method both
+python models/Strikeout-Model/research/fit_prob_calibration.py --method both
 
 # Promote chosen artifact
-python Models/Strikeout-Model/research/fit_prob_calibration.py --method both --set-production
+python models/Strikeout-Model/research/fit_prob_calibration.py --method both --set-production
 ```
 
 Tests: `tests/test_prob_calibration.py`, `tests/test_odds_board_lines.py` (cal preference).

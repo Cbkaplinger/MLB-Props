@@ -17,6 +17,9 @@ SCORECARD_PATH = ODDS_DIR / "model_health_scorecard_daily.parquet"
 DECOMP_DAILY_PATH = ODDS_DIR / "k_error_decomposition_daily.parquet"
 GATE_PATH = ODDS_DIR / "gate_next_n_comparison.parquet"
 LEDGER_PATH = ODDS_DIR / "ledger.parquet"
+VALIDATION_PATH = ODDS_DIR / "validation_ops_daily.json"
+CHECKLIST_PATH = ODDS_DIR / "go_no_go_checklist_daily.json"
+REPLAY_PATH = ODDS_DIR / "policy_replay_daily.json"
 
 
 def _latest_row(path: Path, sort_col: str) -> dict[str, object]:
@@ -73,6 +76,29 @@ def main() -> None:
     decomp = _latest_row(DECOMP_DAILY_PATH, "snapshot_utc")
     gate = _latest_row(GATE_PATH, "snapshot_utc")
     ledger = _ledger_snapshot()
+    validation = {}
+    if VALIDATION_PATH.exists():
+        try:
+            validation = json.loads(VALIDATION_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            validation = {}
+    checklist = {}
+    if CHECKLIST_PATH.exists():
+        try:
+            checklist = json.loads(CHECKLIST_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            checklist = {}
+    replay = {}
+    if REPLAY_PATH.exists():
+        try:
+            replay = json.loads(REPLAY_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            replay = {}
+    replay_flat = None
+    for scen in replay.get("scenarios", []):
+        if isinstance(scen, dict) and scen.get("scenario") == "current_policy_flat_1u":
+            replay_flat = scen
+            break
 
     row = {
         "snapshot_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -85,6 +111,38 @@ def main() -> None:
         "gate_pnl_delta": gate.get("gate_pnl_delta"),
         "gate_actual_roi": gate.get("actual_roi"),
         "gate_baseline_roi": gate.get("baseline_roi"),
+        "benchmark_primary": validation.get("primary_benchmark"),
+        "benchmark_secondary": validation.get("secondary_benchmark"),
+        "promotion_ci_gate_pass": validation.get("promotion_ci_gate_pass"),
+        "profit_lock_auto_downgrade": validation.get("profit_lock_auto_downgrade"),
+        "dq_alerts": ",".join(validation.get("data_quality", {}).get("alerts", []))
+        if isinstance(validation.get("data_quality", {}), dict)
+        else None,
+        "go_no_go_status": checklist.get("status"),
+        "go_no_go_failed_gates": checklist.get("n_failed_gates"),
+        "go_no_go_failed_critical": checklist.get("n_failed_critical_gates"),
+        "go_no_go_failed_advisory": checklist.get("n_failed_advisory_gates"),
+        "replay_current_policy_n": replay_flat.get("n")
+        if isinstance(replay_flat, dict)
+        else None,
+        "replay_current_policy_roi": replay_flat.get("roi")
+        if isinstance(replay_flat, dict)
+        else None,
+        "replay_current_policy_roi_ci_lo": replay_flat.get("roi_ci_lo")
+        if isinstance(replay_flat, dict)
+        else None,
+        "replay_current_policy_clv_ci_lo": replay_flat.get("clv_ci_lo")
+        if isinstance(replay_flat, dict)
+        else None,
+        "replay_current_policy_geo_growth_log_mean": replay_flat.get("geo_growth_log_mean")
+        if isinstance(replay_flat, dict)
+        else None,
+        "replay_current_policy_mc_prob_bankroll_floor_breach": replay_flat.get("mc_prob_bankroll_floor_breach")
+        if isinstance(replay_flat, dict)
+        else None,
+        "replay_current_policy_mc_prob_drawdown_breach": replay_flat.get("mc_prob_drawdown_breach")
+        if isinstance(replay_flat, dict)
+        else None,
         **ledger,
     }
 

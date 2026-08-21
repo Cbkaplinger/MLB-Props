@@ -15,7 +15,7 @@ flowchart TB
   SPLIT["Chrono date-disjoint ≈ 70/15/15<br/>train ≤ 2024-06-08<br/>val → 2024-08-05<br/>test ≥ 2024-08-06"]:::built
   NEST["Nested research folds<br/>outer 2024 h1/h2 · inner ⊂ train"]:::built
 
-  LGBM["LightGBM production 184<br/>Step 11 · test MAE≈0.078"]:::built
+  LGBM["LightGBM final58 consensus freeze candidate<br/>expected_K MAE≈1.7669 (WF)"]:::built
   TBF["TBF Ridge thin bullpen<br/>test MAE≈2.49"]:::built
   CNT["Count layer<br/>expected_K MAE≈1.79"]:::built
   HOLD["2025 = historical only<br/>already consulted · not pristine"]:::risk
@@ -24,6 +24,7 @@ flowchart TB
   S7["Step 7: freeze 185"]:::built
   S89["Steps 8–9c: keep/drop · windows · P1"]:::built
   S10["Step 11: lock production 184"]:::built
+  S12["Step 12: merged-chunk consensus freeze 58<br/>MAE-first search complete"]:::built
 
   TUNE["11.A Tune LGBM + Ridge α<br/>done (flat/no lift)"]:::built
   WF["11.B Walk-forward stack backtest<br/>done"]:::built
@@ -38,8 +39,8 @@ flowchart TB
   SPLIT --> TBF
   SPLIT --> HOLD
   NEST --> S1
-  S1 --> S7 --> S89 --> S10
-  S10 --> LGBM
+  S1 --> S7 --> S89 --> S10 --> S12
+  S12 --> LGBM
   LGBM --> TBF --> CNT
   S10 --> TUNE --> WF --> CAL
   CNT --> WF
@@ -61,6 +62,6 @@ flowchart TB
 - Focused ops loop: `production/notebooks/results_kpi_monitor.ipynb`,
   `results_calibration_lab.ipynb`, `results_gate_policy.ipynb`,
   `results_pnl_clv.ipynb`, plus `production/ops/policy_simulator.py`.
-- Current freeze record: `docs/research/step11_discipline_registry_freeze.md`.
+- Current freeze record: `docs/research/final58_consensus_freeze_2026-08-20.md`.
 - Prior freeze record: `docs/research/step10_p1_registry_freeze.md`.
 - Archived leaky baselines: `docs/archive/leaky-baseline-2026-07-23/`.

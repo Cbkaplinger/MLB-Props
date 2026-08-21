@@ -17,6 +17,7 @@ import polars as pl
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+from Python.notebook_analysis_utils import keep_best_available_lines  # noqa: E402
 from Python.odds_ledger import load_ledger  # noqa: E402
 
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
@@ -286,7 +287,7 @@ def main() -> None:
     profile_under = _parse_opt_thresholds(args.profile_under_floors)
 
     led = load_ledger()
-    settled = (
+    settled_raw = (
         led.filter(
             (pl.col("status") == "settled")
             & (pl.col("stake").cast(pl.Float64).fill_null(0.0) > 0)
@@ -294,6 +295,7 @@ def main() -> None:
         if not led.is_empty()
         else led
     )
+    settled = keep_best_available_lines(settled_raw) if not settled_raw.is_empty() else settled_raw
     settled = settled.filter(pl.col("edge").is_not_null()) if not settled.is_empty() else settled
 
     scenario_rows: list[dict[str, object]] = []

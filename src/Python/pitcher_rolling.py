@@ -45,13 +45,20 @@ DEFAULT_RATE_STATS: dict[str, tuple[str, str]] = {
     "swing_rate": ("Swings", "Pitches"),
     "zcontact_rate": ("ZContacts", "ZSwings"),
     "gb_rate": ("GB", "BIP"),
+    "iffb_rate": ("PU", "FB"),
     "hr_rate": ("HR", "PA"),
+    "hit_rate": ("Hits", "PA"),
+    "hr_fb_rate": ("HR", "FB"),
+    "pull_air_allowed_rate": ("PullAirAllowed", "AirBallsAllowed"),
+    "oppo_air_allowed_rate": ("OppoAirAllowed", "AirBallsAllowed"),
+    "center_air_allowed_rate": ("CenterAirAllowed", "AirBallsAllowed"),
     "bip_rate": ("BIP", "Pitches"),
     "babip": ("BABIP_num", "BABIP_den"),
     "first_pitch_strike_rate": ("FirstPitchStrikes", "FirstPitches"),
     "ahead_rate": ("AheadPitches", "Pitches"),
     "behind_rate": ("BehindPitches", "Pitches"),
     "two_strike_reach_rate": ("TwoStrikePA", "PA"),
+    "two_strike_csw_rate": ("TwoStrikeCSW", "TwoStrikePitches"),
     "putaway_rate": ("PutAwayK", "TwoStrikePitches"),
     "xBA": ("xBA_num", "xBA_den"),
     "wOBA": ("wOBA_num", "wOBA_den"),
@@ -499,6 +506,117 @@ def _add_rolling_siera_and_rv(
         )
         .drop(temporary)
     )
+
+
+def _add_interaction_features(
+    df: pl.DataFrame,
+    *,
+    rate_windows: Iterable[int],
+    season_to_date: bool,
+) -> pl.DataFrame:
+    """Add leakage-safe interaction/residual features from prior-rate columns.
+
+    These are deterministic transforms of lagged rolling/std columns and stay
+    pregame-safe. They are intentionally experimental and must clear lift gates.
+    """
+    suffixes = [f"P{int(w)}" for w in rate_windows]
+    if season_to_date:
+        suffixes.append("std")
+
+    exprs: list[pl.Expr] = []
+    for suffix in suffixes:
+        csw = f"csw_rate_{suffix}"
+        twok = f"two_strike_csw_rate_{suffix}"
+        putaway = f"putaway_rate_{suffix}"
+        k_rate = f"k_rate_{suffix}"
+        swstr = f"swstr_rate_{suffix}"
+        woba = f"wOBA_{suffix}"
+        xwoba = f"xwOBA_{suffix}"
+
+        if csw in df.columns and twok in df.columns:
+            exprs.append(
+                (pl.col(twok).cast(pl.Float64) - pl.col(csw).cast(pl.Float64)).alias(
+                    f"csw_two_strike_gap_{suffix}"
+                )
+            )
+        if twok in df.columns and putaway in df.columns:
+            exprs.append(
+                (
+                    pl.col(twok).cast(pl.Float64) - pl.col(putaway).cast(pl.Float64)
+                ).alias(f"csw_putaway_gap_{suffix}")
+            )
+        fstrike = f"first_pitch_strike_rate_{suffix}"
+        if twok in df.columns and fstrike in df.columns:
+            exprs.append(
+                (
+                    pl.col(twok).cast(pl.Float64)
+                    - pl.col(fstrike).cast(pl.Float64)
+                ).alias(f"two_strike_csw_minus_first_pitch_{suffix}")
+            )
+        ts_reach = f"two_strike_reach_rate_{suffix}"
+        if putaway in df.columns and ts_reach in df.columns:
+            exprs.append(
+                pl.when(pl.col(ts_reach).cast(pl.Float64).abs() > 1e-9)
+                .then(
+                    pl.col(putaway).cast(pl.Float64)
+                    / pl.col(ts_reach).cast(pl.Float64)
+                )
+                .otherwise(None)
+                .alias(f"putaway_over_two_strike_reach_{suffix}")
+            )
+        if k_rate in df.columns and swstr in df.columns:
+            # Heuristic baseline: K% often tracks roughly 2x SwStr%.
+            exprs.append(
+                (
+                    pl.col(k_rate).cast(pl.Float64)
+                    - 2.0 * pl.col(swstr).cast(pl.Float64)
+                ).alias(f"k_minus_swstr_x2_{suffix}")
+            )
+        if woba in df.columns and xwoba in df.columns:
+            exprs.append(
+                (
+                    pl.col(xwoba).cast(pl.Float64) - pl.col(woba).cast(pl.Float64)
+                ).alias(f"xwoba_minus_woba_{suffix}")
+            )
+        xba = f"xBA_{suffix}"
+        hit_rate = f"hit_rate_{suffix}"
+        babip = f"babip_{suffix}"
+        if xba in df.columns and hit_rate in df.columns:
+            exprs.append(
+                (
+                    pl.col(xba).cast(pl.Float64) - pl.col(hit_rate).cast(pl.Float64)
+                ).alias(f"xba_minus_hit_rate_{suffix}")
+            )
+        if xba in df.columns and babip in df.columns:
+            exprs.append(
+                (
+                    pl.col(xba).cast(pl.Float64) - pl.col(babip).cast(pl.Float64)
+                ).alias(f"xba_minus_babip_{suffix}")
+            )
+        zone = f"zone_rate_{suffix}"
+        whiff = f"whiff_rate_{suffix}"
+        chase = f"chase_rate_{suffix}"
+        if zone in df.columns and swstr in df.columns:
+            exprs.append(
+                (
+                    pl.col(zone).cast(pl.Float64) * pl.col(swstr).cast(pl.Float64)
+                ).alias(f"zone_swstr_interaction_{suffix}")
+            )
+        if chase in df.columns and whiff in df.columns:
+            exprs.append(
+                (
+                    pl.col(chase).cast(pl.Float64) * pl.col(whiff).cast(pl.Float64)
+                ).alias(f"chase_whiff_interaction_{suffix}")
+            )
+        hrfb = f"hr_fb_rate_{suffix}"
+        luck = f"xwoba_minus_woba_{suffix}"
+        if hrfb in df.columns and luck in df.columns:
+            exprs.append(
+                (
+                    pl.col(hrfb).cast(pl.Float64) - pl.col(luck).cast(pl.Float64)
+                ).alias(f"hr_fb_minus_luck_proxy_{suffix}")
+            )
+    return df.with_columns(exprs) if exprs else df
 
 
 def add_pitch_type_rv_features(
@@ -950,6 +1068,11 @@ def add_rolling_pitcher_features(
     df = _add_rolling_arm_angle(df, mean_windows, min_games)
     df = _add_rolling_siera_and_rv(df, mean_windows, min_games)
     df = _add_rolling_fip(df, mean_windows, min_games)
+    df = _add_interaction_features(
+        df,
+        rate_windows=rate_windows,
+        season_to_date=season_to_date,
+    )
     if add_rest:
         df = add_starter_rest_features(df, long_gap_days=rest_long_gap_days)
     return df.sort(_ORDER)

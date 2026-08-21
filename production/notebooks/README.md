@@ -31,6 +31,9 @@ Use this as the canonical notebook routing map.
 
 ## Notes
 
+- The live recommendations artifact consumed by `daily_projections.ipynb` is now typically produced with:
+  `production/odds/odds_board.py --roi-mode balanced`.
+  This applies line-price corrections, line-aware floors, and deploy-matrix filtering.
 - Keep threshold sweeps in `results_gate_policy.ipynb`.
 - Keep profile-level go/no-go decisions in `results_bettable_cohort.ipynb`.
 - Keep daily slate view in `daily_projections.ipynb` concise and execution-focused.

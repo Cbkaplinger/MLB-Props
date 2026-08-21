@@ -23,7 +23,7 @@ bar. No registry change was made. Details and the exact numbers below.
    aggregate `strike_rate` definition in `build_pitcher_starts`) per
    `(game_pk, pitcher, pitch_type)` row. `csw_rate` and `swstr_rate` were already
    computed there but unused downstream.
-2. **Stabilization** (`Models/Strikeout-Model/research/run_pitch_type_stabilization.py`):
+2. **Stabilization** (`models/Strikeout-Model/research/run_pitch_type_stabilization.py`):
    added a `strike_rate` spec and ran the existing split-half/bootstrap stabilization
    harness (`run_stabilization.analyze`) separately for every pitch type x
    {`strike_rate`, `csw_rate`, `swstr_rate`}. This had never been executed before —
@@ -49,7 +49,7 @@ bar. No registry change was made. Details and the exact numbers below.
 4. **Level 3 (research only)**: `pitch_type_strike_csw_lift.py` joins the candidate
    columns onto the `pitcher_training.parquet` frame for the lift test; the
    production `pipeline/training.py` join was **not** touched.
-5. **Lift test** (`Models/Strikeout-Model/research/pitch_type_strike_csw_lift.py`):
+5. **Lift test** (`models/Strikeout-Model/research/pitch_type_strike_csw_lift.py`):
    LightGBM-only nested walk-forward screen against frozen `production` (184),
    mirroring `lgbm_lift_promotion.py`'s promotion bar exactly (inner selection by mean
    MAE, both outer folds must improve MAE vs. core, optional chrono bake-off).
@@ -199,7 +199,7 @@ step if this line of research continues.
 Ran the identical analysis loop for `{pt}_wOBA` / `{pt}_xwOBA` (already computed at
 Level 1, never rolled). Same generalized rolling helper
 (`add_pitch_type_rate_features`), same nested lift-test harness
-(`Models/Strikeout-Model/research/pitch_type_woba_lift.py`), same predeclared bar.
+(`models/Strikeout-Model/research/pitch_type_woba_lift.py`), same predeclared bar.
 
 ### Stabilization: even worse-sampled than Tier 1, as expected
 

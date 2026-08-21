@@ -6,6 +6,7 @@ from collections.abc import Iterable
 import re
 
 import pandas as pd
+import polars as pl
 
 
 TARGET = "k_rate"
@@ -125,6 +126,13 @@ _EXPERIMENTAL_FEATURE_RE = re.compile(
     r"two_strike_reach_rate|putaway_rate|arm_angle|siera_mlb|rv_per_100|"
     r"zswing_rate|swing_rate|zcontact_rate)"
     r"_(?:P\d+|std)|"
+    r"(?:two_strike_csw_rate|csw_two_strike_gap|csw_putaway_gap|"
+    r"two_strike_csw_minus_first_pitch|putaway_over_two_strike_reach|"
+    r"k_minus_swstr_x2|xwoba_minus_woba|xba_minus_hit_rate|"
+    r"xba_minus_babip|zone_swstr_interaction|chase_whiff_interaction|"
+    r"hr_fb_minus_luck_proxy|hit_rate|hr_fb_rate|iffb_rate|"
+    r"pull_air_allowed_rate|oppo_air_allowed_rate|center_air_allowed_rate)"
+    r"_(?:P\d+|std)|"
     # TBF spine: lagged volume + rest stay out of frozen k-rate until promoted.
     r"(?:PA|Outs|Pitches)_P\d+|"
     r"days_rest(?:_capped)?|is_season_debut|rest_is_long_gap|"
@@ -200,7 +208,7 @@ def validate_pregame_features(features: Iterable[str]) -> tuple[str, ...]:
 
 
 def model_feature_names(
-    frame: pd.DataFrame,
+    frame: pd.DataFrame | pl.DataFrame,
     *,
     include_experimental: bool = False,
 ) -> tuple[str, ...]:
@@ -210,6 +218,8 @@ def model_feature_names(
     automatically. This prevents a newly retained same-game aggregate from
     bypassing the explicit label/metadata exclusions.
     """
+    if isinstance(frame, pl.DataFrame):
+        frame = frame.to_pandas()
     excluded = LABEL_COLUMNS | MODEL_METADATA_COLUMNS
     candidates = tuple(
         column

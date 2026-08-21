@@ -1,0 +1,20 @@
+{
+  "version": "line_floor_v1",
+  "description": "Line-aware edge floors from open-era segment ROI diagnostics.",
+  "default_edge_floor": 0.12,
+  "line_edge_floors": {
+    "2.5": 0.2,
+    "3.5": 0.16,
+    "4.5": 0.14,
+    "5.5": 0.14,
+    "6.5": 0.12,
+    "7.5": 0.12,
+    "8.5": 0.14,
+    "9.5": 0.16
+  },
+  "notes": [
+    "Higher floors on 2.5 and 3.5 due weaker/flat ROI and calibration instability.",
+    "Keep 6.5/7.5 at baseline given stronger floor-12 performance.",
+    "8.5/9.5 use conservative floors due lower sample."
+  ]
+}

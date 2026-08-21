@@ -22,6 +22,12 @@ and simulator tooling in `production/notebooks/results_*.ipynb` and
 `production/ops/policy_simulator.py`; cite these as the canonical product-layer
 status references instead of embedding volatile daily numbers directly in the manuscript.
 
+Repository hygiene and cleanup governance references:
+
+- `docs/reference/repo_canonical_map.md`
+- `docs/reference/repo_waste_sweep_checklist.md`
+- `docs/reference/repo_quality_passthrough_report_2026-08-18.md`
+
 Regenerate figures and PDFs after editing:
 
 ```powershell

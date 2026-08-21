@@ -43,6 +43,8 @@ Meta:
 | `reference/daily_kpi_protocol.md` | Daily KPI thresholds, WARN actions, and dynamic gate policy |
 | `reference/repo_waste_sweep_checklist.md` | Cleanup checklist for low-value surface area |
 | `reference/repo_canonical_map.md` | Canonical daily surfaces vs deep-dive/archive surfaces |
+| `reference/repo_hold_inventory_2026-08-18.md` | Hold ledger for unresolved cleanup/reorg candidates |
+| `reference/repo_quality_passthrough_report_2026-08-18.md` | Latest keep/hold/delete passthrough report |
 | `reference/post_freeze_holdout.md` | Post-lock holdout protocol + latest scores |
 | `reference/lineup_train_serve.md` | Historical first-9-by-PA vs live announced lineup |
 | `reference/live_assembly_plan.md` | Live slate assembly → log / odds / CLV |

@@ -1,0 +1,19 @@
+{
+  "version": "open_market_calibration_v1",
+  "segment_keys": [
+    "line",
+    "over_price_bucket",
+    "maturity_bucket"
+  ],
+  "acceptance": {
+    "min_segment_n": 250,
+    "max_flip_rate": 0.35,
+    "min_brier_gain": 0.0,
+    "max_abs_offset": 0.06,
+    "min_abs_offset_to_apply": 0.005
+  },
+  "guardrails": {
+    "require_non_null_brier_gain": true,
+    "fallback_offset_when_rejected": 0.0
+  }
+}

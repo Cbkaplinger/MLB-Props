@@ -30,7 +30,7 @@ Flow rules:
 | [00-index.md](00-index.md) | Map of the four phases |
 | [01-architecture.md](01-architecture.md) | As-built data → model artifact path |
 | [02-leakage-and-risks.md](02-leakage-and-risks.md) | Leakage gates, priors, population risks |
-| [03-modeling-and-evaluation.md](03-modeling-and-evaluation.md) | Splits, baselines, Steps 1–9 → freeze, TBF/counts |
+| [03-modeling-and-evaluation.md](03-modeling-and-evaluation.md) | Splits, baselines, Steps 1–9 → Step 12 consensus freeze, TBF/counts |
 | [04-roadmap.md](04-roadmap.md) | Paper CLV shipped; focused monitor split + policy simulator; pristine needs roles |
 
 Canonical prose: `docs/reference/model-card.md`, `docs/reference/dev-notes.md`,

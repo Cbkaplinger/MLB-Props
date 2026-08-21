@@ -28,6 +28,39 @@ entry pins the decision to:
 
 ---
 
+## 2026-08-20 — PENDING FREEZE CHECKPOINT (next production pass)
+
+**Status:** Pending (do not treat as frozen yet).
+
+Use this placeholder when the current pass is finalized. Keep this section and
+fill the fields below at freeze time so the decision is auditable and
+reproducible.
+
+**To record at freeze:**
+
+- Prior floor + new floor
+- `ledger_sha256` at freeze-time
+- date-window context:
+  - full-history metrics
+  - recent-window metrics (last 60 / last 30 settled bets)
+- calibration quality:
+  - `brier`, `logloss`, `ece`, `mce`
+  - `brier_skill_vs_market`, `logloss_skill_vs_market`
+- path risk:
+  - `geo_growth_log_mean`
+  - `mc_prob_bankroll_floor_breach`
+  - `mc_prob_drawdown_breach`
+  - `max_drawdown_pct`, `max_recovery_bets`, `cvar_95`
+- edge realization:
+  - edge-decile ROI/CLV slope (low decile -> high decile)
+- execution quality:
+  - slippage decomposition (`open_to_bet_pp`, `bet_to_close_pp`, `open_to_close_pp`)
+- explicit stop/reopen rule for the next checkpoint.
+
+**Checkpoint note:** this pass includes major post-production changes in
+features, calibration, and edge floors, so freeze decisions must quote both
+full-history and recent-window evidence.
+
 ## 2026-08-06 — Reaffirmed 12% (`DEFAULT_EDGE_FLOOR == 0.12`)
 
 **Prior floor:** 0.12 (system uv-reco review froze it earlier this session

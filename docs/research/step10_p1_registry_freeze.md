@@ -48,7 +48,7 @@ Research bake-off of the same swap vs `step7_185` (earlier session): k-rate MAE
 | `ridge_vif` | 73 | Ridge research |
 
 ```powershell
-python Models/Strikeout-Model/train.py --model lightgbm --feature-set step10_180
+python models/Strikeout-Model/train.py --model lightgbm --feature-set step10_180
 ```
 
 ## Next (historical)

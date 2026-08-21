@@ -63,7 +63,7 @@ research fits.
 
 ## First model
 
-Fitted: `docs/research/tbf_first_model_findings.md` (`Models/TBF-Model/train.py`).
+Fitted: `docs/research/tbf_first_model_findings.md` (`models/TBF-Model/train.py`).
 
 ## Pickup
 

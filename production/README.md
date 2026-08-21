@@ -17,6 +17,7 @@ odds/CLV tracking, and holdout monitoring.
 - CLV policy + gates: `docs/reference/market_clv_gates.md`
 - Model diagnostics workflow: `docs/reference/results_dashboard_diagnostics.md`
 - Daily KPI and dynamic gate policy: `docs/reference/daily_kpi_protocol.md`
+- Repo cleanup governance: `docs/reference/repo_canonical_map.md`, `docs/reference/repo_waste_sweep_checklist.md`
 - One-command notebook refresh script: `production/ops/run_analysis_notebooks.ps1`
 - Daily KPI loop + calibration snapshots: `production/ops/run_daily_kpi_loop.py`,
   `production/ops/calibration_snapshot.py`
@@ -36,6 +37,22 @@ odds/CLV tracking, and holdout monitoring.
 - Bettable cohort (filtered execution slice): `production/notebooks/results_bettable_cohort.ipynb`
 - Notebook routing map: `production/notebooks/README.md`
 - One-command daily operator flow: `production/ops/run_daily_operator_flow.ps1`
+
+## Live Odds Board Policy Mode
+
+Use the ROI-mode preset for stable daily execution:
+
+```powershell
+.\.venv\Scripts\python.exe production/odds/odds_board.py --unit 50 --roi-mode balanced
+```
+
+Available modes:
+
+- `aggressive` (edge floor 0.14)
+- `balanced` (edge floor 0.16)
+- `conservative` (edge floor 0.18)
+
+Each mode auto-enables line-price correction, line-aware floors, and deploy-matrix filtering.
 
 ## Streamlit Operator Dashboard
 

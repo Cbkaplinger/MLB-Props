@@ -1,6 +1,6 @@
 """Score today's slate with the frozen k-rate × TBF stack.
 
-Thin ops wrapper around ``Models/Strikeout-Model/predict_slate.py`` so cron
+Thin ops wrapper around ``models/Strikeout-Model/predict_slate.py`` so cron
 jobs live under ``production/`` without duplicating scoring logic.
 """
 

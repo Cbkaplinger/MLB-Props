@@ -32,7 +32,7 @@ from model inputs. All player-form features lag the current game.
 ## Three data levels
 
 Paths are defined in `src/Python/config.py` and default to
-`Data/processed/`.
+`data/processed/`.
 
 | Level | Builder | Pitcher artifact | Batter artifact |
 |---|---|---|---|
@@ -197,7 +197,7 @@ or forward-filled joins are forbidden. Validation requires nine unique
 resolved batters per team; `--require-confirmed` additionally rejects
 projected lineups.
 
-The adapter writes dated batter and starter inputs under `Data/processed/`.
+The adapter writes dated batter and starter inputs under `data/processed/`.
 RotoGrinders supplies the earlier prediction surface; MLB schedule, roster,
 probable-pitcher, and person endpoints remain the canonical identity/game
 surface. The HTML source is external and must be monitored for markup or usage
@@ -216,10 +216,10 @@ emits leakage-safe lagged workload (`PA_P*` / `Outs_P*` / `Pitches_P*`), rest
 flags, and joins team bullpen L1–L3d lookbacks for the TBF spine. Same-game
 `PA` / `Outs` / `Pitches` remain labels/oracles, never prediction-time features.
 
-`Models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and defaults to
+`models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and defaults to
 `--feature-set production` (**184** frozen features via
 `Python.registries.resolve_feature_names`). Companions: `step10_180`,
-`step7_185`, `pre_freeze_248`, `ridge_vif`. `Models/TBF-Model/train.py` +
+`step7_185`, `pre_freeze_248`, `ridge_vif`. `models/TBF-Model/train.py` +
 `score_count_layer.py` consume the workload spine for projected TBF and prop
 probs. The approximate 70/15/15 chronological split keeps each calendar date
 wholly inside one partition.

@@ -106,7 +106,7 @@ def load_tbf_bundle(path: Path = DEFAULT_TBF_JOBLIB) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(
             f"Missing TBF joblib {path}. Run: "
-            "python Models/TBF-Model/train.py --model ridge --tune-alpha --persist"
+            "python models/TBF-Model/train.py --model ridge --tune-alpha --persist"
         )
     bundle = joblib.load(path)
     required = {"model", "features", "prediction_upper_clip"}

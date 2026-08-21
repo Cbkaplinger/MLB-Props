@@ -116,17 +116,61 @@ def main() -> None:
         default=None,
         help="Optional path to KPI/gate policy JSON (default: production/ops/kpi_policy.json).",
     )
+    p.add_argument(
+        "--apply-line-price-correction",
+        action="store_true",
+        help="Apply line/price calibration offsets before recommendation scoring.",
+    )
+    p.add_argument(
+        "--apply-line-floors",
+        action="store_true",
+        help="Apply line-aware edge floors from market research policy.",
+    )
+    p.add_argument(
+        "--apply-deploy-matrix-filter",
+        action="store_true",
+        help="Allow only ON segments from calibration deploy matrix.",
+    )
+    p.add_argument(
+        "--roi-mode",
+        choices=["aggressive", "balanced", "conservative", "profit_lock"],
+        default=None,
+        help="Preset risk mode: enables correction/floors/deploy-filter and sets edge floor.",
+    )
     args = p.parse_args()
+
+    edge_floor = args.edge_floor
+    apply_line_price_correction = args.apply_line_price_correction
+    apply_line_floors = args.apply_line_floors
+    apply_deploy_matrix_filter = args.apply_deploy_matrix_filter
+    if args.roi_mode is not None:
+        roi_floors = {
+            "aggressive": 0.14,
+            "balanced": 0.16,
+            "conservative": 0.18,
+            "profit_lock": 0.18,
+        }
+        edge_floor = roi_floors[args.roi_mode]
+        apply_line_price_correction = True
+        apply_line_floors = True
+        apply_deploy_matrix_filter = True
+    side_edge_floors = None
+    if args.roi_mode == "profit_lock":
+        side_edge_floors = {"over": 0.22, "under": 0.18}
 
     frame, meta = build_recommendations(
         slate=args.date,
         preferred_only=not args.all_starters,
         unit_dollars=args.unit,
-        edge_floor=args.edge_floor,
+        edge_floor=edge_floor,
         sportsbook=args.book,
         best_book_only=not args.all_books,
         quality_gate=args.quality_gate,
         kpi_policy_path=args.kpi_policy,
+        apply_line_price_correction=apply_line_price_correction,
+        apply_line_floors=apply_line_floors,
+        apply_deploy_matrix_filter=apply_deploy_matrix_filter,
+        side_edge_floors=side_edge_floors,
     )
     print(
         f"slate={meta['slate_date']}  board={meta['n_board']}  "
@@ -140,6 +184,28 @@ def main() -> None:
             f"quality_gate: n_warn={meta.get('quality_gate_n_warn')} "
             f"min_edge={meta.get('quality_gate_min_edge', args.edge_floor):.2f} "
             f"holds={meta.get('quality_gate_n_hold', 0)}"
+        )
+    if meta.get("line_price_correction_applied"):
+        print(
+            f"line_price_correction: segments={meta.get('line_price_correction_segments', 0)}"
+        )
+    if meta.get("line_floor_policy_applied"):
+        print(
+            f"line_floor_policy: segments={meta.get('line_floor_policy_segments', 0)}"
+        )
+    if meta.get("deploy_matrix_filter_applied"):
+        print(
+            f"deploy_matrix_filter: segments_on={meta.get('deploy_matrix_segments_on', 0)} "
+            f"segments_off={meta.get('deploy_matrix_segments_off', 0)} "
+            f"filtered_rows={meta.get('n_segment_filtered', 0)}"
+        )
+    if args.roi_mode:
+        print(f"roi_mode: {args.roi_mode} (edge_floor={edge_floor:.2f})")
+    if meta.get("side_edge_floors_applied"):
+        print(
+            "side_edge_floors:",
+            f"over>={meta.get('side_edge_floor_over'):.2f}",
+            f"under>={meta.get('side_edge_floor_under'):.2f}",
         )
     if meta.get("unmatched_sample"):
         print("unmatched e.g.", ", ".join(meta["unmatched_sample"][:8]))

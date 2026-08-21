@@ -21,9 +21,9 @@ Set-Location $repoRoot
 $env:PYTHONIOENCODING = "utf-8"
 
 function Run-Step {
-    param([string]$Label, [string[]]$Args)
-    Write-Host "`n[$Label] $($Args -join ' ')"
-    & $python @Args
+    param([string]$Label, [string[]]$ScriptArgs)
+    Write-Host "`n[$Label] $($ScriptArgs -join ' ')"
+    & $python @ScriptArgs
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
@@ -42,15 +42,17 @@ if (-not $SkipGradeAllLogged) {
     Run-Step "2 grade_all_logged" @("production/projections/grade_projections.py", "--all-logged", "--preferred-only")
 }
 if (-not $SkipOddsBoard) {
-    $boardArgs = @("production/odds/odds_board.py", "--unit", "50")
+    $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "balanced")
     if ($QuietBoard) { $boardArgs += "--quiet" }
     Run-Step "3 odds_board" $boardArgs
 }
 if (-not $SkipOpenPoll) {
-    Run-Step "4 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50")
+    Run-Step "4 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--from-recommendations")
 }
 if (-not $SkipLedgerStatus) {
     Run-Step "5 ledger_status" @("production/odds/grade_odds_ledger.py", "--status")
 }
+Run-Step "6 reconcile_board_vs_ledger" @("production/ops/build_board_ledger_reconciliation.py")
+Run-Step "7 policy_governance_report" @("production/ops/build_policy_governance_report.py")
 
 Write-Host "`nMorning workflow complete."

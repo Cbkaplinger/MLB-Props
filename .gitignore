@@ -9,11 +9,15 @@ __pycache__/
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
 Data/processed/
+data/processed/
 Data/dimensions/
+data/dimensions/
 artifacts/
-Models/Strikeout-Model/Saved-Models/
-Models/Strikeout-Model/results/Test-Predictions/
+Artifacts/
+models/Strikeout-Model/Saved-Models/
+models/Strikeout-Model/results/Test-Predictions/
 Models/**/Graphs/
+models/**/Graphs/
 .venv/
 **/.venv/
 venv/
@@ -23,3 +27,5 @@ env/
 .env
 .vscode/
 .idea/
+*.parquet.tmp
+*.log

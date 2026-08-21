@@ -167,7 +167,7 @@ missing-team-key validation without changing feature selection or values.
 ---
 
 **Date found:** 2026-07-23  
-**File(s):** `Models/Strikeout-Model/train.py`  
+**File(s):** `models/Strikeout-Model/train.py`  
 **Issue:** The row-index 70/15/15 split divided games from April 15 and July 6
 across adjacent partitions, so the date ranges were not strictly disjoint.  
 **Evidence:** Rows immediately before and after both split indices had equal
@@ -742,7 +742,7 @@ identity is established by the hashes above)
 `python models/Strikeout-Model/research/run_pitch_type_stabilization.py`
 - Test suite: `python -m pytest` (129 tests, all passing as of 2026-07-24)
 - Model training:
-`python Models/Strikeout-Model/train.py --model [mean|ridge|...]`
+`python models/Strikeout-Model/train.py --model [mean|ridge|...]`
 
 
 

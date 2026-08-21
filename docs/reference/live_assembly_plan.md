@@ -22,7 +22,7 @@ P(K ≥ L)    ← count_layer (binomial lines 2.5…9.5)
 | k-rate | `artifacts/models/lightgbm_krate_20260803_155401.*` |
 | TBF | `artifacts/models/tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib` |
 | Features | JSON `features` list (184) + TBF 24 |
-| Code | `src/Python/live_assembly.py`, `Models/Strikeout-Model/predict_slate.py` |
+| Code | `src/Python/live_assembly.py`, `models/Strikeout-Model/predict_slate.py` |
 | Daily ops | `production/` (see `production/README.md`) |
 | Market / CLV | `src/Python/{market,odds_* ,sharp_odds}.py` + `production/{odds_board,poll_odds,close_watcher,grade_odds_ledger}.py` |
 
@@ -37,7 +37,7 @@ python production/odds/odds_board.py --unit 50
 python production/odds/poll_odds.py --snapshot open --unit 50
 
 # Wiring proof on a date already in pitcher_training
-python Models/Strikeout-Model/predict_slate.py --historical-date 2025-09-20
+python models/Strikeout-Model/predict_slate.py --historical-date 2025-09-20
 
 # Fetch slate only / live score without logging
 python production/ops/score_slate.py --dry-run
@@ -60,7 +60,7 @@ Outputs: `artifacts/live_scores/`, `artifacts/projection_log/`,
 7. Team-code bridge: **`ARI` → `AZ`** for Statcast joins
 
 Calibration: `src/Python/prob_calibration.py`; fit via
-`Models/Strikeout-Model/research/fit_prob_calibration.py`. Disable with
+`models/Strikeout-Model/research/fit_prob_calibration.py`. Disable with
 `score_frame(..., calibration_path=False)`. Findings:
 `docs/research/prob_calibration_findings.md`.
 

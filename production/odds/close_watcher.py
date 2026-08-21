@@ -69,6 +69,15 @@ def _today_slate() -> str:
     return datetime.now(ET).date().isoformat()
 
 
+def _slate_has_passed(slate: str) -> bool:
+    """True once local ET date is after the target slate date."""
+    try:
+        slate_d = date.fromisoformat(str(slate)[:10])
+    except ValueError:
+        return False
+    return datetime.now(ET).date() > slate_d
+
+
 def _load_board(slate: str) -> pl.DataFrame | None:
     """Preferred-pitcher projection board for ``slate``, or ``None``."""
     if not BOARD_PATH.exists():
@@ -180,7 +189,15 @@ def _run_tick(
     ledger = load_ledger()
     need = open_needing_close(ledger, slate=slate)
     if need.is_empty():
-        return {"n_need": 0, "n_due": 0, "n_waiting": 0, "done": True, "sleep_s": 0}
+        sleep_s = max(60, int(interval))
+        _log(f"slate={slate} no open tickets yet; sleep {sleep_s}s (late-open active)")
+        return {
+            "n_need": 0,
+            "n_due": 0,
+            "n_waiting": 0,
+            "done": False,
+            "sleep_s": sleep_s,
+        }
 
     rows = need.to_dicts()
     due, waiting, _ = select_due_tickets(
@@ -360,6 +377,9 @@ def main() -> None:
             break
         if summary.get("done"):
             _log(f"all closes filled/unavailable for {slate} — exiting")
+            break
+        if summary.get("n_need", 0) == 0 and _slate_has_passed(slate):
+            _log(f"slate {slate} has passed with no open closes pending — exiting")
             break
         time.sleep(max(15, int(summary.get("sleep_s") or args.interval)))
 

@@ -191,7 +191,7 @@ For each chronological test fold / expanding window:
 ## Engineering deliverables (checklist)
 
 - [x] `models/Strikeout-Model/research/tune_lightgbm_production.py` (nested HPO)
-- [x] TBF `alpha` grid + **joblib persist** in `Models/TBF-Model/train.py`
+- [x] TBF `alpha` grid + **joblib persist** in `models/TBF-Model/train.py`
 - [x] `models/Strikeout-Model/research/walkforward_stack_backtest.py`
 - [x] `models/Strikeout-Model/research/calibrate_stack.py`
 - [x] Keep baseline LGBM defaults (11.A HPO did not beat outer baseline)
@@ -205,7 +205,7 @@ For each chronological test fold / expanding window:
 
 ```powershell
 python models/Strikeout-Model/research/tune_lightgbm_production.py --refit
-python Models/TBF-Model/train.py --model ridge --tune-alpha --persist
+python models/TBF-Model/train.py --model ridge --tune-alpha --persist
 python models/Strikeout-Model/research/walkforward_stack_backtest.py
 python models/Strikeout-Model/research/calibrate_stack.py
 python models/Strikeout-Model/research/phase_d_population_audit.py

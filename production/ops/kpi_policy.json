@@ -63,5 +63,23 @@
     "require_k_rate_below_warn": true,
     "require_non_negative_over_clv_pp": true,
     "min_over_clv_samples": 20
+  },
+  "ops_validation": {
+    "ci_min_samples": 25,
+    "promotion_min_samples": 40,
+    "sustained_underperform_window": 5,
+    "min_bets_today": 1,
+    "max_unspecified_segments": 4,
+    "default_roi_mode": "balanced"
+  },
+  "exposure_controls": {
+    "max_daily_total_stake": 500.0,
+    "max_stake_per_line": 150.0,
+    "max_stake_per_game": 200.0
+  },
+  "data_quality": {
+    "max_missing_closes": 0,
+    "max_stale_open_rows": 0,
+    "max_unmatched_rate": 0.25
   }
 }

@@ -1477,8 +1477,22 @@ def build_daily_slate(
                 output_column="pitcher",
                 aliases=aliases,
                 enrich=False,
+                require_complete=False,
                 timeout=timeout,
             )
+            if "official_probable_pitcher_id" in starters.columns:
+                starters = starters.with_columns(
+                    pl.coalesce(
+                        pl.col("pitcher"),
+                        pl.col("official_probable_pitcher_id"),
+                    ).alias("pitcher")
+                )
+            unresolved_starters = starters.filter(pl.col("pitcher").is_null())
+            if not unresolved_starters.is_empty():
+                raise ValueError(
+                    "Could not resolve starter MLB IDs after probable fallback: "
+                    f"{unresolved_starters.select('team', 'player_name').unique().head(20).to_dicts()}"
+                )
             last_err = None
             break
         except ValueError as exc:
@@ -1554,8 +1568,22 @@ def build_daily_slate(
                     output_column="pitcher",
                     aliases=aliases,
                     enrich=False,
+                    require_complete=False,
                     timeout=timeout,
                 )
+                if "official_probable_pitcher_id" in starters.columns:
+                    starters = starters.with_columns(
+                        pl.coalesce(
+                            pl.col("pitcher"),
+                            pl.col("official_probable_pitcher_id"),
+                        ).alias("pitcher")
+                    )
+                unresolved_starters = starters.filter(pl.col("pitcher").is_null())
+                if not unresolved_starters.is_empty():
+                    raise ValueError(
+                        "Could not resolve starter MLB IDs after probable fallback: "
+                        f"{unresolved_starters.select('team', 'player_name').unique().head(20).to_dicts()}"
+                    )
                 last_err = None
             except ValueError as exc:
                 last_err = exc
