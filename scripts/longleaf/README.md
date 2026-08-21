@@ -26,6 +26,12 @@ sbatch scripts/longleaf/slurm_tune_sparse72.sbatch
 sbatch scripts/longleaf/slurm_eval_holdout_2025.sbatch
 ```
 
+Recommended overnight submit (3 passes + dependency-ordered eval):
+
+```bash
+bash scripts/longleaf/submit_overnight_pipeline.sh
+```
+
 Monitor:
 
 ```bash
@@ -39,4 +45,14 @@ tail -f logs/eval_holdout_2025_<jobid>.out
 - CPU only (`general` partition).
 - No GPU needed for LightGBM/Optuna workflow.
 - Start with 16 CPU / 64G RAM for tuning, 8 CPU / 32G for evaluation.
+- Run all heavy work via `sbatch`/`srun` compute allocations (not login node).
+
+## Preflight checks (required)
+
+```bash
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate mlb_props_env
+python -c "import optuna, polars, lightgbm, sklearn, pandas, numpy, pyarrow, scipy, requests, xgboost; print('deps ok')"
+test -f data/Odds-Open-Close-2025-2026/pitcher_strikeouts_early_open_2025_2026.csv && echo "open data present"
+```
 

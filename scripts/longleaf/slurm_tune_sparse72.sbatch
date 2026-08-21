@@ -13,6 +13,7 @@ mkdir -p logs
 REPO_DIR="${REPO_DIR:-$HOME/MLB-Props}"
 ENV_NAME="${ENV_NAME:-mlb_props_env}"
 TRIALS="${TRIALS:-120}"
+OUTPUT_TAG="${OUTPUT_TAG:-sparse72_optuna_${TRIALS}t_${SLURM_JOB_ID:-manual}}"
 
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate "$ENV_NAME"
@@ -23,4 +24,4 @@ python "models/Strikeout-Model/research/tune_lightgbm_feature_set_optuna.py" \
   --trials "$TRIALS" \
   --k-rate-mae-max 0.0745 \
   --tbf-sens-max 0.012 \
-  --output-tag sparse72_optuna
+  --output-tag "$OUTPUT_TAG"

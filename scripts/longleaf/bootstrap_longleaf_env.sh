@@ -30,7 +30,13 @@ python -m pip install --upgrade pip
 if [[ -f requirements.txt ]]; then
   python -m pip install -r requirements.txt
 fi
-python -m pip install optuna ipykernel
+python -m pip install optuna ipykernel lightgbm polars scikit-learn pandas numpy pyarrow scipy requests xgboost
+
+echo "[3b/4] Verify critical imports"
+python - <<'PY'
+import optuna, polars, lightgbm, sklearn, pandas, numpy, pyarrow, scipy, requests, xgboost
+print("deps ok")
+PY
 
 echo "[4/4] Register Jupyter kernel"
 python -m ipykernel install --user --name="${ENV_NAME}" --display-name="${ENV_NAME}"
