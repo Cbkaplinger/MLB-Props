@@ -552,17 +552,17 @@ def main() -> None:
     side_edge_floors: dict[str, float] | None = None
     if args.roi_mode is not None:
         roi_floors = {
-            "aggressive": 0.14,
-            "balanced": 0.16,
-            "conservative": 0.18,
-            "profit_lock": 0.18,
+            "aggressive": 0.08,
+            "balanced": 0.10,
+            "conservative": 0.12,
+            "profit_lock": 0.08,
         }
         edge_floor = float(roi_floors[args.roi_mode])
         apply_line_price_correction = True
         apply_line_floors = True
         apply_deploy_matrix_filter = True
         if args.roi_mode == "profit_lock":
-            side_edge_floors = {"over": 0.22, "under": 0.18}
+            side_edge_floors = {"over": 0.10, "under": 0.08}
     policy_signature = "n/a"
     policy_label = "close_snapshot"
     if args.snapshot == "open":

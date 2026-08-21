@@ -12,12 +12,18 @@ Quick routing: "I need to do X -> run Y".
   - `python production/ops/score_slate.py --live --allow-stale`
 - One-shot chain:
   - `python production/ops/run_daily.py --allow-stale`
+  - with monitoring + lineage:
+    - `python production/ops/run_daily.py --allow-stale --run-monitoring --append-lineage --lineage-operator "kapcam"`
+- Live k-rate ensemble config (active default):
+  - `production/ops/live_krate_ensemble.json`
 - Daily KPI action recommendation:
   - `python production/ops/kpi_daily_action.py`
 - One-command daily KPI loop (settle/grade/notebooks/KPI summary):
   - `python production/ops/run_daily_kpi_loop.py`
 - One-page operator summary artifacts:
   - `python production/ops/build_daily_operator_summary.py`
+- Post-score automation only (monitoring + optional lineage):
+  - `python production/ops/run_post_score_automation.py --append-lineage --operator "kapcam"`
 - Artifact dedupe (report-first dry run):
   - `python production/ops/prune_artifacts.py --target artifacts/model_quality --dry-run`
 - Artifact dedupe apply (after reviewing report):
@@ -48,10 +54,12 @@ Quick routing: "I need to do X -> run Y".
 
 - Build recommendation board:
   - `python production/odds/odds_board.py --unit 50`
+  - champion mode: `python production/odds/odds_board.py --unit 50 --roi-mode conservative`
   - diagnostic risk filter: `python production/odds/odds_board.py --unit 50 --quality-gate`
   - policy override: `python production/odds/odds_board.py --unit 50 --quality-gate --kpi-policy production/ops/kpi_policy.json`
 - Open snapshot to ledger:
   - `python production/odds/poll_odds.py --snapshot open --unit 50`
+  - champion mode: `python production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative`
   - gate-aware dry run: `python production/odds/poll_odds.py --snapshot open --unit 50 --quality-gate --dry-run`
 - Close watcher (continuous):
   - `python production/odds/close_watcher.py`
@@ -95,10 +103,20 @@ Quick routing: "I need to do X -> run Y".
 ## Policy Simulation
 
 - Edge-floor scenario sweep:
-  - `python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"`
+  - `python production/ops/policy_simulator.py --thresholds "0.05,0.06,0.07,0.08,0.09,0.10,0.12"`
 - Side-specific profile scan (stricter overs vs looser unders):
-  - `python production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --profile-over-floors "0.12,0.14,0.16,0.18" --profile-under-floors "0.10,0.12,0.14" --profile-min-bets 25`
-  - current live profile in policy: `D_over18_under12` (`over=0.18`, `under=0.12`)
+  - `python production/ops/policy_simulator.py --thresholds "0.05,0.06,0.07,0.08,0.09,0.10,0.12" --profile-over-floors "0.08,0.10,0.12" --profile-under-floors "0.06,0.08,0.10" --profile-min-bets 25`
+  - current live profile in policy: `A_edge12` (`edge=0.12`)
+- Full snapshot-level open-universe counterfactual replay:
+  - `python production/ops/run_open_snapshot_counterfactual.py --start-date 2025-01-01 --end-date 2026-12-31 --floors "0.05,0.06,0.07,0.08,0.09,0.10,0.12" --side-floor-over 0.10 --side-floor-under 0.08 --output-tag fullsnap_2025_2026`
+- Build segment-aware calibration offsets (line + price + maturity):
+  - `python production/ops/build_segment_calibration_offsets.py --min-n 60 --shrink-prior-n 200 --offset-cap 0.08`
+- Deduped ensemble winner sweep (one-opportunity-one-bet fairness):
+  - `python production/ops/run_model_ensemble_sweep.py --feature-set production_sparse72 --feature-set production_sparse72_monotone --feature-set production_final58_consensus --calibration-mode isotonic --weight-step 0.05 --floor-min 0.005 --floor-max 0.12 --floor-step 0.005 --min-bets 25 --dedupe-manual --output-tag ensemble_full_aug21_deduped`
+- Recalibrate top-3 from ranked sweep and compare recommended bets against manual set:
+  - `python production/ops/recalibrate_top3_ensembles_open_to_manual.py --ranked-ensemble-csv artifacts/odds_log/ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv --top-n 3 --calibration-mode isotonic --floors "0.08,0.10,0.12" --dedupe-manual --output-tag aug21_deduped_top3_from_dedupedsweep`
+- One-command champion/challenger + ensemble transfer:
+  - `python production/ops/run_champion_challenger_cycle.py --run-ensemble --output-tag cc_cycle_latest`
 
 ## Exit-Anomaly Commands
 

@@ -8,11 +8,13 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
   - `data/`
   - `models/`
   - `artifacts/`
-- Top-level tracked roots were canonicalized in the 2026-08-18 passthrough (`Data` -> `data`, `Models` -> `models`); keep new references lowercase.
+- Keep all new references lowercase. On Windows, legacy uppercase path aliases
+  may still appear in historical notes/tool output; treat lowercase as source of truth.
 
 ## Canonical daily surfaces
 
 - `production/ops/run_daily.py` (morning refresh/score entrypoint)
+- `production/ops/live_krate_ensemble.json` (active k-rate blend selection)
 - `production/odds/grade_odds_ledger.py` (settle + CLV updates)
 - `production/ops/kpi_daily_action.py` (daily model action recommendation)
 - `production/ops/policy_simulator.py` (edge-floor policy sweeps)
@@ -32,6 +34,23 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
 - `playground/` scripts (what-if and manual dry-runs only)
 - `docs/archive/` (historical evidence only)
 - `analysis/` notebooks (research narrative surface)
+- `artifacts/` is protected provenance/generation output; prefer ignore/retention
+  policy over ad-hoc deletion.
+
+## Repository sweep context (2026-08-21)
+
+Top-level file counts from a broad documentation inventory pass:
+
+- `artifacts`: 1774
+- `models`: 105
+- `production`: 96
+- `src`: 83
+- `data`: 78
+- `docs`: 76
+- `tests`: 36
+- `scripts`: 27
+- `playground`: 4
+- `analysis`: 2
 
 ## Keep/Hold/Delete classification protocol
 

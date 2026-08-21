@@ -40,7 +40,7 @@ DEFAULT_POLICY: dict[str, Any] = {
         },
     },
     "operating_profile": {
-        "name": "D_over18_under12",
+        "name": "A_edge12",
         "filters": {
             "rest_max_exclusive": 45.0,
             "tbf_min": 15.0,
@@ -59,6 +59,10 @@ DEFAULT_POLICY: dict[str, Any] = {
             "D_over18_under12": {
                 "edge_min_over": 0.18,
                 "edge_min_under": 0.12,
+            },
+            "E_over10_under8": {
+                "edge_min_over": 0.10,
+                "edge_min_under": 0.08,
             },
         },
     },

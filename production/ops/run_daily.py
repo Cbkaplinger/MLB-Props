@@ -71,6 +71,26 @@ def main() -> None:
         action="store_true",
         help="Fail unless every RotoGrinders lineup is confirmed.",
     )
+    parser.add_argument(
+        "--run-monitoring",
+        action="store_true",
+        help="Run post-score monitoring cycle.",
+    )
+    parser.add_argument(
+        "--append-lineage",
+        action="store_true",
+        help="Append lineage from latest champion/challenger decision artifact.",
+    )
+    parser.add_argument(
+        "--lineage-run-label",
+        default="",
+        help="Optional lineage run label when --append-lineage is enabled.",
+    )
+    parser.add_argument(
+        "--lineage-operator",
+        default="",
+        help="Optional operator name for lineage records.",
+    )
     args = parser.parse_args()
 
     if not args.skip_statcast:
@@ -101,6 +121,18 @@ def main() -> None:
     if args.require_confirmed:
         score_args.append("--require-confirmed")
     _run(PROD / "score_slate.py", score_args)
+
+    if args.run_monitoring or args.append_lineage:
+        post_args: list[str] = []
+        if not args.run_monitoring:
+            post_args.append("--skip-monitoring")
+        if args.append_lineage:
+            post_args.append("--append-lineage")
+        if args.lineage_run_label:
+            post_args.extend(["--run-label", args.lineage_run_label])
+        if args.lineage_operator:
+            post_args.extend(["--operator", args.lineage_operator])
+        _run(PROD / "run_post_score_automation.py", post_args)
 
 
 if __name__ == "__main__":

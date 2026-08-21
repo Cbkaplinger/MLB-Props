@@ -31,7 +31,7 @@
     }
   },
   "operating_profile": {
-    "name": "D_over18_under12",
+    "name": "A_edge12",
     "filters": {
       "rest_max_exclusive": 45.0,
       "tbf_min": 15.0
@@ -50,6 +50,10 @@
       "D_over18_under12": {
         "edge_min_over": 0.18,
         "edge_min_under": 0.12
+      },
+      "E_over10_under8": {
+        "edge_min_over": 0.10,
+        "edge_min_under": 0.08
       }
     }
   },
@@ -70,7 +74,7 @@
     "sustained_underperform_window": 5,
     "min_bets_today": 1,
     "max_unspecified_segments": 4,
-    "default_roi_mode": "balanced"
+    "default_roi_mode": "conservative"
   },
   "exposure_controls": {
     "max_daily_total_stake": 500.0,

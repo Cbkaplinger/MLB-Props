@@ -10,8 +10,16 @@ was relocated during repository cleanup.
   worktree state for the invalid overlapping-date split
 - `docs/archive/pre-pipeline-v6/` — pre-pipeline SHAP output containing
   forbidden same-game/unlagged fields
+- `production/ops/live_krate_ensemble.json` — active live k-rate blend config
+  (manual-lane winner transfer)
+- `artifacts/models/lightgbm_krate_20260821_054152.*` — sparse72 member used by
+  current live blend (weight 0.00; retained for explicit blend provenance)
+- `artifacts/models/lightgbm_krate_mono_20260821_054127.*` — sparse72_monotone
+  member used by current live blend (weight 0.60)
+- `artifacts/models/lightgbm_krate_20260821_054126.*` — final58_consensus member
+  used by current live blend (weight 0.40)
 - `artifacts/models/lightgbm_krate_20260803_155401.*` — **frozen** 184-feature
-  LightGBM production (Step 11 discipline lift)
+  LightGBM single-model baseline (Step 11 discipline lift; fallback path)
 - `artifacts/models/lightgbm_krate_20260728_033241.*` — prior Step 10 freeze
   (180; comparison / `step10_180`)
 - `artifacts/models/lightgbm_krate_20260727_204342.*` — Step 7 era 185-feature

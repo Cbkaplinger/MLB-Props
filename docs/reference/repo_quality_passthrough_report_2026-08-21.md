@@ -1,0 +1,49 @@
+# Repo Quality Passthrough Report — 2026-08-21
+
+Task Progress:
+- [x] 1) Snapshot current git status
+- [x] 2) Inventory generated/stale files
+- [x] 3) Classify keep vs ignore vs delete candidates
+- [x] 4) Apply low-risk fixes (ignore rules, docs, naming cleanup)
+- [x] 5) Validate (status + lint for edited files)
+- [x] 6) Report what changed and what needs user approval
+
+## Cleanup Results
+- Updated production-critical docs and model-path docs to reflect current live ensemble path.
+- Added explicit live ensemble config file: `production/ops/live_krate_ensemble.json`.
+- Kept all artifacts/data/notebooks in place; no destructive cleanup executed.
+- Validated edited Python files with lints; no linter errors introduced.
+
+Why safe:
+- Changes are additive/configuration/documentation-focused.
+- No file deletions across `production/`, `src/Python/`, `models/`, `docs/paper/`, or artifact/data trees.
+- Runtime fallback remains available (single-model path if ensemble config is absent).
+
+## Keep/Hold/Delete Ledger
+- `production/ops/live_krate_ensemble.json` | keep | required for live k-rate blend selection | low | none
+- `artifacts/models/lightgbm_krate_20260821_054152.*` | keep | active sparse72 artifact for blend membership tracking | low | none
+- `artifacts/models/lightgbm_krate_mono_20260821_054127.*` | keep | active monotone sparse72 artifact for live blend | low | none
+- `artifacts/models/lightgbm_krate_20260821_054126.*` | keep | active final58 artifact for live blend | low | none
+- `artifacts/odds_log/open_top3_transfer_*aug21*` | keep | provenance for winner-selection and audit trail | low | none
+- `production/ops/run_*` new scripts | keep | referenced by current ops flow and governance docs | low | none
+- large untracked artifact families under `artifacts/` | hold | generated but historically protected by workspace policy | medium | optional owner-driven archival policy
+- duplicate-case top-level paths (`Models/` vs `models/`) | hold | potential Windows case/cross-platform risk | medium | explicit migration approval required
+
+## Pipeline Validation
+- `git status --short` snapshot captured.
+- Lint checks passed on edited runtime Python modules:
+  - `src/Python/live_assembly.py`
+  - `Models/Strikeout-Model/train.py`
+- Ensemble scoring smoke check on Level 3 sample rows succeeded (`k_rate_ensemble_used=True`, 3 members).
+
+## Documentation Updates
+- `production/README.md` — added active live ensemble section.
+- `production/RUNBOOK.md` — added live ensemble default behavior.
+- `production/INDEX.md` — added live ensemble config routing entry.
+- `docs/diagrams/01-architecture.md` — updated architecture diagram notes for live ensemble and segment-aware policy overlays.
+- `docs/diagrams/03-modeling-and-evaluation.md` — updated modeling/eval diagram to include deduped ensemble governance and current transfer winner.
+- `docs/paper/manuscript.md` — added Aug 2026 production-upgrade addendum section.
+
+## Approval Queue
+- No delete actions performed; no destructive approval required.
+- Optional future action: artifact archival/retention policy for older generated files (non-destructive move/compress plan) if repo size becomes burdensome.

@@ -14,20 +14,55 @@ Important context:
 - Because production features, calibration, and edge floors changed materially in recent weeks, treat full-history aggregates as regime-mixed.
 - For decisioning, always compare full-history vs recent-window views (e.g., last 30/60 settled bets).
 
-## Current Selection Status (2026-08-20)
+## Current Selection Status (2026-08-21)
 
-- Current winner for this cycle: `production_sparse72` with `isotonic` calibration.
-- Current operating floor from deterministic sweep: `edge_floor=0.075` (7.5%).
-- Frontier broad-search winner (`production_frontier42_aug20`) did **not** beat sparse72 on final apples-to-apples open-skill and governance comparisons.
-- Keep confidence language conservative: open-skill advantage is positive but thin on current holdout; require rolling-window confirmation before long-horizon overconfidence.
+Current winners are tracked by objective and evaluation lane:
 
-Decision guidance:
+- **MAE winner (single-model ablation):** `ridge` on `production_sparse72` (tie with `production_sparse72_monotone`), `mean_expected_k_mae=1.7621`.
+- **Profit-first ensemble winner (legacy non-deduped lane):** blend `0.70 * production_sparse72_monotone + 0.30 * production_final58_consensus`, `isotonic`, `edge_floor=0.08`.
+- **Deduped transfer winner (current manual lane):** blend `0.00 * production_sparse72 + 0.60 * production_sparse72_monotone + 0.40 * production_final58_consensus`, `isotonic`, `edge_floor=0.12`.
+- **Small local tune winner (LGBM/RF/HistGBR subset):** `lightgbm` on `production_sparse72_monotone` for MAE among tuned-small candidates.
+- **Open-snapshot counterfactual winner (full 2025-2026 open universe, skill-gated):** `production_sparse72`, `isotonic`, `edge_floor=0.12`.
 
-- Treat this as the active champion for deployment testing and monitoring.
-- Keep champion/challenger comparison live against:
-  - `production_sparse72_monotone`
-  - `production_final58_consensus`
-  - `production_frontier42_aug20` (for drift checks only)
+Legacy profit-first ensemble checkpoint (non-deduped replay):
+
+- `roi=0.8121`, `sharpe=1.4609`, `sortino=0.8344`
+- `brier_skill_vs_market=0.1382`, `logloss_skill_vs_market=0.1076`
+- `n_bets=107`
+
+Current decision guidance:
+
+- Treat the deduped transfer winner above as the **active manual-lane champion**.
+- Treat `production_sparse72 + isotonic + edge_floor=0.12` as the **open-universe skill champion** until next challenger cycle clears gates.
+- Live scoring now supports an explicit k-rate ensemble config at `production/ops/live_krate_ensemble.json` (with single-model fallback).
+- Keep single-model challengers live:
+  - `ridge` (`production_sparse72`)
+  - `lightgbm` (`production_sparse72_monotone`)
+  - `xgboost` (`production_sparse72`)
+
+Open-snapshot counterfactual checkpoint (all snapshots, no dedupe):
+
+- opportunity rows with outcomes: `24,576`
+- chrono test slice: `7,462`
+- winner metrics: `roi=0.1138`, `n_bets=538`, `brier_skill_vs_market=+0.00013`, `logloss_skill_vs_market=+0.00019`
+- side-floor profile `over=0.10, under=0.08` remains a monitored challenger lane, not current default.
+
+### 1/16 Kelly Operating Translation (Unit = $50)
+
+For the current ensemble winner replay slice:
+
+- total stake: `$10,613.55` (`212.27u`)
+- total profit: `$8,619.27` (`172.39u`)
+- average stake/bet: `1.98u` (`~$99`)
+- average profit/bet: `1.61u` (`~$81`)
+
+If bankroll is `$2,000` (`40u`), replay-equivalent bankroll path is:
+
+- starting bankroll: `40u` (`$2,000`)
+- ending bankroll: `212.39u` (`$10,619`)
+- net: `+172.39u` (`+$8,619`)
+
+This assumes replay turnover/stake cadence is comparable; realized live path can differ.
 
 ## 1) Forecast Quality (Probability + Calibration)
 
@@ -135,3 +170,39 @@ Stop (for now):
 - Broad feature-count frontier sweeps as default workflow (high compute, low incremental lift recently).
 - Promoting candidates based only on internal search objective without final open-skill gate.
 - Re-running large searches without a predeclared falsifiable hypothesis.
+
+## Next Tuning Queue (Highest Priority)
+
+1. `lightgbm` full Optuna on:
+   - `production_sparse72`
+   - `production_sparse72_monotone`
+2. Optional third lane:
+   - `production_final58_consensus`
+3. Secondary family tuning (after LGBM completes):
+   - `xgboost`
+   - `random_forest`
+   - `histgbr`
+
+After each tuning wave, rerun:
+
+- single-model champion table
+- ensemble sweep
+- open-skill gate (`brier_skill_vs_market > 0`, `logloss_skill_vs_market > 0`)
+- risk gate (drawdown/CVaR/Sortino)
+
+## Free-Tier Production Additions
+
+Two lightweight operational upgrades are now available:
+
+- Model lineage logging:
+  - `production/ops/log_model_lineage.py`
+  - appends immutable run metadata (dataset hash, feature set, params, git SHA, decision).
+- Two-stage monitoring cycle:
+  - `production/ops/run_monitoring_cycle.py`
+  - runs `t=0` input/open-market diagnostics and `t+1` realized quality checks.
+
+Recommended daily cadence:
+
+1. scoring run
+2. lineage append
+3. monitoring cycle run

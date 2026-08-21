@@ -26,6 +26,12 @@ One command equivalent:
 powershell -ExecutionPolicy Bypass -File production/ops/run_morning_workflow.ps1
 ```
 
+Optional post-score automation (free-tier MLOps):
+
+```powershell
+.\.venv\Scripts\python.exe production/ops/run_post_score_automation.py --append-lineage --operator "kapcam"
+```
+
 ## Core Commands
 
 From repo root:
@@ -35,10 +41,21 @@ From repo root:
 .\.venv\Scripts\python.exe production/ops/refresh_features.py --skip-training
 .\.venv\Scripts\python.exe production/projections/log_projections.py --allow-stale
 .\.venv\Scripts\python.exe production/projections/grade_projections.py --all-logged --preferred-only --exclude-abbreviated --exclude-out-of-support
-.\.venv\Scripts\python.exe production/odds/odds_board.py --unit 50
-.\.venv\Scripts\python.exe production/odds/poll_odds.py --snapshot open --unit 50
+.\.venv\Scripts\python.exe production/odds/odds_board.py --unit 50 --roi-mode conservative
+.\.venv\Scripts\python.exe production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative
 .\.venv\Scripts\python.exe production/odds/grade_odds_ledger.py --status
 ```
+
+One-shot daily chain with monitoring + lineage:
+
+```powershell
+.\.venv\Scripts\python.exe production/ops/run_daily.py --allow-stale --run-monitoring --append-lineage --lineage-operator "kapcam"
+```
+
+Live scorer default:
+
+- `production/ops/live_krate_ensemble.json` is active for k-rate blending in `score_slate.py` / `predict_slate.py`.
+- If the file is missing, scoring falls back to the single frozen artifact.
 
 Diagnostics-first risk gating (optional, not default):
 
@@ -167,16 +184,22 @@ Automation helpers:
 .\.venv\Scripts\python.exe production/ops/calibration_snapshot.py --compare
 .\.venv\Scripts\python.exe production/ops/build_daily_operator_summary.py
 .\.venv\Scripts\python.exe production/ops/weekly_kpi_report.py
-.\.venv\Scripts\python.exe production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18"
-.\.venv\Scripts\python.exe production/ops/policy_simulator.py --thresholds "0.08,0.10,0.12,0.14,0.16,0.18" --profile-over-floors "0.12,0.14,0.16,0.18" --profile-under-floors "0.10,0.12,0.14" --profile-min-bets 25
+.\.venv\Scripts\python.exe production/ops/policy_simulator.py --thresholds "0.05,0.06,0.07,0.08,0.09,0.10,0.12"
+.\.venv\Scripts\python.exe production/ops/policy_simulator.py --thresholds "0.05,0.06,0.07,0.08,0.09,0.10,0.12" --profile-over-floors "0.08,0.10,0.12" --profile-under-floors "0.06,0.08,0.10" --profile-min-bets 25
+.\.venv\Scripts\python.exe production/ops/run_open_snapshot_counterfactual.py --start-date 2025-01-01 --end-date 2026-12-31 --floors "0.05,0.06,0.07,0.08,0.09,0.10,0.12" --side-floor-over 0.10 --side-floor-under 0.08 --output-tag fullsnap_2025_2026
+.\.venv\Scripts\python.exe production/ops/run_model_ensemble_sweep.py --feature-set production_sparse72 --feature-set production_sparse72_monotone --feature-set production_final58_consensus --calibration-mode isotonic --weight-step 0.05 --floor-min 0.005 --floor-max 0.12 --floor-step 0.005 --min-bets 25 --dedupe-manual --output-tag ensemble_full_aug21_deduped
+.\.venv\Scripts\python.exe production/ops/recalibrate_top3_ensembles_open_to_manual.py --ranked-ensemble-csv artifacts/odds_log/ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv --top-n 3 --calibration-mode isotonic --floors "0.08,0.10,0.12" --dedupe-manual --output-tag aug21_deduped_top3_from_dedupedsweep
 ```
 
 Current operating profile:
 
-- `D_over18_under12` (from `production/ops/kpi_policy.json`)
-  - `edge_min_over=0.18`
-  - `edge_min_under=0.12`
-- treat this as provisional while `production/ops/kpi_daily_action.py --json` reports `action=RECALIBRATE`.
+- `A_edge12` (from `production/ops/kpi_policy.json`)
+  - `edge_min=0.12`
+- open-snapshot counterfactual optional side profile: `E_over10_under8`
+  - `edge_min_over=0.10`
+  - `edge_min_under=0.08`
+- current open-universe winner (skill-gated): `production_sparse72` + `isotonic` + `edge_floor=0.12`.
+- current deduped-manual transfer winner: blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`, `isotonic`, `edge_floor=0.12`.
 - run this check at least once per day:
 
 ```powershell
@@ -266,6 +289,10 @@ Notebook behavior:
 - `artifacts/odds_log/k_error_decomposition.parquet`
 - `artifacts/odds_log/k_error_decomposition_daily.parquet`
 - `artifacts/odds_log/model_health_scorecard_daily.parquet`
+- `artifacts/odds_log/monitoring_cycle_latest.json`
+- `artifacts/odds_log/monitoring_cycle_history.jsonl`
+- `artifacts/model_registry/model_lineage_log.jsonl`
+- `artifacts/model_registry/model_lineage_log.csv`
 
 ## Changelog
 

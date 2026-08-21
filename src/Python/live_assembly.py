@@ -47,6 +47,9 @@ DEFAULT_KRATE_STEM = config.MODEL_DIR / "lightgbm_krate_20260803_155401"
 DEFAULT_TBF_JOBLIB = (
     config.MODEL_DIR / "tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib"
 )
+DEFAULT_KRATE_ENSEMBLE_CONFIG = (
+    config.PROJECT_ROOT / "production" / "ops" / "live_krate_ensemble.json"
+)
 
 _PRODUCTION_LINEUP_COLS = (
     "opp_lineup_k",
@@ -116,6 +119,30 @@ def load_tbf_bundle(path: Path = DEFAULT_TBF_JOBLIB) -> dict[str, Any]:
     return bundle
 
 
+def _resolve_stem(pathish: str | Path) -> Path:
+    raw = Path(pathish)
+    if raw.suffix in {".txt", ".json"}:
+        raw = raw.with_suffix("")
+    if raw.is_absolute():
+        return raw
+    return (config.PROJECT_ROOT / raw).resolve()
+
+
+def _load_krate_ensemble_config(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    models = payload.get("models", [])
+    if not isinstance(models, list) or not models:
+        raise ValueError(f"Invalid ensemble config at {path}: missing models")
+    total = 0.0
+    for row in models:
+        if "stem" not in row or "weight" not in row:
+            raise ValueError(f"Invalid ensemble config row at {path}: {row}")
+        total += float(row["weight"])
+    if abs(total - 1.0) > 1e-6:
+        raise ValueError(f"Ensemble weights must sum to 1.0, got {total:.6f} at {path}")
+    return payload
+
+
 def american_odds_from_prob(p: float) -> int:
     """Convert a win probability to fair American odds (no vig)."""
     prob = float(min(max(p, 1e-6), 1.0 - 1e-6))
@@ -164,6 +191,7 @@ def score_frame(
     tbf_joblib: Path = DEFAULT_TBF_JOBLIB,
     lines: Sequence[float] | None = None,
     calibration_path: Path | None | bool = True,
+    krate_ensemble_config: Path | None | bool = True,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Score a feature frame with frozen k-rate + TBF + binomial count layer.
 
@@ -173,25 +201,66 @@ def score_frame(
       - ``False`` / ``None``: skip post-hoc calibration (raw ``p_over_*`` only)
     """
     line_set = tuple(lines) if lines is not None else DEFAULT_K_LINES
-    booster, k_features, k_meta = load_krate_booster(krate_stem)
+    k_meta: dict[str, Any] = {}
+    k_hat: np.ndarray
+    ensemble_used = False
+    ensemble_members: list[dict[str, Any]] = []
+    ensemble_path: Path | None
+    if krate_ensemble_config is True:
+        ensemble_path = DEFAULT_KRATE_ENSEMBLE_CONFIG
+    elif krate_ensemble_config is False or krate_ensemble_config is None:
+        ensemble_path = None
+    else:
+        ensemble_path = Path(krate_ensemble_config)
+
+    if ensemble_path is not None and ensemble_path.exists():
+        cfg = _load_krate_ensemble_config(ensemble_path)
+        blend = np.zeros(len(frame), dtype=np.float64)
+        for row in cfg["models"]:
+            stem = _resolve_stem(str(row["stem"]))
+            weight = float(row["weight"])
+            booster_i, features_i, meta_i = load_krate_booster(stem)
+            missing_i = [c for c in features_i if c not in frame.columns]
+            if missing_i:
+                raise ValueError(
+                    f"frame missing ensemble k-rate features for {stem}: {missing_i[:12]}"
+                )
+            pred_i = np.clip(
+                booster_i.predict(lightgbm_matrix(frame, features_i), num_threads=1),
+                0.0,
+                1.0,
+            )
+            blend += weight * pred_i
+            ensemble_members.append(
+                {
+                    "stem": str(stem),
+                    "weight": weight,
+                    "n_features": len(features_i),
+                    "registry_freeze": meta_i.get("registry_freeze"),
+                }
+            )
+        k_hat = np.clip(blend, 0.0, 1.0)
+        k_meta = {"ensemble": cfg}
+        ensemble_used = True
+    else:
+        booster, k_features, k_meta = load_krate_booster(krate_stem)
+        missing_k = [c for c in k_features if c not in frame.columns]
+        if missing_k:
+            raise ValueError(f"frame missing k-rate features: {missing_k[:12]}")
+        k_hat = np.clip(
+            booster.predict(
+                lightgbm_matrix(frame, k_features),
+                num_threads=1,
+            ),
+            0.0,
+            1.0,
+        )
+
     tbf = load_tbf_bundle(tbf_joblib)
     tbf_features = list(tbf["features"])
-
-    missing_k = [c for c in k_features if c not in frame.columns]
     missing_t = [c for c in tbf_features if c not in frame.columns]
-    if missing_k:
-        raise ValueError(f"frame missing k-rate features: {missing_k[:12]}")
     if missing_t:
         raise ValueError(f"frame missing TBF features: {missing_t[:12]}")
-
-    k_hat = np.clip(
-        booster.predict(
-            lightgbm_matrix(frame, k_features),
-            num_threads=1,
-        ),
-        0.0,
-        1.0,
-    )
     tbf_hat = predict_nonnegative(
         tbf["model"],
         "ridge",
@@ -235,9 +304,12 @@ def score_frame(
     # Add pregame support gating to flag opener/piggyback-like rows before sizing.
     scored = mark_out_of_support(pl.from_pandas(scored)).to_pandas()
     report = {
-        "k_rate_model": str(krate_stem.with_suffix(".txt")),
-        "k_rate_sha256": _sha256(krate_stem.with_suffix(".txt")),
-        "k_rate_n_features": len(k_features),
+        "k_rate_model": str(krate_stem.with_suffix(".txt")) if not ensemble_used else None,
+        "k_rate_sha256": _sha256(krate_stem.with_suffix(".txt")) if not ensemble_used else None,
+        "k_rate_n_features": len(k_features) if not ensemble_used else None,
+        "k_rate_ensemble_used": ensemble_used,
+        "k_rate_ensemble_config": str(ensemble_path) if ensemble_used and ensemble_path is not None else None,
+        "k_rate_ensemble_members": ensemble_members if ensemble_used else [],
         "tbf_model": str(tbf_joblib),
         "tbf_sha256": _sha256(tbf_joblib),
         "tbf_n_features": len(tbf_features),

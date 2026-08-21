@@ -30,6 +30,7 @@ See `docs/reference/model-card.md` for intended use and leakage rules,
 `docs/diagrams/` for phase-colored architecture / leakage / modeling / roadmap
 charts (Mermaid). Status snapshot: `docs/diagrams/00-index.md`.
 Cleanup history: `docs/CLEANUP_LOG.md`.
+Latest repo-quality sweep: `docs/reference/repo_quality_passthrough_report_2026-08-21.md`.
 
 ## Pipeline
 
@@ -141,6 +142,13 @@ Daily analysis loop:
 4. Chrono recalibration winner selection is only promoted when Section 19 has
    at least `15` distinct dates.
 
+Current production scoring posture:
+
+- Live k-rate scoring uses ensemble config:
+  `production/ops/live_krate_ensemble.json`
+- Recommendation generation defaults to conservative policy mode:
+  `production/odds/odds_board.py --roi-mode conservative`
+
 ## Build data
 
 Run the entire pipeline:
@@ -213,22 +221,23 @@ The current expanded freeze decision and consensus-search evidence are documente
   current historical-tag density implies neutral aggregate deltas so far.
 - **Optional later:** NB count challenger; market de-vig / Kelly; park cleanup.
 
-Current MAE-first freeze candidate: **58-feature consensus** LightGBM k-rate
-(`feature_set=production_final58_consensus`) from merged-chunk winner and
-consensus-pool search (`docs/research/final58_consensus_freeze_2026-08-20.md`).
-Money-gate incumbent remains `production_oof72_monotone` until post-tuning and
-risk-adjusted policy checks are complete. Ridge TBF
-(`docs/research/tbf_first_model_findings.md`) and count-layer stack
+Current production k-rate path is an **ensemble** selected from deduped manual
+replay after open-data calibration transfer:
+
+- `0.00 production_sparse72 + 0.60 production_sparse72_monotone + 0.40 production_final58_consensus`
+- config: `production/ops/live_krate_ensemble.json`
+- runtime scorer: `src/Python/live_assembly.py` (single-model fallback retained)
+
+Ridge TBF (`docs/research/tbf_first_model_findings.md`) and count-layer stack
 (`docs/research/count_layer_findings.md`) remain unchanged.
 
 ## Current baseline and research surface
 
-The active research freeze for model-family ablations is now
-`production_final58_consensus` (58 features, walk-forward expected_K MAE
-≈ 1.76694 in consensus sweep), with `production_oof72_monotone` retained as the
-current money-facing challenger under governance replay. Prior freeze registries
-(`production`, `step10_180`, `step7_185`) remain available for backtests and
-comparisons.
+The active governance surface includes single-model and ensemble lanes. Current
+manual-lane winner uses the live ensemble config above; open-universe skill lane
+still tracks `production_sparse72 + isotonic` for market-skill monitoring.
+Prior freeze registries (`production`, `step10_180`, `step7_185`) remain
+available for backtests and comparisons.
 
 Companion sets: `step7_185`, `pre_freeze_248` (comparison) and `ridge_vif`
 (73-feature Ridge research). Expanded research candidates remain outside

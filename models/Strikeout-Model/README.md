@@ -47,13 +47,16 @@ LightGBM models and adjacent JSON metadata (feature names and evaluation
 results) are written to `artifacts/models/` by default. Generated models are
 ignored by Git.
 
-Current MAE-first freeze candidate is `production_final58_consensus` (58
-features) from the consensus chunk-merge feature search; see
-`docs/research/final58_consensus_freeze_2026-08-20.md`. Money-facing governance
-replay still favors `production_oof72_monotone`, so keep both candidates in
-comparison tables until tuned LightGBM + risk-adjusted policy gates finalize.
-`production`, `step10_180`, `step7_185`, and `pre_freeze_248` remain available
-for historical comparisons.
+Current live deployment is ensemble-based, selected from the deduped manual
+transfer governance lane:
+
+- `0.00 production_sparse72 + 0.60 production_sparse72_monotone + 0.40 production_final58_consensus`
+- config: `production/ops/live_krate_ensemble.json`
+- runtime: `src/Python/live_assembly.py`
+
+Single-model registries (`production`, `step10_180`, `step7_185`,
+`pre_freeze_248`, `production_final58_consensus`) remain available for
+historical comparison and challenger analysis.
 
 Daily production operation and diagnostics run under `production/`:
 - `production/INDEX.md`

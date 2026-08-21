@@ -38,6 +38,39 @@ from Python.training import (
     resolve_sample_weights,
 )
 
+_MONO_POSITIVE_STEMS = (
+    "opp_lineup_k",
+    "opp_lineup_k_vs_hand",
+    "opp_lineup_whiff",
+    "opp_lineup_swstr",
+    "opp_lineup_chase",
+    "park_k_factor",
+)
+_MONO_NEGATIVE_STEMS = (
+    "xERA",
+    "ERA",
+    "BB_per_9",
+    "xwOBA",
+    "xBA",
+    "wOBA",
+    "xSLG",
+    "avg_exit_velocity",
+    "barrel_batted_rate",
+    "hard_hit_percent",
+)
+
+
+def _feature_constraints(features: list[str]) -> list[int]:
+    out: list[int] = []
+    for feature in features:
+        if any(feature == stem or feature.startswith(stem) for stem in _MONO_POSITIVE_STEMS):
+            out.append(1)
+        elif any(feature == stem or feature.startswith(stem) for stem in _MONO_NEGATIVE_STEMS):
+            out.append(-1)
+        else:
+            out.append(0)
+    return out
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -109,6 +142,7 @@ def main(
     model_name: str,
     sample_weight: str = "none",
     feature_set: str = "production",
+    monotone: bool = False,
 ) -> None:
     if sample_weight not in SAMPLE_WEIGHT_MODES:
         raise ValueError(
@@ -129,7 +163,13 @@ def main(
     validation_weight = resolve_sample_weights(validation, sample_weight)
     test_weight = resolve_sample_weights(test, sample_weight)
 
-    model = build_model(model_name)
+    lightgbm_params: dict[str, object] | None = None
+    if model_name == "lightgbm" and monotone:
+        lightgbm_params = {
+            "monotone_constraints": _feature_constraints(features),
+            "monotone_constraints_method": "advanced",
+        }
+    model = build_model(model_name, lightgbm_params=lightgbm_params)
     fit_model(
         model,
         model_name,
@@ -150,6 +190,7 @@ def main(
         "model": model_name,
         "sample_weight": sample_weight,
         "feature_set": feature_set,
+        "monotone_constraints": bool(monotone),
         "features": len(features),
         "rows": {
             "train": len(train),
@@ -188,7 +229,8 @@ def main(
         ensure_output_directories()
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         weight_tag = "" if sample_weight == "none" else f"_{sample_weight}w"
-        model_path = MODEL_DIR / f"lightgbm_krate{weight_tag}_{stamp}.txt"
+        mono_tag = "_mono" if monotone else ""
+        model_path = MODEL_DIR / f"lightgbm_krate{weight_tag}{mono_tag}_{stamp}.txt"
         model.booster_.save_model(model_path)
         metadata = {
             "features": features,
@@ -204,6 +246,7 @@ def main(
                 "training_artifact_sha256": _sha256(PITCHER_TRAINING_PATH),
                 "train_seasons": list(TRAIN_SEASONS),
                 "sample_weight": sample_weight,
+                "monotone_constraints": bool(monotone),
                 "mean_window_policy": (
                     "P3/P5 for pitch_physics, pitch_usage, mechanics, fip_xfip "
                     "(P10 dropped at feature selection; Level 2 may still store P10)"
@@ -250,9 +293,15 @@ if __name__ == "__main__":
             "full allow-list; 'ridge_vif' is the Step 1 Ridge research registry."
         ),
     )
+    parser.add_argument(
+        "--monotone",
+        action="store_true",
+        help="Apply monotone constraints for LightGBM features.",
+    )
     args = parser.parse_args()
     main(
         args.model,
         sample_weight=args.sample_weight,
         feature_set=args.feature_set,
+        monotone=args.monotone,
     )

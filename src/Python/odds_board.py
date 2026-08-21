@@ -33,6 +33,7 @@ BOARD_META = ODDS_DIR / "recommendations_meta.json"
 SCORECARD_DAILY = ODDS_DIR / "model_health_scorecard_daily.parquet"
 LINE_PRICE_CORR_PATH = ODDS_DIR / "line_price_correction_table.parquet"
 LINE_PRICE_CORR_APPROVED_PATH = ODDS_DIR / "line_price_correction_table_approved.parquet"
+LINE_PRICE_CORR_SEGMENTED_PATH = ODDS_DIR / "line_price_correction_table_segmented.parquet"
 CALIBRATION_DEPLOY_MATRIX_PATH = ODDS_DIR / "calibration_deploy_matrix.parquet"
 LINE_FLOOR_POLICY_PATH = (
     config.PROJECT_ROOT
@@ -91,8 +92,33 @@ def _price_bucket(price: float) -> str:
     return "dog_gt_+160"
 
 
-def _load_line_price_offsets() -> dict[tuple[float, str], float]:
-    """Collapsed correction offsets keyed by (line, over_price_bucket)."""
+def _load_line_price_offsets() -> dict[tuple[float, str, str], float]:
+    """Correction offsets keyed by (line, over_price_bucket, maturity_bucket).
+
+    Runtime lookup first uses exact maturity, then wildcard maturity "*".
+    """
+    if LINE_PRICE_CORR_SEGMENTED_PATH.exists():
+        table = pl.read_parquet(LINE_PRICE_CORR_SEGMENTED_PATH)
+        if table.is_empty():
+            return {}
+        if "maturity_bucket" not in table.columns:
+            table = table.with_columns(pl.lit("*").alias("maturity_bucket"))
+        if "prob_offset" not in table.columns:
+            return {}
+        out: dict[tuple[float, str, str], float] = {}
+        for r in table.select(
+            "line", "over_price_bucket", "maturity_bucket", "prob_offset"
+        ).to_dicts():
+            out[
+                (
+                    float(r["line"]),
+                    str(r["over_price_bucket"]),
+                    str(r.get("maturity_bucket") or "*"),
+                )
+            ] = float(r["prob_offset"])
+        return out
+
+    # Backward-compatible fallback for legacy two-dimensional table.
     use_path = (
         LINE_PRICE_CORR_APPROVED_PATH
         if LINE_PRICE_CORR_APPROVED_PATH.exists()
@@ -113,9 +139,11 @@ def _load_line_price_offsets() -> dict[tuple[float, str], float]:
         )
         .to_dicts()
     )
-    out: dict[tuple[float, str], float] = {}
+    out: dict[tuple[float, str, str], float] = {}
     for r in collapsed:
-        out[(float(r["line"]), str(r["over_price_bucket"]))] = float(r["prob_offset"])
+        out[(float(r["line"]), str(r["over_price_bucket"]), "*")] = float(
+            r["prob_offset"]
+        )
     return out
 
 
@@ -306,7 +334,7 @@ def score_quote_against_board(
     *,
     unit_dollars: float = 50.0,
     edge_floor: float = DEFAULT_EDGE_FLOOR,
-    prob_offset_map: dict[tuple[float, str], float] | None = None,
+    prob_offset_map: dict[tuple[float, str, str], float] | None = None,
     line_floor_map: dict[str, float] | None = None,
     deploy_segment_states: dict[tuple[float, str, str], str] | None = None,
 ) -> dict[str, Any] | None:
@@ -316,9 +344,10 @@ def score_quote_against_board(
         return None
     over_price_bucket = _price_bucket(float(quote.over_american))
     maturity_bucket = _maturity_bucket(board_row)
-    correction_key = (float(quote.line), over_price_bucket)
+    correction_key = (float(quote.line), over_price_bucket, maturity_bucket)
+    fallback_key = (float(quote.line), over_price_bucket, "*")
     offset = (
-        float(prob_offset_map.get(correction_key, 0.0))
+        float(prob_offset_map.get(correction_key, prob_offset_map.get(fallback_key, 0.0)))
         if prob_offset_map is not None
         else 0.0
     )

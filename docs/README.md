@@ -45,6 +45,7 @@ Meta:
 | `reference/repo_canonical_map.md` | Canonical daily surfaces vs deep-dive/archive surfaces |
 | `reference/repo_hold_inventory_2026-08-18.md` | Hold ledger for unresolved cleanup/reorg candidates |
 | `reference/repo_quality_passthrough_report_2026-08-18.md` | Latest keep/hold/delete passthrough report |
+| `reference/repo_quality_passthrough_report_2026-08-21.md` | Latest repository-wide documentation and hygiene sweep |
 | `reference/post_freeze_holdout.md` | Post-lock holdout protocol + latest scores |
 | `reference/lineup_train_serve.md` | Historical first-9-by-PA vs live announced lineup |
 | `reference/live_assembly_plan.md` | Live slate assembly → log / odds / CLV |
@@ -53,6 +54,13 @@ Meta:
 
 Ops runbook: `../production/README.md`.
 Canonical command routing: `../production/INDEX.md` and `../production/RUNBOOK.md`.
+
+Current production scorer posture:
+
+- k-rate path: live ensemble config at `production/ops/live_krate_ensemble.json`
+- policy mode: conservative routing documented in `production/README.md`
+- model governance artifacts: `artifacts/odds_log/ensemble_sweep_*` and
+  `artifacts/odds_log/open_top3_transfer_*`
 
 Generated research + paper-trading artifacts live under `../artifacts/`
 (gitignored): `projection_log/`, `odds_log/`, models, fold CSVs.

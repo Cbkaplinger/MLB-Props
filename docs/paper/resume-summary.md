@@ -26,7 +26,8 @@ This project demonstrates a blended profile across:
 
 | Component | Model | Role |
 |---|---|---|
-| Strikeout rate | Unweighted LightGBM (184 features) | Frozen production rate model |
+| Strikeout rate (single-model baseline) | Unweighted LightGBM (184 features) | Prior frozen production baseline |
+| Strikeout rate (live) | Weighted 3-model LightGBM blend | Active production scorer (`live_krate_ensemble.json`) |
 | Batters faced (TBF) | Ridge (thin bullpen, 24 features) | Projected exposure |
 | Counts / lines | Binomial / Poisson on projected TBF | Expected K and P(K ≥ L) |
 
@@ -49,9 +50,48 @@ This project demonstrates a blended profile across:
 
 ---
 
+## Aug 2026 quant-governance expansion (new)
+
+This project moved beyond a single freeze-vs-baseline comparison into a
+portfolio-style governance framework with strict fairness controls:
+
+- full open-universe replay lane,
+- segment-aware calibration correction,
+- deduped one-opportunity-one-bet robustness checks,
+- open-to-manual calibration transfer for top ensembles,
+- live production wiring to the best current manual-lane blend.
+
+**High-signal results from current artifacts**
+
+- Deduped full sweep winner (`ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv`):
+  - blend `0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58`
+  - ROI `0.6612`, Sharpe `0.9468`, Sortino `0.6954`, bets `35`
+  - Brier/LogLoss skill vs market: `+0.0825 / +0.0645`
+- Manual transfer winner (`open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`):
+  - blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`
+  - ROI `0.4363`, PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, max DD `0.1905`
+  - Brier/LogLoss skill vs market: `+0.2069 / +0.1551`
+- Duplicate-ticket diagnostics explicitly tracked: `123` duplicate groups, `246` duplicate tickets in manual-set audits.
+
+**What this signals professionally**
+
+- I can move from model building to production governance with explicit
+  reproducibility and policy controls.
+- I treat ranking metrics, realized PnL/risk, calibration, and execution quality
+  as separate but connected decision layers.
+- I maintain audit trails through exported artifacts, overlap tables, and
+  config-driven deployment.
+
+---
+
 ## Resume-ready takeaway
 
-Leakage-safe Statcast -> rate x exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). A live CLV pilot against real sportsbook markets is running under pre-registered statistical gates and remains decision-inconclusive at manuscript freeze.
+Leakage-safe Statcast -> rate x exposure stack with nested chronological
+selection, then scaled into a quant-governed production system with open-market
+replay, deduped fairness controls, transfer calibration, and live ensemble
+deployment. The stack clears a Marcel-lite talent floor on chronological test,
+shows positive market-skill deltas in current governance lanes, and runs under
+explicit CI/gate discipline without overstating unresolved live-edge evidence.
 
 **Portfolio claim:** production-minded ML engineering under a strict information constraint, strengthened by statistical rigor and quant-style decision governance.
 

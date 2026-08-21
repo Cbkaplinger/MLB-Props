@@ -429,6 +429,45 @@ Until those triggers hold together, results are classified as **ongoing monitori
 
 ---
 
+### 8.7 Aug 2026 production-upgrade addendum (quant governance expansion)
+
+This addendum records a materially larger post-freeze governance pass: broader
+search coverage, stricter fairness controls, transfer calibration, and direct
+production wiring.
+
+**What was added (artifact-backed).**
+
+1. **Full open-universe counterfactual lane** over 2025-2026 snapshots (`artifacts/odds_log/open_snapshot_counterfactual_*.{csv,json}`), scored with market-skill and quant-risk metrics.
+2. **Segment-aware correction layer** keyed by `(line, over_price_bucket, maturity_bucket)` with shrinkage + caps (`line_price_correction_table_segmented.parquet` + summary JSON), applied before edge/floor checks.
+3. **Deduped one-opportunity-one-bet fairness lane** for manual replay, including duplicate diagnostics (123 duplicate groups, 246 duplicate tickets in the evaluated manual set).
+4. **Open-to-manual calibration transfer** of top ensembles with pick-level exports and overlap diagnostics (`open_top3_transfer_bestfloor_picks_*`, `open_top3_transfer_bestfloor_overlap_*`).
+5. **Live ensemble activation path** in scoring runtime via `production/ops/live_krate_ensemble.json` and `src/Python/live_assembly.py` (single-model fallback retained).
+
+**Search coverage and winners (two-lane view).**
+
+- **Deduped full-universe sweep winner** (`ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv`):
+  - blend: `0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58`
+  - floor: `0.07`, bets: `35`
+  - ROI: `0.6612`, Sharpe: `0.9468`, Sortino: `0.6954`
+  - skill: `brier_skill_vs_market=+0.0825`, `logloss_skill_vs_market=+0.0645`
+- **Manual transfer winner after open-fit isotonic calibration** (`open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`):
+  - blend: `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`
+  - floor: `0.12`, bets: `26`, stake: `2770.08`, PnL: `1208.55`
+  - ROI: `0.4363`, Sharpe: `0.4438`, Sortino: `0.4277`, max drawdown: `0.1905`
+  - skill: `brier_skill_vs_market=+0.2069`, `logloss_skill_vs_market=+0.1551`
+
+**Interpretation.** The two winners differ because they answer different
+questions: broad deduped sweep profitability vs strict top-transfer robustness
+after open-panel calibration. Both remain market-skill positive and materially
+outperform nearby challengers on the same evaluation definitions.
+
+**Operationalization note.** Current production uses the manual-transfer winner
+blend through `production/ops/live_krate_ensemble.json`, with explicit member
+artifacts and unchanged TBF/count-layer backbone. This is an execution policy
+upgrade under governance, not a claim of permanent market inefficiency.
+
+---
+
 
 
 ## 9. Limitations

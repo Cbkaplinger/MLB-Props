@@ -42,12 +42,12 @@ if (-not $SkipGradeAllLogged) {
     Run-Step "2 grade_all_logged" @("production/projections/grade_projections.py", "--all-logged", "--preferred-only")
 }
 if (-not $SkipOddsBoard) {
-    $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "balanced")
+    $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative")
     if ($QuietBoard) { $boardArgs += "--quiet" }
     Run-Step "3 odds_board" $boardArgs
 }
 if (-not $SkipOpenPoll) {
-    Run-Step "4 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--from-recommendations")
+    Run-Step "4 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--roi-mode", "conservative", "--from-recommendations")
 }
 if (-not $SkipLedgerStatus) {
     Run-Step "5 ledger_status" @("production/odds/grade_odds_ledger.py", "--status")
