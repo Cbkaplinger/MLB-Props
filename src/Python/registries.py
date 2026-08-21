@@ -15,6 +15,7 @@ safety-gated allow-list. Ridge uses the separate VIF registry.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -30,6 +31,36 @@ FEATURE_SETS = (
     "step7_185",
     "pre_freeze_248",
     "ridge_vif",
+    "research_csw_finish_all",
+    "research_csw_finish_p5",
+    "research_csw_finish_p10",
+    "research_csw_finish_p20",
+    "research_xwoba_luck_all",
+    "production_plus_xwoba_luck",
+    "production_plus_xwoba_luck_air_profile_p5",
+    "production_sparse40",
+    "production_sparse72",
+    "production_sparse72_monotone",
+    "production_oof72",
+    "production_oof72_monotone",
+    "production_stable12",
+    "production_refine_keep12",
+    "production_refine_balanced30",
+    "production_final42_fast",
+    "production_final58_consensus",
+    "production_final58_refined",
+    "production_final58_greedy_refined",
+    "production_final58_combo_refined",
+    "production_frontier60_aug20",
+    "production_frontier42_aug20",
+    "research_air_profile_all",
+    "research_air_profile_p5",
+    "research_air_profile_p10",
+    "research_air_profile_p20",
+    "research_interactions_all",
+    "research_interactions_p5",
+    "research_interactions_p10",
+    "research_interactions_p20",
 )
 
 # Phase-3 / 2026-08-03 LGBM lift nominees (nested both-fold + 2025 confirm).
@@ -68,10 +99,99 @@ _P1_SWAP_ADD = tuple(f"{stem}_P1" for stem in sorted(_P1_PHYSICS_SWAP_STEMS))
 # Ridge VIF proposal amendment (Step 1): drop xFIP when FIP already represents
 # the cluster; keep xwOBA_P5 and accept one residual VIF > 10.
 _RIDGE_VIF_EXPLICIT_DROPS = frozenset({"xFIP_P5"})
+_CSW_FINISH_STEMS = (
+    "two_strike_csw_rate",
+    "csw_two_strike_gap",
+    "csw_putaway_gap",
+    "k_minus_swstr_x2",
+)
+_XWOBA_LUCK_STEM = "xwoba_minus_woba"
+_AIR_PROFILE_STEMS = (
+    "pull_air_allowed_rate",
+    "oppo_air_allowed_rate",
+    "center_air_allowed_rate",
+    "iffb_rate",
+)
+_INTERACTION_STEMS = (
+    "two_strike_csw_rate",
+    "csw_two_strike_gap",
+    "csw_putaway_gap",
+    "two_strike_csw_minus_first_pitch",
+    "putaway_over_two_strike_reach",
+    "k_minus_swstr_x2",
+    "xwoba_minus_woba",
+    "xba_minus_hit_rate",
+    "xba_minus_babip",
+    "zone_swstr_interaction",
+    "chase_whiff_interaction",
+    "hr_fb_minus_luck_proxy",
+    "hit_rate",
+    "hr_fb_rate",
+)
 
 _DICTIONARY_PATH = config.OUTPUT_DIR / "feature_research" / "feature_dictionary.csv"
 _VIF_REDUCED_PATH = (
     config.OUTPUT_DIR / "feature_research" / "vif_reduced_features.csv"
+)
+_SPARSE40_ATTRIBUTION_PATH = (
+    config.OUTPUT_DIR / "model_quality" / "deep_feature_review" / "legacy_feature_attribution.csv"
+)
+_SPARSE40_STABILITY_SUMMARY_PATH = (
+    config.OUTPUT_DIR / "model_quality" / "deep_feature_review" / "production_sparse40_stability_summary.json"
+)
+_OOF72_RANKING_PATH = (
+    config.OUTPUT_DIR / "model_quality" / "anti_leak_final_suite" / "oof_permutation_ranking.csv"
+)
+_REFINE_TOP220_DIR = (
+    config.OUTPUT_DIR / "model_quality" / "full_feature_importance_screen" / "refine_top220"
+)
+_REFINE_KEEP12_PATH = _REFINE_TOP220_DIR / "recommended_top72_features.csv"
+_REFINE_BALANCED30_PATH = _REFINE_TOP220_DIR / "recommended_balanced_features.csv"
+_FINAL42_FAST_PATH = (
+    config.OUTPUT_DIR
+    / "model_quality"
+    / "final_feature_dataset_search"
+    / "fast_targeted"
+    / "best_features.csv"
+)
+_FINAL58_CONSENSUS_PATH = (
+    config.OUTPUT_DIR
+    / "model_quality"
+    / "final_feature_dataset_search"
+    / "consensus_v1_phase2_deep"
+    / "best_features.csv"
+)
+_FINAL58_REFINED_PATH = (
+    config.OUTPUT_DIR
+    / "model_quality"
+    / "final58_refined_registry"
+    / "best_features.csv"
+)
+_FINAL58_GREEDY_REFINED_PATH = (
+    config.OUTPUT_DIR
+    / "model_quality"
+    / "final58_greedy_refined_registry"
+    / "best_features.csv"
+)
+_FINAL58_COMBO_REFINED_PATH = (
+    config.OUTPUT_DIR
+    / "model_quality"
+    / "final58_combo_refined_registry"
+    / "best_features.csv"
+)
+_FRONTIER60_AUG20_PATH = (
+    config.OUTPUT_DIR
+    / "model_quality"
+    / "final_feature_dataset_search"
+    / "frontier_focus_aug20"
+    / "best_features.csv"
+)
+_FRONTIER42_AUG20_PATH = (
+    config.OUTPUT_DIR
+    / "model_quality"
+    / "final_feature_dataset_search"
+    / "frontier_aug20"
+    / "best_features.csv"
 )
 
 
@@ -204,6 +324,332 @@ def ridge_vif_features(frame: pd.DataFrame) -> tuple[str, ...]:
     return validate_pregame_features(selected)
 
 
+def _research_stem_features(
+    frame: pd.DataFrame,
+    *,
+    stems: tuple[str, ...],
+    suffixes: tuple[str, ...],
+) -> tuple[str, ...]:
+    base = list(production_features(frame))
+    base_set = set(base)
+    extras: list[str] = []
+    for stem in stems:
+        for suffix in suffixes:
+            col = f"{stem}_{suffix}"
+            if col in frame.columns and col not in base_set:
+                extras.append(col)
+                base_set.add(col)
+    return validate_pregame_features([*base, *extras])
+
+
+def research_csw_finish_all_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_CSW_FINISH_STEMS,
+        suffixes=("P5", "P10", "P20", "std"),
+    )
+
+
+def research_csw_finish_p5_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_CSW_FINISH_STEMS,
+        suffixes=("P5",),
+    )
+
+
+def research_csw_finish_p10_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_CSW_FINISH_STEMS,
+        suffixes=("P10",),
+    )
+
+
+def research_csw_finish_p20_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_CSW_FINISH_STEMS,
+        suffixes=("P20",),
+    )
+
+
+def research_xwoba_luck_all_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=(_XWOBA_LUCK_STEM,),
+        suffixes=("P5", "P10", "P20", "std"),
+    )
+
+
+def production_plus_xwoba_luck_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Production candidate: add xwOBA-luck residual windows to production."""
+    return _research_stem_features(
+        frame,
+        stems=(_XWOBA_LUCK_STEM,),
+        suffixes=("P5", "P10", "P20", "std"),
+    )
+
+
+def production_plus_xwoba_luck_air_profile_p5_features(
+    frame: pd.DataFrame,
+) -> tuple[str, ...]:
+    """Production candidate: production + xwOBA luck + air profile P5 only."""
+    return _research_stem_features(
+        frame,
+        stems=(_XWOBA_LUCK_STEM, *_AIR_PROFILE_STEMS),
+        suffixes=("P5",),
+    )
+
+
+def production_sparse40_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Sparse production candidate from legacy production SHAP ranking (top-40)."""
+    if not _SPARSE40_ATTRIBUTION_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing {_SPARSE40_ATTRIBUTION_PATH}. Run deep_feature_review first."
+        )
+    ranked = pd.read_csv(_SPARSE40_ATTRIBUTION_PATH)
+    if "feature" not in ranked.columns:
+        raise ValueError(f"{_SPARSE40_ATTRIBUTION_PATH} must contain 'feature'")
+    prod = set(production_features(frame))
+    selected: list[str] = []
+    for feature in ranked["feature"].astype(str).tolist():
+        if feature in prod and feature not in selected:
+            selected.append(feature)
+        if len(selected) >= 40:
+            break
+    if len(selected) < 40:
+        raise ValueError(
+            f"Expected at least 40 production-ranked features, got {len(selected)}"
+        )
+    return validate_pregame_features(selected)
+
+
+def production_sparse72_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Sparse production candidate from legacy production SHAP ranking (top-72)."""
+    if not _SPARSE40_ATTRIBUTION_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing {_SPARSE40_ATTRIBUTION_PATH}. Run deep_feature_review first."
+        )
+    ranked = pd.read_csv(_SPARSE40_ATTRIBUTION_PATH)
+    if "feature" not in ranked.columns:
+        raise ValueError(f"{_SPARSE40_ATTRIBUTION_PATH} must contain 'feature'")
+    prod = set(production_features(frame))
+    selected: list[str] = []
+    for feature in ranked["feature"].astype(str).tolist():
+        if feature in prod and feature not in selected:
+            selected.append(feature)
+        if len(selected) >= 72:
+            break
+    if len(selected) < 72:
+        raise ValueError(
+            f"Expected at least 72 production-ranked features, got {len(selected)}"
+        )
+    return validate_pregame_features(selected)
+
+
+def production_oof72_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Sparse production candidate from nested inner OOF permutation ranking (top-72)."""
+    if not _OOF72_RANKING_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing {_OOF72_RANKING_PATH}. Run anti_leak_final_suite first."
+        )
+    ranked = pd.read_csv(_OOF72_RANKING_PATH)
+    if "feature" not in ranked.columns:
+        raise ValueError(f"{_OOF72_RANKING_PATH} must contain 'feature'")
+    prod = set(production_features(frame))
+    selected: list[str] = []
+    for feature in ranked["feature"].astype(str).tolist():
+        if feature in prod and feature not in selected:
+            selected.append(feature)
+        if len(selected) >= 72:
+            break
+    if len(selected) < 72:
+        raise ValueError(
+            f"Expected at least 72 production-ranked features, got {len(selected)}"
+        )
+    return validate_pregame_features(selected)
+
+
+def production_stable12_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Stable-core candidate from sparse40 permutation stability filter."""
+    if not _SPARSE40_STABILITY_SUMMARY_PATH.exists():
+        raise FileNotFoundError(
+            "Missing sparse40 stability summary. Run sparse40_stability_filter first: "
+            f"{_SPARSE40_STABILITY_SUMMARY_PATH}"
+        )
+    payload = json.loads(_SPARSE40_STABILITY_SUMMARY_PATH.read_text(encoding="utf-8"))
+    stable = payload.get("stable_features", [])
+    if not isinstance(stable, list):
+        raise ValueError(
+            f"{_SPARSE40_STABILITY_SUMMARY_PATH} must contain list field 'stable_features'"
+        )
+    selected = [str(feature) for feature in stable if str(feature) in frame.columns]
+    if len(selected) < 8:
+        raise ValueError(
+            "production_stable12 expected at least 8 stable features present on frame; "
+            f"found {len(selected)}"
+        )
+    return validate_pregame_features(selected)
+
+
+def _feature_list_from_csv(path: Path, frame: pd.DataFrame, *, label: str) -> tuple[str, ...]:
+    if not path.exists():
+        raise FileNotFoundError(f"Missing {path}. Run refinement screening first for {label}.")
+    table = pd.read_csv(path)
+    if "feature" not in table.columns:
+        raise ValueError(f"{path} must contain 'feature'")
+    selected = [str(f) for f in table["feature"].tolist() if str(f) in frame.columns]
+    if not selected:
+        raise ValueError(f"{label} resolved zero in-frame features from {path}")
+    return validate_pregame_features(selected)
+
+
+def production_refine_keep12_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Strict shortlist from refine_top220 keep criteria."""
+    return _feature_list_from_csv(
+        _REFINE_KEEP12_PATH,
+        frame,
+        label="production_refine_keep12",
+    )
+
+
+def production_refine_balanced30_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Balanced shortlist from refine_top220 keep criteria."""
+    return _feature_list_from_csv(
+        _REFINE_BALANCED30_PATH,
+        frame,
+        label="production_refine_balanced30",
+    )
+
+
+def production_final42_fast_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Best MAE candidate from fast targeted LGBM-only feature dataset search."""
+    return _feature_list_from_csv(
+        _FINAL42_FAST_PATH,
+        frame,
+        label="production_final42_fast",
+    )
+
+
+def production_final58_consensus_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Best expected-K MAE feature set from merged-pool consensus search."""
+    return _feature_list_from_csv(
+        _FINAL58_CONSENSUS_PATH,
+        frame,
+        label="production_final58_consensus",
+    )
+
+
+def production_final58_refined_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Refined final58 with targeted rolling-window swap improvements."""
+    return _feature_list_from_csv(
+        _FINAL58_REFINED_PATH,
+        frame,
+        label="production_final58_refined",
+    )
+
+
+def production_final58_greedy_refined_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Greedy-refined final58 using one-swap-at-a-time walk-forward gains."""
+    return _feature_list_from_csv(
+        _FINAL58_GREEDY_REFINED_PATH,
+        frame,
+        label="production_final58_greedy_refined",
+    )
+
+
+def production_final58_combo_refined_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Combo-refined final58 from constrained 1-3 swap neighborhood search."""
+    return _feature_list_from_csv(
+        _FINAL58_COMBO_REFINED_PATH,
+        frame,
+        label="production_final58_combo_refined",
+    )
+
+
+def production_frontier60_aug20_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Frontier-selected best set from focused size/window search (Aug 20)."""
+    return _feature_list_from_csv(
+        _FRONTIER60_AUG20_PATH,
+        frame,
+        label="production_frontier60_aug20",
+    )
+
+
+def production_frontier42_aug20_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Frontier winner from broad size/window search (Aug 20)."""
+    return _feature_list_from_csv(
+        _FRONTIER42_AUG20_PATH,
+        frame,
+        label="production_frontier42_aug20",
+    )
+
+
+def research_air_profile_all_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_AIR_PROFILE_STEMS,
+        suffixes=("P5", "P10", "P20", "std"),
+    )
+
+
+def research_air_profile_p5_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_AIR_PROFILE_STEMS,
+        suffixes=("P5",),
+    )
+
+
+def research_air_profile_p10_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_AIR_PROFILE_STEMS,
+        suffixes=("P10",),
+    )
+
+
+def research_air_profile_p20_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_AIR_PROFILE_STEMS,
+        suffixes=("P20",),
+    )
+
+
+def research_interactions_all_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_INTERACTION_STEMS,
+        suffixes=("P5", "P10", "P20", "std"),
+    )
+
+
+def research_interactions_p5_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_INTERACTION_STEMS,
+        suffixes=("P5",),
+    )
+
+
+def research_interactions_p10_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_INTERACTION_STEMS,
+        suffixes=("P10",),
+    )
+
+
+def research_interactions_p20_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    return _research_stem_features(
+        frame,
+        stems=_INTERACTION_STEMS,
+        suffixes=("P20",),
+    )
+
+
 def resolve_feature_names(
     frame: pd.DataFrame,
     feature_set: str = "production",
@@ -221,7 +667,63 @@ def resolve_feature_names(
         return step7_185_features(frame)
     if feature_set == "pre_freeze_248":
         return pre_freeze_248_features(frame)
-    return ridge_vif_features(frame)
+    if feature_set == "ridge_vif":
+        return ridge_vif_features(frame)
+    if feature_set == "research_csw_finish_all":
+        return research_csw_finish_all_features(frame)
+    if feature_set == "research_csw_finish_p5":
+        return research_csw_finish_p5_features(frame)
+    if feature_set == "research_csw_finish_p10":
+        return research_csw_finish_p10_features(frame)
+    if feature_set == "research_csw_finish_p20":
+        return research_csw_finish_p20_features(frame)
+    if feature_set == "research_xwoba_luck_all":
+        return research_xwoba_luck_all_features(frame)
+    if feature_set == "production_plus_xwoba_luck":
+        return production_plus_xwoba_luck_features(frame)
+    if feature_set == "production_plus_xwoba_luck_air_profile_p5":
+        return production_plus_xwoba_luck_air_profile_p5_features(frame)
+    if feature_set == "production_sparse40":
+        return production_sparse40_features(frame)
+    if feature_set in {"production_sparse72", "production_sparse72_monotone"}:
+        return production_sparse72_features(frame)
+    if feature_set in {"production_oof72", "production_oof72_monotone"}:
+        return production_oof72_features(frame)
+    if feature_set == "production_stable12":
+        return production_stable12_features(frame)
+    if feature_set == "production_refine_keep12":
+        return production_refine_keep12_features(frame)
+    if feature_set == "production_refine_balanced30":
+        return production_refine_balanced30_features(frame)
+    if feature_set == "production_final42_fast":
+        return production_final42_fast_features(frame)
+    if feature_set == "production_final58_consensus":
+        return production_final58_consensus_features(frame)
+    if feature_set == "production_final58_refined":
+        return production_final58_refined_features(frame)
+    if feature_set == "production_final58_greedy_refined":
+        return production_final58_greedy_refined_features(frame)
+    if feature_set == "production_final58_combo_refined":
+        return production_final58_combo_refined_features(frame)
+    if feature_set == "production_frontier60_aug20":
+        return production_frontier60_aug20_features(frame)
+    if feature_set == "production_frontier42_aug20":
+        return production_frontier42_aug20_features(frame)
+    if feature_set == "research_air_profile_all":
+        return research_air_profile_all_features(frame)
+    if feature_set == "research_air_profile_p5":
+        return research_air_profile_p5_features(frame)
+    if feature_set == "research_air_profile_p10":
+        return research_air_profile_p10_features(frame)
+    if feature_set == "research_air_profile_p20":
+        return research_air_profile_p20_features(frame)
+    if feature_set == "research_interactions_all":
+        return research_interactions_all_features(frame)
+    if feature_set == "research_interactions_p5":
+        return research_interactions_p5_features(frame)
+    if feature_set == "research_interactions_p10":
+        return research_interactions_p10_features(frame)
+    return research_interactions_p20_features(frame)
 
 
 def registry_metadata(feature_set: str, features: tuple[str, ...]) -> dict[str, object]:

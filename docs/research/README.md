@@ -7,6 +7,9 @@ inside each finding file.
 ## Canonical current references
 
 - `step11_discipline_registry_freeze.md` — current production k-rate freeze (184).
+- `final58_consensus_freeze_2026-08-20.md` — consensus merged-pool MAE freeze candidate (58) + ablation.
+- `feature_selection_handoff_2026-08-20.md` — cycle closeout and pre-tuning validation checklist.
+- `experiment_matrix_2026-08-20.md` — canonical run matrix (window, baseline, policy assumptions, outputs).
 - `phase11_model_quality_gates.md` — model-quality gate outcomes and rationale.
 - `prob_calibration_findings.md` — post-hoc Platt/isotonic calibration evidence.
 - `phase_d_population_findings.md` — PA>=9 population and role-label caveats.

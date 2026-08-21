@@ -389,6 +389,14 @@ as-of snapshot; the reference doc is canonical for live thresholds.
 
 Operationally, this pilot is governed through focused KPI, calibration, gate-policy, and PnL/CLV monitoring surfaces, plus side-aware policy sweeps (implementation map in Appendix A).
 
+**Post-freeze addendum (Aug 2026, model-selection lane).** A separate
+open-opportunity holdout compare on 2025 rows (12h pre-pitch market source lane)
+was run across locked feature finalists. In that lane, `production_sparse72_monotone`
+with isotonic calibration ranked first on both `brier_skill_vs_market` and
+`logloss_skill_vs_market` among tested finalists. This is used for model-ranking
+governance before further tuning, while Section 8.5 remains the stance for live
+economic claims.
+
 ---
 
 ### 8.6 Interim operating stance (snapshot at manuscript freeze)
@@ -405,6 +413,7 @@ To keep the manuscript stable while preserving auditability, volatile day-to-day
 
 - edge-floor governance from `kpi_policy` / `results_gate_policy` (current production floor remains 12% unless explicitly re-frozen),
 - quality-gate blocks active (`quality_gate_block`, side/rest/workload checks),
+- open-era calibration controls are allowed only as bounded overlays (line-price offsets, line-aware floors, deploy-matrix ON/OFF segments with recent 14-day drift-flip auto-disable),
 - CLV evidence gates still required before any expansion (`n_clv` sample thresholds and CI-based pass criteria).
 
 **Operational decision (interim).** Continue pilot betting **conservatively** with strict profile gating and modest sizing. Prefer exposures with stable side-level CLV plus realized/expected agreement; maintain tighter over-side selection until over-side CLV is consistently positive on meaningful rolling windows.
@@ -467,6 +476,7 @@ Statcast data can be retrieved per-user via public tools (e.g., pybaseball) rath
 ## Appendix A. Repository map
 
 Internal repository names, paths, and frozen-artifact identifiers are collected here so the body text can stay narrative. They do not change any metric reported above.
+Repository cleanup governance and keep/hold/delete audit protocol are maintained in `docs/reference/repo_canonical_map.md` and `docs/reference/repo_waste_sweep_checklist.md`, with the latest pass report at `docs/reference/repo_quality_passthrough_report_2026-08-18.md`.
 
 ### A.1 Feature-set aliases
 
