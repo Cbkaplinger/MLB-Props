@@ -18,18 +18,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest
+          # deps live in pyproject.toml (no requirements.txt). Tests import
+          # numpy/pandas/polars/scipy; scipy ships in the research extra.
+          python -m pip install ".[dev]" scipy
 
-      - name: Compile critical production scripts
+      - name: Compile all production scripts
         run: |
-          python -m py_compile production/ops/run_daily.py
-          python -m py_compile production/ops/run_monitoring_cycle.py
-          python -m py_compile production/ops/log_model_lineage.py
-          python -m py_compile production/ops/run_post_score_automation.py
-          python -m py_compile production/ops/compare_feature_set_market_skill.py
-          python -m py_compile production/ops/edge_floor_sweep_governance.py
+          # py_compile = syntax check only (no imports executed), safe for
+          # every script under production/ even ones needing polars.
+          set -e
+          while IFS= read -r f; do
+            python -m py_compile "$f"
+          done < <(find production -name "*.py" -print)
 
-      - name: Run focused tests
+      - name: Run full test suite
         run: |
-          pytest -q tests/test_registries.py tests/test_pitcher_rolling.py
+          python -m pytest -q
