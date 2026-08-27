@@ -182,3 +182,31 @@ def test_dedupe_ledger_props_keeps_best_edge_book() -> None:
     assert one.height == 1
     assert float(one["edge"][0]) == max(float(dk["edge"]), float(fd["edge"]))
     assert one["book"][0] == (dk["book"] if float(dk["edge"]) >= float(fd["edge"]) else fd["book"])
+
+
+def test_dedupe_ledger_props_keeps_over_and_under_separate() -> None:
+    # Same player/line but opposite sides are DISTINCT bettable props: they must
+    # NOT be collapsed into one row (the old key lacked ``side`` and merged them).
+    over = _row(book="draftkings", over_price=-120, under_price=+105, p_model_over=0.62)
+    under = _row(book="fanduel", over_price=-115, under_price=+110, p_model_over=0.38)
+    assert over["side"] == "over"
+    assert under["side"] == "under"
+    led = pl.DataFrame([over, under])
+    ded = dedupe_ledger_props(led)
+    assert ded.height == 2
+    assert sorted(ded["side"].to_list()) == ["over", "under"]
+
+
+def test_dedupe_ledger_props_keeps_best_book_per_side() -> None:
+    # Two books on the SAME side collapse to one row (best edge); a second side
+    # on the same line is retained separately.
+    dk_over = _row(book="draftkings", over_price=-120, under_price=104, p_model_over=0.62)
+    fd_over = _row(book="fanduel", over_price=-130, under_price=100, p_model_over=0.62)
+    under = _row(book="novig", over_price=-110, under_price=+100, p_model_over=0.42)
+    led = pl.DataFrame([dk_over, fd_over, under])
+    ded = dedupe_ledger_props(led)
+    assert ded.height == 2
+    assert sorted(ded["side"].to_list()) == ["over", "under"]
+    over_rows = ded.filter(pl.col("side") == "over")
+    assert over_rows.height == 1
+    assert float(over_rows["edge"][0]) == max(float(dk_over["edge"]), float(fd_over["edge"]))

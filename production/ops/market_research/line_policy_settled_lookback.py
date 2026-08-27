@@ -23,12 +23,17 @@ Run (from repo root):
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "src"))
+
+from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
+
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 LEDGER_PATH = ODDS_DIR / "ledger.parquet"
 LINE_FLOOR_PATH = (
@@ -89,7 +94,10 @@ def _load_ledger() -> pl.DataFrame:
     if not LEDGER_PATH.exists():
         raise FileNotFoundError(f"ledger not found: {LEDGER_PATH}")
     df = pl.read_parquet(LEDGER_PATH)
-    return df.filter(pl.col("status") == "settled")
+    settled = df.filter(pl.col("status") == "settled")
+    # One row per (date, player, line, side): keep best-edge book so DK+FD
+    # pairs are not double-counted in line/ROI/side statistics.
+    return dedupe_ledger_props(settled) if not settled.is_empty() else settled
 
 def _risk_flag(roi: float, n: int, floor: float | None) -> str:
     """Diagnostic-only PASS/WARN; never a policy mutation."""

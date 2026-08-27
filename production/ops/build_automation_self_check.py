@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib import parse, request
@@ -13,6 +14,10 @@ import os
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
+
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 OUT_PATH = ODDS_DIR / "automation_self_check_latest.json"
 LEDGER_PATH = ODDS_DIR / "ledger.parquet"
@@ -112,6 +117,10 @@ def _ledger_health(now: datetime) -> dict[str, object]:
             pl.col("game_date").str.to_date("%Y-%m-%d").alias("game_date")
         )
     settled = df.filter(pl.col("status") == "settled")
+    # One prop per (date, player, line, side), best-edge book, so the skill-gate
+    # n and win-rate are honest (no DK+FD double count of the same prop).
+    if not settled.is_empty():
+        settled = dedupe_ledger_props(settled)
 
     max_date = settled["game_date"].max()
     stale = max_date is None or (now.date() - max_date).days > LEDGER_STALE_DAYS

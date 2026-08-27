@@ -19,12 +19,17 @@ Run (from repo root):
 from __future__ import annotations
 
 import json
+import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "src"))
+
+from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
+
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 LEDGER_PATH = ODDS_DIR / "ledger.parquet"
 
@@ -64,6 +69,9 @@ def main() -> None:
 
     ledger = _load_ledger()
     closed = ledger.filter(pl.col("clv_pp").is_not_null())
+    # One row per (date, player, line, side): keep best-edge book so DK+FD
+    # pairs are not double-counted in CLV/beat-rate summary statistics.
+    closed = dedupe_ledger_props(closed) if not closed.is_empty() else closed
 
     all_rows = _as_rows(window_beat_rates(closed), "all")
     # Recent window by game_date (e.g. last 14 calendar days).

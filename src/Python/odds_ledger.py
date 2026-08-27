@@ -631,10 +631,14 @@ def settled_bets(ledger: pl.DataFrame) -> pl.DataFrame:
 def dedupe_ledger_props(ledger: pl.DataFrame) -> pl.DataFrame:
     """One ticket per prop for skill stats / curves (no DK+FD double count).
 
-    Prop key: ``(game_date, pitcher|player_name, line)``.
+    Prop key: ``(game_date, pitcher|player_name, line, side)``.
 
     Keeps the book you'd paper-bet: highest ``edge``, then ``units``.
     Ties break toward same-book close (``ok``) over ``ok_cross_book``.
+
+    ``side`` is part of the key so an over/under pair on the same line is
+    *not* merged (you could bet either side); duplicates are the same prop
+    placed at multiple books (DK+FD) on the same side.
 
     The per-book detail table can still show every ticket; call this only for
     summary statistics, histograms, and threshold curves.
@@ -660,6 +664,11 @@ def dedupe_ledger_props(ledger: pl.DataFrame) -> pl.DataFrame:
     else:
         return ledger
 
+    if "side" in df.columns:
+        df = df.with_columns(pl.col("side").cast(pl.Utf8).str.to_lowercase().alias("_prop_side"))
+    else:
+        df = df.with_columns(pl.lit("").alias("_prop_side"))
+
     close_rank = (
         pl.when(pl.col("close_status") == "ok")
         .then(0)
@@ -674,8 +683,8 @@ def dedupe_ledger_props(ledger: pl.DataFrame) -> pl.DataFrame:
     )
 
     ranked = df.with_columns(pid, close_rank)
-    sort_keys = ["_prop_d", "_prop_pid"]
-    sort_desc: list[bool] = [False, False]
+    sort_keys = ["_prop_d", "_prop_pid", "_prop_side"]
+    sort_desc: list[bool] = [False, False, False]
     if "line" in ranked.columns:
         sort_keys.append("line")
         sort_desc.append(False)
@@ -689,9 +698,11 @@ def dedupe_ledger_props(ledger: pl.DataFrame) -> pl.DataFrame:
     sort_desc.append(False)
 
     ranked = ranked.sort(sort_keys, descending=sort_desc)
-    subset = ["_prop_d", "_prop_pid"] + (["line"] if "line" in ranked.columns else [])
+    subset = ["_prop_d", "_prop_pid", "_prop_side"] + (
+        ["line"] if "line" in ranked.columns else []
+    )
     out = ranked.unique(subset=subset, keep="first")
-    return out.drop([c for c in ("_prop_d", "_prop_pid", "_close_rank") if c in out.columns])
+    return out.drop([c for c in ("_prop_d", "_prop_pid", "_prop_side", "_close_rank") if c in out.columns])
 
 
 def run_threshold_curve(
