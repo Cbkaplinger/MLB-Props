@@ -23,7 +23,9 @@ function Run-Step {
 Write-Host "Starting market refresh in $repoRoot"
 
 $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative")
-if ($QuietBoard) { $boardArgs += "--quiet" }
+if ($QuietBoard) {
+    Write-Warning "QuietBoard requested, but odds_board.py has no --quiet flag; running with normal output."
+}
 Run-Step "1 odds_board" $boardArgs
 Run-Step "2 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--roi-mode", "conservative", "--from-recommendations")
 Run-Step "3 ledger_status" @("production/odds/grade_odds_ledger.py", "--status")

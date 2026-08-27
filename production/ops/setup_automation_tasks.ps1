@@ -5,6 +5,9 @@ param(
     [string]$WatcherStartTime = "11:30",
     [string]$WatcherWatchdogTime = "12:15",
     [string]$SettleTime = "03:00",
+    [string]$SettleBackfillStartTime = "04:00",
+    [int]$SettleBackfillRepeatMinutes = 60,
+    [string]$SettleBackfillDuration = "08:00",
     [string]$AutomationSelfCheckTime = "08:50",
     [switch]$RunWhetherLoggedOn,
     [string]$TaskUser = "",
@@ -140,6 +143,7 @@ New-Or-UpdateTask -TaskName "MLBProps_SecondRefresh" -StartTime $SecondRefreshTi
 New-Or-UpdateTask -TaskName "MLBProps_CloseWatcherStart" -StartTime $WatcherStartTime -ScriptPath $watcherScript
 New-Or-UpdateRepeatingTask -TaskName "MLBProps_CloseWatcherWatchdog" -StartTime $WatcherWatchdogTime -ScriptPath (Join-Path $repoRoot "production\ops\watch_close_watcher_health.ps1") -RepeatMinutes 60 -Duration "12:00"
 New-Or-UpdateTask -TaskName "MLBProps_EndOfDaySettle" -StartTime $SettleTime -ScriptPath $settleScript
+New-Or-UpdateRepeatingTask -TaskName "MLBProps_EndOfDaySettleBackfill" -StartTime $SettleBackfillStartTime -ScriptPath $settleScript -RepeatMinutes $SettleBackfillRepeatMinutes -Duration $SettleBackfillDuration
 New-Or-UpdatePythonTask -TaskName "MLBProps_AutomationSelfCheck" -StartTime $AutomationSelfCheckTime -ScriptPath $selfCheckScript
 
 # Apply reliable-run settings now that the tasks exist (so the running/scheduled
@@ -154,6 +158,7 @@ Write-Host " - MLBProps_SecondRefresh @ $SecondRefreshTime"
 Write-Host " - MLBProps_CloseWatcherStart @ $WatcherStartTime"
 Write-Host " - MLBProps_CloseWatcherWatchdog @ $WatcherWatchdogTime"
 Write-Host " - MLBProps_EndOfDaySettle @ $SettleTime"
+Write-Host " - MLBProps_EndOfDaySettleBackfill @ $SettleBackfillStartTime (every ${SettleBackfillRepeatMinutes}m for $SettleBackfillDuration)"
 Write-Host " - MLBProps_AutomationSelfCheck @ $AutomationSelfCheckTime"
 Write-Host ""
 Write-Host "Run-no-matter-what configured: wake-from-sleep + allow-on-battery + don't-stop-on-battery."

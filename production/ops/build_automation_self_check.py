@@ -21,6 +21,7 @@ TASKS = [
     "MLBProps_CloseWatcherStart",
     "MLBProps_CloseWatcherWatchdog",
     "MLBProps_EndOfDaySettle",
+    "MLBProps_EndOfDaySettleBackfill",
 ]
 
 KEY_FILES = [
@@ -57,7 +58,15 @@ def _task_status(task_name: str) -> dict[str, str]:
     return row
 
 
-_NOT_RUN_RESULTS = {"", "0", "0x0", "267009"}  # 0x41301 == "task has not yet run"
+_NOT_RUN_RESULTS = {
+    "",
+    "0",
+    "0x0",
+    "267009",  # 0x41301 == task is currently running
+    "267011",  # 0x41303 == task has not yet run
+    "0x41301",
+    "0x41303",
+}
 
 
 def _is_task_healthy(row: dict[str, str]) -> bool:
