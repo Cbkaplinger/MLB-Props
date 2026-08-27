@@ -10,9 +10,20 @@ from pathlib import Path
 from urllib import parse, request
 import os
 
+import polars as pl
+
 ROOT = Path(__file__).resolve().parents[2]
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 OUT_PATH = ODDS_DIR / "automation_self_check_latest.json"
+LEDGER_PATH = ODDS_DIR / "ledger.parquet"
+
+# Pre-registered real-bankroll win-rate bar (see market_clv_gates.md).
+BANKROLL_WR_BAR = 0.524
+# n_clv at floor >= 12% required before any floor/Kelly move (market_clv_gates).
+SKILL_GATE_N = 150
+SKILL_GATE_FLOOR = 0.12
+# Days without a newly-settled game date before we flag the ledger as stale.
+LEDGER_STALE_DAYS = 3
 
 TASKS = [
     "MLBProps_MorningWorkflow",
@@ -84,6 +95,64 @@ def _is_task_healthy(row: dict[str, str]) -> bool:
     return True
 
 
+def _ledger_health(now: datetime) -> dict[str, object]:
+    """Freshness + skill-gate progress on the settled ledger (read-only)."""
+    base: dict[str, object] = {
+        "ledger_exists": False,
+        "stale": False,
+        "skill_gate": None,
+        "freshness": None,
+    }
+    if not LEDGER_PATH.exists():
+        return base
+
+    df = pl.read_parquet(LEDGER_PATH)
+    if df["game_date"].dtype == pl.String:
+        df = df.with_columns(
+            pl.col("game_date").str.to_date("%Y-%m-%d").alias("game_date")
+        )
+    settled = df.filter(pl.col("status") == "settled")
+
+    max_date = settled["game_date"].max()
+    stale = max_date is None or (now.date() - max_date).days > LEDGER_STALE_DAYS
+
+    freshness: dict[str, object] = {
+        "n_settled": int(settled.height),
+        "last_game_date": str(max_date) if max_date is not None else None,
+        "days_since_last_settled": (
+            None if max_date is None else (now.date() - max_date).days
+        ),
+        "stale": stale,
+    }
+
+    # Skill gate: n_clv at edge>=12%, mean CLV, beat-rate, and WR vs bankroll bar.
+    skill: dict[str, object] | None = None
+    clv_rows = settled.filter(
+        pl.col("clv_pp").is_not_null() & (pl.col("edge") >= SKILL_GATE_FLOOR)
+    )
+    if clv_rows.height:
+        clv = clv_rows["clv_pp"]
+        wins = settled.filter(pl.col("result") == "win").height
+        losses = settled.filter(pl.col("result") == "loss").height
+        wr = wins / (wins + losses) if (wins + losses) else 0.0
+        skill = {
+            "n_clv_at_floor12": int(clv_rows.height),
+            "countdown_to_150": max(SKILL_GATE_N - int(clv_rows.height), 0),
+            "gate_met": int(clv_rows.height) >= SKILL_GATE_N,
+            "mean_clv_pp": round(float(clv.mean()), 6),
+            "beat_close_rate": round(float((clv > 0).mean()), 6),
+            "all_time_win_rate": round(wr, 6),
+            "win_rate_bar": BANKROLL_WR_BAR,
+            "win_rate_passes_bar": wr >= BANKROLL_WR_BAR,
+        }
+
+    base["ledger_exists"] = True
+    base["stale"] = stale
+    base["freshness"] = freshness
+    base["skill_gate"] = skill
+    return base
+
+
 def _send_ntfy(text: str) -> tuple[bool, str]:
     topic = os.getenv("NTFY_TOPIC", "").strip()
     url = os.getenv("NTFY_URL", "").strip()
@@ -129,13 +198,21 @@ def main() -> None:
     unhealthy = [r for r in task_rows if not _is_task_healthy(r)]
 
     missing_files = [str(fp) for fp in KEY_FILES if not fp.exists()]
-    status = "ok" if not unhealthy and not missing_files else "risk"
+    ledger_health = _ledger_health(now)
+    stale_ledger = bool(ledger_health.get("stale"))
+    status = (
+        "ok"
+        if not unhealthy and not missing_files and not stale_ledger
+        else "risk"
+    )
 
     payload: dict[str, object] = {
         "snapshot_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "status": status,
         "unhealthy_tasks": unhealthy,
         "missing_files": missing_files,
+        "stale_ledger": stale_ledger,
+        "ledger_health": ledger_health,
         "tasks": task_rows,
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -144,7 +221,9 @@ def main() -> None:
     if status != "ok" and args.notify_on_red:
         text = (
             "Automation self-check RISK\n"
-            f"unhealthy_tasks={len(unhealthy)} missing_files={len(missing_files)}\n"
+            f"unhealthy_tasks={len(unhealthy)} "
+            f"missing_files={len(missing_files)} "
+            f"stale_ledger={stale_ledger}\n"
             f"see {OUT_PATH}"
         )
         nt_ok, _ = _send_ntfy(text)

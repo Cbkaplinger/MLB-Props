@@ -32,3 +32,5 @@ env/
 _cw_full.diff
 _q.py
 close_watcher.pre_split_backup.py
+# Evergreen directive/backlog — keep local, never track in git
+docs/EXECUTION_BACKLOG.md

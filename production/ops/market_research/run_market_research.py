@@ -23,6 +23,8 @@ STEPS = [
     ("apply calibration policy", "production/ops/market_research/apply_calibration_policy.py"),
     ("probability scoring report", "production/ops/market_research/build_prob_scoring_report.py"),
     ("calibration deploy matrix", "production/ops/market_research/build_calibration_deploy_matrix.py"),
+    ("clv basis reconcile", "production/ops/market_research/clv_basis_reconcile.py"),
+    ("line policy settled lookback", "production/ops/market_research/line_policy_settled_lookback.py"),
 ]
 
 

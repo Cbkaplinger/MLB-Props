@@ -79,7 +79,9 @@ def test_load_frame_excludes_holdout_season(
     ).to_parquet(path)
     monkeypatch.setattr(module, "PITCHER_TRAINING_PATH", path)
 
-    frame, features = module.load_frame()
+    # Use pre_freeze_248 so this test isolates holdout-season exclusion without
+    # coupling to the full production registry's P1/lineup-discipline columns.
+    frame, features = module.load_frame(feature_set="pre_freeze_248")
 
     assert tuple(frame["season"]) == module.TRAIN_SEASONS
     assert features == ["k_rate_P5"]

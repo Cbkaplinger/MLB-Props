@@ -78,6 +78,14 @@ def test_level1_validates_requested_season_game_ids(monkeypatch):
             frozenset({100}),
         ),
     )
+    # The raw frame's max date (2025-04-01) precedes the scheduled season end, so
+    # _validate_raw_seasons takes the in-progress branch and consults the
+    # year-to-date PK set. Keep that hermetic too (no network / real schedule).
+    monkeypatch.setattr(
+        games,
+        "ytd_official_game_pks",
+        lambda _year, _pull_end: frozenset({100}),
+    )
 
     games._validate_raw_seasons(raw, (2025,))
 

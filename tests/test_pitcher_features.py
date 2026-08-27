@@ -24,6 +24,7 @@ def _pitch(**over):
         release_extension=6.5, release_pos_x=-1.5, release_pos_z=5.8,
         arm_angle=45.0,
         launch_speed=None, launch_angle=None, launch_speed_angle=None,
+        hc_x=None,
         estimated_ba_using_speedangle=None, estimated_woba_using_speedangle=None,
         woba_value=0.0, woba_denom=1, bat_score=0, post_bat_score=0, zone=5,
         delta_run_exp=0.0, delta_pitcher_run_exp=0.0,
