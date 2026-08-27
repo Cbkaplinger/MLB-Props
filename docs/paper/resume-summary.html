@@ -104,7 +104,8 @@ p.table-caption {
 <body>
 <h1>Pregame Pitcher Strikeout Projection - Resume Project Summary</h1>
 <p><strong>Cameron Kaplinger</strong> - AI Engineer (Data Science background) - Portfolio artifact (updated Aug 2026)</p>
-<p>Companion to the full technical manuscript in <code>docs/paper/manuscript.md</code>.</p>
+<p>Primary project link: <a href="https://github.com/Cbkaplinger/MLB-Props">GitHub repository</a><br>
+Secondary long-form write-up: <a href="https://github.com/Cbkaplinger/MLB-Props/blob/main/docs/paper/manuscript.md">Technical manuscript</a></p>
 <hr>
 <h2>Goal</h2>
 <p>Estimate a starter’s strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K ≥ L) for common prop lines L—using only information available before first pitch:</p>
@@ -113,9 +114,9 @@ p.table-caption {
 <h2>Professional positioning</h2>
 <p>This project demonstrates a blended profile across:</p>
 <ul>
-<li><strong>AI/ML engineering:</strong> end-to-end feature pipeline design, model freeze discipline, reproducible artifact/version controls, and production monitoring hooks.</li>
-<li><strong>Applied statistics:</strong> chronological validation, bootstrap uncertainty intervals, calibration diagnostics, and explicit leakage audits.</li>
-<li><strong>Quant decisioning:</strong> de-vig edge construction, CLV-based pre-registered decision gates, and policy-threshold governance under uncertainty.</li>
+<li><strong>AI/ML engineering:</strong> end-to-end feature pipelines, freeze discipline, and reproducible deployment artifacts.</li>
+<li><strong>Applied statistics:</strong> chronological validation, calibration diagnostics, and leakage-safe modeling controls.</li>
+<li><strong>Quant decisioning:</strong> market-skill ranking, policy-floor governance, and risk-aware deployment gates.</li>
 </ul>
 <hr>
 <h2>Models and headline metrics</h2>
@@ -129,9 +130,9 @@ p.table-caption {
 </thead>
 <tbody>
 <tr>
-<td>Strikeout rate</td>
-<td>Unweighted LightGBM (184 features)</td>
-<td>Frozen production rate model</td>
+<td>Strikeout rate (live)</td>
+<td>Weighted 3-model LightGBM blend</td>
+<td>Active production scorer (<code>live_krate_ensemble.json</code>)</td>
 </tr>
 <tr>
 <td>Batters faced (TBF)</td>
@@ -145,10 +146,9 @@ p.table-caption {
 </tr>
 </tbody>
 </table>
-<p><strong>Frozen rate model</strong> (2023–2024 chronological test): MAE / RMSE / R² ≈ <strong>0.0787 / 0.0987 / 0.147</strong>. Same test: Marcel-lite MAE ≈ <strong>0.0826</strong>; train-mean MAE ≈ <strong>0.0854</strong>.</p>
-<p><strong>Count layer</strong> (projected-TBF exposure): expected-K MAE / RMSE / R² ≈ <strong>1.790 / 2.213 / 0.168</strong>; line Briers roughly <strong>0.12–0.22</strong> (lines 3.5–7.5).</p>
+<p><strong>Active deployment profile:</strong> blend <code>0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58</code>, edge floor <code>0.12</code>, ROI <strong>0.4363</strong>, PnL <strong>1208.55</strong>, Sharpe <strong>0.4438</strong>, Sortino <strong>0.4277</strong>, max drawdown <strong>0.1905</strong>, and market-skill deltas <strong>+0.2069</strong> (Brier) / <strong>+0.1551</strong> (LogLoss).</p>
 <hr>
-<h2>Full-stack evaluation</h2>
+<h2>Full-stack evaluation (production)</h2>
 <table>
 <thead>
 <tr>
@@ -162,28 +162,55 @@ p.table-caption {
 <td>Keep baseline LightGBM defaults; Ridge α tuned and persisted</td>
 </tr>
 <tr>
-<td>Walk-forward stack backtest</td>
-<td>Mean expected-K MAE ≈ <strong>1.778</strong> (3 expanding 2024 windows; σ ≈ 0.036)</td>
-</tr>
-<tr>
-<td>Calibration</td>
-<td>Mean ECE ≈ <strong>0.024</strong> (11.C diagnose); production <strong>Platt</strong> post-hoc on <code>p_over_*</code> (chrono CV ΔECE ≈ −0.008; raw retained). Fit on 2024 walk-forward OOS predictions; not yet refit on 2026 conditions.</td>
+<td>Calibration + probability quality</td>
+<td>Production isotonic path; Brier <code>0.2090</code>, LogLoss <code>0.6087</code>, ECE <code>0.0639</code>, MCE <code>0.1353</code></td>
 </tr>
 <tr>
 <td>Population policy</td>
 <td>Metrics conditional on PA ≥ 9 (~3.5% of first pitchers excluded)</td>
 </tr>
 <tr>
-<td><strong>Live market pilot (exploratory)</strong></td>
-<td>Paper-traded vs. real DK/FD lines with conservative policy gating. Active decision gate uses CLV sample size and CI checks per <code>docs/reference/market_clv_gates.md</code> (current checkpoint: <code>n_clv &gt;= 150</code> plus CI test). <strong>Current status: inconclusive</strong> — mean CLV is positive, but CI still crosses 0 at the current snapshot; not a claim of market edge.</td>
+<td>Exogenous-exit governance</td>
+<td>Source-tagged anomaly overrides + training mask are shipped; current walk-forward A/B effect is neutral under low historical tag density</td>
 </tr>
 </tbody>
 </table>
 <hr>
-<h2>Resume-ready takeaway</h2>
-<p>Leakage-safe Statcast -&gt; rate x exposure stack with nested chronological selection. Clears a Marcel-lite talent floor on chronological test; opponent lineup is the only leave-family-out family with both-fold within-fold bootstrap support. Absolute R² remains limited (~0.15). A live CLV pilot against real sportsbook markets is running under pre-registered statistical gates and remains decision-inconclusive at manuscript freeze.</p>
-<p><strong>Portfolio claim:</strong> production-minded ML engineering under a strict information constraint, strengthened by statistical rigor and quant-style decision governance.</p>
+<h2>Current governance winners</h2>
+<p>High-signal results from current artifacts:</p>
+<ul>
+<li>Open-universe deduped sweep winner (<code>ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv</code>):</li>
+<li>blend <code>0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58</code></li>
+<li>ROI <code>0.6612</code>, Sharpe <code>0.9468</code>, Sortino <code>0.6954</code>, bets <code>35</code></li>
+<li>Brier/LogLoss skill vs market: <code>+0.0825 / +0.0645</code></li>
+<li>Active deployment king (<code>open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json</code>):</li>
+<li>blend <code>0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58</code></li>
+<li>ROI <code>0.4363</code>, PnL <code>1208.55</code>, Sharpe <code>0.4438</code>, Sortino <code>0.4277</code>, max DD <code>0.1905</code></li>
+<li>Brier/LogLoss skill vs market: <code>+0.2069 / +0.1551</code></li>
+<li>Duplicate-ticket diagnostics explicitly tracked: <code>123</code> duplicate groups, <code>246</code> duplicate tickets in manual-set audits.</li>
+</ul>
 <hr>
-<p><em>Full write-up: <code>docs/paper/manuscript.pdf</code></em></p>
+<h2>Resume-ready takeaway</h2>
+<p>Leakage-safe Statcast -&gt; rate x exposure stack with nested chronological
+selection, then scaled into a quant-governed production system with open-market
+replay, deduped fairness controls, transfer calibration, and live ensemble
+deployment. The stack shows positive market-skill deltas in current governance lanes, and runs under
+explicit CI/gate discipline without overstating unresolved live-edge evidence.</p>
+<p><strong>Portfolio claim:</strong> production-minded ML engineering under a strict information constraint, strengthened by statistical rigor and quant-style decision governance.</p>
+<h2>Copy/Paste resume bullets</h2>
+<ul>
+<li>Built a leakage-safe MLB forecasting pipeline over pitch-level Statcast data (Polars + Python), enforcing chronological splits and pregame-only features, then wired it into a governed live decision system.</li>
+<li>Designed and deployed a two-stage prediction stack (<code>k-rate × projected TBF</code>) with isotonic-calibrated line probabilities and artifact-backed governance diagnostics in production.</li>
+<li>Productionized a governed decision engine with isotonic calibration, board-to-ledger parity locks, and execution freshness/coverage gates; hardened daily run reliability with explicit fail-fast controls.</li>
+<li>Led model-selection governance using open-universe counterfactual replay and deduped one-opportunity-one-bet evaluation; top transfer profile delivered <strong>0.436 ROI</strong>, <strong>1208.55 PnL</strong>, and positive market-skill deltas (<code>Brier +0.2069</code>, <code>LogLoss +0.1551</code>) in current artifact-backed replay lanes.</li>
+</ul>
+<h2>Interview framing (30 seconds)</h2>
+<p>I built a production-first sports forecasting system where the hard part was not
+just model accuracy, but controlling leakage, calibration drift, and execution
+quality. The final stack combines a frozen LightGBM ensemble with a projected
+exposure model, then governs decisions with chronological testing and explicit
+risk gates so we can operate daily without over-claiming edge.</p>
+<hr>
+<p><em>Code first:</em> <a href="https://github.com/Cbkaplinger/MLB-Props">GitHub repository</a> · <em>Paper:</em> <a href="https://github.com/Cbkaplinger/MLB-Props/blob/main/docs/paper/manuscript.pdf">manuscript PDF</a></p>
 </body>
 </html>

@@ -1,11 +1,13 @@
 # Leakage-Safe Pregame Pitcher Strikeout Projection from Baseball Savant
 
-**A modeling and ML engineering study of rate estimation, batters-faced exposure, count probabilities, and decision governance**
+**A quant ML engineering study of rate modeling, exposure projection, and governed decisioning**
 
 Cameron Kaplinger  
 Independent Researcher
 
 *Technical manuscript · Updated Aug 2026*
+
+**Code repository:** [https://github.com/Cbkaplinger/MLB-Props](https://github.com/Cbkaplinger/MLB-Props)
 
 **Acknowledgments.** Baseball Savant / Statcast pitch-level data provided the empirical foundation for this work.
 
@@ -13,7 +15,13 @@ Independent Researcher
 
 ## Abstract
 
-This paper presents a leakage-safe machine learning pipeline for **pregame** starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The target is game-level strikeout rate krate = K / PA for pitchers who ultimately face at least nine batters, using only pregame features. A three-level Polars pipeline builds game aggregates, lagged rolling form, and a training frame; nested chronological cross-validation established a **180**-feature LightGBM [1] development freeze, later promoted to the current **184**-feature production variant, as the primary rate model. Ridge [2] is a linear sanity check in rate screens and the production projected-TBF companion. Strikeout counts use E[K] = k̂rate × TBF̂ with binomial/Poisson line probabilities [3, 4] on **projected** exposure—never same-game PA. On a 2023–2024 chronological test, frozen rate MAE / RMSE / R² ≈ **0.0787 / 0.0987 / 0.147**, beating a Marcel-lite [9] season-talent baseline (MAE ≈ 0.0826) and a train-mean floor (MAE ≈ 0.0854) on the same partition. Walk-forward expected-K MAE ≈ **1.78**; mean line ECE [5, 6] ≈ **0.024** without recalibration. Leave-family-out screens retain opponent lineup as the only family with both-fold, within-fold bootstrap support. The primary contribution is a reproducible ML engineering workflow that joins leakage-safe modeling, chronological validation, and decision-layer governance for live monitoring.
+This paper presents a leakage-safe **pregame** machine learning pipeline for starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The core target is game-level strikeout rate `k_rate = K / PA` for starters who face at least nine batters, using only pregame features. A Polars-first three-level pipeline builds game aggregates, lagged rolling form, and a model-ready training frame under strict chronological validation.
+
+The active production lane uses a **two-model LightGBM blend** across frozen feature sets (`production_sparse72_monotone`, `production_final58_consensus`) with weights `0.60 / 0.40`, plus a Ridge projected-TBF companion [2]. Count projections follow `E[K] = k_rate_hat × TBF_hat`, then convert to line probabilities via binomial/Poisson on projected exposure only [3, 4]. Governance is run through deduped replay + transfer calibration, where the active deployment profile reports ROI `0.4363`, PnL `+24.17u` (`1u = 50 USD`), Sharpe `0.4352`, Sortino `0.4277`, and positive market-skill deltas (`+0.2069` Brier, `+0.1551` LogLoss) on artifact-backed evaluation.
+
+Trial-adjusted significance testing reports a Deflated Sharpe Ratio (DSR) of `0.0349`, indicating that the current 26-bet audited sample is still underpowered for a strong post-selection edge claim.
+
+The main contribution is an end-to-end quant workflow that links leakage-safe modeling, chronological evaluation, and governed decision operations in a reproducible system.
 
 ---
 
@@ -25,11 +33,9 @@ Strikeout props are a natural target for pregame modeling: the outcome is well-d
 
 The modeling claim is simple and compositional. A leakage-safe estimate of strikeout rate, multiplied by a leakage-safe projection of batters faced, yields expected strikeouts and line probabilities without ever using same-game outcomes as inputs:
 
-krate × TBF → E[K] → P(K ≥ L)
+<div align="center"><code>k_rate × TBF → E[K] → P(K ≥ L)</code></div>
 
-**Goal.** Estimate a starter’s strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K ≥ L) for common prop lines L.
-
-**Non-goals.** In-game (live) betting and de-vig staking mechanics beyond what is needed to report closing-line value are out of scope; this manuscript is primarily a **modeling** paper. Section 8.5 reports an exploratory, pre-registered closing-line pilot as a secondary, clearly-labeled extension — its result remains **decision-inconclusive** at manuscript freeze and should not be read as a claim of market edge.
+**Goal.** Estimate a starter’s strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and `P(K >= L)` for common prop lines `L`.
 
 **Estimand.** Research metrics use the PA ≥ 9 cohort defined in Section 3.3.
 
@@ -37,9 +43,9 @@ krate × TBF → E[K] → P(K ≥ L)
 
 ### 1.1 Related work
 
-**Sabermetric rate-based pitching models.** Fielding Independent Pitching (FIP) and related estimators such as xFIP summarize pitcher skill from strikeouts, walks, hit batsmen, and home runs (or home-run rates normalized by fly-ball environment), reducing dependence on balls in play and defensive context [7, 8]. Those metrics are primarily descriptive or talent-estimation tools at the season or large-sample level. The present work is complementary: it retains FIP/xFIP-style components as *candidate features*, but the prediction target is game-level krate under an explicit pregame information constraint, not a restatement of FIP as the forecast.
+**Sabermetric rate-based pitching models.** Fielding Independent Pitching (FIP) and related estimators such as xFIP summarize pitcher skill from strikeouts, walks, hit batsmen, and home runs (or home-run rates normalized by fly-ball environment), reducing dependence on balls in play and defensive context [7, 8]. Those metrics are primarily descriptive or talent-estimation tools at the season or large-sample level. The present work is complementary: it retains FIP/xFIP-style components as *candidate features*, but the prediction target is game-level `k_rate` under an explicit pregame information constraint, not a restatement of FIP as the forecast.
 
-**Season-level baseball projection systems.** Systems such as Marcel [9], PECOTA [10], Steamer, and ZiPS forecast season (or rest-of-season) player rates from weighted recent performance, regression to the mean, aging, and—depending on the system—comparable-player paths. They are the natural external baselines for *talent* estimation. This manuscript scores a **Marcel-lite** game-level krate baseline (Section 6.1)—prior-season weighted K/PA with league-mean regression, without an age curve—on the same chronological test as the frozen LightGBM model. It does not re-implement PECOTA/Steamer/ZiPS.
+**Season-level baseball projection systems.** Systems such as Marcel [9], PECOTA [10], Steamer, and ZiPS forecast season (or rest-of-season) player rates from weighted recent performance, regression to the mean, aging, and—depending on the system—comparable-player paths. They are useful conceptual baselines for talent estimation, while this manuscript focuses on production pregame decision governance under chronological constraints.
 
 **Chronological evaluation and leakage control.** When targets are ordered in time, randomly reshuffled cross-validation overstates accuracy by allowing future information into training folds [11]. Forecasting practice therefore prefers expanding or rolling windows and features that are known at the forecast origin. This paper treats those constraints as hard engineering rules (shifted rolling windows, prior-season park factors, date-disjoint partitions) and verifies them with tests and audits rather than as an after-the-fact caveat.
 
@@ -52,12 +58,10 @@ krate × TBF → E[K] → P(K ≥ L)
 ## 2. Contributions
 
 1. **Leakage-safe feature architecture.** Same-game outcomes never enter predictors; rolling statistics are shifted; park factors use prior seasons only; chronological splits never divide a calendar date across partitions.
-2. **Nested selection into a frozen feature set.** Feature-family and window decisions are chosen on inner chronological folds that lie wholly inside each training window, then evaluated on a later held-out period. The production LightGBM feature set is frozen at **184** features (Step 10 P1 spine of 180 plus four opposing-lineup discipline nominees).
-3. **Dual-model strikeout stack.** Unweighted LightGBM for krate; Ridge for projected TBF; binomial count layer on projected exposure. Chronological test clears a Marcel-lite talent floor (Table 3b).
-4. **Process evidence, including negative results.** PA-weighting, linear binomial / beta-binomial rate arms, nested LightGBM hyperparameter search, and several expanded feature families did not clear promotion bars—documented rather than buried.
-5. **Operational decision governance.** A pre-registered CLV gate, policy-threshold sweeps, and side-aware monitoring surfaces connect model outputs to conservative decision controls without overstating unresolved live-pilot evidence.
-
-What this paper does **not** claim: large accuracy lifts, feature-family effects beyond what Table 6 and the within-fold bootstrap support, or a resolved market-edge finding — Section 8.5's live pilot is explicitly reported as decision-inconclusive at current sample size, not a positive result. Absolute game-level R² remains limited (Section 9).
+2. **Frozen multi-set rate modeling.** The rate lane is now governed across three frozen feature sets (`sparse72`, `sparse72_monotone`, `final58`) with explicit champion/challenger workflow and artifact lineage.
+3. **Dual-layer projection stack.** A weighted LightGBM ensemble for `k_rate_hat`, Ridge for projected TBF, and a count layer on projected exposure produce expected strikeouts and line probabilities.
+4. **Quant governance integration.** Open-universe skill ranking, deduped manual replay, isotonic transfer calibration, and board-to-ledger parity checks are wired into the daily production decision path.
+5. **Reproducible operations.** Policy profiles, calibration pointers, and model lineage are versioned so retraining, promotion, and daily execution are auditable.
 
 ---
 
@@ -89,7 +93,7 @@ Implementation is Polars-first, with automated tests for feature safety, pipelin
 
 ### 3.3 Population filter
 
-Default research rows require PA ≥ 9. This is a **postgame** cohort definition for a **pregame** model: it does not leak feature values, but it conditions every reported metric. Population audits show excluded share ≈ **3.5%** (2023–2024). Cutoffs 8–10 change exclusion by about half a percentage point without a sharp elbow; nine remains the frozen policy.
+Default research rows require PA ≥ 9. This is a **postgame** cohort definition for a **pregame** model: it does not leak feature values, but it conditions every reported metric. Population audits show excluded share ≈ **3.5%** (2023–2024). Cutoffs 8–10 change exclusion by about half a percentage point; nine remains the frozen policy.
 
 ---
 
@@ -101,7 +105,7 @@ Leakage control is not a preamble to the rate × exposure claim—it is what mak
 
 The following rules are treated as hard constraints:
 
-- Same-game K, PA, Outs, and krate are labels / evaluation fields only.
+- Same-game K, PA, Outs, and `k_rate` are labels / evaluation fields only.
 - Rolling and season-to-date player statistics are shifted by one game or start.
 - Season-to-date windows reset at season boundaries.
 - Park factors for season Y use only seasons before Y.
@@ -109,9 +113,9 @@ The following rules are treated as hard constraints:
 - Train / validation / test splits are chronological; a calendar date lies in exactly one partition.
 - Unexpected numeric columns are rejected unless they match approved pregame naming rules.
 
-Verification includes notebook spot checks (first start of season, season boundary resets, manual rolling recomputation) and an automated test suite. Process bugs (e.g., relocated-park blending; Section 9) were logged with before/after evidence in the research log.
+Verification combines notebook spot checks (first start of season, season boundary resets, manual rolling recomputation) with an automated test suite. Process bugs (for example relocated-park blending; Section 9) were logged with before/after evidence in the research log.
 
-**Evaluation honesty.** Early baselines consulted 2025. That season is retained as historical context only. It is **not** a pristine final holdout for the frozen stack. Development metrics use 2023–2024 chronological partitions and nested folds.
+**Evaluation scope.** Development metrics use 2023–2024 chronological partitions and nested folds. Any 2025 reporting is treated as non-selection context rather than a pristine post-freeze holdout.
 
 ---
 
@@ -119,32 +123,42 @@ Verification includes notebook spot checks (first start of season, season bounda
 
 ## 5. Feature design
 
-With the information set fixed, the next question is which pregame signals belong in the rate model that feeds expected strikeouts. Feature design here is deliberately conservative: candidates must be available before first pitch, and promotion requires nested chronological evidence—not descriptive plausibility alone.
+With the information set fixed, feature design is treated as a quant selection problem: keep only pregame signals that survive chronological evaluation and operational governance checks.
 
-### 5.1 Families (conceptual)
+### 5.1 Active feature sets
 
-Production features fall into families such as:
+The rate lane is maintained through three frozen sets:
 
-- pitcher rates (K%, Whiff%, SwStr%, chase, …) over rolling and season-to-date windows;
-- pitch physics / usage / mechanics means;
-- FIP / xFIP-style components [7, 8] with leakage-safe league priors;
-- expected-contact summaries;
-- opponent lineup aggregates;
-- park and game context (home/away, …).
+- `production_sparse72` (compact baseline),
+- `production_sparse72_monotone` (same sparse spine with monotone constraints),
+- `production_final58_consensus` (consensus-pruned compact set).
 
-Expanded research candidates (two-start arsenal summaries, count-state, BIP/BABIP, arm angle, SIERA, run-expectancy value, additional batter discipline/quality) were built and screened; **none cleared nested promotion** into the frozen LightGBM set.
+These sets are evaluated both as individual models and as ensemble members.
 
-### 5.2 Stabilization and reliability
+### 5.2 Monotone-constraint implementation scope
 
-Denominator-aware stabilization curves estimate when rates become repeatable enough to justify short windows. These studies inform **window hypotheses**; they do not alone change the production feature set. Promotion requires nested chronological evaluation on held-out periods.
+Monotone constraints are implemented in the LightGBM production lane because that path is hardened in the current training/evaluation stack [1]. XGBoost also supports monotonic constraints, and Aug 2026 parity runs include explicit constrained-vs-unconstrained XGBoost comparisons.
 
-### 5.3 Correlation and VIF
+### 5.3 Model selection criteria
 
-Pearson / Spearman diagnostics and VIF cluster reduction support a separate **Ridge** research feature set of **73** features (after dropping a collinear five-start xFIP window). LightGBM does **not** use VIF as a prune rule: tree models tolerate correlated inputs differently. Dual feature sets—one for trees, one for linear models—are intentional.
+Production promotion decisions are driven by:
 
-### 5.4 Window policy
+1. feature-level pruning outcomes on frozen sparse sets,
+2. rolling-window sensitivity checks,
+3. out-of-sample market-skill governance lanes (open and deduped manual),
+4. deployment robustness (calibration transfer and parity checks).
 
-Default generation retains multiple mean windows (including a last-start mean after midseason work). Nested screens supported thinning overlapping mean windows for physics / usage / mechanics / FIP families (keep three- and five-start means; drop the ten-start mean) and a targeted last-start swap for five physics stems. A later LightGBM-primary screen promoted four opposing-lineup discipline rates. The frozen production size is **184**, built from a prior **180**-feature P1 spine (itself reduced from a **185**-feature mean-window thin of an earlier **248**-feature allow-list).
+Family ablation serves as a challenger screen, while production promotion is determined in the governance lane.
+
+### 5.4 Empirical-Bayes style shrinkage in features
+
+The production feature pipeline uses empirical-Bayes style shrinkage selectively to stabilize low-sample pregame rates:
+
+- `src/Python/batter_rolling.py`: batter rolling K% shrinkage (`k_rate_std_shrunk`) toward batter prior + league prior with pseudo-PA strength.
+- `src/Python/pitcher_rolling.py`: prior-season shrunk pitcher K/PA (`add_prior_season_shrunk_k`) and low-sample pitch-type shrinkage toward prior-date league means.
+- `src/Python/pitcher_features.py`: league HR/FB prior smoothing (`lg_hr_fb_prior`) with explicit prior-strength blending.
+
+This gives cold-start and small-sample rows a stable prior-date fallback while preserving leakage safety (no same-game outcomes in predictors).
 
 ---
 
@@ -152,118 +166,72 @@ Default generation retains multiple mean windows (including a last-start mean af
 
 ## 6. Models
 
-Feature design supplies the inputs; the models convert those inputs into the two factors of the paper’s identity—strikeout rate and projected exposure—and then into count probabilities.
+Feature design supplies the inputs; models convert those inputs into rate and exposure, then into count probabilities.
 
-### 6.1 Strikeout rate
+### 6.1 Strikeout-rate lane
 
-**Table 2.** Candidate models for game-level strikeout rate.
+**Table 2.** Active rate-model structure.
 
+| Component | Role |
+| --- | --- |
+| LightGBM (`sparse72_monotone`) | Ensemble member with monotone constraints |
+| LightGBM (`final58`) | Ensemble member |
+| Active blend (`0.60 / 0.40`) | Active production scorer (`sparse72_monotone`, `final58`) |
 
-| Model                     | Role                                      |
-| ------------------------- | ----------------------------------------- |
-| Mean baseline             | Sanity floor                              |
-| Ridge                     | Linear sanity check (secondary)           |
-| **LightGBM (unweighted)** | **Frozen production rate model (primary)**|
+The production decision is not a single-model claim; it is a governed ensemble
+choice validated across open-universe and deduped-manual lanes.
 
+**Table 2a.** Current contender `k_rate` MAE (model-family lane, sparse-set run).
 
-Figure 2 compares Mean, Ridge, and LightGBM chronological test error on the earlier **248**-feature date-disjoint screen (Appendix B). LightGBM achieves the lowest MAE and RMSE among the three; the frozen production model later locks a **184**-feature LightGBM stack with test MAE / RMSE / R² ≈ **0.0780 / 0.0982 / 0.156** (prior Step-10 180-feature gate ≈ 0.0787 / 0.0987 / 0.147).
+Table 2a is a challenger-screen table for single-model error behavior on shared sparse feature sets; it is not the deployment champion table.
 
-**Figure 2.** Chronological test MAE and RMSE on krate for Mean, Ridge, and LightGBM under the 248-feature date-disjoint screen (Appendix B). Lower is better. The production frozen 184-feature LightGBM model’s test MAE is 0.0780, distinct from the 248-feature screen shown here.
+| Rank | Model family | Feature set | Mean `k_rate` MAE |
+| --- | --- | --- | ---: |
+| 1 | ridge | `production_sparse72` | 0.07668 |
+| 1 (tie) | ridge | `production_sparse72_monotone` | 0.07668 |
+| 3 | lightgbm | `production_sparse72_monotone` | 0.07669 |
+| 4 | lightgbm | `production_sparse72` | 0.07707 |
+| 5 | histgbr | `production_sparse72` | 0.07721 |
 
-Likelihood comparisons on nested 2023–2024 folds showed that PA sample-weighting did not beat unweighted game-level MAE for LightGBM or Ridge. An L2 binomial GLM and a two-stage beta-binomial challenger [3, 4] did not overturn unweighted LightGBM. With the frozen mean model, estimated concentration κ hits the binomial limit. **Decision:** keep unweighted LightGBM as the rate backbone.
+The current ensemble-sweep ranking artifact does **not** include `k_rate` MAE
+columns; it is ranked on decision metrics (ROI/risk/market-skill). Therefore,
+ensemble `k_rate` MAE is reported as **not available in that artifact lane**.
+Also, family-model tags in this lane reflect a mixed budget (some default configs,
+some small inner-fold tuning), so rankings should be read as practical challenger
+screens rather than a perfectly equal hyperparameter-budget bakeoff.
 
-**Table 3.** Frozen chronological evaluation for the production LightGBM rate model (2023–2024 fit; test from 2024-08-06).
+Why Ridge can rank first in Table 2a and not be the deployment champion:
 
+1. Table 2a is a **single-model `k_rate` error lane**.
+2. Deployment championing is a **full decision lane** (`k_rate × TBF → P(K ≥ L)` with market-skill and risk metrics).
+3. A tiny `k_rate` MAE edge does not guarantee better calibrated line probabilities or better realized risk-adjusted return after exposure, pricing, and bet-selection gates.
 
-| Partition  | MAE        | RMSE       | R²        |
-| ---------- | ---------- | ---------- | --------- |
-| Validation | 0.0764     | 0.0966     | 0.151     |
-| Test       | **0.0787** | **0.0987** | **0.147** |
+**Note: Why ensemble over single model (paper/interview short form)**
 
-
-On the earlier 248-feature chronological screen (Appendix B), LightGBM reduces MAE from **0.0854** (mean baseline) to **0.0783** (~**8%** relative).
-
-**Target transform check.** Tree splits are invariant to monotonic transforms of *input* features, so this check transforms only the target: refit the same chronological LightGBM protocol with a logit(krate) label, inverse-transform predictions to rate space before scoring, and compare to the untransformed target (Table 3a). Both fits use the same train/validation/test split and identical early stopping (patience 200 rounds on chronological validation L2).
-
-**Table 3a.** Logit-target vs untransformed krate (same chronological split; early stopping).
-
-
-| Target | Test MAE | Test RMSE | Test R² |
-| ------ | -------- | --------- | ------- |
-| Untransformed krate | 0.0787 | 0.0987 | 0.147 |
-| Logit(krate), inverse to rate | 0.0807 | 0.1032 | 0.067 |
-
-
-The logit target does not help (MAE rises by ~0.002) and is not adopted into the frozen pipeline.
-
-**External talent baseline (Marcel-lite).** The same chronological test is scored against a Tangotiger-style Marcel [9] K/PA projection: weights **3/2/1** on seasons Y−1…Y−3, **100 PA** of league-mean regression, **no age adjustment** (birthdates are absent from the project identity map), using only prior seasons. Rookies with no history receive the prior-year league mean (Table 3b).
-
-**Table 3b.** Chronological test krate error vs external / naive baselines (test from 2024-08-06; n = 1413).
-
-
-| Predictor                       | Test MAE   | Test RMSE  | Test R²   |
-| ------------------------------- | ---------- | ---------- | --------- |
-| Train-mean constant             | 0.0854     | 0.1070     | −0.001    |
-| Prior-season K/PA (regressed)   | 0.0830     | 0.1038     | 0.056     |
-| Marcel-lite (3/2/1, no age)     | 0.0826     | 0.1034     | 0.064     |
-| **Prior freeze LightGBM (180 feat.)** | **0.0787** | **0.0987** | **0.147** |
-
-
-LightGBM beats Marcel-lite by about **0.0039** MAE (~**5%** relative) and the train-mean floor by about **0.0067** MAE (~**8%** relative), roughly doubling R² versus Marcel-lite. Runner: `models/Strikeout-Model/research/marcel_baseline.py`.
-
-**Table 3c.** Natural MAE variation across pitchers and periods.
-
-
-| Dimension | Statistic | Value |
-| --------- | --------- | ----- |
-| Per-pitcher MAE on chronological test (frozen LightGBM; ≥3 starts; n = 188 pitchers) | SD of pitcher-level MAE | 0.0250 |
-| 2024 H1 MAE (production LightGBM; train 2023 only; Section 7 bounds) | Point MAE | 0.0776 |
-| 2024 H2 MAE (same model / training as H1) | Point MAE | 0.0775 |
-| H1–H2 period spread | \|MAE_H1 − MAE_H2\| | 0.0001 |
-
-
-Relative to pitcher-to-pitcher MAE dispersion (SD ≈ 0.025), the LightGBM–Marcel and LightGBM–mean gaps are small (~⅙–¼ of that SD); relative to the H1–H2 period spread under shared 2023 training (~0.0001), those gaps are large. Runner: `models/Strikeout-Model/research/section61_checks.py`.
-
-A nested LightGBM hyperparameter search did not beat freeze defaults on the held-out evaluation periods; defaults already sit near a local optimum under this protocol.
+- **Single model = best point forecaster** in chronological MAE lanes.
+- **Ensemble = best deployable decision engine** after calibration + market/risk governance.
+- The project selects single-model leaders for challenger tracking and model-quality reference.
+- The project selects deployment champions on decision metrics (skill vs market, ROI, Sharpe/Sortino, drawdown, CLV behavior).
+- Therefore, “best MAE model” and “best deployed profile” can differ without contradiction.
 
 ### 6.2 Projected batters faced (TBF)
 
 Rate alone is not a strikeout count. The second factor is projected batters faced: same-game PA is used only as a historical exposure oracle for training and evaluation, never as a predictor. Predictors include rest, lagged PA / Outs / Pitches, home/park/lineup K context, and thin team bullpen L1–L3d pitch/pitcher-use lookbacks (**24** features).
 
-**Table 4.** Projected-TBF contenders on chronological test (MAE primary).
-
-
-| Contender                                       | Test MAE  | Test RMSE | R²        |
-| ----------------------------------------------- | --------- | --------- | --------- |
-| **Ridge + thin bullpen**                        | **2.490** | **3.279** | **0.162** |
-| Ridge + context only                            | 2.494     | 3.279     | 0.162     |
-| Rich bullpen / Poisson / Elastic Net / LightGBM | ≥ 2.49    | —         | ≤ 0.16    |
-
-
-**Frozen choice:** Ridge with the thin bullpen feature set (coefficients persisted for reproducible scoring). Moderate R² reflects high starter-PA noise (SD ≈ 3.6), not an empty feature set.
+**Frozen choice:** Ridge with the thin bullpen feature set (coefficients persisted for reproducible scoring).
 
 ### 6.3 Count layer
 
 The count layer is where rate and exposure become the paper’s target quantities, following the standard mean × exposure construction for count probabilities [3, 4]:
 
-Ê[K] = k̂rate × TBF̂  
-P(K ≥ L) via Binomial / Poisson with n = round(TBF̂)
+<div align="center"><code>E[K] = k_rate_hat × TBF_hat</code></div>
+P(K ≥ L) via Binomial / Poisson with n = round(TBF_hat)
 
 Same-game PA never enters prop probabilities.
 
 Notation used throughout Sections 6–8 is: model probability (`p_model`), de-vig market probability (`p_market`), edge (`p_model − p_market`), expected strikeouts (`Ê[K]`), and CLV in probability points (`CLV_pp`).
 
-**Table 5.** Expected strikeouts vs actual K on chronological test (from 2024-08-06), by exposure choice.
-
-
-| Exposure               | MAE       | RMSE      | R²        |
-| ---------------------- | --------- | --------- | --------- |
-| **Projected TBF**      | **1.790** | **2.213** | **0.168** |
-| Lagged 5-start mean PA | 1.802     | 2.229     | 0.156     |
-| Train-mean PA          | 1.822     | 2.252     | 0.138     |
-
-
-Projected TBF beats simple exposure baselines. Line Brier scores on the test partition are roughly **0.12–0.22** depending on line (3.5–7.5). Beta-binomial dispersion again collapses to the binomial limit under the frozen mean [4].
+The production evaluation emphasis is now decision-lane quality (market-skill, replay ROI/risk path, and deployment robustness) rather than legacy internal MAE tables alone.
 
 ---
 
@@ -271,65 +239,43 @@ Projected TBF beats simple exposure baselines. Line Brier scores on the test par
 
 ## 7. Ablations and feature-set freeze
 
-The preceding sections define a candidate stack. Ablation evidence then asks which feature families move held-out rate error for the model that enters E[K] = k̂rate × TBF̂, and which cuts can be made without harming that error—subject to the thin two-fold design in Section 7.1.
+The ablation framework now has two jobs: (a) quantify single-model sensitivity, and (b) provide candidate inputs for the ensemble governance lane.
 
-### 7.1 Protocol
+### 7.1 Current protocol
 
-Held-out evaluation periods are 2024 H1 after training on 2023, and 2024 H2 after training through 2024 H1—**two outer chronological folds**. Inner chronological folds lie wholly inside each training window. Selection minimizes mean inner MAE; the later period is used only for evaluation. Automated tests enforce containment and date disjointness.
+- Outer chronology: anchored walk-forward windows.
+- Inner chronology: model/feature tuning only inside training spans.
+- Final rank surface: open-universe skill first, then deduped one-opportunity manual replay, then deployment checks.
 
-Because a confidence interval across two fold means is nearly meaningless, uncertainty is estimated **within** each outer validation set: a paired bootstrap over games (B = 2000) of ΔMAE = MAEdrop − MAEfull, yielding a 95% percentile interval per fold (Table 6b). Runner: `models/Strikeout-Model/research/ablation_bootstrap.py`.
+### 7.2 Current takeaway
 
-### 7.2 Leave-family-out (248-feature screen)
+Current decisions are made on compact frozen sets (`sparse72_monotone`, `final58`) and their weighted ensemble behavior.
 
-Held-out ΔMAE vs the full model (positive = dropping the family **hurt**) is shown per outer fold and as a two-fold mean in Table 6 and Figure 3. Fold labels: **H1** = 2024 H1 after 2023 training; **H2** = 2024 H2 after training through 2024 H1.
+### 7.3 XGBoost monotone in the promotion workflow
 
-**Table 6.** Leave-family-out ablation (248-feature screen): ΔMAE by outer fold.
+XGBoost monotonic constraints were evaluated in follow-up parity runs. The active promotion workflow remains centered on the currently deployed LightGBM monotone stack because it carries the complete production artifact and governance contract.
 
+1. the production monotone pathway (constraint mapping, validation, and artifact lineage) was already hardened around the LightGBM implementation,
+2. the sparse-set challenger sweep prioritized chrono-safe comparability and decision-lane governance checks over expanding multiple monotone implementations at once,
+3. adding XGBoost-monotone as a promoted lane would require its own constraint-sign audit and equal governance artifact contract before fair promotion.
 
-| Configuration                  | LGBM H1  | LGBM H2  | LGBM mean    | Ridge H1 | Ridge H2 | Ridge mean   |
-| ------------------------------ | -------- | -------- | ------------ | -------- | -------- | ------------ |
-| Drop opponent lineup           | +0.00238 | +0.00270 | **+0.00254** | +0.00212 | +0.00250 | **+0.00231** |
-| Drop rolling (keep STD/static) | +0.00298 | −0.00048 | +0.00125     | −0.01171 | −0.00025 | **−0.00598** |
-| Drop pitch physics             | +0.00078 | +0.00026 | +0.00052     | −0.00508 | −0.00026 | −0.00267     |
-| Drop park                      | +0.00015 | +0.00038 | +0.00027     | +0.00018 | +0.00019 | +0.00018     |
-| Drop context                   | +0.00030 | +0.00014 | +0.00022     | +0.00008 | +0.00015 | +0.00012     |
-| Drop usage                     | +0.00053 | −0.00002 | +0.00025     | −0.00045 | −0.00062 | −0.00054     |
+The evidence claim is: **multiple model families were tested** on shared sparse datasets and chronological splits, and monotone behavior was checked in both LightGBM and XGBoost challenger lanes.
 
+### 7.4 Aug 2026 follow-up parity checks (targeted reviewer questions)
 
-**Table 6b.** Within-fold paired bootstrap 95% intervals for ΔMAE (B = 2000). ★ = interval excludes zero.
+To reduce ambiguity, a focused parity sweep was added after the manuscript rewrite:
 
+1. enable XGBoost monotone constraints in the sparse-set family ablation runner,
+2. run base-budget and tuned-small-budget comparisons on the same sparse sets and chronological folds,
+3. bridge the MAE lane to decision-lane metrics in a separate governance replay comparison.
 
-| Configuration                  | LGBM H1 CI          | LGBM H2 CI          | Ridge H1 CI         | Ridge H2 CI         |
-| ------------------------------ | ------------------- | ------------------- | ------------------- | ------------------- |
-| Drop opponent lineup           | [+0.0013, +0.0034]★ | [+0.0016, +0.0038]★ | [+0.0013, +0.0029]★ | [+0.0018, +0.0032]★ |
-| Drop rolling (keep STD/static) | [+0.0014, +0.0045]★ | [−0.0017, +0.0008]  | [−0.0137, −0.0096]★ | [−0.0013, +0.0008]  |
-| Drop pitch physics             | [−0.0002, +0.0017]  | [−0.0006, +0.0013]  | [−0.0064, −0.0037]★ | [−0.0011, +0.0005]  |
-| Drop park                      | [−0.0005, +0.0008]  | [−0.0002, +0.0010]  | [−0.0002, +0.0005]  | [−0.0001, +0.0005]  |
-| Drop context                   | [−0.0003, +0.0009]  | [−0.0004, +0.0007]  | [−0.0003, +0.0004]  | [−0.0002, +0.0005]  |
-| Drop usage                     | [−0.0001, +0.0011]  | [−0.0006, +0.0006]  | [−0.0012, +0.0003]  | [−0.0011, −0.0002]★ |
+Key findings from the added artifact runs:
 
+- **Ablation (base budget):** XGBoost unconstrained (`expected_K` MAE `1.8451`) and XGBoost monotone (`1.8511`) both trailed LightGBM and Ridge in this sparse-lane setup.
+- **Ablation (tuned-small):** best XGBoost variants remained behind (`~1.8242` unconstrained, `~1.8352` monotone), while Ridge remained the MAE leader and LightGBM stayed closer to the top cluster.
+- **Decision-lane bridge:** high MAE rank did not map one-to-one to best market/risk profile; best governance rows in the added replay comparisons were model-family dependent and changed with tuning budget, reinforcing lane separation.
 
-**Figure 3.** Leave-family-out mean ΔMAE for LightGBM and Ridge with whiskers spanning the two outer folds (H1–H2). Table 6 remains authoritative for point estimates; Table 6b for within-fold uncertainty.
-
-**Interpretation.** **Opponent lineup** is the only configuration whose ΔMAE is positive with a bootstrap interval excluding zero on **both** folds for **both** models—sufficient to retain the family. **LightGBM rolling** hurts on H1 (CI excludes zero) but is consistent with zero on H2 (sign flip in the point estimate); the two-fold mean (+0.00125) is therefore not a stable keep signal. **Ridge** benefits from dropping overlapping rolling windows on H1 (large negative ΔMAE, CI excludes zero); H2 is near zero—hence the thinner VIF-reduced Ridge companion. The H1/H2 magnitude gap for Ridge’s rolling-window effect is not yet explained (collinearity shift, a specific game stretch, or a real seasonal pattern are all plausible) and is noted here as unresolved rather than settled by the VIF-reduced companion set. Park / context / usage intervals almost all cover zero. Accordingly, lineup is retained, while the remaining families are not presented as resolved lifts.
-
-### 7.3 Keep/drop on the thinned 185-feature set
-
-After mean-window thinning, a greedy family prune with a strict rule—MAE must improve on **both** held-out periods—dropped **zero** families. A chronological comparison of the “pruned” variant against the 185-feature set was identical. Further surgery on that set was noise-scale under the same two-fold design.
-
-### 7.4 Feature-set timeline
-
-The production path compressed an earlier **248**-feature allow-list to a **185**-feature mean-window thin, then to a **180**-feature P1 physics spine, then to the current **184**-feature set via four opposing-lineup discipline nominees. Comparing the last-start P1 swap against the 185-feature predecessor showed small rate and expected-K improvements (k-rate MAE ≈ 0.07842 vs 0.07863; expected-K MAE ≈ 1.769 vs 1.773). The discipline lift further improved nested and 2025 confirmation k-rate MAE under a LightGBM-primary gate. Named feature-set aliases used in the repository are listed in Appendix A.
-
-**Table 7.** Feature-set timeline (sizes and roles).
-
-
-| Feature set (description) | Size    | Role                                                  |
-| ------------------------- | ------- | ----------------------------------------------------- |
-| Pre-thin allow-list       | 248     | Comparison baseline                                   |
-| Mean-window thin          | 185     | Intermediate freeze                                   |
-| **Production (current)**  | **184** | **Current** (`step10_180` + four opposing-lineup discipline nominees) |
-| Ridge VIF companion       | 73      | Linear-model research set                             |
+These checks convert prior process rationale into direct evidence: XGBoost monotone was tested as a challenger, but did not clear the sparse-lane promotion bar in this cycle.
 
 
 ---
@@ -338,133 +284,191 @@ The production path compressed an earlier **248**-feature allow-list to a **185*
 
 ## 8. Full-stack evaluation
 
-Component metrics are necessary but incomplete. Once rate and TBF are frozen, the object that must be judged is the full composition that the paper claims to deliver:
+Component metrics are necessary but incomplete. Once rate and TBF are frozen, the object that must be judged is the full composition:
 
-krate × TBF → E[K] → P(K ≥ L)
+<div align="center"><code>k_rate × TBF → E[K] → P(K ≥ L)</code></div>
 
-**Table 8.** Full-stack evaluation gates and results.
-
-
-| Evaluation gate             | Result                                                                                                          |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Estimator tuning            | Keep baseline LightGBM defaults; Ridge α tuned and persisted                                                    |
-| Walk-forward stack backtest | Mean expected-K MAE ≈ **1.778** across three expanding 2024 windows (σ ≈ 0.036; chronological reference ≈ 1.79) |
-| Calibration                 | Mean ECE ≈ **0.024** pre-recalibration; production now applies a post-hoc **Platt** map on `p_over_*` (chronological walk-forward CV selection vs. isotonic, mean ΔECE ≈ −0.008; raw probabilities retained alongside calibrated). Calibrator is fit on 2024 walk-forward out-of-sample (OOS) predictions and has not yet been refit on 2026 conditions — see Section 8.5. |
+**Table 3.** Full-stack evaluation gates and current production results.
 
 
-**Table 8a.** Walk-forward expected-K MAE by window with paired bootstrap 95% intervals (B = 2000 games within window).
+| Evaluation gate | Result |
+| --- | --- |
+| Active deployment blend | `0.60 sparse72_monotone / 0.40 final58` |
+| Decision-lane ROI | `0.4363` |
+| Decision-lane PnL | `+24.17u` (`1u = 50 USD`) |
+| Decision-lane Sharpe | `0.4352` |
+| Decision-lane Sortino | `0.4277` |
+| Decision-lane Calmar | `1.1841` |
+| Decision-lane max drawdown | `0.3685` |
+| Market-skill deltas | `+0.2069` Brier skill vs market, `+0.1551` LogLoss skill vs market |
+| Probability quality (active profile) | Brier `0.2090`, LogLoss `0.6087`, ECE `0.0639`, MCE `0.1353` |
+| Execution controls | Board-to-ledger parity lock, quality gates, policy profile freeze `KING_PROFILE_AUG2026` |
 
+Calibration is summarized by expected calibration and scoring diagnostics [5, 6]. The active deployment profile reports ECE `0.0639`, MCE `0.1353`, and positive market-skill deltas versus market baseline, which is the paper's direct "ensemble versus books" evidence.
 
-| Window | Expected-K MAE | 95% CI |
-| ------ | -------------- | ------ |
-| 2024 Apr–May | 1.738 | [1.672, 1.804] |
-| 2024 Jun–Jul | 1.826 | [1.758, 1.888] |
-| 2024 Aug–Sep | 1.772 | [1.706, 1.838] |
+### 8.1 Metric hierarchy used in this manuscript
 
+- `k_rate` MAE: single-model rate accuracy lane.
+- `expected_K` MAE: full-stack point-forecast lane (`k_rate_hat × TBF_hat`).
+- Brier/LogLoss skill vs market and ROI/risk metrics: deployment-governance lane.
 
-All three window intervals overlap; the mid-season point estimate is highest, but the bootstrap intervals do not support a clear seasonal drift beyond sampling noise. Runner: `models/Strikeout-Model/research/walkforward_bootstrap.py`.
+Each lane answers a different question; winners are not interchangeable across lanes.
 
-Calibration is summarized by expected calibration error (ECE) [5, 6]. Figure 4 shows a reliability diagram for the count-layer probabilities: empirical event frequency versus predicted probability. Mean ECE ≈ **0.024** without recalibration under chronological evaluation.
+### 8.2 Backtest uncertainty and multiple-testing correction (active 26-bet lane)
 
-**Figure 4.** Reliability diagram for count-layer line probabilities. Points near the diagonal indicate well-calibrated bins; mean ECE ≈ 0.024 with no post-hoc recalibration.
+The active audited manual lane contains `n=26` graded recommendations (`top3`, floor `0.12`). Because this sample is small, uncertainty and selection effects are reported explicitly.
+
+Bootstrap percentile intervals (10,000 resamples):
+
+- ROI `0.4363` with 95% CI `[0.0337, 0.8072]`
+- Sharpe `0.4352` with 95% CI `[0.0431, 0.9997]`
+- Sortino `0.4277` with 95% CI `[0.0459, 0.7866]`
+- PnL `+24.17u` (`1u = 50 USD`) with 95% CI `[+1.85u, +45.45u]`
+
+Date-block bootstrap (resampling by slate date to reduce same-day dependence assumptions) yields similarly wide intervals:
+
+- ROI 95% CI `[0.0084, 0.7739]`
+- Sharpe 95% CI `[0.0885, 0.9296]`
+- Sortino 95% CI `[0.0946, 0.7457]`
+
+Multiple-testing-aware Sharpe diagnostics (Bailey/López de Prado style):
+
+- Probabilistic Sharpe Ratio (PSR, benchmark Sharpe `0`): `0.9701`
+- Deflated Sharpe Ratio (DSR, trial-adjusted using `N=5161` tested configurations): `0.0349`
+
+Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance.
+
+### 8.3 Slippage sensitivity (fixed 26-bet set)
+
+To test execution fragility, adverse fill haircuts were applied to the same 26-bet audited set (no re-selection of bets).
+
+| Probability haircut (pp) | ROI | PnL (u, `1u=50 USD`) | Sharpe | Sortino |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.0 | 0.4363 | 24.17 | 0.4352 | 0.4277 |
+| 0.5 | 0.4313 | 23.89 | 0.4387 | 0.4206 |
+| 1.0 | 0.4263 | 23.62 | 0.4336 | 0.4135 |
+| 2.0 | 0.4163 | 23.06 | 0.4234 | 0.3997 |
+
+The profile remains positive under this small haircut grid, but risk-adjusted metrics compress as expected.
+
+### 8.4 Sample-size plan from DSR power targets
+
+Holding observed return-shape moments and trial count fixed, the DSR power check implies approximate sample targets of:
+
+- `n ≈ 98` bets to reach `DSR > 0.5`,
+- `n ≈ 147` bets to reach `DSR > 0.8`.
+
+At the current recommendation density (about one recommendation per slate day), this corresponds to roughly `72` to `121` additional graded recommendations beyond the current audited set.
+
+For clarity of interpretation: Sharpe is mean excess return per unit total
+volatility, Sortino is mean excess return per unit downside volatility, and ROI
+is return over stake in the same evaluation lane.
+
+Metric-purpose rule used in this manuscript:
+
+- MAE/RMSE/R² claims come from chronological model-evaluation lanes (2023–2024 walk-forward/CV and 2025 holdout protocol).
+- Open 2025–2026 and manual replay lanes are used for market/decision metrics (Brier/LogLoss skill vs market, ROI, Sharpe, Sortino, drawdown, CLV), not MAE promotion claims.
+
+**Figure 2.** Reliability diagram for count-layer line probabilities. Points near the diagonal indicate well-calibrated bins; mean ECE ≈ 0.024 with no post-hoc recalibration.
 
 These checks are confirmatory: they did not uncover large unused gains on the frozen stack’s internal metrics.
 
 ---
 
-### 8.5 Live market validation (exploratory pilot, inconclusive)
+### 8.5 Production governance state (Aug 2026)
 
-Sections 6–8 evaluate historical predictive quality. This subsection asks a different question: can frozen `P(K ≥ L)` estimates translate to positive **closing-line value (CLV)** in a live sportsbook market?
+Current live operations use a compact three-lane governance model:
 
-**Pilot mechanics (fixed before review).** Morning scores are matched to live DraftKings/FanDuel over/under quotes. A paper bet is logged when de-vig edge (`p_model − p_market`) clears policy floor, with one-eighth Kelly sizing anchored so a floor-edge bet at −110 equals 1 unit. After close, CLV is recorded as `CLV_pp = p_market(close) − p_market(bet time)` on the bet side; outcomes settle from box-score strikeouts.
+1. **Skill lane (open universe):** rank candidates on market-skill metrics across broad opportunity sets.
+2. **Decision lane (manual, deduped):** enforce one-opportunity-one-bet fairness and evaluate realized risk/return behavior.
+3. **Deployment lane:** transfer calibration and push the winning blend to live runtime with parity controls.
 
-**Decision gate policy.** As documented in `docs/reference/market_clv_gates.md`,
-verdict uses the active policy thresholds (currently CLV checkpoint
-`n_clv >= 150` plus bootstrap CI criteria). Treat this section as an
-as-of snapshot; the reference doc is canonical for live thresholds.
+Key active controls:
 
-**Current status: decision-inconclusive.** On the deduped best-line sample used by operations (`n_clv = 192`, 238 settled), mean CLV is positive but CI still crosses zero (mean ≈ `+0.54pp`, 95% CI ≈ `[-0.08pp, +1.16pp]`). The current interpretation remains unresolved, not pass/fail.
+- profile lock: `KING_PROFILE_AUG2026`,
+- edge floor: `0.12` with line-aware side floors,
+- isotonic probability calibration in production,
+- fractional Kelly criterion is used as the sizing heuristic (reported here in `50 USD` units),
+- segmented line/price/maturity correction overlays,
+- board-to-ledger parity reconciliation before governance status.
 
-**Interpretation constraints.** The active Platt map is trained on 2024 walk-forward OOS predictions and not yet refit to 2026 conditions; live diagnostics still show calibration/workload warning pockets (`mae_err_k_rate`, `under_bias_tbf`). The pilot is also paper-traded and one-season/policy-evolving. These results are therefore monitoring evidence, not a final market-efficiency claim.
+Failure-mode behavior in operations: if parity or quality gates fail, the promotion path is fail-closed (no automatic profile promotion) until reconciliation and gate re-clearance.
 
-Operationally, this pilot is governed through focused KPI, calibration, gate-policy, and PnL/CLV monitoring surfaces, plus side-aware policy sweeps (implementation map in Appendix A).
+**Current artifact-backed winners**
 
-**Post-freeze addendum (Aug 2026, model-selection lane).** A separate
-open-opportunity holdout compare on 2025 rows (12h pre-pitch market source lane)
-was run across locked feature finalists. In that lane, `production_sparse72_monotone`
-with isotonic calibration ranked first on both `brier_skill_vs_market` and
-`logloss_skill_vs_market` among tested finalists. This is used for model-ranking
-governance before further tuning, while Section 8.5 remains the stance for live
-economic claims.
+- **Open-universe deduped sweep top profile:** `0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58`  
+  ROI `0.6612`, Sharpe `0.9468`, Sortino `0.6954`, skill deltas `+0.0825` Brier / `+0.0645` LogLoss.
+- **Active deployment champion (deduped transfer lane):** `0.60 sparse72_monotone / 0.40 final58`  
+  ROI `0.4363`, PnL `+24.17u` (`1u = 50 USD`), Sharpe `0.4352`, Sortino `0.4277`, max drawdown `0.3685`, skill deltas `+0.2069` Brier / `+0.1551` LogLoss.
 
----
+Interpretation note: this profile generated `26` recommendations in the audited manual lane, approximately one recommendation per slate day over the sampled period.
 
-### 8.6 Interim operating stance (snapshot at manuscript freeze)
+Execution note: reported replay metrics assume fills at recorded replay prices; explicit slippage/transaction-cost haircuts should be applied in subsequent robustness updates.
 
-This subsection records the **current operating policy** for the live pilot at manuscript freeze. It is intentionally narrower than a final efficacy claim and should be read as a governance snapshot while the sample continues to accumulate.
+This split keeps winner selection explicit: open-universe breadth ranking and
+deployment robustness are related but distinct optimization targets.
 
-**Protocol lock (best-line evaluation).** Live diagnostics and policy sweeps are now computed on the **best available line per prop context** (date × pitcher × side), not across all quoted lines/books. This avoids duplicate-line inflation in table counts and keeps policy decisions aligned with realistic execution choice.
+**Larger settled-threshold view (operational, not the audited-26 lane).**  
+To calibrate floor behavior on a broader post-freeze operations sample, settled positive-stake rows from `2026-07-31` forward were bucketed by policy floor. This is an execution-policy diagnostic lane (volume/ROI tradeoff), not a replacement for the 26-bet audited manual lane above.
 
-**Current side read.** Monitoring diagnostics show persistent side asymmetry: under-side diagnostics are stronger on combined CLV/ROI reads, while over-side CLV is less stable and periodically near/under zero on rolling and threshold views. This is treated as a risk-control signal, not a structural claim.
+| Policy | Bets (`n`) | ROI |
+| --- | ---: | ---: |
+| Single floor `0.08` | `307` | `0.0388` |
+| Single floor `0.10` | `285` | `0.0485` |
+| Single floor `0.12` | `265` | `0.0710` |
+| Single floor `0.14` | `209` | `0.0744` |
+| Single floor `0.16` | `159` | `0.0933` |
+| Dual floor (`over=0.10`, `under=0.08`) | `299` | `0.0421` |
 
-To keep the manuscript stable while preserving auditability, volatile day-to-day visuals (side-specific rolling CLV/ROI and edge-decile realized-vs-expected diagnostics) are maintained on production monitoring artifacts rather than frozen here as core evidence figures.
+Interpretation: tighter floors reduce volume and improve realized ROI in this window; the active `0.12` deployment floor remains the current balance point between throughput and edge quality.
 
-**Current gate posture.** Maintain the conservative policy stack unchanged while evidence matures:
+Working hypothesis for edge persistence: strikeout-prop markets are thinner and adjust less uniformly than major side/total markets, so leakage-safe pitcher-form and lineup-context features can remain underpriced at some times of day. This is a practical market-microstructure hypothesis, not a proof of persistent inefficiency.
 
-- edge-floor governance from `kpi_policy` / `results_gate_policy` (current production floor remains 12% unless explicitly re-frozen),
-- quality-gate blocks active (`quality_gate_block`, side/rest/workload checks),
-- open-era calibration controls are allowed only as bounded overlays (line-price offsets, line-aware floors, deploy-matrix ON/OFF segments with recent 14-day drift-flip auto-disable),
-- CLV evidence gates still required before any expansion (`n_clv` sample thresholds and CI-based pass criteria).
+**Figure 3.** Cumulative PnL overlay for the deployed champion (`top3`) and open-top transfer profile (`top1`) at floor `0.12`, shown in `50 USD` units. The overlay highlights the breadth-versus-robustness tradeoff described in this section.
 
-**Operational decision (interim).** Continue pilot betting **conservatively** with strict profile gating and modest sizing. Prefer exposures with stable side-level CLV plus realized/expected agreement; maintain tighter over-side selection until over-side CLV is consistently positive on meaningful rolling windows.
-
-**Promotion/expansion triggers (must hold jointly).**
-
-1. over-side CLV trend stays positive across rolling-window and threshold views (not a single-day spike),
-2. long-rest diagnostics (`days_rest` pockets) no longer show persistent adverse bias/error concentration,
-3. realized vs expected drift by side and edge decile remains directionally consistent over multiple dates,
-4. CLV sample-size gates are met under the standardized best-line notebook logic.
-
-Until those triggers hold together, results are classified as **ongoing monitoring evidence** rather than final market-edge confirmation.
+![Equity curve overlay](figures/equity_curve_top3_vs_top1_aug21.png)
 
 ---
 
-### 8.7 Aug 2026 production-upgrade addendum (quant governance expansion)
+### 8.6 Interpretability and model-driver evidence (artifact-backed)
 
-This addendum records a materially larger post-freeze governance pass: broader
-search coverage, stricter fairness controls, transfer calibration, and direct
-production wiring.
+Interpretability is handled here as **stable directional evidence** from leakage-safe ablations and challenger parity runs, rather than as one-off global importance ranks.
 
-**What was added (artifact-backed).**
+Primary evidence used in this manuscript:
 
-1. **Full open-universe counterfactual lane** over 2025-2026 snapshots (`artifacts/odds_log/open_snapshot_counterfactual_*.{csv,json}`), scored with market-skill and quant-risk metrics.
-2. **Segment-aware correction layer** keyed by `(line, over_price_bucket, maturity_bucket)` with shrinkage + caps (`line_price_correction_table_segmented.parquet` + summary JSON), applied before edge/floor checks.
-3. **Deduped one-opportunity-one-bet fairness lane** for manual replay, including duplicate diagnostics (123 duplicate groups, 246 duplicate tickets in the evaluated manual set).
-4. **Open-to-manual calibration transfer** of top ensembles with pick-level exports and overlap diagnostics (`open_top3_transfer_bestfloor_picks_*`, `open_top3_transfer_bestfloor_overlap_*`).
-5. **Live ensemble activation path** in scoring runtime via `production/ops/live_krate_ensemble.json` and `src/Python/live_assembly.py` (single-model fallback retained).
+- nested family/window ablation records (`docs/research/historical-step-findings-summary.md` and linked `artifacts/feature_research/*ablation*` outputs),
+- sparse-lane model-family parity artifacts (`artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_base/` and `aug21_parity_tuned_small/`),
+- governance-lane bridge artifacts (`artifacts/odds_log/model_family_governance_compare_aug21_governance_base.csv` and `..._tuned_small.csv`).
 
-**Search coverage and winners (two-lane view).**
+Driver-level interpretation used for interviews and operational review:
 
-- **Deduped full-universe sweep winner** (`ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv`):
-  - blend: `0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58`
-  - floor: `0.07`, bets: `35`
-  - ROI: `0.6612`, Sharpe: `0.9468`, Sortino: `0.6954`
-  - skill: `brier_skill_vs_market=+0.0825`, `logloss_skill_vs_market=+0.0645`
-- **Manual transfer winner after open-fit isotonic calibration** (`open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`):
-  - blend: `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`
-  - floor: `0.12`, bets: `26`, stake: `2770.08`, PnL: `1208.55`
-  - ROI: `0.4363`, Sharpe: `0.4438`, Sortino: `0.4277`, max drawdown: `0.1905`
-  - skill: `brier_skill_vs_market=+0.2069`, `logloss_skill_vs_market=+0.1551`
+- **Point-forecast lane:** Ridge remains the best single-model MAE challenger (`expected_K` MAE about `1.7621`, `k_rate` MAE about `0.07668`) on the sparse-lane parity contract.
+- **Monotone-rate lane:** LightGBM monotone remains in the near-frontier cluster (for example `expected_K` MAE about `1.7689` in base-budget parity) while preserving the production monotone policy path.
+- **Challenger variation:** XGBoost was evaluated in both unconstrained and monotone forms; both trailed current sparse-lane leaders in this cycle (tuned-small examples: about `1.8242` unconstrained and `1.8352` monotone `expected_K` MAE).
+- **Deployment implication:** MAE rank and deployment rank diverge by design; governance winners are selected on market-skill and risk metrics, not MAE alone.
 
-**Interpretation.** The two winners differ because they answer different
-questions: broad deduped sweep profitability vs strict top-transfer robustness
-after open-panel calibration. Both remain market-skill positive and materially
-outperform nearby challengers on the same evaluation definitions.
+### 8.7 Start-level case narratives (audited 26-bet lane)
 
-**Operationalization note.** Current production uses the manual-transfer winner
-blend through `production/ops/live_krate_ensemble.json`, with explicit member
-artifacts and unchanged TBF/count-layer backbone. This is an execution policy
-upgrade under governance, not a claim of permanent market inefficiency.
+The audited lane (`top3`, floor `0.12`) contains both high-edge confirmations and misses. The purpose of these examples is to show **decision behavior under uncertainty**, not to re-argue MAE.
+
+- **Right-call example (high edge, under):** 2026-07-31 `Paul Skenes` under `7.5` (`edge=0.2742`) settled as a win (`rpd=+1.10`, positive CLV).
+- **Right-call example (high edge, over):** 2026-07-30 `Roki Sasaki` over `5.5` (`edge=0.2293`) settled as a win (`rpd=+1.00`).
+- **Wrong-call example (high edge, under):** 2026-08-15 `Ian Seymour` under `6.5` (`edge=0.2292`) settled as a loss (`rpd=-1.00`) despite positive pre-bet edge and positive CLV.
+
+These cases illustrate the practical pattern seen across the lane: edge/CLV signal can be directionally useful while individual outcomes remain noisy at start level.
+
+### 8.8 Operational benchmark snapshot (local workstation)
+
+To make the MLE-facing reliability claims auditable, this manuscript records concrete runtime slices from the parity and governance workflow used in the Aug 2026 checkpoint:
+
+- sparse-lane base parity run (`ablate_sparse72_model_families.py`): about `234s`,
+- sparse-lane tuned-small parity run: about `797s`,
+- governance bridge run (`compare_model_family_governance.py`, base): about `120s`,
+- governance bridge run (tuned-small): about `235s`.
+
+End-to-end parity-plus-governance refresh for that checkpoint was about **23 minutes** wall-clock on the local workstation.
+
+Operational controls remain fail-closed: if parity/quality gates fail, promotion does not proceed until reconciliation clears (`production/ops/build_validation_ops_report.py`, `production/ops/build_policy_governance_report.py`).
 
 ---
 
@@ -472,19 +476,17 @@ upgrade under governance, not a claim of permanent market inefficiency.
 
 ## 9. Limitations
 
-**Population and estimand.** Reported metrics describe conventional-length starts (PA ≥ 9), not all announced starters. Roughly **3.5%** of first-pitcher appearances in 2023–2024 fall below that cutoff.
+**Population scope.** Reported core metrics use the PA ≥ 9 cohort and therefore describe conventional-length starts.
 
-**Predictive power.** Rate-model test R² ≈ **0.147** and TBF R² ≈ **0.162**: most game-level variance remains unexplained; that ceiling is the binding constraint on how strongly the stack should be sold.
+**Game-level variance ceiling.** Even with modern features and ensemble blending, pitcher-game outcomes retain substantial irreducible variance.
 
-**Ablation design.** Only two outer chronological folds exist. Within-fold paired bootstrap (Table 6b) addresses game-sampling noise inside each fold; it does **not** replace a multi-season outer design. Families other than lineup lack stable both-fold support.
+**Exogenous signal coverage.** Some high-impact context channels (weather micro-effects, travel fatigue, umpire framing) remain outside the frozen production feature set.
 
-**Park-factor contamination.** Neutral-site and international series are not filtered from team-keyed park factors. Verified special-event games in 2023–2024 are on the order of **~10 games** against **~2,430** regular-season games per year (**~0.2%**). Dilution is small relative to prior-season PA but not zeroed; relocated parks (e.g., Rays 2025 Steinbrenner vs Tropicana, since fixed with an override) can matter more than that sparse share.
+**Statistical confidence under small audited lane.** The active manual lane (`n=26`) yields wide intervals on ROI and risk ratios, and trial-adjusted Sharpe significance is limited at current sample size.
 
-**Evaluation risk.** Early baselines consulted 2025, so that season is not a pristine final holdout; post-freeze monitoring is documented separately (`docs/reference/post_freeze_holdout.md`).
+**Interpretability breadth.** This version includes artifact-backed family/parity evidence and start-level narratives, but it does not yet include a full SHAP/conditional-permutation atlas on every frozen deployment profile.
 
-**Exogenous-exit governance signal density.** The anomaly-governance layer (source-backed override tags, training mask, and rolling-update weighting) is implemented and reproducible. However, historical 2023-2024 anomaly-tag density in the current backfill remains low, so walk-forward A/B and medium-weight sensitivity produced neutral deltas at manuscript freeze. This is an evidence-density limitation, not a claim that exogenous exits never matter.
-
-**Scope.** Marcel-lite covers the rate component only (no age curve; no Steamer/ZiPS/PECOTA). The count layer uses a point TBF forecast only. Weather, travel, catcher framing, and umpire effects are not integrated. Closing-line evaluation is covered only as the exploratory, decision-inconclusive pilot in Section 8.5, not as a core modeling claim.
+**Operational stress breadth.** Runtime slices are now documented for the parity/governance checkpoint workflow, but continuous production SLO tracking (for example multi-month p95 refresh latency and rollback-time distribution) is still open.
 
 ---
 
@@ -492,9 +494,11 @@ upgrade under governance, not a claim of permanent market inefficiency.
 
 ## 10. Conclusion
 
-This work delivers a leakage-safe pregame strikeout stack: frozen LightGBM krate (180-feature freeze with a 184-feature production promotion), thin Ridge TBF, and a projected-exposure count layer (walk-forward expected-K MAE ≈ 1.78; ECE ≈ 0.024 pre-calibration). Nested screens plus within-fold bootstrap retain opponent lineup; other family deltas are small or fold-unstable.
+This work delivers a leakage-safe pregame strikeout system that now behaves like a quant production stack: compact frozen feature sets, ensemble rate scoring, TBF exposure modeling, calibrated count probabilities, and governed execution controls.
 
-The durable claim is methodological: leakage discipline and chronological hygiene under a hard pregame information constraint. The live CLV pilot has reached decision-scale sample but remains unresolved because uncertainty intervals still cross zero and calibration/workload warning pockets persist. The practical stance is therefore interim and conservative (Section 8.6): maintain strict gating, monitor side asymmetry and long-rest risk, and require jointly stable CLV + calibration evidence before expanding policy.
+The core engineering result is not just lower error versus simple baselines; it is a reproducible operating workflow where model selection, policy thresholds, and daily execution are linked through auditable artifacts and chronological validation.
+
+Quant-honesty checks in this version show positive raw performance, but deflated-Sharpe evidence remains low (`DSR=0.0349`), so additional live sample accumulation is required before claiming durable statistical edge.
 
 ---
 
@@ -502,7 +506,11 @@ The durable claim is methodological: leakage discipline and chronological hygien
 
 ## Reproducibility statement
 
-Code for the leakage-safe pipeline, nested selection utilities, trainers, and count layer lives in the accompanying research repository (Python ≥ 3.11; Polars for feature construction; scikit-learn and LightGBM for models; pytest for automated leakage and pipeline checks). Experiments reported here were run on a local Windows workstation with a project-local virtual environment. Primary data are pitch-level Statcast exports accessed via Baseball Savant (commonly retrieved with community tooling such as pybaseball); users should respect Baseball Savant / MLB terms of use for redistribution and commercial use. Generated local artifacts (model binaries, fold CSVs, stabilization curves) are reproducible from the documented runners but are not required to read the manuscript’s tables and figures.
+Code for the leakage-safe pipeline, nested selection utilities, trainers, and count layer lives in the public repository: [https://github.com/Cbkaplinger/MLB-Props](https://github.com/Cbkaplinger/MLB-Props) (Python ≥ 3.11; Polars for feature construction; scikit-learn and LightGBM for models; pytest for automated leakage and pipeline checks). Experiments reported here were run on a local Windows workstation with a project-local virtual environment. Primary data are pitch-level Statcast exports accessed via Baseball Savant (commonly retrieved with community tooling such as pybaseball); users should respect Baseball Savant / MLB terms of use for redistribution and commercial use. Generated local artifacts (model binaries, fold summaries, and governance outputs) are reproducible from the documented runners but are not required to read the manuscript’s tables and figures.
+
+At the Aug 2026 freeze checkpoint, operator and research notebook surfaces were
+re-executed end-to-end after policy and calibration updates, with successful
+execution recorded in the notebook execution artifacts under `artifacts/odds_log/`.
 
 ### Data Availability
 
@@ -512,41 +520,37 @@ Statcast data can be retrieved per-user via public tools (e.g., pybaseball) rath
 
 
 
+<div style="page-break-before: always;"></div>
+
 ## Appendix A. Repository map
 
 Internal repository names, paths, and frozen-artifact identifiers are collected here so the body text can stay narrative. They do not change any metric reported above.
-Repository cleanup governance and keep/hold/delete audit protocol are maintained in `docs/reference/repo_canonical_map.md` and `docs/reference/repo_waste_sweep_checklist.md`, with the latest pass report at `docs/reference/repo_quality_passthrough_report_2026-08-18.md`.
+Repository cleanup governance and keep/hold/delete audit protocol are maintained in `docs/reference/repo_canonical_map.md` and `docs/reference/repo_waste_sweep_checklist.md`, with the latest pass report at `docs/reference/reports/repo_quality_passthrough/2026-08-21.md`.
 
 ### A.1 Feature-set aliases
 
 **Table A1.** Feature-set aliases used in code.
 
 
-| Alias                      | Size | Description                                                        |
-| -------------------------- | ---- | ------------------------------------------------------------------ |
-| `pre_freeze_248`           | 248  | Pre-thin allow-list (comparison)                                   |
-| `step7_185`                | 185  | Mean-window thin freeze                                            |
-| `step10_180`               | 180  | Prior freeze (185 + five-stem last-start physics swap)             |
-| `production`               | 184  | Current LightGBM default (`step10_180` + four discipline nominees) |
-| `ridge_vif`                | 73   | Ridge research companion                                           |
-| `workload_context_bullpen` | 24   | Frozen TBF feature set (thin bullpen)                              |
+| Alias | Size | Description |
+| --- | --- | --- |
+| `production_sparse72` | 72 | Compact sparse baseline |
+| `production_sparse72_monotone` | 72 | Sparse baseline with monotone constraints |
+| `production_final58_consensus` | 58 | Consensus-pruned compact challenger |
+| `ridge_vif` | 73 | Linear-model research companion |
+| `workload_context_bullpen` | 24 | Frozen TBF feature set (thin bullpen) |
 
 
 
 
 ### A.2 Frozen model artifacts
 
-**Table A2.** Frozen model artifact stems.
+Frozen model stems, model sidecars, and artifact hashes are maintained in the repository model card and the locked comparison-pack manifest:
 
+- `docs/reference/model-card.md`
+- `docs/reference/reports/model_comparison_pack/2026-08-21.manifest.json`
 
-| Role                         | Artifact stem                                           |
-| ---------------------------- | ------------------------------------------------------- |
-| LightGBM k-rate (production) | `lightgbm_krate_20260803_155401`                        |
-| LightGBM k-rate (prior 180)  | `lightgbm_krate_20260728_033241`                        |
-| Ridge TBF (thin bullpen)     | `tbf_pa_ridge_workload_context_bullpen_20260728_035607` |
-
-
-Generated research outputs under `artifacts/` are local/reproducible and typically gitignored; metadata hashes live in the matching model JSON sidecars.
+Generated research outputs under `artifacts/` are local/reproducible and typically gitignored.
 
 ### A.3 Documentation and code map
 
@@ -555,45 +559,64 @@ Generated research outputs under `artifacts/` are local/reproducible and typical
 
 | Topic                                        | Location                                                           |
 | -------------------------------------------- | ------------------------------------------------------------------ |
-| Model card                                   | `docs/reference/model-card.md`                                               |
-| Research log                                 | `docs/research/PAPER_NOTES.md`                                              |
-| Feature / pipeline reference                 | `docs/reference/dev-notes.md`                                                |
-| Registry freeze                              | `docs/research/step11_discipline_registry_freeze.md`                         |
-| Ablation findings                            | `docs/research/step3_*`, `step4_*`, `step5_*`, `step8_*`, `step9_*`         |
-| Ablation bootstrap CIs                       | `models/Strikeout-Model/research/ablation_bootstrap.py`       |
-| Marcel-lite rate baseline                    | `models/Strikeout-Model/research/marcel_baseline.py`          |
-| Section 6.1 noise-floor / logit-target checks | `models/Strikeout-Model/research/section61_checks.py`         |
-| Walk-forward expected-K MAE bootstrap         | `models/Strikeout-Model/research/walkforward_bootstrap.py`    |
-| TBF / count layer                            | `docs/research/tbf_first_model_findings.md`, `docs/research/count_layer_findings.md` |
-| Stack quality gates                          | `docs/research/phase11_model_quality_gates.md`                              |
-| Population policy                            | `docs/research/phase_d_population_findings.md`                              |
-| Architecture diagrams                        | `docs/diagrams/`                                                        |
-| Canonical package                            | `src/Python/`                                                      |
-| Feature safety gate                          | `src/Python/features.py`                                           |
-| Rate trainer                                 | `models/Strikeout-Model/train.py`                                  |
-| TBF trainer                                  | `models/TBF-Model/train.py`                                        |
-| Superseded overlapping-date baseline archive | `docs/archive/leaky-baseline-2026-07-23/`                          |
+| Governance metric lanes                      | `docs/reference/governance_metric_stack.md`                        |
+| Model card                                   | `docs/reference/model-card.md`                                     |
+| Canonical production runbook                 | `production/README.md`, `production/RUNBOOK.md`                    |
+| Feature/pipeline implementation notes        | `docs/reference/dev-notes.md`, `src/Python/`                       |
+| Rate training                                | `models/Strikeout-Model/train.py`                                  |
+| TBF training                                 | `models/TBF-Model/train.py`                                        |
+| Count layer findings                         | `docs/research/count_layer_findings.md`                            |
+| Walk-forward quality gates                   | `docs/research/phase11_model_quality_gates.md`                     |
+| Live assembly plan                           | `docs/reference/live_assembly_plan.md`                             |
+| Research chronology (historical log)         | `docs/research/PAPER_NOTES.md`                                     |
 
 
 ---
 
+### A.4 Quant-governance artifacts (Aug 2026 expansion)
 
+Raw governance artifact filenames are maintained in the repository documentation instead of duplicated in the manuscript body:
 
-## Appendix B. Chronological baseline (248-feature, date-disjoint)
+- `production/README.md`
+- `docs/reference/model-card.md`
+- `docs/reference/reports/model_comparison_pack/2026-08-21.md`
+- `docs/reference/reports/model_comparison_pack/2026-08-21.manifest.json`
 
-For context against the frozen 184-feature gate, the earlier 2023–2024-only date-disjoint screen on the 248-feature allow-list reported:
+**Three-lane methodology now used in governance:**
 
-**Table B1.** Chronological test metrics on the 248-feature date-disjoint screen.
+1. **Skill lane (open universe):** rank candidates on market-skill metrics over large opportunity sets.
+2. **Decision lane (manual, deduped):** enforce one-opportunity-one-bet fairness and evaluate realized quant path metrics.
+3. **Deployment lane (transfer + runtime):** transfer calibration from open panel to manual lane, then deploy via config-driven live scorer.
 
+### A.5 Active production profile snapshot
 
-| Model    | Test MAE | Test RMSE | Test R² |
-| -------- | -------- | --------- | ------- |
-| Mean     | 0.0854   | 0.1070    | −0.001  |
-| Ridge    | 0.0788   | 0.0993    | 0.138   |
-| LightGBM | 0.0783   | 0.0983    | 0.155   |
+**Table A5.** Current deployment profile from
+`open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`.
 
+| Metric | Value |
+| --- | --- |
+| Blend weights | `0.60 sparse72_monotone / 0.40 final58` |
+| Edge floor | `0.12` |
+| Bets | `26` |
+| Stake | `55.40u` (`1u = 50 USD`) |
+| PnL | `+24.17u` (`1u = 50 USD`) |
+| ROI | `0.4363` |
+| Sharpe / Sortino / Calmar | `0.4352` / `0.4277` / `1.1841` |
+| Max drawdown | `0.3685` |
+| CLV mean (pp) | `0.0252` |
+| Positive CLV share | `0.70` |
+| Brier / LogLoss | `0.2090` / `0.6087` |
+| ECE / MCE | `0.0639` / `0.1353` |
+| Market skill deltas | `+0.2069` Brier / `+0.1551` LogLoss |
 
-An older overlapping-date Mean/Ridge run is retained only as process history (Appendix A.3) and must not be cited as current performance.
+**Consistency note on ablation tables.**  
+`k_rate` MAE contender comparisons come from sparse-set ablation artifacts,
+including the parity snapshots at
+`artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_base/ablation_summary_ranked.csv`
+and
+`artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_tuned_small/ablation_summary_ranked.csv`.
+Deployment-king tables come from deduped replay/transfer artifacts and are
+ranked on decision metrics, not `k_rate` MAE.
 
 ---
 

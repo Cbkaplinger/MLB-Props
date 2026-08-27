@@ -19,20 +19,25 @@ CSS = """
 @page { margin: 0.7in; }
 body {
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 10.2pt;
-  line-height: 1.48;
+  font-size: 12pt;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  font-kerning: none;
+  font-variant-ligatures: none;
   color: #1a1a1a;
   max-width: 7.3in;
   margin: 0 auto;
 }
 h1 {
-  font-size: 17pt;
+  font-size: 20pt;
   line-height: 1.25;
   margin: 0 0 0.35em;
   font-weight: 700;
 }
 h2 {
-  font-size: 13pt;
+  font-size: 15pt;
   margin: 1.35em 0 0.5em;
   padding-bottom: 0.18em;
   border-bottom: 1px solid #bbb;
@@ -40,7 +45,7 @@ h2 {
   page-break-after: avoid;
 }
 h3 {
-  font-size: 11pt;
+  font-size: 13pt;
   margin: 1.05em 0 0.35em;
   font-weight: 700;
   color: #222;
@@ -58,18 +63,21 @@ table {
   border-collapse: collapse;
   width: 100%;
   margin: 0.35em 0 0.95em;
-  font-size: 9.1pt;
+  font-size: 10.5pt;
 }
 th, td {
   border: 1px solid #999;
   padding: 0.32em 0.45em;
   text-align: left;
   vertical-align: top;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 th { background: #efefef; font-weight: 700; }
 code {
   font-family: Consolas, "Courier New", monospace;
-  font-size: 8.7pt;
+  font-size: 10pt;
   background: #f4f4f4;
   padding: 0.04em 0.22em;
   border-radius: 2px;
@@ -101,14 +109,14 @@ figure img {
 }
 figcaption {
   margin-top: 0.4em;
-  font-size: 9pt;
+  font-size: 10.5pt;
   line-height: 1.35;
   text-align: left;
   color: #222;
 }
 p.table-caption {
   margin: 0.85em 0 0.25em;
-  font-size: 9.2pt;
+  font-size: 10.5pt;
   font-weight: 700;
 }
 """
@@ -172,10 +180,10 @@ def main() -> None:
             format="Letter",
             print_background=True,
             margin={
-                "top": "0.65in",
-                "bottom": "0.65in",
-                "left": "0.65in",
-                "right": "0.65in",
+                "top": "0.55in",
+                "bottom": "0.55in",
+                "left": "0.55in",
+                "right": "0.55in",
             },
         )
         browser.close()

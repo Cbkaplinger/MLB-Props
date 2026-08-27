@@ -1,6 +1,6 @@
 # Paper manuscript
 
-Markdown source, figures, and PDF export for the modeling write-up.
+Markdown source, figures, and PDF export for the quant manuscript.
 
 | File | Role |
 |---|---|
@@ -26,7 +26,7 @@ Repository hygiene and cleanup governance references:
 
 - `docs/reference/repo_canonical_map.md`
 - `docs/reference/repo_waste_sweep_checklist.md`
-- `docs/reference/repo_quality_passthrough_report_2026-08-18.md`
+- `docs/reference/reports/repo_quality_passthrough/2026-08-21.md`
 
 Regenerate figures and PDFs after editing:
 
@@ -41,10 +41,12 @@ matplotlib (research extras).
 
 ## Editorial targets (resume-ready)
 
-- Keep main manuscript at or below ~15 pages in PDF export.
+- Keep main manuscript concise (target <=15 pages body in PDF export).
+- Page budget convention: body sections (Abstract through Conclusion) target
+  <=15 pages; appendices may extend beyond this budget.
 - Prioritize clear narrative over exhaustive logs:
   1. problem + leakage-safe setup,
   2. frozen model results vs baselines,
-  3. current live-monitoring status + limitations,
+  3. current quant-governance and live-monitoring status + limitations,
   4. decision-grade next steps.
 - Move low-value detail to appendices or `docs/research/`.
