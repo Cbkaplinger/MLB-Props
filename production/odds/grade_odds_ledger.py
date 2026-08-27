@@ -25,6 +25,14 @@ import polars as pl
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+# Windows cp1252 consoles cannot encode polars' box-drawing characters; force
+# UTF-8 output so the threshold curve / reports never crash on print.
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+
 from Python.market import bet_pnl, bootstrap_mean_ci  # noqa: E402
 from Python.odds_ledger import (  # noqa: E402
     LEDGER_PATH,
@@ -65,7 +73,7 @@ def _find_tickets(ledger: pl.DataFrame, name: str, game_date: str) -> list[dict]
 
 
 def _fetch_pitcher_result(game_pk: int, pitcher_id: int) -> dict:
-    """Return ``{so, game_final, appeared}`` for ``pitcher_id`` in ``game_pk``.
+    """Return settle stat bundle for ``pitcher_id`` in ``game_pk``.
 
     ``appeared=False`` with ``game_final=True`` means the game finished but the
     pitcher never recorded a pitching stat line (scratch, rainout/rescheduled
@@ -92,8 +100,30 @@ def _fetch_pitcher_result(game_pk: int, pitcher_id: int) -> dict:
                 continue
             pitching = pdata.get("stats", {}).get("pitching", {})
             so = pitching.get("strikeOuts")
+            ip_raw = pitching.get("inningsPitched")
+            ip = None
+            outs = None
+            if ip_raw is not None:
+                try:
+                    ip_str = str(ip_raw)
+                    ip = float(ip_str)
+                    whole, frac = ip_str.split(".", 1) if "." in ip_str else (ip_str, "0")
+                    outs = int(whole) * 3 + int(frac)
+                except Exception:  # noqa: BLE001
+                    ip = None
+                    outs = None
+            h_allowed = pitching.get("hits")
+            bb_allowed = pitching.get("baseOnBalls")
             if so is not None:
-                return {"so": float(so), "game_final": game_final, "appeared": True}
+                return {
+                    "so": float(so),
+                    "ip": float(ip) if ip is not None else None,
+                    "outs": float(outs) if outs is not None else None,
+                    "hits_allowed": float(h_allowed) if h_allowed is not None else None,
+                    "walks_allowed": float(bb_allowed) if bb_allowed is not None else None,
+                    "game_final": game_final,
+                    "appeared": True,
+                }
             return {"so": None, "game_final": game_final, "appeared": bool(pitching)}
     return {"so": None, "game_final": game_final, "appeared": False}
 
@@ -318,7 +348,12 @@ def main() -> None:
             if t.get("status") == "settled":
                 print(f"already settled: {t['ticket_id']}")
                 continue
-            ledger = apply_settle(ledger, ticket_id=t["ticket_id"], settle_value=k)
+            ledger = apply_settle(
+                ledger,
+                ticket_id=t["ticket_id"],
+                settle_value=k,
+                settle_context={"strikeouts": k},
+            )
             print(f"settled: {t['player_name']} K={k}")
 
     if args.auto_settle_api and not ledger.is_empty():
@@ -329,7 +364,18 @@ def main() -> None:
                 continue
             res = _fetch_pitcher_result(int(pk), int(pid))
             if res["so"] is not None:
-                ledger = apply_settle(ledger, ticket_id=t["ticket_id"], settle_value=res["so"])
+                ledger = apply_settle(
+                    ledger,
+                    ticket_id=t["ticket_id"],
+                    settle_value=res["so"],
+                    settle_context={
+                        "ip": res.get("ip"),
+                        "outs": res.get("outs"),
+                        "hits_allowed": res.get("hits_allowed"),
+                        "walks_allowed": res.get("walks_allowed"),
+                        "strikeouts": res.get("so"),
+                    },
+                )
                 print(f"API settle: {t['player_name']} K={res['so']}")
             elif args.void_scratches and res["game_final"] and not res["appeared"]:
                 reason = res.get("detailed") or "scratched"

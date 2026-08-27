@@ -45,7 +45,11 @@ def _reason_counts(df: pl.DataFrame, col: str) -> dict[str, int]:
 
 
 def main() -> None:
-    strict = "--no-strict" not in sys.argv
+    # Delta with the board is recorded in the artifact but is not fatal by
+    # default: a board/ledger divergence is a monitoring flag, not a reason to
+    # kill the whole morning workflow (and block the morning ntfy alert).
+    # Pass --strict (or CI) to fail fast on a divergence.
+    strict = "--strict" in sys.argv
     snap = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     if not REC_PATH.exists() or not LEDGER_PATH.exists():
         payload = {
@@ -79,10 +83,28 @@ def main() -> None:
     slate = rec.select(pl.col("gdate").max()).item()
     rec_slate = rec.filter(pl.col("gdate") == slate)
 
-    open_led = (
+    open_led_all = (
         led.with_columns(pl.col("game_date").cast(pl.Utf8).str.slice(0, 10).alias("gdate"))
         .filter((pl.col("status") == "open") & (pl.col("gdate") == slate))
     )
+    if open_led_all.is_empty():
+        open_led = open_led_all
+        latest_batch_utc = None
+    else:
+        with_ts = open_led_all.with_columns(
+            pl.col("logged_at_utc")
+            .cast(pl.Utf8)
+            .str.to_datetime(strict=False, time_zone="UTC")
+            .alias("_logged_ts")
+        )
+        latest_batch = with_ts.select(pl.col("_logged_ts").max()).item()
+        latest_batch_utc = latest_batch.isoformat() if latest_batch is not None else None
+        open_led = (
+            with_ts.filter(pl.col("_logged_ts") == pl.lit(latest_batch))
+            .drop("_logged_ts")
+            if latest_batch is not None
+            else open_led_all
+        )
 
     board_bet = rec_slate.filter(pl.col("recommendation") == "BET")
     led_bet = open_led.filter(pl.col("passes_floor") == True)  # noqa: E712
@@ -98,6 +120,8 @@ def main() -> None:
         "board_rows": int(rec_slate.height),
         "board_bet": int(board_bet.height),
         "board_hold": int(board_hold.height),
+        "ledger_open_rows_total": int(open_led_all.height),
+        "ledger_latest_batch_utc": latest_batch_utc,
         "ledger_open_rows": int(open_led.height),
         "ledger_bet_rows": int(led_bet.height),
         "ledger_hold_rows": int(led_hold.height),

@@ -13,13 +13,18 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+import time
+
+import polars as pl
 
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 OUT_PATH = ROOT / "artifacts" / "odds_log" / "daily_kpi_loop_last_run.json"
+STEP_HIST_PATH = ROOT / "artifacts" / "odds_log" / "daily_kpi_step_history.parquet"
 
 
 def _run_step(label: str, cmd: list[str]) -> dict[str, object]:
+    start = time.perf_counter()
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "utf-8"
     proc = subprocess.run(
@@ -37,10 +42,12 @@ def _run_step(label: str, cmd: list[str]) -> dict[str, object]:
             f"{label} failed (exit={proc.returncode})\n"
             f"stdout:\n{out}\n\nstderr:\n{err}"
         )
+    elapsed_s = time.perf_counter() - start
     return {
         "label": label,
         "command": " ".join(cmd),
         "stdout_tail": out[-2000:],
+        "elapsed_seconds": round(elapsed_s, 3),
     }
 
 
@@ -146,6 +153,30 @@ def main() -> None:
             [str(PYTHON), "production/ops/build_policy_governance_report.py"],
         )
     )
+    steps.append(
+        _run_step(
+            "compact_aux_quote_history",
+            [str(PYTHON), "production/ops/compact_aux_quote_history.py", "--retention-days", "120"],
+        )
+    )
+    steps.append(
+        _run_step(
+            "build_aux_market_shadow_score",
+            [str(PYTHON), "production/ops/build_aux_market_shadow_score.py"],
+        )
+    )
+    steps.append(
+        _run_step(
+            "build_runtime_monitoring_snapshot",
+            [str(PYTHON), "production/ops/build_runtime_monitoring_snapshot.py"],
+        )
+    )
+    steps.append(
+        _run_step(
+            "build_automation_self_check",
+            [str(PYTHON), "production/ops/build_automation_self_check.py", "--notify-on-red"],
+        )
+    )
     summary = {
         "ran_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "skip_notebooks": bool(args.skip_notebooks),
@@ -154,6 +185,22 @@ def main() -> None:
     }
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    run_id = summary["ran_utc"]
+    hist_rows = [
+        {
+            "run_utc": run_id,
+            "step_label": s.get("label"),
+            "elapsed_seconds": float(s.get("elapsed_seconds") or 0.0),
+        }
+        for s in steps
+    ]
+    hist_new = pl.DataFrame(hist_rows)
+    if STEP_HIST_PATH.exists():
+        hist_old = pl.read_parquet(STEP_HIST_PATH)
+        hist_out = pl.concat([hist_old, hist_new], how="diagonal_relaxed")
+    else:
+        hist_out = hist_new
+    hist_out.write_parquet(STEP_HIST_PATH)
 
     print(json.dumps({"output": str(OUT_PATH), "action": action.get("action")}, indent=2))
 

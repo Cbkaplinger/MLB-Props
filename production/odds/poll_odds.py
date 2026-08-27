@@ -1,7 +1,7 @@
 """Poll SharpAPI MLB pitcher strikeouts into the odds ledger.
 
 Morning (open / bet-time snapshot):
-    python production/odds/poll_odds.py --snapshot open --unit 50
+    python production/odds/poll_odds.py --snapshot open --unit 50 --from-recommendations
 
 Near first pitch (or use the tip-aware watcher):
     python production/odds/poll_odds.py --snapshot close
@@ -543,6 +543,11 @@ def main() -> None:
         action="store_true",
         help="Open only: write open ledger rows directly from recommendations.parquet (source-of-truth execution mode).",
     )
+    p.add_argument(
+        "--allow-live-open-poll",
+        action="store_true",
+        help="Open only: allow direct live quote polling instead of the board-artifact source-of-truth mode.",
+    )
     args = p.parse_args()
 
     edge_floor = float(args.edge_floor)
@@ -566,6 +571,11 @@ def main() -> None:
     policy_signature = "n/a"
     policy_label = "close_snapshot"
     if args.snapshot == "open":
+        if not args.from_recommendations and not args.allow_live_open_poll:
+            raise SystemExit(
+                "open snapshot mode is locked to --from-recommendations for board/ledger parity. "
+                "Use --allow-live-open-poll only for diagnostics."
+            )
         rec_meta = _load_recommendations_meta() if args.from_recommendations else {}
         policy_payload = {
             "snapshot": args.snapshot,

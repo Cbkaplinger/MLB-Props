@@ -1369,7 +1369,17 @@ def validate_daily_slate(
             f"{invalid_coverage.to_dicts()}"
         )
     if slate.starters.filter(pl.col("pitcher").is_null()).height:
-        raise ValueError("Daily slate contains an unresolved starting pitcher")
+        names = (
+            slate.starters.filter(pl.col("pitcher").is_null())
+            .select("team", "player_name")
+            .unique()
+            .head(20)
+            .to_dicts()
+        )
+        raise ValueError(
+            "Daily slate contains an unresolved starting pitcher: "
+            f"{names}"
+        )
     starter_coverage = slate.starters.group_by(["game_pk", "team_id"]).agg(
         pl.len().alias("rows"),
         pl.col("pitcher").n_unique().alias("pitchers"),
@@ -1525,16 +1535,20 @@ def build_daily_slate(
         )
         missing_names = tuple(
             sorted(
-                set(
-                    unresolved_lineups.filter(pl.col("batter").is_null())[
-                        "player_name"
-                    ].to_list()
+                n
+                for n in (
+                    set(
+                        unresolved_lineups.filter(pl.col("batter").is_null())[
+                            "player_name"
+                        ].to_list()
+                    )
+                    | set(
+                        unresolved_starters.filter(pl.col("pitcher").is_null())[
+                            "player_name"
+                        ].to_list()
+                    )
                 )
-                | set(
-                    unresolved_starters.filter(pl.col("pitcher").is_null())[
-                        "player_name"
-                    ].to_list()
-                )
+                if n
             )
         )
         found = (
@@ -1587,11 +1601,82 @@ def build_daily_slate(
                 last_err = None
             except ValueError as exc:
                 last_err = exc
-        if lineups is None or starters is None:
-            assert last_err is not None
-            raise last_err
+        # Build best-effort unresolved frames so a single corrupt game (e.g. a
+        # lineup row with a null batted name) drops from the slate instead of
+        # failing the whole automation. require_complete=False keeps the nulls
+        # in the frame; the drop-tolerance below removes those games.
+        lineups = resolve_player_ids(
+            scheduled.lineups,
+            rosters,
+            output_column="batter",
+            aliases=aliases,
+            enrich=False,
+            require_complete=False,
+            timeout=timeout,
+        )
+        starters = resolve_player_ids(
+            scheduled.starters,
+            rosters,
+            output_column="pitcher",
+            aliases=aliases,
+            enrich=False,
+            require_complete=False,
+            timeout=timeout,
+        )
+        if "official_probable_pitcher_id" in starters.columns:
+            starters = starters.with_columns(
+                pl.coalesce(
+                    pl.col("pitcher"),
+                    pl.col("official_probable_pitcher_id"),
+                ).alias("pitcher")
+            )
 
     resolved = DailySlate(lineups=lineups, starters=starters)
+
+    # Tolerate isolated unresolvable games (e.g. a same-day callup not yet on
+    # any roster, or a wrong RG name) so one bad game can't fail the whole
+    # slate and take the daily automation down with it. Drop those games and
+    # continue with the rest; we simply don't bet the games we can't resolve.
+    bad_games = set()
+    null_starters = resolved.starters.filter(pl.col("pitcher").is_null())
+    if null_starters.height:
+        bad_games |= set(null_starters["game_pk"].unique().to_list())
+    if resolved.lineups.height:
+        incomplete = (
+            resolved.lineups.group_by(["game_pk", "team_id"])
+            .agg(
+                pl.len().alias("rows"),
+                pl.col("batter").null_count().alias("null_batters"),
+                pl.col("batter").n_unique().alias("distinct_batters"),
+            )
+            .filter(
+                (pl.col("rows") != 9)
+                | (pl.col("null_batters") > 0)
+                | (pl.col("distinct_batters") != 9)
+            )
+        )
+        bad_games |= set(incomplete["game_pk"].unique().to_list())
+    if bad_games:
+        dropped = (
+            resolved.starters.filter(pl.col("game_pk").is_in(bad_games))
+            .select("game_pk", "team", "player_name", "opponent")
+            .unique()
+            .sort("game_pk")
+            .to_dicts()
+        )
+        print(
+            f"WARNING: dropping {len(bad_games)} game(s) with unresolved "
+            f"starter/lineup: {dropped}"
+        )
+        resolved = DailySlate(
+            lineups=resolved.lineups.filter(
+                ~pl.col("game_pk").is_in(bad_games)
+            ),
+            starters=resolved.starters.filter(
+                ~pl.col("game_pk").is_in(bad_games)
+            ),
+        )
+
     validate_daily_slate(
         resolved,
         require_confirmed=require_confirmed,

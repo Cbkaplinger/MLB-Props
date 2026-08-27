@@ -17,7 +17,7 @@ from pathlib import Path
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_TARGET = ROOT / "artifacts" / "model_quality"
+DEFAULT_TARGET = ROOT / "artifacts" / "odds_log"
 DEFAULT_REPORT_JSON = ROOT / "artifacts" / "odds_log" / "prune_artifacts_last_report.json"
 DEFAULT_REPORT_CSV = ROOT / "artifacts" / "odds_log" / "prune_artifacts_candidates_latest.csv"
 CHUNK_SIZE = 1024 * 1024
@@ -154,7 +154,12 @@ def _apply_deletes(rows: list[dict[str, object]]) -> tuple[int, int]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target", type=str, default=str(DEFAULT_TARGET), help="Directory to scan for duplicates.")
+    parser.add_argument(
+        "--target",
+        type=str,
+        default=str(DEFAULT_TARGET),
+        help="Directory to scan for duplicates (default: artifacts/odds_log).",
+    )
     parser.add_argument("--report-json", type=str, default=str(DEFAULT_REPORT_JSON), help="Path to JSON report output.")
     parser.add_argument("--report-csv", type=str, default=str(DEFAULT_REPORT_CSV), help="Path to CSV report output.")
     parser.add_argument(

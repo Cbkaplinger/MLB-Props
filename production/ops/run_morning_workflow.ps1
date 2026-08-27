@@ -54,5 +54,15 @@ if (-not $SkipLedgerStatus) {
 }
 Run-Step "6 reconcile_board_vs_ledger" @("production/ops/build_board_ledger_reconciliation.py")
 Run-Step "7 policy_governance_report" @("production/ops/build_policy_governance_report.py")
+Run-Step "7b compact_aux_quote_history" @("production/ops/compact_aux_quote_history.py", "--retention-days", "120")
+Run-Step "7c aux_market_shadow_score" @("production/ops/build_aux_market_shadow_score.py")
+Run-Step "8 runtime_monitoring_snapshot" @("production/ops/build_runtime_monitoring_snapshot.py")
+Run-Step "8b weekly_policy_digest" @("production/ops/build_weekly_policy_digest.py")
+Run-Step "8c automation_self_check" @("production/ops/build_automation_self_check.py", "--notify-on-red")
+try {
+    Run-Step "9 morning_alert" @("production/ops/send_morning_alert.py")
+} catch {
+    Write-Warning "Morning alert step failed: $($_.Exception.Message)"
+}
 
 Write-Host "`nMorning workflow complete."

@@ -68,6 +68,11 @@ LEDGER_COLUMNS: list[str] = [
     "clv_pp",
     "close_status",  # null | ok | ok_cross_book | unavailable
     "settle_value",
+    "settle_ip",
+    "settle_outs",
+    "settle_hits_allowed",
+    "settle_walks_allowed",
+    "settle_strikeouts",
     "result",  # win | loss | null
     "pnl",
     "source",
@@ -403,6 +408,11 @@ def score_quote_to_row(
         "clv_pp": None,
         "close_status": None,
         "settle_value": None,
+        "settle_ip": None,
+        "settle_outs": None,
+        "settle_hits_allowed": None,
+        "settle_walks_allowed": None,
+        "settle_strikeouts": None,
         "result": None,
         "pnl": None,
         "source": source,
@@ -425,47 +435,62 @@ def apply_close(
     if as_of.tzinfo is None:
         as_of = as_of.replace(tzinfo=timezone.utc)
     closed_iso = as_of.astimezone(timezone.utc).isoformat()
-    rows = ledger.to_dicts()
-    out = []
-    for r in rows:
-        if r.get("ticket_id") != ticket_id:
-            out.append(r)
-            continue
-        if r.get("clv_pp") is not None and not overwrite:
-            out.append(r)
-            continue
-        side = r["side"]
-        bet_price = float(r["bet_price"])
-        if side == "over":
-            clv = clv_pp_from_americans(
-                close_over,
-                bet_price,
-                close_other=close_under,
-                bet_other=r.get("under_price"),
-            )
-        else:
-            clv = clv_pp_from_americans(
-                close_under,
-                bet_price,
-                close_other=close_over,
-                bet_other=r.get("over_price"),
-            )
-        tip = parse_event_start_utc(r.get("event_start_time_utc"))
-        note = str(r.get("note") or "")
-        if close_status == "ok_cross_book" and "close_cross_book=" not in note:
-            note = f"{note} | close_cross_book=1".strip(" |")
-        r = {
-            **r,
-            "close_over": float(close_over),
-            "close_under": float(close_under),
-            "clv_pp": float(clv),
-            "close_status": close_status,
-            "closed_at_utc": closed_iso,
-            "minutes_to_tip_at_close": minutes_to_tip(tip, as_of=as_of),
-            "note": note,
-        }
-        out.append(r)
-    return pl.DataFrame(out)
+    mask = pl.col("ticket_id") == ticket_id
+    tgt = ledger.filter(mask).head(1)
+    if tgt.is_empty():
+        return ledger
+    row = tgt.row(0, named=True)
+    side = row["side"]
+    bet_price = float(row["bet_price"])
+    if side == "over":
+        clv = clv_pp_from_americans(
+            float(close_over),
+            bet_price,
+            close_other=float(close_under),
+            bet_other=row.get("under_price"),
+        )
+    else:
+        clv = clv_pp_from_americans(
+            float(close_under),
+            bet_price,
+            close_other=float(close_over),
+            bet_other=row.get("over_price"),
+        )
+    tip = parse_event_start_utc(row.get("event_start_time_utc"))
+    note = str(row.get("note") or "")
+    if close_status == "ok_cross_book" and "close_cross_book=" not in note:
+        note = f"{note} | close_cross_book=1".strip(" |")
+
+    # Idempotent unless overwrite: never clobber an already-filled close.
+    already = pl.col("clv_pp").is_not_null()
+    set_mask = mask & (pl.lit(overwrite) | ~already)
+    return ledger.with_columns(
+        pl.when(set_mask)
+        .then(_float_literal(close_over))
+        .otherwise(pl.col("close_over"))
+        .alias("close_over"),
+        pl.when(set_mask)
+        .then(_float_literal(close_under))
+        .otherwise(pl.col("close_under"))
+        .alias("close_under"),
+        pl.when(set_mask)
+        .then(_float_literal(clv))
+        .otherwise(pl.col("clv_pp"))
+        .alias("clv_pp"),
+        pl.when(set_mask)
+        .then(pl.lit(close_status))
+        .otherwise(pl.col("close_status"))
+        .alias("close_status"),
+        pl.when(set_mask)
+        .then(pl.lit(closed_iso))
+        .otherwise(pl.col("closed_at_utc"))
+        .alias("closed_at_utc"),
+        pl.when(set_mask)
+        .then(_float_literal(minutes_to_tip(tip, as_of=as_of)))
+        .otherwise(pl.col("minutes_to_tip_at_close"))
+        .alias("minutes_to_tip_at_close"),
+        pl.when(set_mask).then(pl.lit(note)).otherwise(pl.col("note")).alias("note"),
+    )
 
 
 def mark_close_unavailable(
@@ -475,27 +500,38 @@ def mark_close_unavailable(
     reason: str,
 ) -> pl.DataFrame:
     """Stop retrying close for a ticket (market gone / window exhausted)."""
-    rows = ledger.to_dicts()
-    out = []
-    for r in rows:
-        if r.get("ticket_id") != ticket_id:
-            out.append(r)
-            continue
-        if r.get("clv_pp") is not None:
-            out.append(r)
-            continue
-        note = str(r.get("note") or "")
-        tag = f"close_unavailable={reason}"
-        if tag not in note:
-            note = f"{note} | {tag}".strip(" |")
-        out.append(
-            {
-                **r,
-                "close_status": "unavailable",
-                "note": note,
-            }
-        )
-    return pl.DataFrame(out)
+    mask = pl.col("ticket_id") == ticket_id
+    tgt = ledger.filter(mask).head(1)
+    if tgt.is_empty():
+        return ledger
+    row = tgt.row(0, named=True)
+    note = str(row.get("note") or "")
+    tag = f"close_unavailable={reason}"
+    if tag not in note:
+        note = f"{note} | {tag}".strip(" |")
+    already = pl.col("clv_pp").is_not_null()
+    set_mask = mask & ~already
+    return ledger.with_columns(
+        pl.when(set_mask)
+        .then(pl.lit("unavailable"))
+        .otherwise(pl.col("close_status"))
+        .alias("close_status"),
+        pl.when(set_mask).then(pl.lit(note)).otherwise(pl.col("note")).alias("note"),
+    )
+
+
+def _float_literal(value: Any) -> pl.Expr:
+    """A Float64 polars literal, or an explicit null literal for ``None``."""
+    if value is None:
+        return pl.lit(None, dtype=pl.Float64)
+    return pl.lit(float(value), dtype=pl.Float64)
+
+
+def _settle_keep(col: str, value: Any) -> pl.Expr:
+    """Use the provided settle value when given; otherwise keep prior state."""
+    if value is None:
+        return pl.col(col)
+    return _float_literal(value)
 
 
 def apply_settle(
@@ -503,26 +539,53 @@ def apply_settle(
     *,
     ticket_id: str,
     settle_value: float,
+    settle_context: dict[str, Any] | None = None,
 ) -> pl.DataFrame:
-    """Mark win/loss + pnl from final K (or other settle_value)."""
-    rows = ledger.to_dicts()
-    out = []
-    for r in rows:
-        if r.get("ticket_id") != ticket_id:
-            out.append(r)
-            continue
-        side = r["side"]  # type: ignore[assignment]
-        won = settle_side(side, float(r["line"]), settle_value)  # type: ignore[arg-type]
-        pnl = bet_pnl(float(r["stake"]), float(r["bet_price"]), won=won)
-        r = {
-            **r,
-            "settle_value": float(settle_value),
-            "result": "win" if won else "loss",
-            "pnl": float(pnl),
-            "status": "settled",
-        }
-        out.append(r)
-    return pl.DataFrame(out)
+    """Mark win/loss + pnl from final K (or other settle_value).
+
+    Polars-native and vectorized so column dtypes stay stable. The previous
+    implementation rebuilt the frame from a Python list of dicts, and polars'
+    schema inference crashed whenever a settle column that was all-null in the
+    first sampled rows received its first non-null value mid-stream
+    (``ComputeError: could not append value``), which broke ``--auto-settle-api``.
+    """
+    ctx = settle_context or {}
+    mask = pl.col("ticket_id") == ticket_id
+    tgt = ledger.filter(mask).head(1)
+    if tgt.is_empty():
+        return ledger
+    row = tgt.row(0, named=True)
+    won = settle_side(row["side"], float(row["line"]), settle_value)
+    pnl = bet_pnl(float(row["stake"]), float(row["bet_price"]), won=won)
+    return ledger.with_columns(
+        pl.when(mask)
+        .then(_float_literal(settle_value))
+        .otherwise(pl.col("settle_value"))
+        .alias("settle_value"),
+        pl.when(mask)
+        .then(_settle_keep("settle_ip", ctx.get("ip")))
+        .otherwise(pl.col("settle_ip"))
+        .alias("settle_ip"),
+        pl.when(mask)
+        .then(_settle_keep("settle_outs", ctx.get("outs")))
+        .otherwise(pl.col("settle_outs"))
+        .alias("settle_outs"),
+        pl.when(mask)
+        .then(_settle_keep("settle_hits_allowed", ctx.get("hits_allowed")))
+        .otherwise(pl.col("settle_hits_allowed"))
+        .alias("settle_hits_allowed"),
+        pl.when(mask)
+        .then(_settle_keep("settle_walks_allowed", ctx.get("walks_allowed")))
+        .otherwise(pl.col("settle_walks_allowed"))
+        .alias("settle_walks_allowed"),
+        pl.when(mask)
+        .then(_settle_keep("settle_strikeouts", ctx.get("strikeouts")))
+        .otherwise(pl.col("settle_strikeouts"))
+        .alias("settle_strikeouts"),
+        pl.when(mask).then(pl.lit("win" if won else "loss")).otherwise(pl.col("result")).alias("result"),
+        pl.when(mask).then(_float_literal(pnl)).otherwise(pl.col("pnl")).alias("pnl"),
+        pl.when(mask).then(pl.lit("settled")).otherwise(pl.col("status")).alias("status"),
+    )
 
 
 def apply_void(
@@ -536,26 +599,21 @@ def apply_void(
     No pnl impact: stake is treated as refunded, so voided tickets are excluded
     from ``settled_bets``/CLV and threshold-curve stats.
     """
-    rows = ledger.to_dicts()
-    out = []
-    for r in rows:
-        if r.get("ticket_id") != ticket_id:
-            out.append(r)
-            continue
-        note = str(r.get("note") or "")
-        tag = f"void={reason}"
-        if tag not in note:
-            note = f"{note} | {tag}".strip(" |")
-        out.append(
-            {
-                **r,
-                "status": "void",
-                "result": "void",
-                "pnl": 0.0,
-                "note": note,
-            }
-        )
-    return pl.DataFrame(out)
+    mask = pl.col("ticket_id") == ticket_id
+    tgt = ledger.filter(mask).head(1)
+    if tgt.is_empty():
+        return ledger
+    row = tgt.row(0, named=True)
+    note = str(row.get("note") or "")
+    tag = f"void={reason}"
+    if tag not in note:
+        note = f"{note} | {tag}".strip(" |")
+    return ledger.with_columns(
+        pl.when(mask).then(pl.lit("void")).otherwise(pl.col("status")).alias("status"),
+        pl.when(mask).then(pl.lit("void")).otherwise(pl.col("result")).alias("result"),
+        pl.when(mask).then(pl.lit(0.0)).otherwise(pl.col("pnl")).alias("pnl"),
+        pl.when(mask).then(pl.lit(note)).otherwise(pl.col("note")).alias("note"),
+    )
 
 
 def save_ledger(frame: pl.DataFrame, path: Path = LEDGER_PATH) -> None:

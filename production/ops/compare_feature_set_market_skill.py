@@ -224,6 +224,12 @@ def main() -> None:
         default="",
         help="Optional suffix for output files.",
     )
+    parser.add_argument(
+        "--row-out",
+        default="",
+        help="Optional path to persist per-row eval data (partition fit/test) "
+        "for date-block bootstrap analysis.",
+    )
     args = parser.parse_args()
     sets = args.feature_set if args.feature_set else [
         "production",
@@ -325,6 +331,24 @@ def main() -> None:
         if test_df.empty:
             test_df = eval_df.copy()
             fit_df = eval_df.copy()
+
+        if args.row_out:
+            fit_rows = fit_df.copy()
+            fit_rows["partition"] = "fit"
+            test_rows = test_df.copy()
+            test_rows["partition"] = "test"
+            persist = pd.concat([fit_rows, test_rows], ignore_index=True)
+            persist["feature_set"] = feature_set
+            persist["eval_start"] = args.eval_start_date or ""
+            persist["eval_end"] = args.eval_end_date or ""
+            persist_path = Path(args.row_out)
+            persist_path.parent.mkdir(parents=True, exist_ok=True)
+            if persist_path.exists() and persist_path.suffix == ".csv":
+                persist.to_csv(
+                    persist_path, mode="a", header=False, index=False
+                )
+            else:
+                persist.to_csv(persist_path, index=False)
 
         for mode in ("raw", "platt", "isotonic"):
             calibrator = _fit_calibrator(fit_df["p_model_raw"].to_numpy(), fit_df["y"].to_numpy(), mode)

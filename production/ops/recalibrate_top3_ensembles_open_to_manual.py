@@ -276,7 +276,16 @@ def _manual_rows() -> pd.DataFrame:
             pl.col("pitcher").cast(pl.Int64).alias("pitcher_id_i"),
         )
     )
-    out = led.to_pandas()
+    games = (
+        pl.read_parquet(PITCHER_GAMES)
+        .select(
+            pl.col("game_date").cast(pl.Date).alias("game_date_d"),
+            pl.col("pitcher").cast(pl.Int64).alias("pitcher_id_i"),
+            pl.col("K").cast(pl.Float64).alias("actual_k"),
+            pl.col("PA").cast(pl.Float64).alias("actual_pa"),
+        )
+    )
+    out = led.join(games, on=["game_date_d", "pitcher_id_i"], how="left").to_pandas()
     out["game_date_d"] = pd.to_datetime(out["game_date_d"]).dt.date
     return out
 
@@ -356,6 +365,8 @@ def main() -> None:
         # Build manual replay frame.
         man_work = manual_df.copy()
         p_over_manual = np.zeros(len(man_work), dtype=np.float64)
+        k_rate_blend = np.zeros(len(man_work), dtype=np.float64)
+        tbf_blend = np.zeros(len(man_work), dtype=np.float64)
         valid_m = np.ones(len(man_work), dtype=bool)
         for fs, w in active.items():
             p = preds_by_feature[fs]
@@ -376,9 +387,15 @@ def main() -> None:
                     )[0]
                 )
             p_over_manual += float(w) * pov
+            k_vals = np.where(miss.to_numpy(), 0.0, joined["k_rate_pred"].astype(float).to_numpy())
+            tbf_vals = np.where(miss.to_numpy(), 0.0, joined["projected_tbf"].astype(float).to_numpy())
+            k_rate_blend += float(w) * k_vals
+            tbf_blend += float(w) * tbf_vals
             man_work = man_work.drop(columns=["k_rate_pred", "projected_tbf"], errors="ignore")
 
         man = man_work.loc[valid_m].copy()
+        man["k_rate_pred_blend"] = k_rate_blend[valid_m]
+        man["projected_tbf_blend"] = tbf_blend[valid_m]
         p_over_cal = _apply_calibrator(np.clip(p_over_manual[valid_m], 1e-6, 1 - 1e-6), args.calibration_mode, calibrator)
         side = man["side"].astype(str).str.lower().to_numpy()
         p_side = np.where(side == "over", p_over_cal, 1.0 - p_over_cal)
@@ -455,6 +472,21 @@ def main() -> None:
             n = len(scoped)
             if n == 0:
                 continue
+            mae_expected_k = np.nan
+            mae_k_rate = np.nan
+            matched_rows = 0
+            if "actual_k" in scoped.columns and "actual_pa" in scoped.columns:
+                ok = scoped["actual_k"].notna() & scoped["actual_pa"].notna() & (scoped["actual_pa"].astype(float) > 0)
+                matched_rows = int(ok.sum())
+                if matched_rows > 0:
+                    actual_k = scoped.loc[ok, "actual_k"].astype(float).to_numpy()
+                    actual_pa = scoped.loc[ok, "actual_pa"].astype(float).to_numpy()
+                    k_rate_pred = scoped.loc[ok, "k_rate_pred_blend"].astype(float).to_numpy()
+                    projected_tbf = scoped.loc[ok, "projected_tbf_blend"].astype(float).to_numpy()
+                    expected_k_pred = k_rate_pred * projected_tbf
+                    actual_k_rate = actual_k / actual_pa
+                    mae_expected_k = float(np.mean(np.abs(expected_k_pred - actual_k)))
+                    mae_k_rate = float(np.mean(np.abs(k_rate_pred - actual_k_rate)))
             picks_by_config_floor[(label, float(floor))] = scoped.copy()
             stake_sum = float(scoped["stake"].astype(float).sum())
             pnl = float((scoped["stake"].astype(float) * scoped["rpd"].astype(float)).sum())
@@ -474,9 +506,12 @@ def main() -> None:
                     "dedupe_manual": bool(args.dedupe_manual),
                     "edge_floor": float(floor),
                     "n_bets": int(n),
+                    "matched_rows_for_mae": matched_rows,
                     "stake": stake_sum,
                     "pnl": pnl,
                     "roi": roi,
+                    "expected_k_mae_on_matched": mae_expected_k,
+                    "k_rate_mae_on_matched": mae_k_rate,
                     "clv_mean_pp": float(np.mean(clv)) if len(clv) else np.nan,
                     "positive_clv_share": float(np.mean(clv > 0.0)) if len(clv) else np.nan,
                     **risk,

@@ -29,3 +29,6 @@ env/
 .idea/
 *.parquet.tmp
 *.log
+_cw_full.diff
+_q.py
+close_watcher.pre_split_backup.py

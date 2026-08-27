@@ -22,6 +22,8 @@ Requires ``SHARPAPI_KEY`` in repo-root ``.env``. Keep the machine awake.
 from __future__ import annotations
 
 import argparse
+import json
+import msvcrt
 import sys
 import time
 from datetime import date, datetime, timezone
@@ -50,10 +52,22 @@ from Python.odds_ledger import (  # noqa: E402
     norm_player_name,
 )
 from Python.odds_open import poll_open_tickets  # noqa: E402
+from Python.sharp_odds import fetch_odds_rows  # noqa: E402
 
 LOG_PATH = config.OUTPUT_DIR / "odds_log" / "close_watcher.log"
+AUX_MARKET_PATH = config.OUTPUT_DIR / "odds_log" / "watcher_aux_markets_latest.json"
+AUX_QUOTES_PATH = config.OUTPUT_DIR / "odds_log" / "watcher_aux_quotes.parquet"
 BOARD_PATH = config.OUTPUT_DIR / "projection_log" / "projections.parquet"
 ET = ZoneInfo("America/New_York")
+
+# Single-instance guard. The launcher (start_close_watcher_background.ps1) already
+# checks a pid-file + live-process scan, but two concurrent launcher invocations
+# (scheduled start task + the 60-min watchdog) can race past those TOCTOU checks
+# before either writes the pid-file. This process-held OS byte-range lock is the
+# authoritative guard: only one close_watcher may hold it at a time, and the OS
+# auto-releases it on process exit (normal or crash), so no stale-pid cleanup is
+# needed. A duplicate that fails to acquire it logs once and exits immediately.
+LOCK_PATH = config.OUTPUT_DIR / "odds_log" / "close_watcher.lock"
 
 
 def _log(msg: str) -> None:
@@ -63,6 +77,53 @@ def _log(msg: str) -> None:
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+
+def _acquire_single_instance_lock() -> object | None:
+    """Hold an exclusive advisory lock for this process's lifetime.
+
+    Returns the open file handle the caller must keep referenced for the whole
+    run (the lock is tied to the handle). Returns ``None`` if another watcher
+    already holds the lock, in which case the caller should exit without doing
+    any work. On process exit (normal or crash) the OS tears down the handle and
+    releases the lock, so there is no stale-lock window.
+    """
+    LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not LOCK_PATH.exists():
+        LOCK_PATH.touch(exist_ok=True)
+    # Open in read-write so a byte can be locked; the handle is kept open.
+    fh = LOCK_PATH.open("r+", encoding="utf-8")
+    try:
+        # Ensure the locked region actually exists BEFORE trying to lock it.
+        # msvcrt.locking on a zero-length (empty) file locks no real bytes, so
+        # two racers could both "succeed" on a freshly created empty file. If the
+        # file is still empty we write a sentinel NUL byte first. Safe ordering:
+        # no process tries to take the lock until after this write, and a process
+        # only writes when the file is empty, so a write can never hit a region
+        # that another process has already locked.
+        fh.seek(0, 2)  # to EOF
+        if fh.tell() == 0:
+            fh.seek(0)
+            fh.write("\0")
+            fh.flush()
+        # Try to take the exclusive lock on byte 0. If another watcher holds it,
+        # the non-blocking call raises OSError and we bail (returning none) so a
+        # duplicate exits before doing any work. Byte 0 is never written by the
+        # holder after this point, so we never flush into a locked region.
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+        return fh
+    except OSError:
+        # Lock is held by another process (or a transient error during lock/WRITE).
+        # If the failure happened while acquiring, no bytes were modified, so
+        # closing is safe. If it happened during the initial sentinel write of an
+        # empty file, the only way writing fails is a genuinely locked region
+        # (still no change to our region) — closing is safe either way.
+        try:
+            fh.close()
+        except OSError:
+            pass
+        return None
 
 
 def _today_slate() -> str:
@@ -164,6 +225,92 @@ def _sleep_seconds_until_window(
         return max(30, int(interval))
     # Cap long sleeps so we still expire past-window tickets periodically.
     return int(min(secs, 30 * 60))
+
+
+def _probe_aux_markets(
+    *,
+    book: str | None,
+    is_live: bool,
+) -> dict[str, object]:
+    """Probe non-K markets so watcher health can include cross-market coverage."""
+    market_candidates: dict[str, list[str]] = {
+        "outs": [
+            "pitcher_outs",
+            "player_pitching_outs",
+            "player_outs_recorded",
+        ],
+        "hits_allowed": [
+            "pitcher_hits_allowed",
+            "player_hits_allowed",
+            "player_hits",
+        ],
+        "walks_allowed": [
+            "pitcher_walks_allowed",
+            "player_walks_allowed",
+            "player_walks",
+        ],
+    }
+    out: dict[str, object] = {
+        "probed_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "book": book,
+        "is_live": bool(is_live),
+        "markets": {},
+    }
+    quote_rows_to_append: list[dict[str, object]] = []
+    for stat_key, candidates in market_candidates.items():
+        stat_result: dict[str, object] = {
+            "selected_market": None,
+            "quote_rows": 0,
+            "attempts": [],
+        }
+        for market in candidates:
+            try:
+                rows = fetch_odds_rows(
+                    league="mlb",
+                    market=market,
+                    sportsbook=book,
+                    is_live=is_live,
+                    limit=200,
+                    max_pages=2,
+                    sleep_s=0.05,
+                )
+                n_rows = len(rows)
+                stat_result["attempts"].append({"market": market, "ok": True, "rows": n_rows})
+                if n_rows > 0 and stat_result["selected_market"] is None:
+                    stat_result["selected_market"] = market
+                    stat_result["quote_rows"] = n_rows
+                    now_utc = out["probed_utc"]
+                    for r in rows:
+                        quote_rows_to_append.append(
+                            {
+                                "logged_at_utc": now_utc,
+                                "market_stat": stat_key,
+                                "market_type": str(r.get("market_type") or market),
+                                "event_id": r.get("event_id"),
+                                "event_start_time": r.get("event_start_time"),
+                                "player_name": r.get("player_name"),
+                                "sportsbook": r.get("sportsbook"),
+                                "selection_type": r.get("selection_type"),
+                                "line": r.get("line"),
+                                "odds_american": r.get("odds_american"),
+                                "is_main_line": r.get("is_main_line"),
+                                "is_live": bool(r.get("is_live") if r.get("is_live") is not None else is_live),
+                            }
+                        )
+                    break
+            except Exception as exc:  # noqa: BLE001
+                stat_result["attempts"].append({"market": market, "ok": False, "error": str(exc)[:180]})
+        out["markets"][stat_key] = stat_result
+    AUX_MARKET_PATH.parent.mkdir(parents=True, exist_ok=True)
+    AUX_MARKET_PATH.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    if quote_rows_to_append:
+        batch = pl.DataFrame(quote_rows_to_append)
+        if AUX_QUOTES_PATH.exists():
+            prev = pl.read_parquet(AUX_QUOTES_PATH)
+            pl.concat([prev, batch], how="diagonal_relaxed").write_parquet(AUX_QUOTES_PATH)
+        else:
+            batch.write_parquet(AUX_QUOTES_PATH)
+    return out
 
 
 def _run_tick(
@@ -326,9 +473,29 @@ def main() -> None:
     )
     p.add_argument("--open-unit", type=float, default=50.0)
     p.add_argument("--open-edge-floor", type=float, default=DEFAULT_EDGE_FLOOR)
+    p.add_argument(
+        "--aux-market-probe-minutes",
+        type=int,
+        default=20,
+        help="Probe outs/hits/walks quote coverage every N minutes (default 20)",
+    )
+    p.add_argument(
+        "--no-aux-market-probe",
+        action="store_true",
+        help="Disable non-strikeout market coverage probe.",
+    )
     p.add_argument("--once", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
+
+    # Single-instance guard: only one close_watcher may run. A second instance
+    # (e.g. the scheduled-start task racing the watchdog) bails here before doing
+    # any real work. The held handle stays referenced for the whole run so the
+    # OS lock is not released prematurely.
+    lock_handle = _acquire_single_instance_lock()
+    if lock_handle is None:
+        _log("close_watcher already running — another process holds the run lock; exiting")
+        return
 
     slate = args.date.isoformat() if args.date else _today_slate()
     _log(
@@ -342,7 +509,23 @@ def main() -> None:
             f"No ledger at {LEDGER_PATH}. Run poll_odds --snapshot open first."
         )
 
+    last_aux_probe_ts = 0.0
     while True:
+        if not args.no_aux_market_probe:
+            now_ts = time.time()
+            probe_every_s = max(60, int(args.aux_market_probe_minutes) * 60)
+            if (now_ts - last_aux_probe_ts) >= probe_every_s:
+                try:
+                    aux = _probe_aux_markets(book=args.book, is_live=False)
+                    mk = aux.get("markets", {}) if isinstance(aux, dict) else {}
+                    outs_n = ((mk.get("outs") or {}).get("quote_rows")) if isinstance(mk, dict) else 0
+                    hits_n = ((mk.get("hits_allowed") or {}).get("quote_rows")) if isinstance(mk, dict) else 0
+                    walks_n = ((mk.get("walks_allowed") or {}).get("quote_rows")) if isinstance(mk, dict) else 0
+                    _log(f"aux-market probe: outs={outs_n} hits_allowed={hits_n} walks_allowed={walks_n}")
+                except Exception as exc:  # noqa: BLE001
+                    _log(f"ERROR aux-market probe: {exc}")
+                finally:
+                    last_aux_probe_ts = now_ts
         try:
             if not args.no_late_open:
                 _late_open_sweep(

@@ -70,6 +70,15 @@ DEFAULT_POLICY: dict[str, Any] = {
         "healthy_max_warn": 1,
         "caution_max_warn": 3,
     },
+    "execution_gates": {
+        "max_recommendation_age_minutes": 90,
+        "min_quote_coverage": 0.75,
+    },
+    "research_gates": {
+        "full_universe_min_bets": 100,
+        "full_universe_min_roi": 0.0,
+        "full_universe_require_positive_skill": True,
+    },
 }
 
 

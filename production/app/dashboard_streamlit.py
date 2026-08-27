@@ -41,6 +41,17 @@ PATHS = {
     "recommendations": ODDS_DIR / "recommendations.parquet",
     "calibration_pointer": MODELS_DIR / "prob_calibration_production.json",
     "kpi_policy": ROOT / "production" / "ops" / "kpi_policy.json",
+    "runtime_snapshot": ODDS_DIR / "runtime_monitoring_snapshot.json",
+    "runtime_floor_calibration": ODDS_DIR / "runtime_floor_calibration.csv",
+    "runtime_slippage": ODDS_DIR / "runtime_slippage_by_segment.csv",
+    "runtime_regime_monthly": ODDS_DIR / "runtime_regime_monthly.csv",
+    "runtime_edge_deciles": ODDS_DIR / "runtime_edge_deciles.csv",
+    "runtime_decision_diag": ODDS_DIR / "runtime_decision_diagnostics.csv",
+    "runtime_ops_slo": ODDS_DIR / "runtime_ops_slo_snapshot.json",
+    "morning_alert": ODDS_DIR / "morning_alert_latest.json",
+    "aux_shadow_summary_csv": ODDS_DIR / "aux_market_shadow_summary.csv",
+    "aux_shadow_summary_json": ODDS_DIR / "aux_market_shadow_summary.json",
+    "automation_self_check": ODDS_DIR / "automation_self_check_latest.json",
 }
 
 THEME = {
@@ -122,6 +133,12 @@ def _read_parquet(path: Path) -> pl.DataFrame:
     if not path.exists():
         return pl.DataFrame()
     return pl.read_parquet(path)
+
+
+def _read_csv(path: Path) -> pl.DataFrame:
+    if not path.exists():
+        return pl.DataFrame()
+    return pl.read_csv(path)
 
 
 def _to_float(value: Any) -> float | None:
@@ -918,6 +935,17 @@ graded = _read_parquet(PATHS["graded"])
 recommendations = _read_parquet(PATHS["recommendations"])
 policy_config = _read_json(PATHS["kpi_policy"])
 active_profile = _active_operating_profile(policy_config)
+runtime_snapshot = _read_json(PATHS["runtime_snapshot"])
+runtime_floor = _read_csv(PATHS["runtime_floor_calibration"])
+runtime_slip = _read_csv(PATHS["runtime_slippage"])
+runtime_month = _read_csv(PATHS["runtime_regime_monthly"])
+runtime_edge = _read_csv(PATHS["runtime_edge_deciles"])
+runtime_decision = _read_csv(PATHS["runtime_decision_diag"])
+runtime_slo = _read_json(PATHS["runtime_ops_slo"])
+morning_alert = _read_json(PATHS["morning_alert"])
+aux_shadow_summary = _read_csv(PATHS["aux_shadow_summary_csv"])
+aux_shadow_meta = _read_json(PATHS["aux_shadow_summary_json"])
+automation_self_check = _read_json(PATHS["automation_self_check"])
 
 kpi_action = kpi_loop.get("kpi_action", {})
 action = str(kpi_action.get("action", "UNKNOWN"))
@@ -1230,12 +1258,13 @@ tab_names = [
     "Recommended Bets Today",
     "Calibration",
     "Policy",
+    "Runtime Monitors",
 ]
 if show_internal_ops:
     tab_names.append("Ops Health")
 tabs = st.tabs(tab_names)
-tab_overview, tab_hist, tab_risk, tab_clv, tab_reco, tab_cal, tab_policy = tabs[:7]
-tab_ops = tabs[7] if len(tabs) > 7 else None
+tab_overview, tab_hist, tab_risk, tab_clv, tab_reco, tab_cal, tab_policy, tab_runtime = tabs[:8]
+tab_ops = tabs[8] if len(tabs) > 8 else None
 
 with tab_overview:
     st.subheader("Today at a Glance")
@@ -1909,6 +1938,134 @@ with tab_policy:
         with st.expander("Side profile table"):
             _styled_table(policy_profile.sort(["snapshot_utc", "roi"], descending=[True, True]), limit=50)
 
+with tab_runtime:
+    st.subheader("Runtime monitors and automation")
+    _section_caption("Track watcher heartbeat, floor calibration, slippage realism, regime stability, and morning alert delivery.")
+
+    watcher = runtime_snapshot.get("watcher", {}) if isinstance(runtime_snapshot, dict) else {}
+    watcher_age = _to_float(watcher.get("watcher_heartbeat_age_minutes"))
+    w1, w2, w3, w4 = st.columns(4)
+    with w1:
+        _metric_card(
+            "Watcher health",
+            "Healthy" if watcher.get("watcher_healthy") else "At risk",
+            status_label="Close watcher",
+            status_level="good" if watcher.get("watcher_healthy") else "risk",
+            help_text="Based on latest close_watcher.log heartbeat age.",
+        )
+    with w2:
+        _metric_card(
+            "Watcher heartbeat age",
+            f"{watcher_age:.1f}m" if watcher_age is not None else "n/a",
+            status_label="Freshness",
+            status_level="good" if watcher_age is not None and watcher_age <= 90 else "risk",
+            help_text="Minutes since last close watcher log line.",
+        )
+    with w3:
+        _metric_card(
+            "Watcher last log",
+            str(watcher.get("watcher_last_log_utc") or "n/a"),
+            status_label="Timestamp",
+            status_level="neutral",
+            help_text="UTC timestamp of latest watcher heartbeat.",
+        )
+    with w4:
+        _metric_card(
+            "Morning alert",
+            "Sent" if morning_alert.get("results") else "Preview/none",
+            status_label="Notification",
+            status_level="good" if morning_alert.get("results") else "watch",
+            help_text="Morning alert output from send_morning_alert.py.",
+        )
+    aux_hist_rows = _to_int(watcher.get("aux_quote_history_rows")) if isinstance(watcher, dict) else None
+    aux_last = str(watcher.get("aux_quote_last_logged_utc") or "n/a") if isinstance(watcher, dict) else "n/a"
+    st.caption(
+        f"Aux quote history rows: {_fmt_int(aux_hist_rows)} | last logged: {aux_last}"
+    )
+
+    aux_probe = watcher.get("aux_market_probe", {}) if isinstance(watcher, dict) else {}
+    aux_markets = aux_probe.get("markets", {}) if isinstance(aux_probe, dict) else {}
+    if aux_markets:
+        st.markdown("#### Non-K market quote coverage (watcher probe)")
+        a1, a2, a3 = st.columns(3)
+        outs_rows = _to_int((aux_markets.get("outs") or {}).get("quote_rows")) if isinstance(aux_markets, dict) else None
+        hits_rows = _to_int((aux_markets.get("hits_allowed") or {}).get("quote_rows")) if isinstance(aux_markets, dict) else None
+        walks_rows = _to_int((aux_markets.get("walks_allowed") or {}).get("quote_rows")) if isinstance(aux_markets, dict) else None
+        with a1:
+            _metric_card(
+                "Outs quotes",
+                _fmt_int(outs_rows),
+                status_label="Coverage",
+                status_level="good" if (outs_rows or 0) > 0 else "watch",
+                help_text="Latest watcher probe row count for pitcher-outs markets.",
+            )
+        with a2:
+            _metric_card(
+                "Hits allowed quotes",
+                _fmt_int(hits_rows),
+                status_label="Coverage",
+                status_level="good" if (hits_rows or 0) > 0 else "watch",
+                help_text="Latest watcher probe row count for pitcher-hits-allowed markets.",
+            )
+        with a3:
+            _metric_card(
+                "Walks allowed quotes",
+                _fmt_int(walks_rows),
+                status_label="Coverage",
+                status_level="good" if (walks_rows or 0) > 0 else "watch",
+                help_text="Latest watcher probe row count for pitcher-walks-allowed markets.",
+            )
+        st.caption(f"Latest aux probe: {aux_probe.get('probed_utc', 'n/a')} | book={aux_probe.get('book', 'all')}")
+
+    st.markdown("#### Floor calibration (settled rows since 2026-07-31)")
+    if not runtime_floor.is_empty():
+        _styled_table(runtime_floor.sort(["policy_mode", "edge_floor"], descending=[False, False], nulls_last=True), limit=20)
+    else:
+        st.info("No runtime floor calibration artifact yet. Run build_runtime_monitoring_snapshot.py.")
+
+    st.markdown("#### Slippage realism by segment")
+    if not runtime_slip.is_empty():
+        _styled_table(runtime_slip.sort("n", descending=True), limit=40)
+    else:
+        st.info("No slippage segment artifact yet.")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("#### Regime stability by month")
+        if not runtime_month.is_empty():
+            _styled_table(runtime_month.sort("year_month"), limit=24)
+        else:
+            st.caption("No monthly regime table yet.")
+    with c2:
+        st.markdown("#### Edge-decile stability")
+        if not runtime_edge.is_empty():
+            _styled_table(runtime_edge.sort("edge_decile"), limit=20)
+        else:
+            st.caption("No edge-decile table yet.")
+
+    st.markdown("#### Decision diagnostics (why BET / NO_BET)")
+    if not runtime_decision.is_empty():
+        _styled_table(runtime_decision, limit=200)
+    else:
+        st.caption("No decision diagnostics artifact yet.")
+
+    st.markdown("#### Ops SLO snapshot")
+    if runtime_slo:
+        st.json(runtime_slo)
+    else:
+        st.caption("No runtime_ops_slo_snapshot.json found yet.")
+
+    st.markdown("#### Shadow scorer (outs/hits/walks)")
+    if aux_shadow_meta:
+        st.caption(f"Shadow scorer status: {aux_shadow_meta.get('status', 'n/a')}")
+    if not aux_shadow_summary.is_empty():
+        _styled_table(aux_shadow_summary, limit=20)
+    else:
+        st.caption("No aux_market_shadow_summary.csv found yet.")
+    if automation_self_check:
+        st.markdown("#### Automation self-check")
+        st.json(automation_self_check)
+
 if tab_ops is not None:
     with tab_ops:
         st.subheader("Ops Artifact Health")
@@ -1918,8 +2075,13 @@ if tab_ops is not None:
         st.markdown("#### Automation Status")
         task_names = [
             "MLBProps_MorningWorkflow",
+            "MLBProps_MiddayRefresh",
+            "MLBProps_SecondRefresh",
             "MLBProps_CloseWatcherStart",
+            "MLBProps_CloseWatcherWatchdog",
             "MLBProps_EndOfDaySettle",
+            "MLBProps_MorningAlert",
+            "MLBProps_AutomationSelfCheck",
         ]
         task_rows = pl.DataFrame([_scheduled_task_status(t) for t in task_names])
         if not task_rows.is_empty():

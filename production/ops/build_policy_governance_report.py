@@ -28,7 +28,9 @@ from Python.notebook_analysis_utils import keep_best_available_lines  # noqa: E4
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 LEDGER_PATH = ODDS_DIR / "ledger.parquet"
 RECS_PATH = ODDS_DIR / "recommendations.parquet"
+RECS_META_PATH = ODDS_DIR / "recommendations_meta.json"
 VALIDATION_PATH = ODDS_DIR / "validation_ops_daily.json"
+RECON_PATH = ODDS_DIR / "board_ledger_reconciliation_latest.json"
 LINE_FLOOR_PATH = (
     ROOT / "production" / "ops" / "market_research" / "line_floor_policy.json"
 )
@@ -74,6 +76,43 @@ def _load_line_floors() -> tuple[dict[str, float], float]:
 def _line_key(v: object) -> str:
     fv = _safe_float(v)
     return f"{float(fv):.1f}" if fv is not None else ""
+
+
+def _parse_iso_utc(raw: object) -> datetime | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def _load_latest_full_universe_counterfactual() -> dict[str, object]:
+    latest_payload: dict[str, object] = {}
+    latest_mtime = -1.0
+    for p in ODDS_DIR.glob("open_snapshot_counterfactual_*.json"):
+        try:
+            payload = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(payload, dict) or not isinstance(payload.get("winner"), dict):
+            continue
+        mtime = p.stat().st_mtime
+        if mtime > latest_mtime:
+            latest_mtime = mtime
+            latest_payload = payload
+    return latest_payload
+
+
+def _load_reconciliation() -> dict[str, object]:
+    if not RECON_PATH.exists():
+        return {}
+    try:
+        payload = json.loads(RECON_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _result_to_y_from_value(res: object) -> float | None:
@@ -303,14 +342,14 @@ def _eligible_current_policy(
     fallback_floor: float,
 ) -> pl.DataFrame:
     base_by_mode = {
-        "aggressive": 0.12,
-        "balanced": 0.16,
-        "conservative": 0.18,
-        "profit_lock": 0.18,
+        "aggressive": 0.08,
+        "balanced": 0.10,
+        "conservative": 0.12,
+        "profit_lock": 0.08,
     }
     base_floor = float(base_by_mode.get(roi_mode, 0.16))
-    side_floor_over = 0.22 if roi_mode == "profit_lock" else None
-    side_floor_under = 0.18 if roi_mode == "profit_lock" else None
+    side_floor_over = 0.10 if roi_mode == "profit_lock" else None
+    side_floor_under = 0.08 if roi_mode == "profit_lock" else None
 
     out = ledger.with_columns(
         pl.col("line").map_elements(_line_key, return_dtype=pl.Utf8).alias("line_key"),
@@ -342,10 +381,22 @@ def _checklist(
     replay: dict[str, object],
     validation: dict[str, object],
     recs: pl.DataFrame,
+    recs_meta: dict[str, object],
+    full_universe: dict[str, object],
+    reconciliation: dict[str, object],
+    policy: dict[str, object],
     ledger: pl.DataFrame,
     sparse_min_bets: int = 1,
     max_unspecified_segments: int = 4,
 ) -> dict[str, object]:
+    exec_policy = policy.get("execution_gates", {}) if isinstance(policy, dict) else {}
+    research_policy = policy.get("research_gates", {}) if isinstance(policy, dict) else {}
+    max_reco_age_minutes = int(exec_policy.get("max_recommendation_age_minutes", 90))
+    min_quote_coverage = float(exec_policy.get("min_quote_coverage", 0.75))
+    fu_min_bets = int(research_policy.get("full_universe_min_bets", 100))
+    fu_min_roi = float(research_policy.get("full_universe_min_roi", 0.0))
+    fu_require_positive_skill = bool(research_policy.get("full_universe_require_positive_skill", True))
+
     today = None
     if not recs.is_empty() and "game_date" in recs.columns:
         today = str(recs.select(pl.col("game_date").cast(pl.Utf8).max()).item())[:10]
@@ -379,13 +430,36 @@ def _checklist(
         if not led_today.is_empty()
         else 0
     )
-    sync_ok = rec_bets == led_bets
+    recon_slate = str(reconciliation.get("slate_date") or "")
+    recon_for_today = recon_slate == str(today or "")
+    recon_board_bet = _safe_float(reconciliation.get("board_bet"))
+    recon_ledger_bet = _safe_float(reconciliation.get("ledger_bet_rows"))
+    recon_delta_alert = bool(reconciliation.get("delta_alert")) if recon_for_today else None
+    if recon_for_today and recon_delta_alert is not None:
+        sync_ok = not recon_delta_alert
+        rec_bets_sync = int(recon_board_bet or 0)
+        led_bets_sync = int(recon_ledger_bet or 0)
+        sync_source = "board_ledger_reconciliation"
+    else:
+        sync_ok = rec_bets == led_bets
+        rec_bets_sync = rec_bets
+        led_bets_sync = led_bets
+        sync_source = "direct_count_fallback"
 
-    unspec = (
-        int(rec_today.filter(pl.col("segment_state").cast(pl.Utf8) == "UNSPECIFIED").height)
-        if not rec_today.is_empty() and "segment_state" in rec_today.columns
-        else 0
-    )
+    unspec = 0
+    if not rec_today.is_empty() and "segment_state" in rec_today.columns:
+        actionable = rec_today
+        if "recommendation_pre_gate" in actionable.columns:
+            actionable = actionable.filter(
+                pl.col("recommendation_pre_gate").cast(pl.Utf8).is_in(["BET", "HOLD"])
+            )
+        elif "recommendation" in actionable.columns:
+            actionable = actionable.filter(
+                pl.col("recommendation").cast(pl.Utf8).is_in(["BET", "HOLD"])
+            )
+        unspec = int(
+            actionable.filter(pl.col("segment_state").cast(pl.Utf8) == "UNSPECIFIED").height
+        )
     dq_alerts = (
         validation.get("data_quality", {}).get("alerts", [])
         if isinstance(validation.get("data_quality", {}), dict)
@@ -393,6 +467,17 @@ def _checklist(
     )
     ci_pass = bool(validation.get("promotion_ci_gate_pass"))
     bet_volume_ok = rec_bets >= int(sparse_min_bets)
+
+    built_at = _parse_iso_utc(recs_meta.get("built_at_utc"))
+    age_minutes = None
+    if built_at is not None:
+        age_minutes = (datetime.now(timezone.utc) - built_at).total_seconds() / 60.0
+    freshness_ok = age_minutes is not None and float(age_minutes) <= float(max_reco_age_minutes)
+
+    n_matched = int(recs_meta.get("n_matched", 0) or 0)
+    n_board = int(recs_meta.get("n_board", 0) or 0)
+    quote_coverage = (float(n_matched) / float(n_board)) if n_board > 0 else None
+    quote_coverage_ok = quote_coverage is not None and quote_coverage >= float(min_quote_coverage)
 
     replay_scenarios = replay.get("scenarios", []) if isinstance(replay.get("scenarios"), list) else []
     current = next((s for s in replay_scenarios if s.get("scenario") == "current_policy_flat_1u"), None)
@@ -405,20 +490,68 @@ def _checklist(
         and float(clv_ci_lo) > 0.0
     )
 
+    fu_winner = full_universe.get("winner", {}) if isinstance(full_universe, dict) else {}
+    fu_n_bets = _safe_float(fu_winner.get("n_bets"))
+    fu_roi = _safe_float(fu_winner.get("roi"))
+    fu_skill_brier = _safe_float(fu_winner.get("brier_skill_vs_market"))
+    fu_skill_logloss = _safe_float(fu_winner.get("logloss_skill_vs_market"))
+    fu_skill_ok = True
+    if fu_require_positive_skill:
+        fu_skill_ok = (
+            fu_skill_brier is not None
+            and fu_skill_logloss is not None
+            and fu_skill_brier > 0.0
+            and fu_skill_logloss > 0.0
+        )
+    full_universe_ok = (
+        fu_n_bets is not None
+        and fu_n_bets >= float(fu_min_bets)
+        and fu_roi is not None
+        and fu_roi >= float(fu_min_roi)
+        and fu_skill_ok
+    )
+
     # Critical = process integrity blockers. Advisory = confidence/sizing guidance.
     dq_critical = [a for a in dq_alerts if a in {"stale_quotes", "unmatched_rate_high"}]
-    gates = [
+    execution_gates = [
         {
             "name": "ledger_sync",
             "severity": "critical",
             "pass": bool(sync_ok),
-            "detail": {"recs_bets": rec_bets, "ledger_bets": led_bets},
+            "detail": {
+                "recs_bets": rec_bets_sync,
+                "ledger_bets": led_bets_sync,
+                "source": sync_source,
+                "reconciliation_slate": recon_slate if recon_for_today else None,
+                "reconciliation_delta_alert": recon_delta_alert if recon_for_today else None,
+            },
         },
         {
             "name": "unspecified_segments",
             "severity": "advisory",
             "pass": bool(unspec <= int(max_unspecified_segments)),
             "detail": {"count": unspec, "max_allowed": int(max_unspecified_segments)},
+        },
+        {
+            "name": "recommendation_freshness",
+            "severity": "critical",
+            "pass": bool(freshness_ok),
+            "detail": {
+                "age_minutes": age_minutes,
+                "max_age_minutes": int(max_reco_age_minutes),
+                "built_at_utc": recs_meta.get("built_at_utc"),
+            },
+        },
+        {
+            "name": "quote_coverage",
+            "severity": "critical",
+            "pass": bool(quote_coverage_ok),
+            "detail": {
+                "n_matched": n_matched,
+                "n_board": n_board,
+                "coverage": quote_coverage,
+                "min_coverage": float(min_quote_coverage),
+            },
         },
         {
             "name": "data_quality_alerts",
@@ -430,16 +563,18 @@ def _checklist(
             },
         },
         {
-            "name": "policy_ci_gate",
-            "severity": "advisory",
-            "pass": bool(ci_pass),
-            "detail": {"promotion_ci_gate_pass": ci_pass},
-        },
-        {
             "name": "volume_gate",
             "severity": "advisory",
             "pass": bool(bet_volume_ok),
             "detail": {"n_bets_today": rec_bets, "min_required": sparse_min_bets},
+        },
+    ]
+    research_gates = [
+        {
+            "name": "policy_ci_gate",
+            "severity": "advisory",
+            "pass": bool(ci_pass),
+            "detail": {"promotion_ci_gate_pass": ci_pass},
         },
         {
             "name": "replay_ci_gate",
@@ -447,22 +582,56 @@ def _checklist(
             "pass": bool(replay_ci_ok),
             "detail": {"roi_ci_lo": roi_ci_lo, "clv_ci_lo": clv_ci_lo},
         },
+        {
+            "name": "full_universe_counterfactual",
+            "severity": "advisory",
+            "pass": bool(full_universe_ok),
+            "detail": {
+                "winner_n_bets": fu_n_bets,
+                "winner_roi": fu_roi,
+                "winner_brier_skill_vs_market": fu_skill_brier,
+                "winner_logloss_skill_vs_market": fu_skill_logloss,
+                "min_bets_required": fu_min_bets,
+                "min_roi_required": fu_min_roi,
+                "require_positive_skill": fu_require_positive_skill,
+                "winner_model_key": fu_winner.get("model_key"),
+                "winner_policy_mode": fu_winner.get("policy_mode"),
+                "winner_edge_floor": fu_winner.get("edge_floor"),
+                "source_generated_utc": full_universe.get("generated_utc")
+                if isinstance(full_universe, dict)
+                else None,
+            },
+        },
     ]
     critical_fails = sum(
-        1 for g in gates if (g.get("severity") == "critical" and not g["pass"])
+        1
+        for g in execution_gates
+        if (g.get("severity") == "critical" and not g["pass"])
     )
     advisory_fails = sum(
-        1 for g in gates if (g.get("severity") != "critical" and not g["pass"])
+        1
+        for g in execution_gates
+        if (g.get("severity") != "critical" and not g["pass"])
+    )
+    research_fails = sum(
+        1 for g in research_gates if not g["pass"]
     )
     n_fail = critical_fails + advisory_fails
     status = "NO_GO" if critical_fails > 0 else ("CAUTION" if advisory_fails > 0 else "GO")
+    research_status = "CAUTION" if research_fails > 0 else "GO"
+    all_gates = execution_gates + research_gates
     return {
         "status": status,
+        "status_execution": status,
+        "status_research": research_status,
         "n_failed_gates": n_fail,
         "n_failed_critical_gates": critical_fails,
         "n_failed_advisory_gates": advisory_fails,
+        "n_failed_research_gates": research_fails,
         "today": today,
-        "gates": gates,
+        "gates": all_gates,
+        "execution_gates": execution_gates,
+        "research_gates": research_gates,
     }
 
 
@@ -567,10 +736,22 @@ def main() -> None:
         except Exception:
             validation = {}
     recs = pl.read_parquet(RECS_PATH) if RECS_PATH.exists() else pl.DataFrame()
+    recs_meta = {}
+    if RECS_META_PATH.exists():
+        try:
+            recs_meta = json.loads(RECS_META_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            recs_meta = {}
+    full_universe = _load_latest_full_universe_counterfactual()
+    reconciliation = _load_reconciliation()
     checklist = _checklist(
         replay=replay,
         validation=validation,
         recs=recs,
+        recs_meta=recs_meta,
+        full_universe=full_universe,
+        reconciliation=reconciliation,
+        policy=policy,
         ledger=ledger,
         sparse_min_bets=int(ops.get("min_bets_today", 1)),
         max_unspecified_segments=int(ops.get("max_unspecified_segments", 4)),
@@ -583,9 +764,12 @@ def main() -> None:
     checklist_row = {
         "snapshot_utc": checklist_payload["snapshot_utc"],
         "status": checklist_payload["status"],
+        "status_execution": checklist_payload.get("status_execution"),
+        "status_research": checklist_payload.get("status_research"),
         "n_failed_gates": checklist_payload["n_failed_gates"],
         "n_failed_critical_gates": checklist_payload.get("n_failed_critical_gates"),
         "n_failed_advisory_gates": checklist_payload.get("n_failed_advisory_gates"),
+        "n_failed_research_gates": checklist_payload.get("n_failed_research_gates"),
         "today": checklist_payload.get("today"),
     }
     for gate in checklist_payload.get("gates", []):

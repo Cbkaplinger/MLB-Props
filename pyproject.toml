@@ -23,6 +23,7 @@ research = [
     "lightgbm",
     "matplotlib",
     "nbconvert",
+    "playwright",
     "pybaseball",
     "plotly",
     "scikit-learn",

@@ -66,7 +66,14 @@ def _fit_tbf(train: pd.DataFrame, features: list[str]):
     return m, upper
 
 
-def _fit_family(family: str, train: pd.DataFrame, val: pd.DataFrame, features: list[str], monotone: bool):
+def _fit_family(
+    family: str,
+    train: pd.DataFrame,
+    val: pd.DataFrame,
+    features: list[str],
+    monotone: bool,
+    tune_small: bool,
+):
     fill = _fill(train, features)
     if family == "linear":
         m = LinearRegression()
@@ -164,21 +171,51 @@ def _fit_family(family: str, train: pd.DataFrame, val: pd.DataFrame, features: l
             from xgboost import XGBRegressor
         except ImportError:
             return None, None, "xgboost_unavailable"
-        m = XGBRegressor(
-            n_estimators=2000,
-            learning_rate=0.03,
-            max_depth=6,
-            min_child_weight=50,
-            subsample=0.8,
-            colsample_bytree=0.7,
-            reg_alpha=0.1,
-            reg_lambda=2.0,
-            objective="reg:squarederror",
-            random_state=42,
-            n_jobs=-1,
+        candidates = (
+            [
+                {"learning_rate": 0.03, "max_depth": 6, "min_child_weight": 50, "subsample": 0.8, "colsample_bytree": 0.7, "reg_alpha": 0.1, "reg_lambda": 2.0},
+                {"learning_rate": 0.05, "max_depth": 4, "min_child_weight": 30, "subsample": 0.9, "colsample_bytree": 0.8, "reg_alpha": 0.01, "reg_lambda": 1.0},
+                {"learning_rate": 0.02, "max_depth": 8, "min_child_weight": 60, "subsample": 0.8, "colsample_bytree": 0.7, "reg_alpha": 0.1, "reg_lambda": 3.0},
+            ]
+            if tune_small
+            else [{"learning_rate": 0.03, "max_depth": 6, "min_child_weight": 50, "subsample": 0.8, "colsample_bytree": 0.7, "reg_alpha": 0.1, "reg_lambda": 2.0}]
         )
-        m.fit(_x(train, features, fill), train[TARGET], eval_set=[(_x(val, features, fill), val[TARGET])], verbose=False)
-        return m, fill, "xgboost_base"
+        mono_cons: tuple[int, ...] | None = None
+        if monotone:
+            pos = ("k_rate_", "opp_lineup_k", "opp_lineup_whiff", "opp_lineup_swstr", "opp_lineup_chase", "park_k_factor")
+            neg = ("opp_lineup_zcontact", "opp_lineup_bb")
+            cons = []
+            for f in features:
+                if any(f == s or f.startswith(s) for s in pos):
+                    cons.append(1)
+                elif any(f == s or f.startswith(s) for s in neg):
+                    cons.append(-1)
+                else:
+                    cons.append(0)
+            mono_cons = tuple(cons)
+        best, best_tag, best_mae = None, "", float("inf")
+        xtr = _x(train, features, fill)
+        xva = _x(val, features, fill)
+        for i, g in enumerate(candidates):
+            params: dict[str, object] = {
+                "n_estimators": 2000,
+                "objective": "reg:squarederror",
+                "random_state": 42,
+                "n_jobs": -1,
+                **g,
+            }
+            if mono_cons is not None:
+                params["monotone_constraints"] = mono_cons
+            m = XGBRegressor(**params)
+            m.fit(xtr, train[TARGET], eval_set=[(xva, val[TARGET])], verbose=False)
+            pred = np.clip(m.predict(xva), 0, 1)
+            mae = float(metrics(val[TARGET], pred)["mae"])
+            if mae < best_mae:
+                best, best_mae = m, mae
+                base_tag = "xgboost_tuned_small" if tune_small else "xgboost_base"
+                mono_tag = "_monotone" if mono_cons is not None else "_unconstrained"
+                best_tag = f"{base_tag}_{i}{mono_tag}"
+        return best, fill, best_tag
     raise ValueError(f"Unsupported family {family}")
 
 
@@ -312,6 +349,7 @@ def main() -> None:
     p.add_argument("--floor-step", type=float, default=0.005)
     p.add_argument("--min-bets", type=int, default=25)
     p.add_argument("--output-tag", default="")
+    p.add_argument("--tune-small", action="store_true", help="Small local tuning grid for xgboost.")
     args = p.parse_args()
 
     families = [f.strip() for f in args.families.split(",") if f.strip()]
@@ -363,7 +401,7 @@ def main() -> None:
         tbf_hat = predict_nonnegative(tbf_model, "ridge", score_pool, tbf_features, upper=tbf_upper)
 
         for fam in families:
-            model, fill, model_tag = _fit_family(fam, fit, val, k_features, monotone)
+            model, fill, model_tag = _fit_family(fam, fit, val, k_features, monotone, args.tune_small)
             if model is None:
                 continue
             k_hat = _predict_non_ts(fam, model, score_pool, k_features, fill)

@@ -85,5 +85,26 @@
     "max_missing_closes": 0,
     "max_stale_open_rows": 0,
     "max_unmatched_rate": 0.25
+  },
+  "execution_gates": {
+    "max_recommendation_age_minutes": 90,
+    "min_quote_coverage": 0.75
+  },
+  "research_gates": {
+    "full_universe_min_bets": 100,
+    "full_universe_min_roi": 0.0,
+    "full_universe_require_positive_skill": true
+  },
+  "king_profile_freeze": {
+    "name": "KING_PROFILE_AUG2026",
+    "frozen_utc": "2026-08-21T16:10:00Z",
+    "status": "ACTIVE",
+    "do_not_change_without_retest": true,
+    "notes": [
+      "Execution source-of-truth uses board artifact open polling (--from-recommendations).",
+      "Default execution mode is conservative (base edge floor 0.12) with line floors, line-price correction, and deploy-matrix filtering enabled.",
+      "Production probability calibration pointer is isotonic (prob_calibration_isotonic_20260821_160723).",
+      "Changes require explicit re-test / re-freeze cycle."
+    ]
   }
 }
