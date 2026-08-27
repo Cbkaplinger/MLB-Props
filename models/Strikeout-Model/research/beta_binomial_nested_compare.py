@@ -246,8 +246,7 @@ def main(*, alpha: float, include_references: bool) -> None:
             "global kappa MLE on training rows only"
         ),
         "related_findings": [
-            "docs/research/step5_pa_weight_findings.md",
-            "docs/research/step5_binomial_findings.md",
+            "docs/research/historical-step-findings-summary.md",
         ],
         "folds": fold_metadata(folds),
     }

@@ -18,8 +18,8 @@ was relocated during repository cleanup.
   member used by current live blend (weight 0.60)
 - `artifacts/models/lightgbm_krate_20260821_054126.*` — final58_consensus member
   used by current live blend (weight 0.40)
-- `artifacts/models/lightgbm_krate_20260803_155401.*` — **frozen** 184-feature
-  LightGBM single-model baseline (Step 11 discipline lift; fallback path)
+- `artifacts/models/lightgbm_krate_20260803_155401.*` — legacy single-model
+  baseline artifact (fallback path only)
 - `artifacts/models/lightgbm_krate_20260728_033241.*` — prior Step 10 freeze
   (180; comparison / `step10_180`)
 - `artifacts/models/lightgbm_krate_20260727_204342.*` — Step 7 era 185-feature
@@ -54,14 +54,19 @@ evidence.
 `docs/research/PAPER_NOTES.md` is the canonical result log. No current holdout-prediction CSV
 is claimed here.
 
-## Current frozen production (2026-08-03)
+## Current production deployment (Aug 2026)
 
-Frozen LightGBM `production` = **184** features (Step 10 P1 spine + four
-opposing-lineup discipline nominees). Chrono cutoffs: train ≤ 2024-06-08, val
-2024-06-09→08-05, test ≥ 2024-08-06. Test MAE / RMSE / R² ≈
-**0.0780 / 0.0982 / 0.156** (`docs/research/step11_discipline_registry_freeze.md`).
+Active k-rate path is ensemble-based via
+`production/ops/live_krate_ensemble.json`:
 
-Prior Step 10 freeze (`step10_180`, artifact `lightgbm_krate_20260728_033241`)
-remains available for bake-offs. Research screens for quality-WD / age /
-pitcher discipline / vs-hand stay parked under
-`artifacts/feature_research/`.
+- `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`
+- calibration mode: isotonic
+- active decision lane floor: `0.12`
+
+Deployment-lane profile (`top3` transfer winner):
+
+- ROI `0.4363`, PnL `1208.55`
+- Sharpe `0.4438`, Sortino `0.4277`
+- market skill deltas: `+0.2069` Brier, `+0.1551` LogLoss
+
+Legacy single-model freezes remain in this directory for reproducibility only.

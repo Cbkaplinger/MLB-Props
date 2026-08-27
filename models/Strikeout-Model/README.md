@@ -1,10 +1,7 @@
 # Strikeout-rate model
 
-`train.py` is the canonical training entry point. It reads the Level 3
-`PITCHER_TRAINING_PATH`, derives the safe numeric feature list through
-`Python.features.model_feature_names`, and uses a chronological 70/15/15
-split. Boundary dates are assigned wholly to the later partition, so train,
-validation, and test never share a calendar date.
+`train.py` is the canonical training entry point for the current production
+lineage.
 
 `train.ipynb` is a visual audit companion that imports the production trainer;
 it is not a second implementation.
@@ -17,7 +14,7 @@ python -c "from Python.pipeline import run_all; run_all()"
 python models/Strikeout-Model/train.py --model mean
 python models/Strikeout-Model/train.py --model ridge
 
-# LightGBM (default registry may evolve with documented freezes)
+# LightGBM (active production and challenger registries)
 python models/Strikeout-Model/train.py --model lightgbm
 python models/Strikeout-Model/train.py --model lightgbm --feature-set step10_180
 python models/Strikeout-Model/train.py --model lightgbm --feature-set step7_185
@@ -30,7 +27,7 @@ python models/Strikeout-Model/train.py --model lightgbm --sample-weight pa
 # Count layer: expected_K = k_rate × projected_tbf (+ line probs)
 python models/Strikeout-Model/score_count_layer.py
 
-# Post-hoc Platt/isotonic on p_over_* (chrono CV; does not retrain rate/TBF)
+# Post-hoc calibration on p_over_* (chrono CV; does not retrain rate/TBF)
 python models/Strikeout-Model/research/fit_prob_calibration.py --method both
 python models/Strikeout-Model/research/fit_prob_calibration.py --method both --set-production
 
@@ -54,9 +51,7 @@ transfer governance lane:
 - config: `production/ops/live_krate_ensemble.json`
 - runtime: `src/Python/live_assembly.py`
 
-Single-model registries (`production`, `step10_180`, `step7_185`,
-`pre_freeze_248`, `production_final58_consensus`) remain available for
-historical comparison and challenger analysis.
+Single-model registries remain available for comparison/challenger analysis.
 
 Daily production operation and diagnostics run under `production/`:
 - `production/INDEX.md`
