@@ -93,3 +93,4 @@ universes and supports date-bounded holdout windows.
    policy (Platt/isotonic/identity) to all candidates before edge gating.
 4. If weather features are introduced later, reopen feature search as a new
    versioned freeze cycle instead of mutating this baseline silently.
+

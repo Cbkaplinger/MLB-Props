@@ -8,7 +8,11 @@ in `artifacts/models/` (no retrain needed).
 
 | Artifact | Path |
 |---|---|
-| K-rate LightGBM | `artifacts/models/lightgbm_krate_20260803_155401.{txt,json}` |
+| K-rate live blend config | `production/ops/live_krate_ensemble.json` |
+| K-rate sparse72 model | `artifacts/models/lightgbm_krate_20260821_054152.{txt,json}` |
+| K-rate sparse72_monotone model | `artifacts/models/lightgbm_krate_mono_20260821_054127.{txt,json}` |
+| K-rate final58 model | `artifacts/models/lightgbm_krate_20260821_054126.{txt,json}` |
+| K-rate single-model fallback | `artifacts/models/lightgbm_krate_20260803_155401.{txt,json}` |
 | TBF Ridge | `artifacts/models/tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib` |
 
 Daily / playground scoring **loads** those files. Retrain only when you

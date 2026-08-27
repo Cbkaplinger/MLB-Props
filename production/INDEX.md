@@ -22,6 +22,8 @@ Quick routing: "I need to do X -> run Y".
   - `python production/ops/run_daily_kpi_loop.py`
 - One-page operator summary artifacts:
   - `python production/ops/build_daily_operator_summary.py`
+- Build non-K shadow diagnostics from watcher history:
+  - `python production/ops/build_aux_market_shadow_score.py`
 - Post-score automation only (monitoring + optional lineage):
   - `python production/ops/run_post_score_automation.py --append-lineage --operator "kapcam"`
 - Artifact dedupe (report-first dry run):
@@ -34,12 +36,16 @@ Quick routing: "I need to do X -> run Y".
   - `python production/ops/weekly_kpi_report.py`
 - One-command morning workflow (model slate + board + open ledger + status):
   - `powershell -ExecutionPolicy Bypass -File production/ops/run_morning_workflow.ps1`
+- Midday/second refresh chain (board + poll + shadow + monitoring + alert):
+  - `powershell -ExecutionPolicy Bypass -File production/ops/run_market_refresh.ps1`
 - One-command end-of-day settle:
   - `powershell -ExecutionPolicy Bypass -File production/ops/run_end_of_day_settle.ps1`
 - Start close watcher in background:
   - `powershell -ExecutionPolicy Bypass -File production/ops/start_close_watcher_background.ps1`
 - Create/update daily scheduled automation tasks:
   - `powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:30 -WatcherStartTime 11:30 -SettleTime 03:00`
+- Run one-shot automation health snapshot:
+  - `python production/ops/build_automation_self_check.py --notify-on-red`
 
 ## Projection Logging and Grading
 
@@ -58,9 +64,10 @@ Quick routing: "I need to do X -> run Y".
   - diagnostic risk filter: `python production/odds/odds_board.py --unit 50 --quality-gate`
   - policy override: `python production/odds/odds_board.py --unit 50 --quality-gate --kpi-policy production/ops/kpi_policy.json`
 - Open snapshot to ledger:
-  - `python production/odds/poll_odds.py --snapshot open --unit 50`
-  - champion mode: `python production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative`
+  - `python production/odds/poll_odds.py --snapshot open --unit 50 --from-recommendations`
+  - champion mode: `python production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative --from-recommendations`
   - gate-aware dry run: `python production/odds/poll_odds.py --snapshot open --unit 50 --quality-gate --dry-run`
+  - diagnostics-only live polling override: `python production/odds/poll_odds.py --snapshot open --unit 50 --allow-live-open-poll`
 - Close watcher (continuous):
   - `python production/odds/close_watcher.py`
   - or `production/odds/run_close_watcher.ps1`

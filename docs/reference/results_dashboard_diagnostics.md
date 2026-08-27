@@ -83,8 +83,9 @@ Interpretation:
   in these diagnostics.
 - Recalibration in section 19 is a diagnostic gate. Do not deploy any mapping
   to production until chronological fold results remain stable over enough dates.
-- During `RECALIBRATE`, prefer side-specific profile defaults from policy
-  (currently `D_over18_under12`) and treat threshold recommendations as provisional.
+- During `RECALIBRATE`, prefer current policy defaults from
+  `production/ops/kpi_policy.json` (currently `A_edge12`; optional side-profile
+  stress lane `E_over10_under8`) and treat threshold recommendations as provisional.
 
 For a concise narrative-first daily read, use
 `analysis/model_results/model_results_story.ipynb`.

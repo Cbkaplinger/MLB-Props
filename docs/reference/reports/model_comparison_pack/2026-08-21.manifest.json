@@ -1,0 +1,70 @@
+{
+  "pack_id": "model_comparison_pack_2026-08-21",
+  "created_utc": "2026-08-21T19:45:00Z",
+  "canonical_eval_contract": {
+    "date_window": "frozen training/eval rows from 2023-2024 research seasons; settled ledger rows used by governance comparators",
+    "ledger_slice": "settled bets with non-null line/side/price and positive stake",
+    "min_bets_gate": 25,
+    "calibration_mode": "isotonic",
+    "edge_floor_grid": {
+      "min": 0.005,
+      "max": 0.08,
+      "step": 0.005
+    },
+    "feature_sets": [
+      "production_sparse72",
+      "production_sparse72_monotone"
+    ],
+    "families": [
+      "ridge",
+      "lightgbm",
+      "xgboost",
+      "random_forest",
+      "histgbr"
+    ]
+  },
+  "runs": [
+    {
+      "id": "mae_base_budget",
+      "command": "python models/Strikeout-Model/research/ablate_sparse72_model_families.py --families ridge,lightgbm,xgboost,random_forest,histgbr --output-tag aug21_parity_base",
+      "output_file": "artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_base/ablation_summary_ranked.csv"
+    },
+    {
+      "id": "mae_tuned_small_budget",
+      "command": "python models/Strikeout-Model/research/ablate_sparse72_model_families.py --families ridge,lightgbm,xgboost,random_forest,histgbr --tune-small --output-tag aug21_parity_tuned_small",
+      "output_file": "artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_tuned_small/ablation_summary_ranked.csv"
+    },
+    {
+      "id": "governance_base_budget",
+      "command": "python production/ops/compare_model_family_governance.py --feature-set production_sparse72 --feature-set production_sparse72_monotone --families ridge,lightgbm,xgboost,random_forest,histgbr --output-tag aug21_governance_base",
+      "output_file": "artifacts/odds_log/model_family_governance_compare_aug21_governance_base_best_rows.csv"
+    },
+    {
+      "id": "governance_tuned_small_budget",
+      "command": "python production/ops/compare_model_family_governance.py --feature-set production_sparse72 --feature-set production_sparse72_monotone --families ridge,lightgbm,xgboost,random_forest,histgbr --tune-small --output-tag aug21_governance_tuned_small",
+      "output_file": "artifacts/odds_log/model_family_governance_compare_aug21_governance_tuned_small_best_rows.csv"
+    }
+  ],
+  "locked_files": [
+    {
+      "path": "artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_base/ablation_summary_ranked.csv",
+      "sha256": "5fb5f3de8197c5a7317199cb6ffc05cb8821f20eeac52e60d006920ead1ec588",
+      "bytes": 2969
+    },
+    {
+      "path": "artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_tuned_small/ablation_summary_ranked.csv",
+      "sha256": "68bec6d33bfec98741ae6859c8a2b688fd30c1fab51f086044bf544cd7a0a6fc",
+      "bytes": 3796
+    },
+    {
+      "path": "artifacts/odds_log/model_family_governance_compare_aug21_governance_base_best_rows.csv",
+      "sha256": "31115186ba7b17b63fa185a5c12cca1c00c7d91b5c5e96b8a50591ed5468cf03",
+      "bytes": 4765
+    },
+    {
+      "path": "artifacts/odds_log/model_family_governance_compare_aug21_governance_tuned_small_best_rows.csv",
+      "sha256": "13078c2e4b7aa25260deb993ff1c69c91b551cb334de02be7974cd0fe85fd10d",
+      "bytes": 4752
+    }
+  ]
+}

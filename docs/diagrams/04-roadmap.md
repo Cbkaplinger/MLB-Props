@@ -1,8 +1,12 @@
 # 04 — Roadmap (decision-quality → live → market)
 
-Research spine is **feature-frozen**. Phase 11.A–C was a **verification** pass
-(small/no lifts). Phase D interim policy is frozen. Live assembly + paper
-trading / CLV are **shipped**; dashed edges = still open.
+Research spine is feature-frozen with current sparse-set governance lanes.
+Phase 11.A–C remains historical verification context. Live assembly + paper
+trading / CLV are shipped; dashed edges = still open.
+
+> Metric lane note: deployment champions are selected on decision metrics, while
+> single-model MAE winners are tracked separately in
+> `docs/reference/governance_metric_stack.md`.
 
 ```mermaid
 flowchart TB
@@ -12,13 +16,13 @@ flowchart TB
   classDef risk fill:#4a148c,stroke:#ce93d8,color:#fff
   classDef next fill:#01579b,stroke:#81d4fa,color:#fff
 
-  FEAT["Feature research Steps 1–11<br/>production 184 LOCKED"]:::built
+  FEAT["Feature research lineage<br/>current sparse-set governance active"]:::built
   TBF["TBF Ridge thin bullpen<br/>FROZEN + joblib"]:::built
   CNT["Count layer v1<br/>chrono scored · lines 2.5…9.5"]:::built
 
   TUNE["11.A Estimator tuning<br/>HPO flat vs defaults"]:::built
-  WF["11.B Walk-forward stack<br/>expected_K MAE ~1.78"]:::built
-  CAL["11.C Calibration<br/>ECE ~0.024 diagnose"]:::built
+  WF["Historical baseline lane<br/>legacy expected_K benchmarks"]:::built
+  CAL["Calibration lane<br/>legacy baseline + isotonic in production"]:::built
   PCAL["Post-hoc Platt p_over<br/>prod pointer 2026-08-03"]:::built
   PHD["11.D Phase D interim policy<br/>~3.5% excluded; role labels open"]:::partial
   ANOM["Exit-anomaly governance<br/>shipped in ops + reports"]:::built
@@ -60,7 +64,7 @@ flowchart TB
 
 | Track | State |
 |---|---|
-| Feature research (Steps 1–11) | **Done** — `production` **184** |
+| Feature research (Steps 1–11) | **Done** — legacy freeze lineage retained; sparse-set governance active |
 | TBF + count layer v1 | **Done** — `p_over` lines **2.5…9.5** |
 | Phase 11.A–C model quality | **Done** — confirmatory |
 | Post-hoc `p_over_*` calibration | **Done** — Platt production pointer; raw retained (`docs/research/prob_calibration_findings.md`) |
@@ -72,7 +76,7 @@ flowchart TB
 | Policy simulator CLI | **Shipped 2026-08-11** — `production/ops/policy_simulator.py` writing scenario artifacts |
 | Daily KPI + dynamic gate policy | **Shipped** — `production/ops/kpi_policy.json`, `production/ops/kpi_daily_action.py`, `docs/reference/daily_kpi_protocol.md` |
 | Quality gate in live odds flow | **Shipped** — `production/odds/odds_board.py` and `production/odds/poll_odds.py` (`--quality-gate`) |
-| Floor + Kelly freeze | **Logged** — `docs/research/floor_freeze_log.md`; skill bar remains INCONCLUSIVE while CLV confidence intervals still cross zero |
+| Floor + Kelly freeze | **Logged** — `docs/research/floor_freeze_log.md`; skill remains under ongoing governance monitoring |
 | Pristine future holdout | **Protocol live** — `production/projections/post_freeze_holdout.py` (`docs/reference/post_freeze_holdout.md`); grows with `game_date >= 2026-07-28` |
 | Lineup train/serve | **Documented** — first-9-by-PA vs announced; roster cascade `active → 40Man → fullSeason` |
 | Chrono recalibration promotion gate | **In progress** — compare raw vs isotonic vs Platt after `>=15` distinct dates |
@@ -140,5 +144,5 @@ to “best available predictor / richer market check”:
 | **Multi-year closing-line archive** | Stronger backtests than forward paper sample | Needs historical K-prop closes + de-vig; separate from modeling paper |
 | **Weather / travel / catcher / umpire** | Possible rate or TBF signal | New leakage-safe joins; promote only via nested chrono screens |
 
-Do **not** reopen the frozen 184-feature LightGBM set for these without a new
+Do **not** reopen frozen production feature sets for these without a new
 nested outer protocol and a pristine post-freeze holdout.

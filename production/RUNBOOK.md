@@ -16,7 +16,7 @@ and should not be duplicated here.
 3. log_projections --allow-stale
 4. grade_projections --all-logged --preferred-only
 5. odds_board --unit 50
-6. poll_odds --snapshot open --unit 50
+6. poll_odds --snapshot open --unit 50 --from-recommendations
 7. grade_odds_ledger --status
 ```
 
@@ -42,7 +42,7 @@ From repo root:
 .\.venv\Scripts\python.exe production/projections/log_projections.py --allow-stale
 .\.venv\Scripts\python.exe production/projections/grade_projections.py --all-logged --preferred-only --exclude-abbreviated --exclude-out-of-support
 .\.venv\Scripts\python.exe production/odds/odds_board.py --unit 50 --roi-mode conservative
-.\.venv\Scripts\python.exe production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative
+.\.venv\Scripts\python.exe production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative --from-recommendations
 .\.venv\Scripts\python.exe production/odds/grade_odds_ledger.py --status
 ```
 
@@ -87,7 +87,7 @@ One-shot close fill fallback:
 Append only; do not replace open snapshot after morning lock:
 
 ```powershell
-.\.venv\Scripts\python.exe production/odds/poll_odds.py --snapshot open --append --unit 50
+.\.venv\Scripts\python.exe production/odds/poll_odds.py --snapshot open --append --unit 50 --allow-live-open-poll
 ```
 
 ## Settle and Skill Curve

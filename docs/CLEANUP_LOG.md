@@ -1,5 +1,9 @@
 # Repository cleanup log
 
+> Metric lane note: this log preserves historical checkpoints and may include
+> legacy freeze values. Use `docs/reference/governance_metric_stack.md` for
+> current winners and active deployment champions.
+
 ## Docs folder families — 2026-07-28 (late afternoon)
 
 Grouped documentation into clear folder families and renamed the strikeout
@@ -10,7 +14,7 @@ cross-references were updated.
 
 - Closed research write-ups → `docs/research/` (`PAPER_NOTES.md`,
   `statistical_audit_and_sequencing_report.md`, `step*`, `tbf_*`,
-  `count_layer_findings.md`, `phase*`, `workload_rest_bullpen_feature_plan.md`)
+  `count_layer_findings.md`, `phase*`)
 - Living reference docs → `docs/reference/` (`model-card.md`, `dev-notes.md`,
   `lineup_train_serve.md`, `live_assembly_plan.md`, `post_freeze_holdout.md`)
 - `diagrams/` → `docs/diagrams/`
@@ -69,16 +73,16 @@ were **left in place**. No changes to `src/Python` or
 ### Folded into documentation, then removed
 
 - `artifacts/feature_research/step1_registries/SUMMARY.md` — transient runner
-  summary; conclusions already in `docs/research/step1_feature_dict_vif_findings.md`
+  summary; conclusions already in `docs/research/historical-step-findings-summary.md`
   (and Step 10 freeze size update). Added an artifact-consolidation note there.
 - `artifacts/feature_research/step4_physics_windows/SUMMARY.md` — duplicated
-  the `mean_P3_P5` verdict now in `docs/research/step4_window_decisions.md`.
+  the `mean_P3_P5` verdict now in `docs/research/historical-step-findings-summary.md`.
 - `artifacts/feature_research/step5_binomial/SUMMARY.md` — pointer-only wrapper;
-  note added to `docs/research/step5_binomial_findings.md`.
+  note added to `docs/research/historical-step-findings-summary.md`.
 - `artifacts/feature_research/step5_beta_binomial/SUMMARY.md` — redundant with
-  `docs/research/step5_beta_binomial_findings.md`.
+  `docs/research/historical-step-findings-summary.md`.
 - `artifacts/feature_research/step5_pa_weight/SUMMARY.md` — duplicated protocol
-  and metrics already in `docs/research/step5_pa_weight_findings.md`.
+  and metrics already in `docs/research/historical-step-findings-summary.md`.
 
 ### Documentation sync (no unique findings lost)
 
@@ -159,7 +163,7 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
 - Rebuilt Levels 2-3 after adding research-only batter Z-Swing%, Swing%,
   Z-Contact%, and BB% histories.
 - Regenerated the current 317-feature dictionary, missingness, correlation,
-  VIF, VIF-reduction, and registry artifacts. The production gate remains 248
+  VIF, VIF-reduction, and registry artifacts. At that checkpoint, the production gate remained 248
   features; 69 candidates require explicit research opt-in. The refreshed
   Ridge interpretation proposal contains 90 features.
 - Corrected the safety/registry lifecycle so all 16 new batter-lineup columns

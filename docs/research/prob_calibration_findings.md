@@ -1,18 +1,18 @@
 # Post-hoc `p_over_*` calibration (Platt / isotonic)
 
-**Status:** research complete; **production pointer set** (2026-08-03)  
+**Status:** research complete; **production pointer set to isotonic** (2026-08-21)  
 **Code:** `src/Python/prob_calibration.py`  
 **Fit / CV:** `models/Strikeout-Model/research/fit_prob_calibration.py`  
-**Artifacts:** `artifacts/models/prob_calibration_platt_20260803_143350.{joblib,json}`  
+**Artifacts:** `artifacts/models/prob_calibration_isotonic_20260821_160723.{joblib,json}`  
 **Pointer:** `artifacts/models/prob_calibration_production.json`  
-**Report:** `artifacts/model_quality/prob_calibration/fit_report_platt_20260803_143350.json`
+**Report:** `artifacts/model_quality/prob_calibration/fit_report_isotonic_20260821_160723.json`
 
 ## Verdict
 
 | Layer | Conclusion |
 |---|---|
 | Baseball truth (K-rate / TBF / expected_K) | **Unchanged** — calibrator does not touch means |
-| Probability calibration | **Modest chrono-safe ECE gain** via **Platt** on walk-forward OOS `p_over_*` |
+| Probability calibration | **Isotonic promoted in production** for current governance lock; raw and calibrated streams both retained |
 | Betting product (8% floor / Kelly / sides) | **Unchanged** — not selected on ROI |
 
 Phase 11.C already reported mean ECE ≈ 0.024 and did **not** require recalibration under its soft bar. This track is a **follow-on honesty layer** motivated by live mid-bin overconfidence (50–70%) and line 3.5/4.5 heat on graded starts — not a claim that 11.C failed.
@@ -20,7 +20,7 @@ Phase 11.C already reported mean ECE ≈ 0.024 and did **not** require recalibra
 ## What this is / is not
 
 ```text
-p_raw (binomial count layer)  →  p_cal = σ(A · logit(p_raw) + B)   # Platt
+p_raw (binomial count layer)  →  p_cal (isotonic monotone map)
 ```
 
 - Fits **only** on Phase 11.B walk-forward OOS predictions (`K` labels + `p_over_3_5…7_5`).
@@ -37,9 +37,9 @@ p_raw (binomial count layer)  →  p_cal = σ(A · logit(p_raw) + B)   # Platt
 | **Platt** | **−0.00047** | **−0.0079** |
 | Isotonic | +0.00065 | −0.0019 |
 
-**Chosen: Platt.** Lower variance; better pooled ECE and Brier on held-out WF windows. Isotonic was the prior preference for “wiggly” live reliability, but chrono CV favored Platt.
+**Current production choice: isotonic.** Historical chrono CV favored Platt on the 2024 WF panel, but production governance now locks isotonic for alignment with the current full-universe ranking lane and deployment policy. Both raw and calibrated outputs remain available for ongoing monitoring.
 
-Fold detail (Platt):
+Fold detail (historical Platt reference):
 
 | Test window | Pooled raw ECE | Pooled cal ECE | Line 3.5 raw→cal ECE |
 |---|---:|---:|---:|
@@ -82,7 +82,7 @@ Tests: `tests/test_prob_calibration.py`, `tests/test_odds_board_lines.py` (cal p
 
 ## Still open / not claimed
 
-- Live 2026 mid-bin behavior after Platt apply needs monitoring on graded logs (n still small).
+- Live 2026+ mid-bin behavior after isotonic apply still needs monitoring on graded logs (n still small).
 - Count-distribution challengers (NB / mixture-over-TBF) remain the structural alternative if ECE regresses.
 - Do **not** retune the 8% edge floor from calibrator-induced edge shrinkage.
 - Historical odds purchase still deferred to the clean CLV gate.

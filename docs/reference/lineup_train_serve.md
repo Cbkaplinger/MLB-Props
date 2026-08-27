@@ -3,6 +3,10 @@
 **Status:** documented decision (not a feature reopen)  
 **Date:** 2026-07-28
 
+> Metric lane note: this document explains a data-contract issue, not winner
+> selection. Use `docs/reference/governance_metric_stack.md` for current
+> champion metrics/lane outcomes.
+
 ## Short answer
 
 **No — “first nine by first PA” is not the same as the announced batting order.**
@@ -29,7 +33,9 @@ Not “use top 9 of the lineup” — live already does that via RG. The open wo
 
 1. Keep documenting the skew (this file).
 2. When enough `(logged announced lineup, postgame first-9)` pairs exist, **measure overlap** (Jaccard / slot agreement) and whether ΔMAE from lineup ablation still shows up under announced-only features.
-3. Do **not** rebuild the frozen 184 set from announced history until a nested chrono screen exists with historical announced lineups (we do not have a multi-year announced archive yet).
+3. Do **not** reopen frozen sparse-set production features from announced history
+   until a nested chrono screen exists with historical announced lineups (we do
+   not have a multi-year announced archive yet).
 
 ## Ops reminder
 

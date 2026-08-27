@@ -1,36 +1,28 @@
 # Research Docs Map
 
-This folder is evidence-first and intentionally detailed. To reduce navigation
-bloat, treat this file as the canonical index instead of repeating long context
-inside each finding file.
+Research docs are now split between active freeze evidence and historical
+supporting context.
 
-## Canonical current references
+## Active freeze evidence
 
-- `step11_discipline_registry_freeze.md` — current production k-rate freeze (184).
-- `final58_consensus_freeze_2026-08-20.md` — consensus merged-pool MAE freeze candidate (58) + ablation.
-- `feature_selection_handoff_2026-08-20.md` — cycle closeout and pre-tuning validation checklist.
-- `experiment_matrix_2026-08-20.md` — canonical run matrix (window, baseline, policy assumptions, outputs).
-- `phase11_model_quality_gates.md` — model-quality gate outcomes and rationale.
-- `prob_calibration_findings.md` — post-hoc Platt/isotonic calibration evidence.
-- `phase_d_population_findings.md` — PA>=9 population and role-label caveats.
-- `count_layer_findings.md` — expected_K and line-probability stack behavior.
-- `floor_freeze_log.md` — auditable edge/Kelly policy decisions.
-- `notebook_change_log.md` — dashboard/monitor change history.
-- `../reference/exit_anomaly_protocol.md` — anomaly override/mask/rolling policy operating standard.
+- `step11_discipline_registry_freeze.md`
+- `phase11_model_quality_gates.md`
+- `prob_calibration_findings.md`
+- `count_layer_findings.md`
+- `floor_freeze_log.md`
+- `snapshots/2026-08-20/`
 
-## Historical but still useful
+## Historical context
 
-- `PAPER_NOTES.md` — chronological research log and bug evidence.
-- `step1_*` through `step10_*` findings — closed feature-research progression.
-- `statistical_audit_and_sequencing_report.md` — consolidated methods audit.
+- `step1_*` through `step10_*` and related phase notes are retained for
+  reproducibility, but they are not active operating guidance.
+- `PAPER_NOTES.md` remains the chronological lab log.
+- `historical-step-findings-summary.md` is the compact reference for closed
+  legacy steps and replaced per-step notes.
 
-## Usage guidance
+## Daily decision rule
 
-- For day-to-day decisions, start in:
-  - `analysis/model_results/model_results_story.ipynb`
-  - `production/notebooks/results_kpi_monitor.ipynb`
-- Use this folder to verify *why* a decision policy exists, not as a daily
-  execution checklist.
-- Anomaly model-quality runners live in `scripts/run_walkforward_anomaly_ab.py`
-  and `scripts/run_walkforward_anomaly_sensitivity.py`; reports are written under
-  `artifacts/projection_log/`.
+- Use `production/` outputs and `docs/reference/` policy docs for live
+  decisions.
+- Use `docs/research/` only to answer "why this policy exists" or "what was
+  tested before freeze."

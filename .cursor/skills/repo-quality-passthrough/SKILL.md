@@ -80,6 +80,14 @@ Use repository cleanup history as guardrails:
 - Prefer documentation consolidation (link to canonical docs) over deleting nuanced historical notes.
 - Before deletion, run dependency/reference checks and require smoke-check plan.
 
+## MLB-Props Current-State Rules (Aug 2026)
+
+- Treat `production/ops/kpi_policy.json` + `production/README.md` + `production/INDEX.md` as canonical runtime truth.
+- Treat `docs/research/step11_discipline_registry_freeze.md` as the active freeze anchor.
+- For historical step cleanup, consolidate closed `docs/research/step*.md` files into one summary doc before deleting originals.
+- Keep freeze-lineage docs (`step11_*`, `step10_*`, and any currently referenced freeze companion) unless explicitly approved for removal.
+- Preserve parity-lock and gate documentation (`--from-recommendations`, execution-vs-research split) in all cleanup edits.
+
 ## Allowed Automatic Changes
 
 - Add or refine `.gitignore` entries for generated outputs.
@@ -120,6 +128,28 @@ For each approved cleanup/reorg batch:
   - `docs/reference/repo_canonical_map.md`
 - Update dependent reference docs/diagrams/paper notes only where paths or claims changed.
 - Prefer links to canonical docs over duplicating procedures.
+
+## Filename and Folder Standardization
+
+- Prefer lowercase, hyphenated markdown names for new docs (for example `historical-step-findings-summary.md`).
+- Do not perform case-only renames on Windows.
+- If mixed naming exists, standardize via additive migration:
+  1. create canonical target file,
+  2. rewrite references,
+  3. delete source only after verification.
+- Keep top-level taxonomy stable (`docs/paper`, `docs/reference`, `docs/research`, `docs/archive`).
+
+## Resume-Readiness Add-on
+
+When cleanup touches project-facing docs, include a short "resume-ready facts"
+extract in the final report:
+
+- frozen model identifier(s),
+- evaluation metrics used publicly,
+- production controls shipped,
+- measurable operational outcomes (ROI/CLV/risk where already documented).
+
+Do not invent metrics; only use repository-backed values.
 
 ## Required Report
 

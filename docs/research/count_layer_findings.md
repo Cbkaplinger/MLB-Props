@@ -1,6 +1,6 @@
 # Count layer — expected_K = k_rate × projected_tbf
 
-**Status:** first chrono evaluation complete (research; not live betting)  
+**Status:** historical baseline evaluation + current lane alignment note  
 **Date:** 2026-07-27  
 **Runner:** `models/Strikeout-Model/score_count_layer.py`  
 **Code:** `src/Python/count_layer.py`  
@@ -19,11 +19,20 @@ Same-game `PA` never enters prop probabilities. `kappa` is fit on **train** with
 historical PA trials + predicted rate (Step 5 two-stage); at score time trials
 switch to projected TBF.
 
+## Lane alignment (read this first)
+
+- The table below (`expected_K MAE = 1.790`) is a **legacy baseline lane**
+  snapshot.
+- Current **single-model MAE lane** best observed value is `~1.7621` from
+  later sparse-set model-family ablation/governance artifacts.
+- Current **live deployment lane** winner is a weighted ensemble selected on
+  decision metrics (ROI/risk/market-skill), not expected-K MAE rank alone.
+
 ## Inputs (frozen)
 
 | Piece | Choice |
 |---|---|
-| k-rate | Step-11 LightGBM `production` (**184**, discipline lift) — `lightgbm_krate_20260803_155401` |
+| k-rate | Historical legacy single-model baseline (`184` freeze lineage) |
 | projected_tbf | Ridge + `workload_context_bullpen` (thin pen, 24 feats) |
 
 ## Test partition (from 2024-08-06) — expected_K vs actual K

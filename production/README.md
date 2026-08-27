@@ -10,6 +10,15 @@ odds/CLV tracking, and holdout monitoring.
 - `production/odds/` — board, open/close polling, ledger grading
 - `production/notebooks/` — deep-dive dashboards
 
+## Metric lane definitions
+
+- **Single-model MAE lane:** model-family accuracy ranking. Current best observed
+  `mean_expected_k_mae` is about `1.7621`.
+- **Ensemble deployment lane:** active king is selected on decision metrics
+  (market-skill, ROI/risk path, fairness constraints), not expected-K MAE rank.
+- **Legacy baselines:** prior freeze-era benchmark metrics are retained only as
+  historical context and are not active deployment claims.
+
 ## Documentation Map
 
 - Quick command map: `production/INDEX.md`
@@ -43,20 +52,25 @@ odds/CLV tracking, and holdout monitoring.
 
 ## Live Odds Board Policy Mode
 
+**Freeze stamp (active):** `KING_PROFILE_AUG2026` (frozen 2026-08-21).  
+Treat this profile as fixed production policy until an explicit re-test/re-freeze cycle is completed.
+
 Use the ROI-mode preset for stable daily execution:
 
 ```powershell
 .\.venv\Scripts\python.exe production/odds/odds_board.py --unit 50 --roi-mode conservative
+.\.venv\Scripts\python.exe production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative --from-recommendations
 ```
 
 Available modes:
 
-- `aggressive` (edge floor 0.14)
+- `aggressive` (edge floor 0.08)
 - `balanced` (edge floor 0.10)
 - `conservative` (edge floor 0.12)
 - `profit_lock` (edge floor 0.08; side floors over=0.10, under=0.08)
 
 Each mode auto-enables line-price correction, line-aware floors, and deploy-matrix filtering.
+Open-ledger execution is parity-locked to the board artifact via `--from-recommendations`.
 
 ## Streamlit Operator Dashboard
 

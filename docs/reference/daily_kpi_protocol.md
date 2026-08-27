@@ -75,11 +75,15 @@ Quality-gate settings should respond to diagnostics:
 - **Risk state (4+ WARN):**
   - strict policy, block known-risk slices and increase minimum edge floor.
 
-Current side-policy note (2026-08-15):
+Current side-policy note (2026-08-21):
 
-- default live operating profile is `D_over18_under12`
-  - `edge_min_over=0.18`
-  - `edge_min_under=0.12`
+- default live operating profile is `A_edge12` with conservative ROI mode for
+  day-to-day board generation.
+  - base edge floor from profile: `0.12`
+  - conservative mode edge floor: `0.12`
+- optional side-profile test lane remains `E_over10_under8`
+  - `edge_min_over=0.10`
+  - `edge_min_under=0.08`
 - rationale: side asymmetry (over-side instability vs under-side strength) while recalibration promotion blockers remain active.
 
 Use `gate_next_n_comparison.parquet` to monitor whether gating is helping:

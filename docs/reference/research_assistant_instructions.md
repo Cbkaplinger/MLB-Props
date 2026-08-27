@@ -55,21 +55,23 @@ Live RG+MLB assembly (`daily_lineups.py` / `live_assembly.py`) is
 **inference-only**. Train uses first-9-by-PA; live uses announced RG order
 (`docs/reference/lineup_train_serve.md`).
 
-**Frozen stack (2026-08-03):**
+**Current production stack (Aug 2026):**
 
 | Piece | Model | Notes |
 |---|---|---|
-| Rate | Unweighted LightGBM | **`production` = 184** (Step 10 P1 + Step 11 discipline) |
+| Rate | Weighted LightGBM ensemble | `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58` |
 | TBF | Ridge | Thin bullpen (**24** feats); α persisted |
 | Counts | Binomial/Poisson | On **projected** TBF only |
 
-Artifacts: `lightgbm_krate_20260803_155401`,
+Primary deployment artifacts:
+`lightgbm_krate_20260821_054152`, `lightgbm_krate_mono_20260821_054127`,
+`lightgbm_krate_20260821_054126`,
 `tbf_pa_ridge_workload_context_bullpen_20260728_035607`.
-Companions: `step10_180`, `step7_185`, `pre_freeze_248`, `ridge_vif` (73).
+Legacy companions: `step10_180`, `step7_185`, `pre_freeze_248`, `ridge_vif` (73).
 
-Chrono test (from 2024-08-06): MAE/RMSE/R² ≈ **0.0780 / 0.0982 / 0.156**.
-Marcel-lite ≈ **0.0826**; mean floor ≈ **0.0854**. Walk-forward expected-K
-MAE ≈ **1.775** (discipline challenger screen); mean ECE ≈ **0.024** (Phase 11.C).
+Current deployment-lane profile (`top3`, edge floor `0.12`): ROI `0.4363`,
+PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, Brier skill `+0.2069`,
+LogLoss skill `+0.1551`.
 
 Paper: `docs/paper/manuscript.md`. Summary: `docs/paper/resume-summary.md`.
 Status: `docs/diagrams/00-index.md`.

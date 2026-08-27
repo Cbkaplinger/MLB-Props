@@ -5,6 +5,9 @@ project. Historical notebook scores and the former Longleaf workflow were
 removed because they were produced before the leakage-safe pipeline and are not
 valid evidence of current model quality.
 
+> Metric lane note: this file describes implementation mechanics. For current
+> winner metrics/champions, use `docs/reference/governance_metric_stack.md`.
+
 Visual phase diagrams (architecture, leakage, modeling status, roadmap) live
 under `docs/diagrams/`. Prefer those over ad-hoc flowchart exports.
 
@@ -120,7 +123,7 @@ labels. It drops raw same-game feature columns by default. Use `keep_raw=True`
 only for diagnostics, never as the model input artifact.
 
 The rolling-window caveat is **resolved for the LightGBM backbone**
-(`docs/research/step4_window_decisions.md`). Targeted re-ablation kept BABIP and arm
+(`docs/research/historical-step-findings-summary.md`). Targeted re-ablation kept BABIP and arm
 angle on experimental defaults without promotion. Run-value **`P25`** and mean-
 window thin **`P3/P5`** (drop P10 on physics/usage/mechanics/FIP) are LGBM
 freeze proposals only — pipeline constants are unchanged until Step 7.
@@ -216,22 +219,18 @@ emits leakage-safe lagged workload (`PA_P*` / `Outs_P*` / `Pitches_P*`), rest
 flags, and joins team bullpen L1–L3d lookbacks for the TBF spine. Same-game
 `PA` / `Outs` / `Pitches` remain labels/oracles, never prediction-time features.
 
-`models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH` and defaults to
-`--feature-set production` (**184** frozen features via
-`Python.registries.resolve_feature_names`). Companions: `step10_180`,
+`models/Strikeout-Model/train.py` reads `PITCHER_TRAINING_PATH`. Legacy
+single-model runs may still use `--feature-set production` (184-feature freeze
+lineage via `Python.registries.resolve_feature_names`). Companions: `step10_180`,
 `step7_185`, `pre_freeze_248`, `ridge_vif`. `models/TBF-Model/train.py` +
 `score_count_layer.py` consume the workload spine for projected TBF and prop
 probs. The approximate 70/15/15 chronological split keeps each calendar date
 wholly inside one partition.
 
-The frozen 2023-2024 LightGBM `production` registry has **184** features
-(Step 10 P1 spine + Step 11 lineup-discipline lift). Chrono cutoffs: train ≤
-2024-06-08, val 2024-06-09→08-05, test ≥ 2024-08-06. Frozen test MAE / RMSE /
-R² ≈ 0.0780 / 0.0982 / 0.156
-(`docs/research/step11_discipline_registry_freeze.md`; artifact
-`lightgbm_krate_20260803_155401`). `step10_180` retains the prior freeze;
-`step7_185` / `pre_freeze_248` remain comparison-only. Feature selection is
-closed; further parked candidates live under `artifacts/feature_research/`.
+Legacy 2023-2024 single-model `production` registry evidence is documented in
+`docs/research/step11_discipline_registry_freeze.md` and related artifacts.
+Current production deployment uses sparse-set ensemble governance lanes; legacy
+registries remain comparison-only.
 The trainer filters to `TRAIN_SEASONS` before splitting, so existing Level 3
 artifacts may retain later-season rows without allowing them into fitting.
 
@@ -261,7 +260,7 @@ does not belong in player rolling files unless the feature itself represents
 lagged player form. Market / CLV is a separate product layer
 (`docs/reference/market_clv_gates.md`) and never enters training.
 Rest / bullpen / TBF Phases A–C are implemented and documented in
-`docs/research/workload_rest_bullpen_feature_plan.md`; remaining roadmap items
+`docs/research/tbf_spine_phase_ab.md`; remaining roadmap items
 are in `docs/diagrams/04-roadmap.md`.
 
 ## Stabilization and feature selection
@@ -322,7 +321,7 @@ because they require distinct defenses:
   VIF above 5 and treat VIF above 10 as serious. Step 1 adopted the Phase-2
   cluster proposal as the Ridge research registry with one amendment (drop
   `xFIP_P5` → 73 features; keep `xwOBA_P5` as residual VIF > 10). See
-  `docs/research/step1_feature_dict_vif_findings.md` and `--feature-set ridge_vif`.
+  `docs/research/historical-step-findings-summary.md` and `--feature-set ridge_vif`.
   Full VIF<10 is not enforced: overlapping rolling histories are redundant by
   design, and tree prediction is generally insensitive to multicollinearity
   even though Ridge coefficients and feature attribution are not. The expanded
@@ -356,7 +355,8 @@ because they require distinct defenses:
   correlated features are reduced.
 - **Expanded-feature registry:** P2 arsenal, count-state, BIP/BABIP, arm angle,
   SIERA, run value, and lineup expansions require `include_experimental=True`.
-  Frozen production is **184** features (`docs/research/step11_discipline_registry_freeze.md`);
+  Legacy single-model production freeze is 184 features
+  (`docs/research/step11_discipline_registry_freeze.md`);
   `step10_180` / `step7_185` / `pre_freeze_248` are comparison-only. Definitions live under
   `artifacts/feature_research/`.
 - **Multiple-comparisons risk:** every consulted configuration belongs in the
@@ -373,7 +373,7 @@ VIF caveats, nested-fold proposal, and count-model scope.
 The live Level 3 parquet contains labels, identifiers, production features, and
 research candidates. Do not treat every numeric column as a model input.
 `Python.registries.resolve_feature_names(frame, "production")` returns the
-**184** frozen features; use `"step10_180"`, `"step7_185"`, `"pre_freeze_248"`, or
+legacy 184-feature freeze set; use `"step10_180"`, `"step7_185"`, `"pre_freeze_248"`, or
 `"ridge_vif"` for companions.
 `Python.features.model_feature_names(..., include_experimental=True)` exposes
 the broader research-eligible surface.
@@ -419,12 +419,12 @@ A season-level additive constant has no within-season tree-model signal.
   the research-only run-value audit found no pitch type or coarse family
   reliably estimable at the lower-CI `r=.50` gate.
 - Weather, travel, and catcher inputs are not integrated. Rest/bullpen/TBF
-  companions A–C are in `docs/research/workload_rest_bullpen_feature_plan.md`.
+  companions A–C are in `docs/research/tbf_spine_phase_ab.md`.
 - Neutral-site/international games can contaminate team-keyed park factors.
-- The production LightGBM registry is the **frozen 184-feature** allow-list
-  (Step 11). `step10_180` / `step7_185` / `pre_freeze_248` remain for comparisons.
-  Ridge research uses `ridge_vif` (73). The historical 2025 benchmark is not an
-  untouched final test.
+- Legacy LightGBM freeze registries (`184/180/185/248`) remain for comparisons.
+  Active deployment follows sparse-set governance lanes and ensemble decision
+  metrics (`docs/reference/governance_metric_stack.md`). Ridge research uses
+  `ridge_vif` (73). The historical 2025 benchmark is not an untouched final test.
 
 ## Validation
 

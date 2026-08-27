@@ -33,9 +33,9 @@ Same-game `PA` / `Outs` / `Pitches` remain labels/oracle only (or dropped raw).
 ## Safety vs frozen k-rate
 
 All of the above are **`is_experimental_feature`** for the k-rate allow-list.
-Frozen LightGBM `production` is **184** features (Step 11) and does **not**
-consume these TBF covariates as k-rate inputs (they remain experimental on the
-rate path). Companion `step10_180` retains the prior 180 freeze.
+Legacy single-model freeze lineage did not consume these TBF covariates as
+k-rate inputs (they remained experimental on the rate path). Current deployment
+still keeps these covariates on the TBF lane, not the k-rate sparse-set lane.
 
 `model_feature_names(..., include_experimental=True)` exposes them for TBF
 research fits.
@@ -47,10 +47,10 @@ research fits.
 - `PA_P5` null ≈ 3.8% (early history)
 - Typical `days_rest` median 6 (starters)
 
-## Not done yet
+## Status updates
 
-- Live slate assembly (k-rate + TBF + count layer)
-- Phase D opener/piggyback pregame role fix
+- Live slate assembly (k-rate + TBF + count layer): **shipped**.
+- Phase D opener/piggyback pregame role labeling: **still open**.
 
 ## Phase A.1 + C (landed)
 
@@ -59,7 +59,7 @@ research fits.
 - TBF set `workload_context_bullpen` **frozen**
   (`docs/research/tbf_first_model_findings.md`)
 - Count layer v1 chrono-scored (`docs/research/count_layer_findings.md`)
-- See `docs/research/workload_rest_bullpen_feature_plan.md`
+- See `docs/research/phase_d_population_findings.md` for the population-policy addendum
 
 ## First model
 

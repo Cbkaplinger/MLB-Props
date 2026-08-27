@@ -6,10 +6,14 @@
 `docs/research/phase_d_population_findings.md`, `production/README.md`,
 `docs/reference/market_clv_gates.md`
 
+> Metric lane note: live deployment champion selection follows decision metrics
+> (market-skill/risk/fairness). Single-model MAE values are tracked separately in
+> the model-family lane (`docs/reference/governance_metric_stack.md`).
+
 ## Goal
 
 ```text
-k_rate_hat  ← LightGBM production (184)  [frozen booster]
+k_rate_hat  ← Live k-rate ensemble config (primary) OR legacy single-model artifact (fallback)
 tbf_hat     ← Ridge thin-bullpen TBF     [joblib]
 expected_K  ← k_rate_hat × tbf_hat
 P(K ≥ L)    ← count_layer (binomial lines 2.5…9.5)
@@ -19,12 +23,19 @@ P(K ≥ L)    ← count_layer (binomial lines 2.5…9.5)
 
 | Piece | Location |
 |---|---|
-| k-rate | `artifacts/models/lightgbm_krate_20260803_155401.*` |
+| k-rate (active) | `production/ops/live_krate_ensemble.json` |
+| k-rate (fallback baseline) | `artifacts/models/lightgbm_krate_20260803_155401.*` |
 | TBF | `artifacts/models/tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib` |
-| Features | JSON `features` list (184) + TBF 24 |
+| Features | Ensemble member JSON `features` lists (58/72) + TBF 24 |
 | Code | `src/Python/live_assembly.py`, `models/Strikeout-Model/predict_slate.py` |
 | Daily ops | `production/` (see `production/README.md`) |
 | Market / CLV | `src/Python/{market,odds_* ,sharp_odds}.py` + `production/{odds_board,poll_odds,close_watcher,grade_odds_ledger}.py` |
+
+Current live blend configuration:
+
+- `0.00 production_sparse72`
+- `0.60 production_sparse72_monotone`
+- `0.40 production_final58_consensus`
 
 ## Commands
 
@@ -33,8 +44,8 @@ P(K ≥ L)    ← count_layer (binomial lines 2.5…9.5)
 python production/ops/refresh_statcast.py          # cache + only new days
 python production/ops/refresh_features.py --skip-training
 python production/projections/log_projections.py
-python production/odds/odds_board.py --unit 50
-python production/odds/poll_odds.py --snapshot open --unit 50
+python production/odds/odds_board.py --unit 50 --roi-mode conservative
+python production/odds/poll_odds.py --snapshot open --unit 50 --roi-mode conservative --from-recommendations
 
 # Wiring proof on a date already in pitcher_training
 python models/Strikeout-Model/predict_slate.py --historical-date 2025-09-20

@@ -17,24 +17,24 @@ flowchart TB
 
   LGBM["Single-model lane<br/>sparse72 / sparse72_monotone / final58"]:::built
   TBF["TBF Ridge thin bullpen<br/>test MAE≈2.49"]:::built
-  CNT["Count layer<br/>expected_K MAE≈1.79"]:::built
+  CNT["Count layer lanes<br/>historical≈1.79 · single-model winner≈1.762"]:::built
   HOLD["2025 = historical only<br/>already consulted · not pristine"]:::risk
 
   S1["Steps 1–5: dict · LFO · windows · likelihoods"]:::built
   S7["Step 7: freeze 185"]:::built
   S89["Steps 8–9c: keep/drop · windows · P1"]:::built
-  S10["Step 11: lock production 184"]:::built
+  S10["Legacy freeze lineage lock<br/>superseded by sparse-set governance"]:::built
   S12["Step 12: feature-set + family ablation<br/>MAE/skill/risk gates complete"]:::built
   ENS["Deduped ensemble governance<br/>one-opportunity-one-bet fairness"]:::built
-  TOP["Current manual winner transfer<br/>0.00 sparse72 / 0.60 mono / 0.40 final58<br/>isotonic · floor 0.12"]:::built
+  TOP["Current production winner<br/>0.00 sparse72 / 0.60 mono / 0.40 final58<br/>isotonic · conservative floor 0.12"]:::built
 
   TUNE["11.A Tune LGBM + Ridge α<br/>done (flat/no lift)"]:::built
   WF["11.B Walk-forward stack backtest<br/>done"]:::built
   CAL["11.C Calibration / ECE<br/>done + monitored"]:::built
   ANOM["Exit-anomaly policy eval<br/>A/B + sensitivity wired"]:::built
   ANOMRES["Current result:<br/>neutral under low historical coverage"]:::risk
-  PMON["Focused monitors + KPI policy<br/>KPI/calibration/gate/PnL notebooks"]:::built
-  NEXT["Pristine test =<br/>future post-freeze games"]:::missing
+  PMON["Focused monitors + KPI policy<br/>execution lane + research lane"]:::built
+  NEXT["Pristine test growth =<br/>future post-freeze games"]:::partial
 
   SEAS --> SPLIT
   SPLIT --> LGBM
@@ -65,9 +65,11 @@ flowchart TB
 - Focused ops loop: `production/notebooks/results_kpi_monitor.ipynb`,
   `results_calibration_lab.ipynb`, `results_gate_policy.ipynb`,
   `results_pnl_clv.ipynb`, plus `production/ops/policy_simulator.py`.
+- Open polling is parity-locked to board artifacts by default:
+  `production/odds/poll_odds.py --snapshot open --from-recommendations`.
 - Deduped transfer artifacts:
   `artifacts/odds_log/open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.csv`,
   `open_top3_transfer_bestfloor_overlap_aug21_deduped_top3_from_dedupedsweep.csv`.
-- Current freeze record: `docs/research/final58_consensus_freeze_2026-08-20.md`.
+- Current freeze record: `docs/research/snapshots/2026-08-20/final58_consensus_freeze.md`.
 - Prior freeze record: `docs/research/step10_p1_registry_freeze.md`.
 - Archived leaky baselines: `docs/archive/leaky-baseline-2026-07-23/`.

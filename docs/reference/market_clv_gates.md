@@ -12,7 +12,7 @@
 | Layer | Role | Odds allowed? |
 |---|---|---|
 | Strikeout stack (`expected_K`, raw `p_over_*`) | Predict baseball | **No** |
-| Post-hoc calibrator (`p_over_*_cal`) | Honesty map on prop probs (Platt) | No — still baseball layer |
+| Post-hoc calibrator (`p_over_*_cal`) | Honesty map on prop probs (current pointer: isotonic) | No — still baseball layer |
 | Market math | De-vig, edge, Kelly, units, CLV | Compare / size / grade |
 | `src/Python/skill_stats.py` | z-test / BCa / stake-weighted / rolling-SE on the CLV ledger | Yes (read-only on the ledger) |
 | `artifacts/odds_log/ledger.parquet` | Durable paper tickets | Yes |
@@ -32,15 +32,12 @@ Closing lines **grade** CLV. Final K grades win/loss. Neither trains LightGBM.
 
 - **De-vig (multiplicative):** fair probs from over/under American pair  
 - **Edge:** `p_model − p_mkt` on bet side  
-- **Kelly fraction:** **⅛ Kelly** (`0.125`) as of the 2026-08-06 Kelly freeze
-  (was 0.25 prior; the sizing halved while the CLV skill gate stays
-  INCONCLUSIVE — see *§ Decision rules*). Code: `market.DEFAULT_KELLY_FRACTION`.
+- **Kelly fraction:** **1/16 Kelly** (`0.0625`) as current default in
+  `src/Python/market.py` (`DEFAULT_KELLY_FRACTION`).
 - **CLV (pp):** `p_mkt(close, side) − p_mkt(bet price)` on the **same ticket**  
-- **Unit anchor:** 1u = **⅛ Kelly on 12% edge @ −110** ≈ **3.15% of bankroll**
-  (the pre-freeze "8% @ −110 ≈ 4.2%" wording was the 0.08 floor /
-  quarter-Kelly value and is kept here only as a historical note; the active
-  anchor is `market.unit_anchor_kelly_frac()` re-computed from
-  `DEFAULT_EDGE_FLOOR=0.12` / `DEFAULT_KELLY_FRACTION=0.125`).
+- **Unit anchor:** 1u uses `market.unit_anchor_kelly_frac()` under current
+  defaults. With `DEFAULT_EDGE_FLOOR=0.08` and `DEFAULT_KELLY_FRACTION=0.0625`,
+  anchor fraction is lower than prior 1/8 Kelly settings.
   - `bankroll = unit_dollars / anchor_frac` (recompute if typical odds ≠ −110)  
   - `units = kelly_frac_stake / anchor_frac` (0 if edge < floor)
 
@@ -55,7 +52,7 @@ one ticket per `(game_date, pitcher, line)` — keep the **highest-edge** book
 |---|---|
 | Edge floor | Bet only if `edge ≥ 0.12` (raised from 0.08 on 2026-08-06, reaffirmed **12%** the same day on the resolved ledger — see *Floor freeze* below and `docs/research/floor_freeze_log.md`) |
 | Unit default | **$50** → implied BR ≈ **$1,590** at the active 12% / ⅛-Kelly anchor (`market.unit_anchor_kelly_frac()` ≈ 0.0315) |
-| Kelly fraction | **0.125** (eighth-Kelly; halved from 0.25 on 2026-08-06 while CLV skill gate is INCONCLUSIVE) |
+| Kelly fraction | **0.0625** (1/16 Kelly default in market math; more conservative sizing while CLV skill gate remains INCONCLUSIVE) |
 | Min sample | **n_clv ≥ 150** settled props with CLV at **floor ≥ 12%** (deduped; BET + skip both count) before any floor/Kelly move; see `floor_freeze_log.md` for the stopping rule |
 | Skill bar | Mean `CLV_pp > 0` with **BCa** bootstrap CI excluding 0 (`src/Python/skill_stats.py:bootstrap_bca_ci`; percentile bootstrap is biased at the per-band n≈10-40 and was retired for this purpose) |
 | Skill companions | (a) win-rate vs 0.524 break-even at the same band, and (b) `clv_pp` pseudo-ROC AUC > 0.5 (`production/notebooks/results_dashboard.ipynb` §11/§16) |
@@ -64,10 +61,10 @@ one ticket per `(game_date, pitcher, line)` — keep the **highest-edge** book
 
 ### Side-specific operating profile (current)
 
-Current live policy (`production/ops/kpi_policy.json`) uses profile `D_over18_under12`:
+Current live policy (`production/ops/kpi_policy.json`) uses profile `A_edge12`:
 
-- over-side minimum edge: `0.18`
-- under-side minimum edge: `0.12`
+- base minimum edge: `0.12`
+- optional side-profile stress lane: `E_over10_under8`
 
 This is a product-layer risk control due to observed side asymmetry and does not
 change the pre-registered global floor framework above. Re-check daily while
@@ -137,12 +134,11 @@ keeps the prose narrative).
   sweep stays policy-blind via `bet_price + result`, so we can detect whether
   12% in turn becomes too low.
 
-### Kelly freeze — 2026-08-06 (0.25 → 0.125)
+### Kelly policy note
 
-Halved stakes until the CLV skill gate clears (CI excludes 0). At that point
-revert to ¼ Kelly. This is a volatility-tolerance / edge-estimation hedge, not
-a skill judgment — the model could be sharp and ⅛ Kelly is still the right
-sizing while CI includes zero.
+Sizing default is currently set to 1/16 Kelly (`0.0625`) in production market
+math. Any move back to larger fractions should be treated as a governance
+change and logged with supporting CLV/risk evidence.
 
 ## Daily machine loop
 
@@ -197,7 +193,7 @@ math; SharpAPI +EV is sharp-vs-soft, not model-vs-book.
 | `artifacts/odds_log/ledger.parquet` | Durable tickets from `poll_odds --snapshot open` | **Yes** (BET + skip + OOS) |
 | Close / settle / `--curve` | Fill CLV + win/loss; sweep edge floors | Needs full ledger |
 
-**Morning UX:** `odds_board` prints BET (≥12%, in-support) only; writes full slate.  
+**Morning UX:** `odds_board --roi-mode conservative` prints BET (≥12%, in-support) only; writes full slate.  
 **Skill loop:** open → tip-window close → settle → `--curve` on **deduped props**.  
 The accept/deny curve is meaningless unless skips (edge < 8%) are logged and CLV’d too.
 
@@ -289,7 +285,7 @@ appends — no stacked replace re-runs.
 
 | Gate | Rule |
 |---|---|
-| Pregame OOS | `projected_tbf < 12` or `expected_K < 1.5` or `days_rest ≥ 120` → units 0 / OOS |
+| Pregame OOS | `projected_tbf < 12` or `expected_K < 1.5` or `days_rest ≥ 45` → units 0 / OOS |
 | Abbreviated outing | `actual_PA < 9` → exclude from projection MAE when flagged |
 
 ## Build sequence status

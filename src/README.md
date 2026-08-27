@@ -1,14 +1,14 @@
 # Source Package Layout
 
-`src/` contains project source code and notebook development surfaces.
+`src/Python/` is the canonical implementation surface.
 
 ## Structure
 
-- `src/Python/` — canonical pipeline, feature, modeling, market, and utility modules.
-- `src/Notebooks/` — development notebooks for feature and pipeline inspection.
+- `src/Python/`: production and research-shared library code.
+- `src/Notebooks/`: legacy/development notebook surface for diagnostics.
 
-## Usage Rules
+## Ground-truth rule
 
-- Treat `src/Python/` as pipeline-core (`keep` by default during cleanup).
-- Do not move modules without updating imports and tests in the same pass.
-- Prefer Polars for new data transformation logic in this package.
+- Operational truth lives in `production/` CLIs and policies.
+- `src/Notebooks/` should not be treated as the primary production workflow.
+- Prefer Polars for all new data transformation logic.

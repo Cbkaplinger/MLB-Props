@@ -2,15 +2,11 @@
 
 Audit date: 2026-07-24 (body); **status banner 2026-07-28**
 
-> **Current program state:** LightGBM `production` is **184** features
-> (Step 11 discipline lift; `docs/research/step11_discipline_registry_freeze.md`).
-> Prior spine `step10_180` (180) remains for bake-offs. Feature research
-> Steps 1–11 are closed; Phase 11 model-quality gates are complete
-> (`docs/research/phase11_model_quality_gates.md`). **Phase D interim policy frozen**
-> (`docs/research/phase_d_population_findings.md`); pregame role labels still required
-> for pristine v1. Live ops under `production/`.
-> Sections below retain historical sequencing language (185 / Step 7 era) as
-> process evidence unless explicitly updated.
+> **Current program state (updated):** active deployment uses the sparse-set
+> ensemble lane (`0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`) under
+> governed decision metrics. Legacy freeze lineage (248→185→180→184) is retained
+> for auditability only. For current winners by lane (single-model MAE vs
+> deployment champion), use `docs/reference/governance_metric_stack.md`.
 
 Scope: current pitcher strikeout-rate pipeline, active feature-research scripts,
 generated development artifacts, and documented model evaluations. The report
@@ -22,7 +18,7 @@ now includes the implemented expanded-feature remediation and registry result.
   allow-list (VIF is not an LGBM prune rule); Ridge adopts the Phase-1
   73-feature VIF registry (`xFIP_P5` dropped; `xwOBA_P5` residual VIF accepted).
   Freeze handoff is the 185-feature Step 4 mean-window thin
-  (`docs/research/step1_feature_dict_vif_findings.md`).
+  (`docs/research/historical-step-findings-summary.md`).
 - **RESOLVED:** `src/Python/features.py` now excludes every rolling Contact%
   and CSW% identity while retaining Whiff%, SwStr%, and called-strike rate.
 - **RESOLVED:** feature and window selection now uses inner chronological folds
@@ -87,7 +83,7 @@ Training-partition diagnostics on the 248 production features found severe
 overlap (236 ordinary VIF values above 10). Step 1 adopted the cluster
 reduction as the Ridge research registry (73 features after dropping
 `xFIP_P5`); LightGBM keeps the full production list. See
-`docs/research/step1_feature_dict_vif_findings.md`.
+`docs/research/historical-step-findings-summary.md`.
 
 
 The original audit used all 9,374 development rows and all 256 eligible
@@ -458,7 +454,7 @@ What exists:
   each using stabilization first, then missingness, then definition simplicity;
 - dual-registry keep/drop policy wired in `src/Python/registries.py` with
   trainer `--feature-set` support and season missingness export
-  (`docs/research/step1_feature_dict_vif_findings.md`).
+  (`docs/research/historical-step-findings-summary.md`).
 
 Artifacts: `artifacts/feature_research/feature_dictionary.csv`,
 `pearson_*`, `spearman_*`, `kendall_*`, `vif.csv`, and
@@ -501,7 +497,7 @@ Leave-family-out on the production 248-feature allow-list (2026-07-27):
   expected_contact, fip_xfip, lineup, park, context;
 - structural: drop all rolling `_P*` vs drop all `_std`.
 
-Durable write-up: `docs/research/step3_leave_family_out_findings.md`. Clearest keep:
+Durable write-up: `docs/research/historical-step-findings-summary.md`. Clearest keep:
 opponent lineup. LightGBM needs rolling windows; Ridge prefers fewer overlapping
 windows. Optional finer within-family drops remain available but are not required
 to close this gate.
@@ -523,7 +519,7 @@ Completed evidence:
 - outer-fold mean-window thinning for production physics / usage / mechanics /
   FIP families (`step4_physics_windows`).
 
-Durable write-up: `docs/research/step4_window_decisions.md`. LightGBM decisions:
+Durable write-up: `docs/research/historical-step-findings-summary.md`. LightGBM decisions:
 
 - **BABIP / arm angle:** keep experimental defaults; do not promote longer/
   shorter alternatives or production status on this gate.
@@ -586,12 +582,12 @@ All four planned arms were compared on `nested_research_folds` (2023–2024,
 248-feature allow-list). Durable findings:
 
 - PA-weighted Ridge/LightGBM — **no gain**
-  (`docs/research/step5_pa_weight_findings.md`)
+  (`docs/research/historical-step-findings-summary.md`)
 - L2-regularized binomial GLM — **does not beat** unweighted LightGBM
-  (`docs/research/step5_binomial_findings.md`)
+  (`docs/research/historical-step-findings-summary.md`)
 - Two-stage beta-binomial — **does not overturn** unweighted LightGBM; with
   LightGBM means, fitted concentration hits the binomial limit
-  (`docs/research/step5_beta_binomial_findings.md`)
+  (`docs/research/historical-step-findings-summary.md`)
 
 **Decision:** keep **unweighted LightGBM** as the rate/likelihood backbone.
 Shared helpers: `src/Python/training.py`, `src/Python/likelihoods.py`.
@@ -662,7 +658,7 @@ not final out-of-sample dispersion estimates. See
 
 Two-stage beta-binomial (mean + global `kappa`) was evaluated on nested folds
 as a Step 5 rate-likelihood challenger and did not beat unweighted LightGBM
-(`docs/research/step5_beta_binomial_findings.md`).
+(`docs/research/historical-step-findings-summary.md`).
 
 The projected-TBF count layer re-fit `kappa` on train (historical PA trials) and
 scored `P(K ≥ line | projected TBF)`. On chrono test, κ hit the binomial floor

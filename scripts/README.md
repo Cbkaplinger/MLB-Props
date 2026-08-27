@@ -1,8 +1,6 @@
 # Scripts Inventory and Safety Status
 
-This folder contains utility scripts spanning production checks and historical
-research helpers. Do not delete scripts solely because they are not called by
-`production/` directly.
+This folder is support tooling. Primary runtime remains `production/`.
 
 ## Production-adjacent (keep)
 
@@ -23,11 +21,10 @@ research helpers. Do not delete scripts solely because they are not called by
 These are retained as reproducible scaffolding for feature/reliability work and
 future model-family expansion (hits, walks, outs, pitches).
 
-## Current audit result (2026-08-11)
+## Current audit posture
 
-- No script in this folder is a verified safe delete target yet.
-- Some scripts have zero in-repo references, but still produce documented
-  research artifacts and should be treated as retained until superseded.
+- Keep scripts that produce referenced artifacts or reproducibility evidence.
+- Prefer adding new operational commands under `production/ops/` instead of this folder.
 
 ## Deletion rule
 

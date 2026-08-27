@@ -1,0 +1,13 @@
+lane,budget,rank,feature_set,model_family,model_tag,k_rate_mae,expected_k_mae,roi,sharpe,sortino,brier_skill_vs_market,logloss_skill_vs_market,edge_floor
+mae,base,1,production_sparse72,ridge,ridge_alpha_1,0.0766816388,1.7621378514,,,,,,
+mae,base,2,production_sparse72_monotone,ridge,ridge_alpha_1,0.0766816388,1.7621378514,,,,,,
+mae,base,3,production_sparse72_monotone,lightgbm,lgbm_tuned_small_0,0.0766883407,1.7689249352,,,,,,
+mae,tuned_small,1,production_sparse72,ridge,ridge_alpha_1,0.0766816388,1.7621378514,,,,,,
+mae,tuned_small,2,production_sparse72_monotone,ridge,ridge_alpha_1,0.0766816388,1.7621378514,,,,,,
+mae,tuned_small,3,production_sparse72_monotone,lightgbm,lgbm_tuned_small_0,0.0763487025,1.7652451066,,,,,,
+governance,base,1,production_sparse72,xgboost,xgboost_base_0_unconstrained,0.0804208016,1.8154615183,0.5430925907,0.6461768714,0.5352209274,0.1017415478,0.0833775517,0.075
+governance,base,2,production_sparse72,random_forest,rf_500_sqrt_leaf20,0.0776960712,1.7678848593,0.5628676931,0.6264496574,0.5214598826,0.0891933169,0.0718446421,0.08
+governance,base,3,production_sparse72_monotone,random_forest,rf_500_sqrt_leaf20,0.0776960712,1.7678848593,0.5628676931,0.6264496574,0.5214598826,0.0891933169,0.0718446421,0.08
+governance,tuned_small,1,production_sparse72,random_forest,rf_500_sqrt_leaf20,0.0776960712,1.7678848593,0.5628676931,0.6264496574,0.5214598826,0.0891933169,0.0718446421,0.08
+governance,tuned_small,2,production_sparse72_monotone,random_forest,rf_500_sqrt_leaf20,0.0776960712,1.7678848593,0.5628676931,0.6264496574,0.5214598826,0.0891933169,0.0718446421,0.08
+governance,tuned_small,3,production_sparse72,histgbr,histgbr_base,0.0780313082,1.7749622928,0.3902092866,0.3537949912,0.3273581477,0.0876343108,0.0684986392,0.075

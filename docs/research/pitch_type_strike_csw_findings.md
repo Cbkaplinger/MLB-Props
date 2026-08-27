@@ -1,8 +1,12 @@
 # Per-pitch-type strike% / CSW% / SwStr% (Tier 1) — findings
 
+> Metric lane note: this is a historical candidate-screening note. Current
+> deployment winners/champions are tracked in
+> `docs/reference/governance_metric_stack.md`.
+
 ## Motivation
 
-Every per-pitch-type feature in the frozen `production` (184) registry is physics/usage
+Every per-pitch-type feature in the legacy frozen single-model registry is physics/usage
 only: velo, spin, IVB, HB, VAA, and usage vs R/L. The model has no signal on whether a
 given pitch type is actually *good* by outcome (command + stuff blended into one
 number), which is a plausible explanation for pitchers whose secondary-pitch shape
@@ -122,7 +126,7 @@ fs          csw          20              False
 Empirical-Bayes prior strength was fixed at 200 pitches (mid-range of the observed
 r=.50 crossing pitch counts across stats/pitch types; not separately tuned per stat —
 flagged as a limitation below). Candidate sets tested, each layered on top of the
-frozen 184-feature `production` core:
+legacy single-model freeze core:
 
 | configuration | n features | mean MAE improvement | min MAE improvement (worst fold) | both folds improve? |
 |---|---|---|---|---|
@@ -154,7 +158,7 @@ not.
 Full detail: `artifacts/feature_research/pitch_type_strike_csw_lift/` (`inner_results.csv`,
 `outer_results.csv`, `promotion_summary.csv`, `chrono_bakeoff.csv`, `metadata.json`).
 
-The secondary `expected_K` product-level check (per `step9_metric_window_findings.md`'s
+The secondary `expected_K` product-level check (per `historical-step-findings-summary.md`'s
 two-stage yardstick) was not run, since the primary `k_rate` MAE gate did not clear.
 
 ## Verdict: HOLD

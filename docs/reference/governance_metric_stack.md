@@ -34,6 +34,9 @@ Current decision guidance:
 
 - Treat the deduped transfer winner above as the **active manual-lane champion**.
 - Treat `production_sparse72 + isotonic + edge_floor=0.12` as the **open-universe skill champion** until next challenger cycle clears gates.
+- Interpret expected-K MAE and ensemble ROI/skill as different objective lanes: the current ensemble sweep artifact is ranked on decision metrics (ROI/risk/skill), while expected-K MAE leadership is tracked in the single-model ablation lane.
+- Keep MAE claims in chronological model-evaluation lanes (2023–2024 WF/CV and
+  2025 holdout protocol). Use open/manual lanes for market and decision metrics only.
 - Live scoring now supports an explicit k-rate ensemble config at `production/ops/live_krate_ensemble.json` (with single-model fallback).
 - Keep single-model challengers live:
   - `ridge` (`production_sparse72`)

@@ -1,36 +1,62 @@
 # MLB Props
 
-Research pipeline for pregame MLB pitcher strikeout-rate projections from
-Baseball Savant data, plus a frozen projected-TBF spine and count-layer props
-research. Feature engineering is Polars-first; trainers consume model-ready
-parquet rather than rebuilding features.
+Production-first MLB pitcher strikeout props stack with a frozen operating
+profile (`KING_PROFILE_AUG2026`), execution/research gate split, and board to
+ledger parity lock.
 
-## Repository layout
+## Current source of truth
 
-| Family | Path | Role |
-|---|---|---|
-| Package | `src/Python/` | Shared library (Statcast, features, pipeline L1–L3, count layer) |
-| Pipeline notebooks | `src/Notebooks/` | Level inspection notebooks |
-| Models | `models/` | Strikeout + TBF trainers (`train.py`), research runners (`Strikeout-Model/research/`), local results |
-| Production | `production/` | Daily ops CLIs (refresh → log → grade) |
-| Playground | `playground/` | Ad-hoc what-if experiments (not production) |
-| Scripts | `scripts/` | One-off research/tooling CLIs |
-| Tests | `tests/` | Pytest suite |
-| Docs — paper | `docs/paper/` | Manuscript + figures + PDF |
-| Docs — research | `docs/research/` | Step findings, experiment log, audits, phase gates |
-| Docs — reference | `docs/reference/` | Model card, dev notes, lineup/live/holdout |
-| Docs — diagrams | `docs/diagrams/` | Mermaid architecture / leakage / modeling / roadmap |
-| Docs — archive | `docs/archive/` | Superseded process evidence |
-| Data | `data/` | Savant cache + processed parquet (often local/large) |
-| Artifacts | `artifacts/` | Generated models, fold CSVs, research outputs (gitignored) |
+- Code repository: [github.com/Cbkaplinger/MLB-Props](https://github.com/Cbkaplinger/MLB-Props)
+- Paper: [Technical manuscript (`docs/paper/manuscript.md`)](docs/paper/manuscript.md)
+- Daily operations: `production/README.md`
+- Command routing: `production/INDEX.md`, `production/RUNBOOK.md`
+- Governance policy: `production/ops/kpi_policy.json`
+- Model card: `docs/reference/model-card.md`
 
-See `docs/reference/model-card.md` for intended use and leakage rules,
-`docs/reference/dev-notes.md` for the current feature reference,
-`docs/research/PAPER_NOTES.md` for the experiment log, and
-`docs/diagrams/` for phase-colored architecture / leakage / modeling / roadmap
-charts (Mermaid). Status snapshot: `docs/diagrams/00-index.md`.
-Cleanup history: `docs/CLEANUP_LOG.md`.
-Latest repo-quality sweep: `docs/reference/repo_quality_passthrough_report_2026-08-21.md`.
+## Active architecture
+
+- `src/Python/`: canonical pipeline and model assembly modules (Polars-first)
+- `production/`: live scoring, recommendation board, polling, grading, governance
+- `models/`: trainers and model research notebooks
+- `production/notebooks/`: operator-facing notebook surfaces
+- `docs/reference/`: living operational standards
+- `docs/research/`: supporting evidence and historical rationale
+
+## Active vs legacy (quick split)
+
+- Active production path (use this): `production/`, `src/Python/`, `production/ops/kpi_policy.json`, `production/ops/live_krate_ensemble.json`.
+- Active publication path (use this): `docs/paper/manuscript.md`, `docs/paper/resume-summary.md`, `docs/reference/`.
+- Legacy/historical context (reference only): older freeze snapshots, archived comparisons, and superseded research notes in `docs/research/` and `docs/archive/`.
+- Rule: if a file is not used by a scheduled task, `production/INDEX.md`, or `production/RUNBOOK.md`, treat it as non-operational.
+
+## Next prop expansion: pitcher outs
+
+- Keep strikeouts as the golden production lane; do not change strikeout governance to prototype outs.
+- Reuse existing stack components:
+  - data contracts (`game_date`, `player_name`, `book`, `line`, `event_start_time`)
+  - watcher open/close capture loop
+  - ledger settle pipeline and daily KPI automation
+  - dashboard/runtime monitoring and alerting
+- Current shadow artifacts for non-K props:
+  - `artifacts/odds_log/watcher_aux_quotes.parquet`
+  - `artifacts/odds_log/aux_market_shadow_prop_level.parquet`
+  - `artifacts/odds_log/aux_market_shadow_summary.json`
+- Promotion sequence for outs: collect -> shadow score/CLV diagnostics -> build leakage-safe model -> run governance lane in shadow -> consider production profile only after sample and risk gates pass.
+
+## Daily operator loop
+
+1. Refresh data and features.
+2. Build recommendations with current production policy.
+3. Poll open odds from recommendations (`--from-recommendations` parity lock).
+4. Generate governance and reconciliation artifacts.
+5. Settle and monitor ledger health.
+
+## Legacy / deprecated guidance
+
+- `src/Notebooks/` and research notebooks remain available for inspection, but
+  they are not the canonical daily execution path.
+- Historical strategy writeups are retained for provenance; active decisions
+  should follow `production/` and `docs/reference/`.
 
 ## Pipeline
 
@@ -201,10 +227,11 @@ must be monitored; MLB IDs remain the durable identity contract.
 5. Compare builds on nested chronological outer folds only; do not reuse scored
    2025 for selection. Pristine final eval = future post-freeze games.
 
-Feature-research Steps 1–9 are closed for LightGBM; see `docs/research/step7_registry_freeze.md`
-and `docs/research/step8_feature_keep_drop_findings.md` / `docs/research/step9_metric_window_findings.md`.
+Feature-research Steps 1–9 are closed for LightGBM; see
+`docs/research/historical-step-findings-summary.md` and
+`docs/research/step7_registry_freeze.md`.
 The current expanded freeze decision and consensus-search evidence are documented in
-`docs/research/final58_consensus_freeze_2026-08-20.md`.
+`docs/research/snapshots/2026-08-20/final58_consensus_freeze.md`.
 
 ## Remaining gaps (see `docs/diagrams/04-roadmap.md`)
 
@@ -239,13 +266,33 @@ still tracks `production_sparse72 + isotonic` for market-skill monitoring.
 Prior freeze registries (`production`, `step10_180`, `step7_185`) remain
 available for backtests and comparisons.
 
-Companion sets: `step7_185`, `pre_freeze_248` (comparison) and `ridge_vif`
-(73-feature Ridge research). Expanded research candidates remain outside
-production unless `include_experimental=True`. Generated diagnostics live under
-`artifacts/feature_research/` and `artifacts/stabilization/`.
+### Metric lane definitions (important)
 
-Count-layer chrono test (projected TBF): expected_K MAE ≈ **1.79**; line Briers
-≈ 0.12–0.22 depending on line (`docs/research/count_layer_findings.md`).
+- **Single-model MAE lane:** accuracy-first lane tracked in model-family ablation
+  outputs. Current best observed `mean_expected_k_mae` is about **1.7621**.
+- **Ensemble deployment lane:** active king selected from deduped/manual transfer
+  governance on decision metrics (ROI, risk-adjusted path, market-skill deltas),
+  not by expected-K MAE rank in the ensemble sweep artifact.
+- **Legacy baselines:** historical freeze-era benchmark metrics are archived for
+  auditability and are not used as current production claims.
+
+Companion sets and legacy registries are retained for provenance and backtests
+only (`step7_185`, `pre_freeze_248`, `ridge_vif`), while production promotion
+follows the metric lanes above.
+
+### Current winners (artifact-backed)
+
+- **Single-model MAE lane winner:** `mean_expected_k_mae=1.7621`
+  (Ridge on `production_sparse72`, tied by lane with
+  `production_sparse72_monotone` in current governance notes).
+- **Active deployment king (deduped transfer lane):**
+  `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`,
+  `isotonic`, `edge_floor=0.12`, with current replay metrics:
+  `ROI=0.4363`, `PnL=1208.55`, `Sharpe=0.4438`, `Sortino=0.4277`,
+  `Brier skill=+0.2069`, `LogLoss skill=+0.1551`.
+- **Open-universe deduped sweep top profile:** `0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58`,
+  `ROI=0.6612`, `Sharpe=0.9468`, `Sortino=0.6954`,
+  `Brier skill=+0.0825`, `LogLoss skill=+0.0645`.
 
 The older date-disjoint 227-feature evaluation that consulted 2025 remains
 historical benchmark evidence. The invalid overlapping-date run is retained

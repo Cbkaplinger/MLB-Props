@@ -1,8 +1,7 @@
 # Post-freeze holdout protocol
 
-**Freeze lock:** 2026-08-03 (LightGBM `lightgbm_krate_20260803_155401`,  
-TBF `tbf_pa_ridge_workload_context_bullpen_20260728_035607`)  
-**Prior lock:** 2026-07-28 (`lightgbm_krate_20260728_033241`, 180 features)  
+**Active deployment lock:** `KING_PROFILE_AUG2026` (ensemble + policy profile)  
+**Legacy single-model lock:** 2026-08-03 (`lightgbm_krate_20260803_155401`)  
 **Runner:** `production/projections/post_freeze_holdout.py`  
 **Artifacts:** `artifacts/holdout/post_freeze/`
 
@@ -10,8 +9,15 @@ TBF `tbf_pa_ridge_workload_context_bullpen_20260728_035607`)
 
 Chronological 2023–2024 test metrics in the manuscript are **not** a pristine
 final holdout: 2025 was consulted during earlier baseline work, and feature
-selection used nested 2023–2024 folds. After locking the **184-feature** stack on
-2026-08-03, new games must be scored **without** reopening registries.
+selection used nested 2023–2024 folds. After lock, new games must be scored
+**without** reopening registries.
+
+## Current deployment note (Aug 2026)
+
+Live scoring currently uses a config-driven k-rate ensemble
+(`production/ops/live_krate_ensemble.json`) with single-model fallback. This
+holdout protocol remains the canonical way to evaluate post-lock drift without
+re-opening feature/selection procedures.
 
 ## Partitions
 
@@ -34,7 +40,8 @@ Frozen models scored; nothing refit.
 | `season_2026_pre_freeze` | 3048 | 0.0781 | 1.776 | 2.538 | Live-season monitor |
 | `season_2025` | 4750 | 0.0795 | 1.806 | 2.522 | Contaminated reference |
 
-Manuscript chrono test (2024-08-06+) was k_rate MAE ≈ 0.0787 / expected_K ≈ 1.79 — 2026 YTD is in the same ballpark on the historical-feature path.
+Legacy manuscript chrono references are retained in paper/research history; this
+protocol is for forward post-lock drift tracking only.
 
 Re-run after each daily refresh so `post_freeze` accumulates real post-lock games.
 

@@ -3,13 +3,17 @@
 Running log of findings, bugs, and decisions for an eventual writeup.
 Update incrementally as work happens -- do not reconstruct retroactively.
 
+> Metric lane note: this chronological ledger includes historical baselines and
+> superseded checkpoints. For current winner metrics and active champions, use
+> `docs/reference/governance_metric_stack.md`.
+
 ## Read this first (de-dup guide)
 
 For current state and day-to-day policy, do not re-derive from the full log.
 Use:
 
 - `docs/research/README.md` (research index)
-- `docs/research/step11_discipline_registry_freeze.md` (current production freeze)
+- `docs/research/step11_discipline_registry_freeze.md` (legacy single-model freeze record)
 - `docs/research/phase11_model_quality_gates.md` (gate outcomes)
 - `docs/research/prob_calibration_findings.md` (calibration status)
 - `docs/reference/daily_kpi_protocol.md` and `production/ops/kpi_policy.json` (live policy)
@@ -320,7 +324,7 @@ one current configuration universally stable.
 
 
 Values are **LightGBM / Ridge** mean outer-fold metrics from the 2026-07-27
-leave-family-out screen (`docs/research/step3_leave_family_out_findings.md`,
+leave-family-out screen (`docs/research/historical-step-findings-summary.md`,
 `artifacts/feature_research/leave_family_out/aggregate.csv`). Positive delta
 means removing the group hurt vs the full 248-feature model. Extra families
 (mechanics, usage, rates, FIP/xFIP, expected contact, context) are in the same
@@ -382,7 +386,7 @@ adopting this as the Ridge research registry with one amendment: drop
 full 248 list; the freeze proposal is the Step 4 185-feature mean-window thin.
 Wire-up: `src/Python/registries.py` and
 `--feature-set {production,ridge_vif,lightgbm_freeze_proposal}`
-(`docs/research/step1_feature_dict_vif_findings.md`).
+(`docs/research/historical-step-findings-summary.md`).
 
 ### Expanded candidate research (2026-07-24)
 
@@ -441,7 +445,7 @@ remain research-only because explicit registry freeze was outside Phase 3.
 
 The rolling-window follow-up tested only BABIP P20/P30/P35, arm angle P2/P3,
 and run value P10/P20/P25. No global rolling default changed in the pipeline.
-Step 4 closed for the LightGBM backbone (`docs/research/step4_window_decisions.md`):
+Step 4 closed for the LightGBM backbone (`docs/research/historical-step-findings-summary.md`):
 keep BABIP/arm-angle experimental defaults without promotion; propose
 `rv_per_100_P25` if run value is promoted; thin production mean-window families
 (physics/usage/mechanics/FIP) from P3/P5/P10 to **P3/P5** at freeze.
@@ -472,7 +476,7 @@ configurations: core, flat, order weighted, and weighted plus dispersion.
 
 Weighted plus dispersion won every inner selection. LightGBM outer-fold MAE
 improved by `0.000360` and `0.000152`; Ridge MAE worsened by `0.000209` and
-`0.000200`. No feature was promoted. The production gate remains 248 while the
+`0.000200`. No feature was promoted. At that checkpoint, the production gate remained 248 while the
 research surface is 563 features (315 research-only). The refreshed Ridge VIF
 proposal has 165 features, median VIF `4.263`, maximum `14.618`, and four
 values above 10. Current `pitcher_training.parquet` SHA-256:
@@ -505,7 +509,7 @@ not a 563-feature one-to-one accounting.
 
 These items are intentionally recorded without changing the feature pipeline:
 
-- apply Step 4 LGBM freeze proposals at registry freeze (`docs/research/step4_window_decisions.md`):
+- apply Step 4 LGBM freeze proposals at registry freeze (`docs/research/historical-step-findings-summary.md`):
 mean-window thin P3/P5 and optional `rv_per_100_P25`;
 - test season-to-date FIP and leakage-safe xFIP only as predeclared
 replacements, alongside the existing rolling composites;
@@ -757,15 +761,15 @@ policy frozen** (`docs/research/phase_d_population_findings.md`). Live ops under
 vs-hand) remain research-only under `artifacts/feature_research/`.
 
 1. ~~Complete a feature dictionary with missingness rates and correlation
-  clusters by family.~~ **Done** — `docs/research/step1_feature_dict_vif_findings.md`.
+  clusters by family.~~ **Done** — `docs/research/historical-step-findings-summary.md`.
 2. ~~Remove deterministic redundant features~~ **Done** — Contact%/CSW%/Strike%
   identities excluded in `features.py`.
 3. ~~Run grouped ablations across every major family.~~ **Done** —
-  `docs/research/step3_leave_family_out_findings.md`, `docs/research/step8_feature_keep_drop_findings.md`.
-4. ~~Select windows per statistic.~~ **Done** — `docs/research/step4_window_decisions.md`,
-  `docs/research/step9_metric_window_findings.md`, Step 9c/10 P1 lock.
+  `docs/research/historical-step-findings-summary.md`.
+4. ~~Select windows per statistic.~~ **Done** —
+  `docs/research/historical-step-findings-summary.md`, Step 9c/10 P1 lock.
 5. ~~Compare unweighted vs PA-weighted / binomial / beta-binomial.~~ **Done** —
-  keep unweighted LightGBM; see `docs/research/step5_*_findings.md`.
+  keep unweighted LightGBM; see `docs/research/historical-step-findings-summary.md`.
 6. ~~Validate with nested chronological folds.~~ **Done** — `nested_cv.py`.
 7. ~~Freeze compact feature registry.~~ **Done** — **184**-feature production
   (`docs/research/step11_discipline_registry_freeze.md`; `step10_180` /
@@ -778,7 +782,7 @@ vs-hand) remain research-only under `artifacts/feature_research/`.
    final test = **future post-freeze games** after pregame role labels.
 
 Detailed audit: `docs/research/statistical_audit_and_sequencing_report.md`. Rest /
-bullpen / TBF: `docs/research/workload_rest_bullpen_feature_plan.md`.
+bullpen / TBF: `docs/research/tbf_spine_phase_ab.md`.
 
 ## 13. Strikeout-count probability modeling
 

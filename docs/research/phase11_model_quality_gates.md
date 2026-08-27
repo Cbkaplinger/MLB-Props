@@ -5,6 +5,10 @@ frozen — see `docs/research/phase_d_population_findings.md`
 **Date:** 2026-07-28  
 **Audience:** research → decision-quality before any live or market path
 
+> Historical-note: this file records the July 2026 gate pass baseline lane.
+> Current winner selection for deployment is tracked in
+> `docs/reference/governance_metric_stack.md` and uses explicit metric lanes.
+
 ## Verdict (honest)
 
 Phase 11 was mostly a **gate pass**, not a discovery phase. Nested LGBM HPO did
@@ -16,7 +20,7 @@ near a local optimum — but it is **not** a story of large metric gains.
 | Gate | Result | Learning |
 |---|---|---|
 | **11.A** | Keep baseline LGBM defaults; Ridge α ≈ 123 + joblib | HPO ≈ flat vs defaults |
-| **11.B** | Mean expected_K MAE **1.778** (3 windows); pass | Stack coherent under expanding WF |
+| **11.B** | Mean expected_K MAE **1.778** (3 windows); pass | Historical baseline lane coherent under expanding WF |
 | **11.C** | Mean ECE **0.024**; no recalibration **in-gate** | Probs usable; 3.5 slightly hot |
 | **11.D** | ~**3.5%** of first pitchers excluded by `PA≥9` | Interim policy; role labels still missing |
 
@@ -30,7 +34,7 @@ Artifacts: `artifacts/model_quality/phase11a_*`, `phase11b_*`, `phase11c_*`,
 
 ## Why this came next (not live assembly)
 
-Feature selection is closed (`production` = **184**, Step 11 discipline lift). That does
+Feature selection was closed at this stage (`production` = **184**, Step 11 discipline lift). That does
 **not** mean the *models* or *decision stack* are ready. In a betting / pricing
 system the product is a **probability**, not a parquet of features. The correct
 sequence after a feature freeze:
@@ -78,7 +82,7 @@ not silent registry edits).
 
 | Component | Lock |
 |---|---|
-| K-rate features | `production` 184 (`docs/research/step11_discipline_registry_freeze.md`) |
+| K-rate features | historical lock: `production` 184 (`docs/research/step11_discipline_registry_freeze.md`) |
 | K-rate family | Unweighted LightGBM (Step 5) |
 | TBF | Ridge + `workload_context_bullpen` |
 | Count identity | `expected_K = k_rate × projected_tbf` |

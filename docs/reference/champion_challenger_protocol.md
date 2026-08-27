@@ -7,9 +7,13 @@ any new tuning campaign.
 ## Scope
 
 - Markets: pitcher strikeout props
-- Primary calibration mode for current cycle: `isotonic`
-- Current champion candidate: `production_sparse72`
-- Current candidate operating floor: `edge >= 0.075`
+- Primary calibration mode for current cycle: `isotonic` (ranking lane);
+  production probability pointer remains separately versioned in
+  `artifacts/models/prob_calibration_production.json`.
+- Current live scorer: weighted k-rate ensemble from `production/ops/live_krate_ensemble.json`
+  (`0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`).
+- Current execution operating profile: conservative with base `edge >= 0.12`
+  plus line-aware floors and deploy-matrix filtering.
 
 ## Promotion Philosophy
 
@@ -69,6 +73,12 @@ When multiple candidates pass all required gates, rank in this exact order:
 - `edge_floor_sweep_governance.csv`
 - `champion_challenger_decision.json`
 - `model_freeze_card.md`
+
+## Execution-Research Separation (Required)
+
+- **Execution lane** (real-time controls): board freshness, quote coverage, board↔ledger parity, and critical data-quality checks.
+- **Research lane** (promotion confidence): full-universe counterfactual skill/ROI gates plus replay CI diagnostics.
+- Promotion decisions may be blocked by research gates without forcing an immediate execution hard-stop when execution lane is healthy.
 
 ## Tuning Readiness Gate
 

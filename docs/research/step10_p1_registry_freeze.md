@@ -3,7 +3,7 @@
 **Status:** superseded by Step 11 (`docs/research/step11_discipline_registry_freeze.md`)  
 **Alias retained:** `step10_180` (180 features) for bake-offs  
 **Date:** 2026-07-28  
-**Evidence:** `docs/research/step9_metric_window_findings.md` (Step 9c)  
+**Evidence:** `docs/research/historical-step-findings-summary.md` (Step 9c)  
 **Freeze artifact:** `artifacts/models/lightgbm_krate_20260728_033241.{txt,json}`  
 **Registry CSV:** `artifacts/feature_research/step10_p1_freeze/production_registry.csv`
 
@@ -20,8 +20,8 @@ last-start swap. That spine is now the companion registry **`step10_180`**.
 | `fs_usage_vR` | P3, P5 | **P1** |
 | `sl_vaa` | P3, P5 | **P1** |
 
-**Size: 180** features (185 − 10 P3/P5 + 5 P1). Current `production` is **184**
-(Step 11 discipline lift on this spine).
+**Size: 180** features (185 − 10 P3/P5 + 5 P1) at this checkpoint. This is now
+legacy lineage context; current deployment uses sparse-set governance lanes.
 
 Level 2 `DEFAULT_MEAN_WINDOWS = (1, 3, 5, 10)` generates P1 for all mean stems;
 the registry **consumes P1 only for the five stems above** (other `*_P1`

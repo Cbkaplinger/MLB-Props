@@ -2,6 +2,10 @@
 
 Horizontal constraints that apply to every pipeline level and future model.
 
+> Metric lane note: this diagram focuses on leakage/data-risk mechanics. For
+> current winner metrics/champions, use
+> `docs/reference/governance_metric_stack.md`.
+
 ```mermaid
 flowchart TB
   classDef built fill:#1b5e20,stroke:#a5d6a7,color:#fff
@@ -22,9 +26,9 @@ flowchart TB
 
   BP["ballpark.py<br/>season Y uses only seasons before Y<br/>unseen venue = 1.0"]:::built
   LINEUP["Historical lineup proxy<br/>first 9 distinct batters by first PA<br/>is_initial_lineup"]:::built
-  GATE["features.py allowlist<br/>reject unexpected numeric columns<br/>184 production freeze · expanded research families"]:::built
+  GATE["features.py registries<br/>reject unexpected numeric columns<br/>frozen sparse sets + legacy freeze lineage"]:::built
   DET["Deterministic redundancy removed<br/>Contact≈1−Whiff · CSW≈SwStr+CS"]:::built
-  VIF["Multicollinearity · VIF clusters<br/>165-feat & 74-feat Ridge proposals<br/>do NOT replace 248-feature gate"]:::research
+  VIF["Multicollinearity · VIF clusters<br/>Ridge companion diagnostics<br/>not a deployment-lane selector"]:::research
 
   SC --> L1F
   L1F --> FILT
