@@ -37,6 +37,15 @@ DEFAULT_POLICY: dict[str, Any] = {
             "block_low_projected_tbf": True,
             "low_projected_tbf_min": 15.0,
             "block_edge_below_min": True,
+            "block_side_line_veto": True,
+            "side_line_vetoes": [
+                {"side": "over", "line": 4.5, "reason": "veto_4_5_over"},
+            ],
+            "side_line_probation": [
+                {"side": "over", "line": 2.5},
+                {"side": "over", "line": 3.5},
+            ],
+            "probation_edge_floor": 0.18,
         },
     },
     "operating_profile": {

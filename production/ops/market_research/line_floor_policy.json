@@ -4,7 +4,7 @@
   "default_edge_floor": 0.12,
   "line_edge_floors": {
     "2.5": 0.2,
-    "3.5": 0.16,
+    "3.5": 0.18,
     "4.5": 0.14,
     "5.5": 0.14,
     "6.5": 0.12,
@@ -13,6 +13,8 @@
     "9.5": 0.16
   },
   "notes": [
+    "2026-09-01: 3.5 floor raised 0.16→0.18 (soft probation for low-line overs).",
+    "over@4.5 is HARD-VETOED in kpi_policy quality_gate (side_line_vetoes); line floor alone is not enough.",
     "Higher floors on 2.5 and 3.5 due weaker/flat ROI and calibration instability.",
     "Keep 6.5/7.5 at baseline given stronger floor-12 performance.",
     "8.5/9.5 use conservative floors due lower sample."

@@ -109,6 +109,37 @@ def test_quality_gate_holds_risky_rows_when_enabled() -> None:
     assert "quality_gate_reason" in out.columns
 
 
+def test_quality_gate_hard_vetoes_4_5_over() -> None:
+    frame = pl.DataFrame(
+        [
+            {
+                "recommendation": "BET",
+                "best_side": "over",
+                "line": 4.5,
+                "edge": 0.25,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+            {
+                "recommendation": "BET",
+                "best_side": "under",
+                "line": 4.5,
+                "edge": 0.25,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+        ]
+    )
+    out, _meta = apply_quality_gate(frame, enabled=True)
+    over = out.filter(pl.col("best_side") == "over")
+    under = out.filter(pl.col("best_side") == "under")
+    assert over["recommendation"][0] == "HOLD"
+    assert "veto_4_5_over" in over["quality_gate_reason"][0]
+    assert under["recommendation"][0] == "BET"
+
+
 def test_quality_gate_noop_when_disabled() -> None:
     frame = pl.DataFrame(
         [

@@ -27,7 +27,20 @@
       "any_long_rest_min_days": 10,
       "block_low_projected_tbf": true,
       "low_projected_tbf_min": 15.0,
-      "block_edge_below_min": true
+      "block_edge_below_min": true,
+      "block_side_line_veto": true,
+      "side_line_vetoes": [
+        {
+          "side": "over",
+          "line": 4.5,
+          "reason": "veto_4_5_over"
+        }
+      ],
+      "side_line_probation": [
+        {"side": "over", "line": 2.5},
+        {"side": "over", "line": 3.5}
+      ],
+      "probation_edge_floor": 0.18
     }
   },
   "operating_profile": {
@@ -99,12 +112,14 @@
     "name": "KING_PROFILE_AUG2026",
     "frozen_utc": "2026-08-21T16:10:00Z",
     "status": "ACTIVE",
+    "promoted_policy_utc": "2026-09-01T18:50:00Z",
     "do_not_change_without_retest": true,
     "notes": [
       "Execution source-of-truth uses board artifact open polling (--from-recommendations).",
       "Default execution mode is conservative (base edge floor 0.12) with line floors, line-price correction, and deploy-matrix filtering enabled.",
       "Production probability calibration pointer is isotonic (prob_calibration_isotonic_20260821_160723).",
-      "Changes require explicit re-test / re-freeze cycle."
+      "2026-09-01 promote (user sign-off): hard veto over@4.5; soft probation over@2.5/3.5 via probation_edge_floor=0.18; book-quality filter WONT_DO; calib map unchanged.",
+      "Further changes require explicit re-test / re-freeze cycle."
     ]
   }
 }

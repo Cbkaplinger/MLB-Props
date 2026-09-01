@@ -357,7 +357,7 @@ Multiple-testing-aware Sharpe diagnostics (Bailey/López de Prado style):
 - Probabilistic Sharpe Ratio (PSR, benchmark Sharpe `0`): `0.9701`
 - Deflated Sharpe Ratio (DSR, trial-adjusted using `N=5161` tested configurations): `0.0349`
 
-Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance.
+Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance. **DSR here diagnoses selection breadth on the policy-search configuration space (blend×floor), not post-freeze OOS edge** (enumeration: `docs/reference/reports/ssac27_n5161_enumeration_2026-09-01.md`).
 
 > **DSR provenance (updated 2026-09-01).** `PSR`, `DSR`, `sigma_sr`, `sr_star`, the
 > `N=5161` trial count, and the §8.4 power targets come from
@@ -395,7 +395,9 @@ Matched nulls vs the locked KING floor (`0.12`) on post-freeze settled opportuni
 | Naive-prior (matched n/floor) | 74 | −0.0562 | 0.473 | +0.0112 | 0.474 |
 | Shuffle-edge on KING set | 56 | −0.0256 | 0.482 | +0.0203 | 0.600 |
 
-Report: `docs/reference/reports/ssac27_null_decision_lane_2026-09-01.md`. Random/naive may impute stake on non-bet ledger candidates and are **null references**, not production policies. KING is less red than the matched nulls and posts a higher beat-close share than random/naive, but absolute ROI remains negative and margins are not DSR-grade — consistent with the demoted n=26 / weak DSR posture. **No decision-layer edge claim.**
+Report: `docs/reference/reports/ssac27_null_decision_lane_2026-09-01.md`. Random/naive may impute stake on non-bet ledger candidates and are **null references**, not production policies. KING is less red than the matched nulls and posts a higher beat-close share than random/naive, but absolute ROI remains negative and margins are not DSR-grade — consistent with the demoted n=26 / weak DSR posture. **No decision-layer edge claim.** These nulls are **illustrative diagnostics only** (stake imputation + crude priors); they are not a validated placebo control for abstract claims.
+
+**Interim ops (2026-09-01; shadow, not live).** Post-freeze side×line bleed is first-order (esp. 4.5 overs). Dated stance: `docs/reference/reports/interim_postfreeze_ops_stance_2026-09-01.md`. Shadow counterfactuals on real KING stakes (`production/ops/run_shadow_asymmetric_policy.py`): vetoing 4.5 overs moves the post-freeze floor set from ROI ≈ −1.55% (n=74) to ≈ +8.3% (n=56); raising the over floor to 0.16 (shadow) is also green on this window. Brier skill vs market is **negative on overs** and **positive on unders**. These shadows motivate an interim veto/asymmetric-floor *candidate* under pre-registered promotion gates — they are **not** a promoted live policy and **not** a claimed durable edge (`docs/reference/reports/shadow_asymmetric_policy_2026-09-01.md`).
 
 ### 8.3 Slippage sensitivity (fixed 26-bet policy-search set)
 

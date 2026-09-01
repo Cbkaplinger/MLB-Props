@@ -371,7 +371,11 @@ def score_quote_against_board(
     under_ev = evaluate_side(
         1.0 - p_over, quote.over_american, quote.under_american, "under"
     )
-    best = over_ev if over_ev["edge"] >= under_ev["edge"] else under_ev
+    best = over_ev if float(over_ev["edge"]) >= float(under_ev["edge"]) else under_ev
+    policy_rules = load_kpi_policy().get("quality_gate", {}).get("rules", {})
+    effective_floor = _probation_edge_floor(
+        str(best["side"]), float(quote.line), policy_rules, effective_floor
+    )
     sizing = size_in_units(
         float(best["p_model"]),
         float(best["price_american"]),
@@ -383,6 +387,15 @@ def score_quote_against_board(
     oos = row_oos_reason(board_row)
     in_support = oos is None
     passes = bool(sizing["passes_floor"]) and in_support and segment_allowed
+    policy_reason = "" if segment_allowed else "segment_disabled_by_deploy_matrix"
+    veto_reason = _side_line_veto_reason(
+        str(best["side"]), float(quote.line), policy_rules
+    )
+    if veto_reason:
+        passes = False
+        policy_reason = (
+            veto_reason if not policy_reason else f"{policy_reason};{veto_reason}"
+        )
     return {
         "game_date": str(board_row.get("game_date")),
         "game_pk": board_row.get("game_pk"),
@@ -416,17 +429,20 @@ def score_quote_against_board(
         "passes_floor": passes,
         "segment_allowed": segment_allowed,
         "segment_state": segment_state,
-        "policy_reason": ""
-        if segment_allowed
-        else "segment_disabled_by_deploy_matrix",
-        "units": round(float(sizing["units"]), 2) if in_support else 0.0,
-        "stake": round(float(sizing["stake"]), 2) if in_support else 0.0,
+        "policy_reason": policy_reason,
+        "units": round(float(sizing["units"]), 2) if passes else 0.0,
+        "stake": round(float(sizing["stake"]), 2) if passes else 0.0,
         "over_edge": round(float(over_ev["edge"]), 4),
         "under_edge": round(float(under_ev["edge"]), 4),
         "event_start_time": quote.event_start_time,
         "oos_reason": oos,
-        "recommendation": "BET" if passes else ("OOS" if oos else "skip"),
+        "recommendation": (
+            "BET"
+            if passes
+            else ("OOS" if oos else ("HOLD" if veto_reason else "skip"))
+        ),
     }
+
 
 
 def latest_scorecard_warns() -> int | None:
@@ -447,6 +463,50 @@ def latest_scorecard_warns() -> int | None:
         return int(row[0].get("n_warn"))
     except (TypeError, ValueError):
         return None
+
+
+def _side_line_veto_reason(
+    side: str,
+    line: float,
+    rules: dict[str, Any],
+) -> str | None:
+    """Return veto reason if ``(side, line)`` is hard-blocked in policy."""
+    if not bool(rules.get("block_side_line_veto", False)):
+        return None
+    side_l = str(side).lower()
+    line_f = float(line)
+    for row in rules.get("side_line_vetoes", []) or []:
+        try:
+            if str(row.get("side", "")).lower() != side_l:
+                continue
+            if abs(float(row.get("line")) - line_f) > 1e-9:
+                continue
+            return str(row.get("reason") or "side_line_veto")
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _probation_edge_floor(
+    side: str,
+    line: float,
+    rules: dict[str, Any],
+    base_floor: float,
+) -> float:
+    """Raise edge floor for soft-probation side×line pairs."""
+    side_l = str(side).lower()
+    line_f = float(line)
+    bump = float(rules.get("probation_edge_floor", base_floor))
+    for row in rules.get("side_line_probation", []) or []:
+        try:
+            if str(row.get("side", "")).lower() != side_l:
+                continue
+            if abs(float(row.get("line")) - line_f) > 1e-9:
+                continue
+            return max(float(base_floor), bump)
+        except (TypeError, ValueError):
+            continue
+    return float(base_floor)
 
 
 def apply_quality_gate(
@@ -545,9 +605,30 @@ def apply_quality_gate(
         & pl.lit(bool(rules.get("block_edge_below_min", True)))
         & (pl.col("edge") < float(min_edge))
     )
+    cond_veto = pl.lit(False)
+    veto_reason_expr = pl.lit("")
+    if "line" in gated.columns and bool(rules.get("block_side_line_veto", False)):
+        for row in rules.get("side_line_vetoes", []) or []:
+            try:
+                side_v = str(row.get("side", "")).lower()
+                line_v = float(row.get("line"))
+                reason_v = str(row.get("reason") or "side_line_veto")
+            except (TypeError, ValueError):
+                continue
+            hit = (
+                cond_core
+                & pl.col(side_col).eq(side_v)
+                & (pl.col("line").cast(pl.Float64) == line_v)
+            )
+            cond_veto = cond_veto | hit
+            veto_reason_expr = (
+                pl.when(hit).then(pl.lit(reason_v)).otherwise(veto_reason_expr)
+            )
 
     gated = gated.with_columns(
-        (cond_matchup | cond_rest | cond_rest_any | cond_low_tbf | cond_edge).alias("quality_gate_block")
+        (
+            cond_matchup | cond_rest | cond_rest_any | cond_low_tbf | cond_edge | cond_veto
+        ).alias("quality_gate_block")
     )
     gated = gated.with_columns(
         pl.when(pl.col("quality_gate_block"))
@@ -568,6 +649,9 @@ def apply_quality_gate(
                     .otherwise(pl.lit("")),
                     pl.when(cond_edge)
                     .then(pl.lit("edge_below_dynamic_min"))
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_veto)
+                    .then(veto_reason_expr)
                     .otherwise(pl.lit("")),
                 ],
                 separator=";",
@@ -808,6 +892,7 @@ def quality_gate_hold_reason(
     days_rest: float | None,
     projected_tbf: float | None = None,
     matchup_tier: str | None,
+    line: float | None = None,
     n_warn: int | None = None,
     kpi_policy_path: str | Path | None = None,
 ) -> str | None:
@@ -850,6 +935,10 @@ def quality_gate_hold_reason(
         reasons.append("low_projected_tbf_risk")
     if bool(rules.get("block_edge_below_min", True)) and float(edge) < min_edge:
         reasons.append("edge_below_dynamic_min")
+    if line is not None:
+        veto = _side_line_veto_reason(side, float(line), rules)
+        if veto:
+            reasons.append(veto)
     return ";".join(reasons) if reasons else None
 
 

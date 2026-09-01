@@ -1,10 +1,113 @@
 # MLB Props — Execution Backlog & Directive
 > **This is the ONE holy file.** Single source of truth for what is approved, blocked, waiting on the user, and parked. Do NOT create parallel backlog files. When the user drags in a markdown file, reconcile it INTO this file, then it / the old file goes away. Keep it evergreen (see Evergreen Rule below).
+>
+> **Always open this file first** (`docs/EXECUTION_BACKLOG.md`). After every user prompt / agent turn that changes work state, update the **Session Snapshot** before ending.
 
 ## Directive (read this first, every session)
 You have blanket approval for every item below marked APPROVED. Execute them **in order**; do not re-ask on anything already approved. Do not start new discovery/analysis/philosophizing until every APPROVED item is DONE or marked BLOCKED with a one-line reason. Notice something interesting mid-task? Put it in "Parking Lot," don't chase it. Report only on item completion or a true block — not every intermediate find.
 
-**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened — update item statuses, add new ideas to Parking Lot, and **pre-write the next session's plan** (open questions, next approved steps, decisions still waiting on the user) so no thread is lost. Close every session with this file reflecting "here is where we are and where we're heading next." This is the single file that gets dragged-in markdown folded into.
+### Iterative session loop (required)
+1. **Read** this file (Snapshot → Waiting on user → Next steps → Standing Rules).
+2. **Do** the next APPROVED item(s) only.
+3. **Write back** before the turn ends:
+   - Move finished work into **Just completed** (and **Done stack** if durable).
+   - Refresh **Next steps (plan after this prompt)** so the following session has a concrete ordered list.
+   - Add new ideas to Parking Lot; never silent-drop threads.
+4. Tell the user briefly what changed and point them back here for the plan.
+
+**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened — update item statuses, add new ideas to Parking Lot, and **pre-write the next session's plan** so no thread is lost. Close every session with this file reflecting "here is where we are and where we're heading next."
+
+---
+
+## Session Snapshot — 2026-09-01 (live policy PROMOTED)
+
+### Just completed (this turn)
+- **User: promote everything, document, push to close.**
+- **PROMOTED live:** hard veto over@4.5 via kpi_policy.json quality gate + odds_board scorer; soft probation over@2.5/3.5 (probation_edge_floor=0.18, line floor 3.5→0.18).
+- Docs: docs/reference/reports/live_policy_promotion_2026-09-01.md; interim skip rules marked PROMOTED.
+- Tests: 	ests/test_odds_board_lines.py (9 passed) including hard-veto case.
+- Pack A artifacts + research scripts included in commit set.
+- **Git push:** agent will not push (repo policy); user runs push commands below.
+
+### Done stack
+| Track | Status |
+| --- | --- |
+| SSAC / Phase A-B / diagnosis / Item14 research | DONE |
+| Pack A settle pack + bootstrap | DONE |
+| Live 4.5-over veto promote | **DONE 2026-09-01** |
+| Soft probation 2.5/3.5 | DONE (floors) |
+| Book-quality filter | WONT_DO |
+| Calib / monotone live swap | NOT promoted |
+
+### Waiting on user
+- [ ] Run git push (commands in chat) to publish.
+- [ ] Keep logging real tickets / skips.
+- [ ] Item 6/#12 real prices when available.
+
+### Next steps (after push)
+1. Operate under promoted veto; re-run weekly settle pack each settle week.
+2. Do not hard-veto all low-line overs yet.
+3. Defer calib/monotone/MLflow until next research cycle.
+4. Refresh Snapshot each turn.
+
+## Strategy Plan — 2026-09-01 (for user hole-poking)
+
+**North star (your words):** improve **ROI**, improve **CLV / beat-close vs books**, and show a **clear positive delta over sportsbooks** — without laundering policy-search evidence as OOS edge.
+
+**Working thesis:** The binding constraint is not “log trains in MLflow” or “sweep another 5k blend×floors.” It is **post-freeze decision policy under a side/line failure mode**, plus **honest market-skill measurement**. Post-freeze KING floor (n=74, 2026-08-22→08-31): ROI **−1.55%**, but **over −24.6% (n=45)** vs **under +29.3% (n=29)**; CLV mildly green overall (~59% beat-close on n_clv=29) while overs can show OK CLV and still lose money. That pattern says: **selection/side error, not “need a higher universal edge floor.”**
+
+Evidence anchors: `docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md`; live extract on deduped ledger (same lane). Hot spots: **4.5 over** n=18 ROI ≈ **−41%** WR 33%; **3.5 over** n=17 ROI ≈ **−6%**; unders on 4.5/5.5 look strong but small-n. Higher |edge| overs still lose → not fixed by “only bet monster edges.”
+
+### The nine decisions (scenarios → recommendation)
+
+| # | Question | If we maximize ROI/CLV/book-delta… | Recommendation |
+| --- | --- | --- | --- |
+| 1 | **Null lane** | A weak null that “KING beats” can fake a story. A harsh matched null that KING loses can kill a real side edge. | **Paper: illustrative / non-claim.** Redesign later as side×line stratified null on the *same* post-freeze opportunity set with real stakes only — only if we want a paper control, not to drive staking. |
+| 2 | **Marcel vs Table 2a** | Same-fold ΔMAE helps the *modeling* SSAC half; it does not move CLV/ROI. | **Keep Table 2b non-subtractable** for now. Optional same-fold re-score = paper polish queue, not ops critical path. |
+| 3 | **Dual Sharpe / DSR rebuild** | Rebuilding DSR on replay Sharpe cleans footnotes; it does not create edge. | **Live with documented freeze + one manuscript paragraph.** Rebuild only if we re-elevate betting-half claims (we should not). |
+| 4 | **Post-freeze interim ops** | Flat 0.12 floor is funding the over bleed. Dual floors in governance (`over=0.10/under=0.08`) point the **wrong** way vs post-freeze data. | **Interim (shadow first, then promote only with gates):** (a) **pause or hard-veto 4.5 overs** (and treat 2.5/3.5 overs as probation); (b) **raise over floor** (candidate 0.16–0.18) while **keeping under at 0.12** (do not ease unders on 10-day luck); (c) **no stake up**; (d) prefer waiting on **real-ticket n** for money conclusions. Write this as a dated interim note; do **not** silently edit `KING_PROFILE`. |
+| 5 | **DSR on N=5161** | Using DSR to “prove” post-freeze edge is a category error. | **Framing only:** DSR = selection-breadth diagnosis on *policy search*. Post-freeze KPI = ROI/CLV/side with CIs. No retune from DSR. |
+| 6 | **Calibrate further?** | Isotonic already in the frozen stack. Recalibrating on post-freeze tickets = leakage into the evaluation window. Overs losing with sometimes-OK CLV smells like **wrong side / line**, not globally mis-scaled probs. | **Diagnose before recal:** post-freeze reliability + Brier/logloss skill **vs market** by side×line. Only open a *new* calibration challenger on a **pre-registered chrono split** that excludes the test window. Default: **no live recal this week.** |
+| 7 | **Change floors?** | Universal floor ↑ cuts volume and may not stop 4.5-over toxicity. Universal floor ↓ dumps more bad overs. | Prefer **asymmetric / line-aware gates** over another global sweep. Run as **shadow ledger metrics** for 1–2 weeks; promote only if: post-freeze (and expanding) ROI improves **and** full-cohort CLV does not collapse **and** n remains usable. Mixed `runtime_floor_calibration.csv` (from 2026-07-31) is **contaminated** — do not re-pick 0.12/0.14 from it as “OOS truth.” |
+| 8 | **Various lines** | 4.5 over is the clearest bleed; low-line overs fragile; mid/high unders small-n green. | Attack order: **(1) veto/restrict toxic over lines**, **(2) measure whether under edge survives without over subsidy**, **(3) only then consider line-specific models or count-layer fixes for low lines.** Don’t average all lines into one KPI. |
+| 9 | **Where weak / how attack** | Weak: overs (esp. 4.5), policy-search contamination, thin CLV n, no ≥50 real tickets, champion vs monotone still unsigned. Strong: under pocket, mild CLV, modeling audit trail. | Attack sequence below — **policy & measurement first**, model retrain later, MLflow last. |
+
+### Proposed attack sequence (maximize ROI/CLV without self-fooling)
+
+**Phase A — Freeze the lies (0–2 days, mostly docs) — DONE 2026-09-01**  
+- Manuscript: null = non-claim; DSR = search diagnosis; post-freeze table stays “not a claimed edge.”  
+- One-page **Interim Post-Freeze Ops Stance** (dated): veto/probation rules above; stake flat; KING file untouched until you approve promotion.
+
+**Phase B — Measure the failure mode (2–5 days, analysis) — DONE 2026-09-01 (initial)**  
+- Post-freeze slice: side × line × |edge|: ROI, WR, CLV; Brier skill vs market.  
+- Shadow score asymmetric floors / 4.5-over veto on the same opportunity universe (no live change yet).  
+- Re-run weekly until promote/reject.
+
+**Phase C — User-gated levers (when you decide)**  
+- **Real-bet prices (#12):** only path to money-truth ROI; prioritize over any sweep.  
+- **Champion→monotone (#9):** evidence said unders bleed softens, overs unchanged — aligned with “unders OK / overs broken,” but does **not** fix 4.5 overs by itself. Sign-off only after Phase B shadow, or explicitly defer.  
+- Promote asymmetric policy to live only with pre-registered gates (e.g. trailing post-freeze n, ROI floor, CLV floor, max over exposure).
+
+**Phase D — Model attacks (only if Phase B says “probs are wrong,” not “we bet the wrong side of a fine price”)**  
+- Low-line / over-specific residual analysis; TBF/count-layer stress on 4.5; optional monotone path.  
+- **Then** MLflow (Item 13) when that retrain loop starts.
+
+**Phase E — SSAC abstract**  
+- Lead modeling + honest demotion. Betting half: post-freeze transparency + no edge claim until real-ticket and/or powered OOS clears.
+
+### Explicit non-goals (this cycle)
+- Another 5k blend×floor search to chase ROI.  
+- Recalibrating on the post-freeze window.  
+- Stake-up on unders’ 10-day heater.  
+- Treating mixed pre/post floor tables as OOS.  
+- MLflow as a substitute for ops decisions.
+
+### What I want you to poke holes in
+1. Is **vetoing 4.5 overs** too aggressive (kills CLV sample / learning) vs only raising over floor?  
+2. Should unders’ floor stay 0.12 or **tighten** (protect CLV) rather than “keep”?  
+3. Is champion→monotone a **parallel** lever or a distraction until line veto is tested?  
+4. Minimum evidence to promote shadow→live (my strawman: ≥3 weeks post-freeze **or** ≥40 shadow tickets, ROI≥0 vs status quo, CLV≥0.52 full-cohort on the gated set)?  
+5. Anything I under-weighted (park factors, starter role, juice, book mix)?
 
 ## Execution Order
 
@@ -60,20 +163,32 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 12. **[WAITING ON USER] Item 6 backfill** — still needs your decision-time `bet_price`/`stake`/`pnl` for the 8 confirmed tickets (Valdez, Suarez, Messick, Skenes, Melton, G.Rodriguez, Cantillo, Sasaki) plus the 9th ticket's identity, to complete the real-bet ledger write.
 
+13. **[APPROVED — DEFERRED] Local MLflow Tracking (thin v1).** Useful when actively iterating Strikeout/TBF train or Optuna — **not** on the critical path after the SSAC audit wave. See Session Snapshot → “MLflow — what it actually helps.” Resume when you ask or when train iteration restarts; do not jump here to avoid thinking through null-lane / post-freeze ops / MAE-lane issues.
+
+14. **[DONE research 2026-09-01 — promote gated] Granular open calibration challenger (ROI path).** Fit line / line-bucket (and optional side-aware apply) isotonic/Platt on **open 2025–2026** with chrono-safe holdout; score **post-freeze** as pure OOS on skill vs market + shadow KING ROI. Do not refit on post-freeze tickets. Do not edit live calibrator / KING without sign-off. Script: production/ops/fit_granular_open_calibration.py.
+
+
 ## Next Session — Open Questions & Plan (evergreen)
+> **Canonical live plan lives in Session Snapshot → Next steps.** This section mirrors it and keeps historical polish notes.
+
 **Waiting on user (blocks these):**
 - [ ] Item 6: per-ticket `bet_price`/`stake`/`pnl` for the 8 + the 9th ticket's identity. Fill `REAL_TICKETS` in `production/ops/backfill_real_bets.py`, run, verify 6W–3L / +$109.80 / $455.
 - [ ] Item 9: explicit sign-off to swap champion→monotone, or leave as is. (Unders bleed softens −2.72%→−1.66% but is NOT fixed either way.)
+- [ ] Optional batch `git push` when *you* want remote/CI — not a per-prompt requirement.
 
 **Ready to execute (approved, no re-ask):**
-- [x] **SSAC27 Track items 5–8 + Item 10 — DONE 2026-09-01** (commit `561d354`). Next SSAC depth is future-work 9–13 only (post-deadline); do not start before Oct abstract polish / PDF regen when Playwright available.
-- [x] Item 10: `.pre-commit-config.yaml` + `pre-commit install`; fast 28 tests ~3.9s (hook proven on commit).
-- [x] **CI fix 2026-09-01:** `ModuleNotFoundError: joblib` on collection of `test_live_assembly` / `test_prob_calibration`. Workflow now installs `joblib scikit-learn lightgbm`; `joblib` declared in research extras. Local collect+10 tests green.
+- [x] **Phase A+B** — interim stance + shadow asymmetric/line-veto metrics — DONE 2026-09-01.
+- [ ] **User promote/reject decision** on `veto_4_5_over` (and/or asym over floor) — blocks live KING edit.
+- [ ] **Item 13 — MLflow v1** — APPROVED but **deferred** until train/Optuna iteration resumes.
+- [x] **SSAC27 Track items 5–8 + Item 10 — DONE 2026-09-01**. Future-work 9–13 parked.
+- [x] Item 10: `.pre-commit-config.yaml` + hook proven on commit.
+- [x] **CI fix 2026-09-01:** joblib/sklearn/lightgbm install path.
+
+**Push:** optional, user-timed. Agent never pushes; do not treat push as per-prompt chores.
 
 **Next session polish (optional, not blocking SSAC 1–8):**
 - [ ] Regenerate `manuscript.pdf` locally (Playwright/browser).
 - [ ] Optional: align dashboard `_dedupe_frame` to canonical `dedupe_ledger_props`.
-- [ ] User `git push` when ready (local `main` may be ahead of origin with CI + SSAC commits).
 - [x] **Docs freshness sweep — COMPLETE 2026-08-27** (see completed bullets historically below). **Ledger refresh 2026-09-01:** reran `clv_basis_reconcile.py` + deduped `grade_odds_ledger.py --status` — current honest ledger is `790` settled / `+$10.55` / ROI ≈ `+0.05%`; full-cohort CLV `n_closed=493`, `price_devig_gt0=0.544`. The 2026-08-27 `643 / +$84.51` figures remain valid as that day's fix-evidence snapshot only.
 - [x] **Docs freshness sweep detail (2026-08-27):** Audited ALL docs, diagrams, paper (.md + rendered .html), reference/research docs, and this backlog for stale/inaccurate numbers. Results:
   - **Ledger PnL figures**: confirmed NO stale raw-row figures (1118/+$576.15/+$1,041.04/688) remain in any tracked `.md`/`.py` except this backlog's intentional old-vs-new fix-evidence table (rows 14/18/19/28/52/59) and a regression-test explanatory comment.
@@ -107,10 +222,10 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 3. **[DONE 2026-08-27 — abstract rewritten]** Rewrite the abstract. Lead with the DSR/sample-size finding (currently buried at line 22); co-locate every headline metric with its 95% CI (e.g., "ROI 0.4363, 95% CI [0.03, 0.81]"); drop or heavily qualify the +24.17u / ROI / Sortino framing until item 4 resolves the policy-freeze question. *(Critical — 1–2 hrs.)*
 4. **[DONE 2026-09-01 — FAIL]** Resolve policy-freeze vs. evaluation-window separation. **Audit verdict: FAIL.** The `n=26` lane slate dates are `2026-07-30`–`2026-08-17`, entirely before `KING_PROFILE_AUG2026` `frozen_utc=2026-08-21T16:10:00Z`. Live blend selection rule is `best_manual_roi_after_open_calibration_transfer_deduped` (`production/ops/live_krate_ensemble.json`, commit `8ad4681`). ROI/Sharpe/PnL reclassified as **pre-freeze policy-search evidence**; stripped from headline deployment claims in abstract + Table 3 + §8.2. Full write-up: `docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`. *(Was critical — completed.)*
 
-5. **[DONE 2026-09-01]** `N=5161` enumerated as eligible blend×floor configs (231×24−383). Report: `docs/reference/reports/ssac27_n5161_enumeration_2026-09-01.md`. Manuscript §8.2 DSR provenance corrected (not feature×model×HP).
-6. **[DONE 2026-09-01]** Chronological naive MAE baselines (Marcel / prior-season / train_mean) via `marcel_baseline.py`; Table 2b added with lane caveats vs sparse72 Table 2a. Report: `docs/reference/reports/ssac27_naive_mae_baseline_2026-09-01.md`.
-7. **[DONE 2026-09-01]** Tables 3/A5 CI+lane tags (prior); equity curve now regenerable in `make_figures.py` `fig_equity_top3_vs_top1()`; Fig 3 caption has n/date-span/generator; honesty/slippage vs replay lineage documented (intentional freeze, no silent DSR rewrite): `docs/reference/reports/ssac27_honesty_slippage_lineage_2026-09-01.md`.
-8. **[DONE 2026-09-01]** Null/placebo lanes: `production/ops/run_null_decision_lane.py` — KING vs random/naive/shuffle post-freeze matched-n. Report: `docs/reference/reports/ssac27_null_decision_lane_2026-09-01.md`. Manuscript §8.2.2. Verdict: KING less red than nulls but still negative ROI → no decision-edge claim.
+5. **[DONE 2026-09-01]** `N=5161` enumerated as eligible blend×floor configs. Report: `docs/reference/reports/ssac27_n5161_enumeration_2026-09-01.md`. Manuscript §8.2 DSR provenance corrected (not feature×model×HP).
+6. **[DONE 2026-09-01]** Chronological naive MAE baselines via `models/Strikeout-Model/research/marcel_baseline.py`; Table 2b + lane caveats. Report: `docs/reference/reports/ssac27_naive_mae_baseline_2026-09-01.md`.
+7. **[DONE 2026-09-01]** Tables 3/A5 CI+lane tags (prior); equity regenerable via `docs/paper/make_figures.py` `fig_equity_top3_vs_top1()`; Fig 3 caption n/date-span/generator; honesty/slippage lineage: `docs/reference/reports/ssac27_honesty_slippage_lineage_2026-09-01.md`.
+8. **[DONE 2026-09-01]** Null/placebo lanes: `production/ops/run_null_decision_lane.py`. Report: `docs/reference/reports/ssac27_null_decision_lane_2026-09-01.md`. Manuscript §8.2.2. KING less red than nulls, still negative → no decision-edge claim.
 
 #### Completed this session — 2026-08-27 artifact inspection (numbers fixed against artifacts)
 - **[DONE — item 1] Figure 2 -> body mismatch resolved.** `make_figures.py` `fig2_model_comparison()` was a hardcoded 248-feature-registry MAE bar chart (0.0854/0.0788/0.0783) titled "248-feature screen"; it was **not referenced anywhere in the manuscript** (confirmed zero `.md`/`.html` references) and contradicted the sparse-lane parity contract (MAE ≈ 0.0767). Chose the review's "or delete" option: **removed the function + its call, and deleted the stale `docs/paper/figures/fig2_model_comparison.png`**. Rationale: it could not be regenerated without a same-lane sparse naive baseline (none exists), so deleting beats emitting a mixed-lane figure. `fig4_calibration` note relabeled to the artifact-backed `ece_mean`.
@@ -122,7 +237,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 - **[DONE — item 7 tables half] CI surface + lane tags on Tables 3 & A5.** Added bootstrap 95% CI annotations to the decision-lane ROI/PnL/Sharpe/Sortino rows of Table 3 (with footnote citing `quant_honesty_aug21_summary.json`) and a matching CI footnote on Table A5 (including the pre-correction-superseded note on that artifact's Sharpe/DD/Calmar). Also added explicit `deployed 26-bet manual lane, post-isotonic-transfer, n=26` lane tags to the ECE/MCE/Brier/LogLoss rows of both tables — closing item 2's full-scope lane-tagging for Tables 3 & A5.
 - **[DONE — parking-lot low-priority] §1.1 Related work + §8.7 illustrative framing.** Added a "Governed decisioning and performance evaluation" paragraph to §1.1 (Bailey–López de Prado [12] + market-skill/CLV methodology). Added an explicit "explicitly illustrative and anecdotal (n=3)" disclaimer at the top of §8.7 so the case narratives cannot be read as statistical evidence.
-- **[NEW QUESTION for item 7's remaining half] equity curve generating artifact unstated.** `equity_curve_top3_vs_top1_aug21.png` is not produced by `make_figures.py`; no generating script/artifact is currently cited for it in the manuscript (Fig 3 / §8.5 caption). Locate the script that builds it (or document the manual pipeline) so the CI band + n + date-span can be added and the figure becomes regenerable/auditable.
+- **[DONE — item 7 equity half, 2026-09-01]** Equity curve now produced by `docs/paper/make_figures.py`; caption cites picks CSV + n/date-span; honesty/slippage lineage report resolves Sharpe mismatch by intentional freeze (not silent rewrite).
 
 #### Flagged — artifact lineage inconsistency (RESOLVED 2026-09-01 by documentation freeze)
 - `quant_honesty_aug21_summary.json` / `slippage_sensitivity_*.csv` keep pre-correction Sharpe/DD/Calmar (0.4352/0.3685/1.1841) as **intentional diagnostic freeze** for PSR/DSR/bootstrap; manuscript headlines use authoritative replay (0.4438/0.1905/2.2903). Report: `docs/reference/reports/ssac27_honesty_slippage_lineage_2026-09-01.md`. Do not silently rewrite honesty metrics without regenerating the DSR pipeline.
@@ -143,9 +258,17 @@ Grounding for how this project holds up against sportsbooks and how results are 
 - **13.** Live-sample accumulation toward the DSR targets the paper itself computes (n ≈ 98 for DSR>0.5; n ≈ 147 for DSR>0.8). The only thing that ever makes the *betting* half defensible. Future — but the abstract must NOT claim betting edge before this.
 
 ## Parking Lot (new ideas noticed mid-task — do not act on these until the list above is clear)
+- **Book-quality filter — WONT_DO** (user 2026-09-01): books used for lines only; usually synced.
+
+- **Live A/B parallel ledgers:** score every opportunity under status_quo / veto_4_5 / asym16 even when only one rule is bet live.
+- **Block bootstrap by game_date** for ROI/CLV CIs; do not bootstrap a line cell with n≈18 into a promote claim.
+- **Real-bet first:** Item 6/#12 unblocks honest money ROI vs paper.
+- **Optional soft veto:** size 2.5–3.5 overs at 0.5u instead of hard skip if learning value matters.
 - Three-state action space (bet / prediction-market-watch / hold) as a cleaner replacement for the binary bet/hold flip.
 - Calibration-drift monitor (recent-window WR 0.493 vs. all-time 0.534).
 - Reliability/calibration bucket report (among props rated 0.7-0.8, what's the real hit rate).
 - Cost-asymmetry-informed stake sizing (expected loss of missing a winner vs. betting a loser).
 - Side asymmetry on real tickets: all 3 losses to date were Overs; every Under/low-line-Over hit. Worth a real-ticket side-conditional check once ledger reaches meaningful n, not a 9-shot pattern to bet on.
-- **SSAC27 (MIT Sloan Sports Analytics Conference) — abstract deadline Oct 1, 2026.** **NOW ACTIVE** — see the dedicated **SSAC27 Track** section above (items 1–13). Key review insight worth keeping: the manuscript is two papers stapled together (modeling rigor vs live-betting performance); lead the submission with the modeling half. Additional low-priority review notes that can wait (not yet backlog items): the §1.1 B/LdP + decision/CLV citation and the §8.7 n=3 illustrative-marking were **done 2026-08-27**; still open low-priority: move the "consistency note on ablation tables" + "freshness note" to a Supplemental/Reproducibility appendix so the body isn't self-admonishing mid-result; regenerate `equity_curve_top3_vs_top1_aug21.png` with a CI band + n + date span in the caption (folded into item 7's remaining half).
+- **MLflow v2 (after Item 13):** Optuna callback → nested MLflow runs; log ensemble-sweep / null-lane decision metrics as separate experiments; optional Model Registry *mirror* of frozen champions (still not auto-promote).
+- **W&B** only if you want hosted multi-machine dashboards; not needed for solo local research.
+- **SSAC27 (MIT Sloan Sports Analytics Conference) — abstract deadline Oct 1, 2026.** Items **1–8 DONE**. Future-work 9–13 remain parked. Lead submission with modeling half; betting half stays demoted. Low-priority doc polish: move ablation/freshness self-notes to a Supplemental appendix.
