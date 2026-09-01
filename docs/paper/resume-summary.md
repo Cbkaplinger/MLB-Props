@@ -31,7 +31,8 @@ This project demonstrates a blended profile across:
 | Batters faced (TBF) | Ridge (thin bullpen, 24 features) | Projected exposure |
 | Counts / lines | Binomial / Poisson on projected TBF | Expected K and P(K ≥ L) |
 
-**Active deployment profile:** blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`, edge floor `0.12`, ROI **0.4363**, PnL **1208.55**, Sharpe **0.4438**, Sortino **0.4277**, max drawdown **0.1905**, and market-skill deltas **+0.2069** (Brier) / **+0.1551** (LogLoss).
+**Active deployment profile (frozen `KING_PROFILE_AUG2026`, 2026-08-21):** blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`, edge floor `0.12`.  
+**Policy-search diagnostics (pre-freeze `n=26`, 2026-07-30–08-17; not post-freeze OOS):** ROI `0.4363`, PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, max drawdown `0.1905`, market-skill deltas `+0.2069` (Brier) / `+0.1551` (LogLoss). Audit 2026-09-01: these ROI/Sharpe figures are **selection-window evidence**, not validated deployment edge.
 
 ---
 
@@ -55,8 +56,8 @@ High-signal results from current artifacts:
   - ROI `0.6612`, Sharpe `0.9468`, Sortino `0.6954`, bets `35`
   - Brier/LogLoss skill vs market: `+0.0825 / +0.0645`
 - Active deployment king (`open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`):
-  - blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`
-  - ROI `0.4363`, PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, max DD `0.1905`
+  - blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58` (frozen 2026-08-21)
+  - **policy-search** ROI `0.4363`, PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, max DD `0.1905` on pre-freeze `n=26` (2026-07-30–08-17) — not post-freeze OOS
   - Brier/LogLoss skill vs market: `+0.2069 / +0.1551`
 - Duplicate-ticket diagnostics explicitly tracked: `123` duplicate groups, `246` duplicate tickets in manual-set audits.
 
@@ -77,7 +78,7 @@ explicit CI/gate discipline without overstating unresolved live-edge evidence.
 - Built a leakage-safe MLB forecasting pipeline over pitch-level Statcast data (Polars + Python), enforcing chronological splits and pregame-only features, then wired it into a governed live decision system.
 - Designed and deployed a two-stage prediction stack (`k-rate × projected TBF`) with isotonic-calibrated line probabilities and artifact-backed governance diagnostics in production.
 - Productionized a governed decision engine with isotonic calibration, board-to-ledger parity locks, and execution freshness/coverage gates; hardened daily run reliability with explicit fail-fast controls.
-- Led model-selection governance using open-universe counterfactual replay and deduped one-opportunity-one-bet evaluation; top transfer profile delivered **0.436 ROI**, **1208.55 PnL**, and positive market-skill deltas (`Brier +0.2069`, `LogLoss +0.1551`) in current artifact-backed replay lanes.
+- Led model-selection governance using open-universe counterfactual replay and deduped one-opportunity-one-bet evaluation; froze production blend/floor/isotonic under `KING_PROFILE_AUG2026` and documented that the oft-cited 26-bet ROI/Sharpe window is pre-freeze policy-search evidence (not post-freeze OOS), while reporting positive market-skill deltas (`Brier +0.2069`, `LogLoss +0.1551`) as search-window diagnostics.
 
 ## Interview framing (30 seconds)
 

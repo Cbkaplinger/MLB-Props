@@ -21,7 +21,7 @@ The active production lane uses a **two-model LightGBM blend** across frozen fea
 
 **Statistical caution is the headline.** Trial-adjusted significance testing with the Bailey–López de Prado Deflated Sharpe Ratio [12] yields `DSR = 0.0349` on the audited `n=26` manual lane, with `PSR = 0.9701` against a zero-Sharpe benchmark. At the observed sample size and `N=5161` configuration search breadth, the raw Sharpe is positive but *not* evidence of a durable post-selection edge: the DSR power plan indicates roughly `n≈98` graded bets are needed to reach `DSR > 0.5` and `n≈147` for `DSR > 0.8`. We report performance transparently precisely because it is underpowered; no persistent betting-edge claim is made on the current sample.
 
-On the same audited lane the deployable profile shows ROI `0.4363` (95% CI `[0.034, 0.807]`), Sharpe `0.4438` (95% CI `[0.043, 1.000]`), PnL `+24.17u` (95% CI `[+1.85u, +45.45u]`), and positive market-skill deltas (`+0.2069` Brier, `+0.1551` LogLoss) on artifact-backed evaluation. These are reported as **governed operational evidence pending (a) a policy-freeze audit and (b) a placebo/null decision-lane control** — not as a claimed statistical edge (see §8.2, §8.4).
+**Policy-freeze audit (2026-09-01): FAIL.** The same `n=26` ROI `0.4363` / Sharpe `0.4438` / PnL `+24.17u` window spans slate dates `2026-07-30`–`2026-08-17`, entirely *before* the declared `KING_PROFILE_AUG2026` freeze (`2026-08-21T16:10:00Z`). The live blend was explicitly selected as `best_manual_roi_after_open_calibration_transfer_deduped`. Those decision metrics are therefore **pre-freeze policy-search evidence**, not post-freeze out-of-sample deployment performance, and are demoted from headline claims (full audit: `docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`). Market-skill deltas on that search window remain artifact-backed diagnostics only. A placebo/null decision-lane control is still required before any edge claim (see §8.2, §8.4).
 
 The main contribution is an end-to-end quant workflow that links leakage-safe modeling, chronological evaluation, and governed decision operations in a reproducible system.
 
@@ -297,20 +297,20 @@ Component metrics are necessary but incomplete. Once rate and TBF are frozen, th
 
 | Evaluation gate | Result |
 | --- | --- |
-| Active deployment blend | `0.60 sparse72_monotone / 0.40 final58` |
-| Decision-lane ROI | `0.4363` (95% CI `[0.0337, 0.8072]`) |
-| Decision-lane PnL | `+24.17u` (`1u = 50 USD`) (95% CI `[+1.85u, +45.45u]`) |
-| Decision-lane Sharpe | `0.4438` (95% CI `[0.0431, 0.9997]`) |
-| Decision-lane Sortino | `0.4277` (95% CI `[0.0459, 0.7866]`) |
-| Decision-lane Calmar | `2.2903` |
-| Decision-lane max drawdown | `0.1905` |
-| Market-skill deltas | `+0.2069` Brier skill vs market, `+0.1551` LogLoss skill vs market |
-| Probability quality (active profile) | Brier `0.2090`, LogLoss `0.6087`, ECE `0.0639`, MCE `0.1353` — *deployed 26-bet audited manual lane, post-isotonic-transfer, `n=26`* |
-| Execution controls | Board-to-ledger parity lock, quality gates, policy profile freeze `KING_PROFILE_AUG2026` |
+| Active deployment blend (frozen `2026-08-21`) | `0.60 sparse72_monotone / 0.40 final58` |
+| Policy-search ROI (`n=26`, pre-freeze; **not OOS**) | `0.4363` (95% CI `[0.0337, 0.8072]`) |
+| Policy-search PnL (same lane; **not OOS**) | `+24.17u` (`1u = 50 USD`) (95% CI `[+1.85u, +45.45u]`) |
+| Policy-search Sharpe (same lane; **not OOS**) | `0.4438` (95% CI `[0.0431, 0.9997]`) |
+| Policy-search Sortino (same lane; **not OOS**) | `0.4277` (95% CI `[0.0459, 0.7866]`) |
+| Policy-search Calmar (same lane; **not OOS**) | `2.2903` |
+| Policy-search max drawdown (same lane; **not OOS**) | `0.1905` |
+| Market-skill deltas (search window) | `+0.2069` Brier skill vs market, `+0.1551` LogLoss skill vs market |
+| Probability quality (search-window profile) | Brier `0.2090`, LogLoss `0.6087`, ECE `0.0639`, MCE `0.1353` — *pre-freeze 26-bet manual search lane, post-isotonic-transfer fit, `n=26`* |
+| Execution controls | Board-to-ledger parity lock, quality gates, policy profile freeze `KING_PROFILE_AUG2026` (`frozen_utc=2026-08-21T16:10:00Z`) |
 
-*Bootstrap 95% CIs (10,000 resamples) on the decision metrics are the pinned values in `artifacts/odds_log/quant_honesty_aug21_summary.json`; full intervals including the date-block bootstrap are reported in §8.2. Calmar has no interval in that artifact and is shown as a point estimate.*
+*Bootstrap 95% CIs (10,000 resamples) on the decision metrics are the pinned values in `artifacts/odds_log/quant_honesty_aug21_summary.json`; full intervals including the date-block bootstrap are reported in §8.2. Calmar has no interval in that artifact and is shown as a point estimate. **Policy-freeze audit 2026-09-01:** slate dates for this lane are `2026-07-30`–`2026-08-17` (all before freeze); ROI/Sharpe/PnL are policy-search diagnostics only (`docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`).*
 
-Calibration is summarized by expected calibration and scoring diagnostics [5, 6]. The active deployment profile reports ECE `0.0639`, MCE `0.1353`, and positive market-skill deltas versus market baseline, which is the paper's direct "ensemble versus books" evidence.
+Calibration is summarized by expected calibration and scoring diagnostics [5, 6]. On the pre-freeze search window the profile reports ECE `0.0639`, MCE `0.1353`, and positive market-skill deltas versus market baseline; these remain search-window diagnostics, not post-freeze proof of edge.
 
 ### 8.1 Metric hierarchy used in this manuscript
 
@@ -320,9 +320,9 @@ Calibration is summarized by expected calibration and scoring diagnostics [5, 6]
 
 Each lane answers a different question; winners are not interchangeable across lanes.
 
-### 8.2 Backtest uncertainty and multiple-testing correction (active 26-bet lane)
+### 8.2 Backtest uncertainty and multiple-testing correction (pre-freeze 26-bet policy-search lane)
 
-The active audited manual lane contains `n=26` graded recommendations (`top3`, floor `0.12`). Because this sample is small, uncertainty and selection effects are reported explicitly.
+The audited manual lane contains `n=26` graded recommendations (`top3`, floor `0.12`) with slate dates `2026-07-30`–`2026-08-17`. The declared production freeze `KING_PROFILE_AUG2026` is `2026-08-21T16:10:00Z`, and `production/ops/live_krate_ensemble.json` records selection rule `best_manual_roi_after_open_calibration_transfer_deduped`. **Policy-freeze audit 2026-09-01: FAIL** — every bet in this lane is pre-freeze, so ROI/Sharpe/PnL here are policy-search evidence, not post-freeze OOS evaluation (`docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`). Uncertainty and selection effects are still reported explicitly because the search window is small and was used to choose the blend.
 
 Point estimates below are the authoritative values from the replay artifact `artifacts/odds_log/open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`; the 95% CI bounds below are the pinned values in `artifacts/odds_log/quant_honesty_aug21_summary.json` (bootstrap `bootstrap_iid_ci` and `bootstrap_block_by_date_ci`) and are shown for transparency. Note that the *point estimates* in Table 3 / §8.2 are taken from the replay artifact, while `quant_honesty_aug21_summary.json` still carries the pre-correction Sharpe/max-DD/Calmar values for the same lane; the CI bounds themselves are carried by that artifact. All corrected point estimates sit within their stated intervals.
 
