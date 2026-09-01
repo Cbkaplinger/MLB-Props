@@ -7,48 +7,58 @@
 You have blanket approval for every item below marked APPROVED. Execute them **in order**; do not re-ask on anything already approved. Do not start new discovery/analysis/philosophizing until every APPROVED item is DONE or marked BLOCKED with a one-line reason. Notice something interesting mid-task? Put it in "Parking Lot," don't chase it. Report only on item completion or a true block — not every intermediate find.
 
 ### Iterative session loop (required)
-1. **Read** this file (Snapshot → Waiting on user → Next steps → Standing Rules).
+1. **Read** this file (Snapshot → Waiting on user → Forward plan → Standing Rules).
 2. **Do** the next APPROVED item(s) only.
-3. **Write back** before the turn ends:
-   - Move finished work into **Just completed** (and **Done stack** if durable).
-   - Refresh **Next steps (plan after this prompt)** so the following session has a concrete ordered list.
-   - Add new ideas to Parking Lot; never silent-drop threads.
+3. **Write back** before the turn ends — Snapshot must always have three labeled blocks:
+   - **PAST** — durable completed work (what already shipped).
+   - **PRESENT** — where we are now / what just finished this turn.
+   - **FORWARD** — concrete ordered plan for the next session(s).
+   - Also refresh Waiting on user; add ideas to Parking Lot; never silent-drop threads.
 4. Tell the user briefly what changed and point them back here for the plan.
 
-**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened — update item statuses, add new ideas to Parking Lot, and **pre-write the next session's plan** so no thread is lost. Close every session with this file reflecting "here is where we are and where we're heading next."
+**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened — update PAST/PRESENT/FORWARD, item statuses, Parking Lot, and **pre-write the next session's plan** so no thread is lost. Close every session with this file reflecting "here is where we were, where we are, and where we're heading next."
 
 ---
 
 ## Session Snapshot — 2026-09-01 (live policy PROMOTED)
 
-### Just completed (this turn)
-- **User: promote everything, document, push to close.**
-- **PROMOTED live:** hard veto over@4.5 via kpi_policy.json quality gate + odds_board scorer; soft probation over@2.5/3.5 (probation_edge_floor=0.18, line floor 3.5→0.18).
-- Docs: docs/reference/reports/live_policy_promotion_2026-09-01.md; interim skip rules marked PROMOTED.
-- Tests: `tests/test_odds_board_lines.py` (9 passed) including hard-veto case.
-- Pack A artifacts + research scripts included in commit set.
-- **Git push:** agent will not push (repo policy); user runs push commands below.
+### PAST — already shipped (durable)
+| Track | Status | Notes |
+| --- | --- | --- |
+| SSAC27 #1–#8 audit + pre-commit gate | DONE | Modeling half honest; betting half demoted / non-claim |
+| Phase A interim ops stance (docs) | DONE | Shadow-first framing |
+| Phase B shadow asym / line-veto lanes | DONE | 4.5-over veto best narrow candidate |
+| Deep post-freeze diagnosis | DONE | Edge≠ROI on overs; Brier skill over− / under+ |
+| Item 14 granular open calib challenger | DONE (research) | Holdout preferred global_iso; still < market — **not** live-promoted |
+| Pack A weekly settle pack + game_date bootstrap | DONE | Parallel ledgers for continuous A/B |
+| Book-quality filter | WONT_DO | Books for lines only; usually synced |
+| Live **over@4.5 hard veto** + soft probation 2.5/3.5 | **DONE 2026-09-01** | `kpi_policy` + `odds_board`; commit `7e03ced` (+ typo fix `0f8df76`) |
+| Item 13 MLflow | DEFERRED | Until train/Optuna iteration resumes |
 
-### Done stack
-| Track | Status |
-| --- | --- |
-| SSAC / Phase A-B / diagnosis / Item14 research | DONE |
-| Pack A settle pack + bootstrap | DONE |
-| Live 4.5-over veto promote | **DONE 2026-09-01** |
-| Soft probation 2.5/3.5 | DONE (floors) |
-| Book-quality filter | WONT_DO |
-| Calib / monotone live swap | NOT promoted |
+### PRESENT — where we are / just completed
+- **Live betting stance is promoted**, not shadow-only: recommendations should HOLD/skip **4.5 overs** (`veto_4_5_over`); 2.5/3.5 overs on soft probation (higher edge floor 0.18).
+- Unders stay on the existing floor; **no stake-up**; **no live calib swap**; **no monotone champion swap**.
+- Docs: `docs/reference/reports/live_policy_promotion_2026-09-01.md`; interim skip rules marked PROMOTED; settle pack + diagnosis/shadow reports in tree.
+- Tests green for board veto path (`tests/test_odds_board_lines.py`).
+- Working thesis unchanged: binding constraint was **toxic over lines / side error**, not “need another floor sweep.” Veto is **risk control** (bootstrap still wide) — keep measuring weekly.
+- **Publish gap:** local `main` ahead of `origin` — push still waiting on you.
+
+### FORWARD — plan looking ahead (ordered)
+1. **You:** `git push origin HEAD` (or `git push -u origin HEAD`) so remote matches promoted policy.
+2. **Ops habit (every settle day/week):**
+   - Bet under promoted rules (hard-skip 4.5 overs; soft-touch 2.5/3.5).
+   - Log real tickets + hard skips → `real_bets` / checklist.
+   - Run `python production/ops/run_weekly_policy_settle_pack.py` and read ROI/CLV/bootstrap vs status quo.
+3. **Do not** hard-veto all ≤3.5 overs or 5.5 overs yet unless expanding n + bootstrap stay favorable.
+4. **Item 6 / #12:** fill decision-time prices/stakes into real_bets when you have them (money-truth ROI).
+5. **Hold:** calib promote, champion→monotone, MLflow — reopen only if weekly pack says probs (not selection) are still the bind.
+6. **Paper:** keep post-freeze / null / DSR framing non-claim until real-ticket n or powered OOS clears.
+7. Refresh this Snapshot (PAST / PRESENT / FORWARD) every turn.
 
 ### Waiting on user
-- [ ] Run git push (commands in chat) to publish.
-- [ ] Keep logging real tickets / skips.
-- [ ] Item 6/#12 real prices when available.
-
-### Next steps (after push)
-1. Operate under promoted veto; re-run weekly settle pack each settle week.
-2. Do not hard-veto all low-line overs yet.
-3. Defer calib/monotone/MLflow until next research cycle.
-4. Refresh Snapshot each turn.
+- [ ] Push commits to origin.
+- [ ] Confirm day-to-day style for 2.5/3.5 overs (skip vs half-size) as you bet.
+- [ ] Item 6/#12 real-bet prices when available.
 
 ## Strategy Plan — 2026-09-01 (for user hole-poking)
 
@@ -84,9 +94,10 @@ Evidence anchors: `docs/reference/reports/postfreeze_king_profile_metrics_2026-0
 - Re-run weekly until promote/reject.
 
 **Phase C — User-gated levers (when you decide)**  
+- **4.5-over hard veto — PROMOTED 2026-09-01** (live quality gate + scorer); soft probation on 2.5/3.5 overs. Keep measuring via weekly settle pack.  
 - **Real-bet prices (#12):** only path to money-truth ROI; prioritize over any sweep.  
-- **Champion→monotone (#9):** evidence said unders bleed softens, overs unchanged — aligned with “unders OK / overs broken,” but does **not** fix 4.5 overs by itself. Sign-off only after Phase B shadow, or explicitly defer.  
-- Promote asymmetric policy to live only with pre-registered gates (e.g. trailing post-freeze n, ROI floor, CLV floor, max over exposure).
+- **Champion→monotone (#9):** evidence said unders bleed softens, overs unchanged — aligned with “unders OK / overs broken,” but does **not** fix 4.5 overs by itself. Explicitly deferred unless weekly pack reopens it.  
+- Broader asym floor promote still gated: trailing post-freeze n, ROI vs status quo, CLV floor, max over exposure.
 
 **Phase D — Model attacks (only if Phase B says “probs are wrong,” not “we bet the wrong side of a fine price”)**  
 - Low-line / over-specific residual analysis; TBF/count-layer stress on 4.5; optional monotone path.  
@@ -169,22 +180,24 @@ Evidence anchors: `docs/reference/reports/postfreeze_king_profile_metrics_2026-0
 
 
 ## Next Session — Open Questions & Plan (evergreen)
-> **Canonical live plan lives in Session Snapshot → Next steps.** This section mirrors it and keeps historical polish notes.
+> **Canonical live plan lives in Session Snapshot → PAST / PRESENT / FORWARD.** This section mirrors FORWARD and keeps historical polish notes.
 
 **Waiting on user (blocks these):**
+- [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
 - [ ] Item 6: per-ticket `bet_price`/`stake`/`pnl` for the 8 + the 9th ticket's identity. Fill `REAL_TICKETS` in `production/ops/backfill_real_bets.py`, run, verify 6W–3L / +$109.80 / $455.
-- [ ] Item 9: explicit sign-off to swap champion→monotone, or leave as is. (Unders bleed softens −2.72%→−1.66% but is NOT fixed either way.)
-- [ ] Optional batch `git push` when *you* want remote/CI — not a per-prompt requirement.
+- [ ] Item 9: explicit sign-off to swap champion→monotone, or leave as is (deferred; not needed for 4.5 veto).
 
-**Ready to execute (approved, no re-ask):**
+**Ready / operating now:**
 - [x] **Phase A+B** — interim stance + shadow asymmetric/line-veto metrics — DONE 2026-09-01.
-- [ ] **User promote/reject decision** on `veto_4_5_over` (and/or asym over floor) — blocks live KING edit.
+- [x] **`veto_4_5_over` live promote** — DONE 2026-09-01 (`kpi_policy` + `odds_board`).
+- [x] Soft probation 2.5/3.5 overs — DONE (floors).
+- [x] Pack A weekly settle pack — DONE; **re-run each settle week** (ops habit).
 - [ ] **Item 13 — MLflow v1** — APPROVED but **deferred** until train/Optuna iteration resumes.
 - [x] **SSAC27 Track items 5–8 + Item 10 — DONE 2026-09-01**. Future-work 9–13 parked.
 - [x] Item 10: `.pre-commit-config.yaml` + hook proven on commit.
 - [x] **CI fix 2026-09-01:** joblib/sklearn/lightgbm install path.
 
-**Push:** optional, user-timed. Agent never pushes; do not treat push as per-prompt chores.
+**Push:** user-timed. Agent never pushes; after promote commits, push is the remaining publish step.
 
 **Next session polish (optional, not blocking SSAC 1–8):**
 - [ ] Regenerate `manuscript.pdf` locally (Playwright/browser).
