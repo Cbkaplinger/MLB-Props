@@ -18,9 +18,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # deps live in pyproject.toml (no requirements.txt). Tests import
-          # numpy/pandas/polars/scipy; scipy ships in the research extra.
-          python -m pip install ".[dev]" scipy
+          # deps live in pyproject.toml (no requirements.txt). Full suite imports
+          # numpy/pandas/polars plus joblib/sklearn/lightgbm via live_assembly +
+          # prob_calibration collection; scipy for research helpers.
+          python -m pip install ".[dev]" scipy joblib scikit-learn lightgbm
 
       - name: Compile all production scripts
         run: |

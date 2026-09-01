@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 research = [
+    "joblib",
     "jupyterlab",
     "lightgbm",
     "matplotlib",

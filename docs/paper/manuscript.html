@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>MLB Props Manuscript</title>
+<title>Leakage-Safe Pregame Pitcher Strikeout Projection</title>
 <style>
 @page { margin: 0.7in; }
 body {
@@ -122,7 +122,8 @@ Independent Researcher</p>
 <p>This paper presents a leakage-safe <strong>pregame</strong> machine learning pipeline for starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The core target is game-level strikeout rate <code>k_rate = K / PA</code> for starters who face at least nine batters, using only pregame features. A Polars-first three-level pipeline builds game aggregates, lagged rolling form, and a model-ready training frame under strict chronological validation.</p>
 <p>The active production lane uses a <strong>two-model LightGBM blend</strong> across frozen feature sets (<code>production_sparse72_monotone</code>, <code>production_final58_consensus</code>) with weights <code>0.60 / 0.40</code>, plus a Ridge projected-TBF companion [2]. Count projections follow <code>E[K] = k_rate_hat × TBF_hat</code>, then convert to line probabilities via binomial/Poisson on projected exposure only [3, 4].</p>
 <p><strong>Statistical caution is the headline.</strong> Trial-adjusted significance testing with the Bailey–López de Prado Deflated Sharpe Ratio [12] yields <code>DSR = 0.0349</code> on the audited <code>n=26</code> manual lane, with <code>PSR = 0.9701</code> against a zero-Sharpe benchmark. At the observed sample size and <code>N=5161</code> configuration search breadth, the raw Sharpe is positive but <em>not</em> evidence of a durable post-selection edge: the DSR power plan indicates roughly <code>n≈98</code> graded bets are needed to reach <code>DSR &gt; 0.5</code> and <code>n≈147</code> for <code>DSR &gt; 0.8</code>. We report performance transparently precisely because it is underpowered; no persistent betting-edge claim is made on the current sample.</p>
-<p><strong>Policy-freeze audit (2026-09-01): FAIL.</strong> The same <code>n=26</code> ROI <code>0.4363</code> / Sharpe <code>0.4438</code> / PnL <code>+24.17u</code> window spans slate dates <code>2026-07-30</code>–<code>2026-08-17</code>, entirely <em>before</em> the declared <code>KING_PROFILE_AUG2026</code> freeze (<code>2026-08-21T16:10:00Z</code>). The live blend was explicitly selected as <code>best_manual_roi_after_open_calibration_transfer_deduped</code>. Those decision metrics are therefore <strong>pre-freeze policy-search evidence</strong>, not post-freeze out-of-sample deployment performance, and are demoted from headline claims (full audit: <code>docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md</code>). Market-skill deltas on that search window remain artifact-backed diagnostics only. A placebo/null decision-lane control is still required before any edge claim (see §8.2, §8.4).</p>
+<p><strong>Policy-freeze audit (2026-09-01): FAIL.</strong> The same <code>n=26</code> ROI <code>0.4363</code> / Sharpe <code>0.4438</code> / PnL <code>+24.17u</code> window spans slate dates <code>2026-07-30</code>–<code>2026-08-17</code>, entirely <em>before</em> the declared <code>KING_PROFILE_AUG2026</code> freeze (<code>2026-08-21T16:10:00Z</code>). The live blend was explicitly selected as <code>best_manual_roi_after_open_calibration_transfer_deduped</code>. Those decision metrics are therefore <strong>pre-freeze policy-search evidence</strong>, not post-freeze out-of-sample deployment performance, and are demoted from headline claims (full audit: <code>docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md</code>).</p>
+<p><strong>Post-freeze operational sample (through 2026-08-31):</strong> under the locked dual-ensemble KING floor gate (<code>passes_floor</code>, <code>game_date &gt; 2026-08-21</code>) the live ledger has <strong><code>n=74</code></strong> settled tickets with ROI <strong><code>−1.55%</code></strong>, win rate <code>48.6%</code>, and thin-sample CLV mean <code>+1.59</code>pp (beat-close share <code>58.6%</code> on <code>n_clv=29</code>). Side split is severe: overs <code>n=45</code> / ROI <code>−24.6%</code> vs unders <code>n=29</code> / ROI <code>+29.3%</code>. This is the honest replacement lane for the demoted 26-bet story — larger, still underpowered, and <strong>not</strong> a validated edge (detail: <code>docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md</code>). A placebo/null decision-lane control remains required before any edge claim (see §8.2, §8.4).</p>
 <p>The main contribution is an end-to-end quant workflow that links leakage-safe modeling, chronological evaluation, and governed decision operations in a reproducible system.</p>
 <hr />
 <h2>1. Introduction</h2>
@@ -257,7 +258,7 @@ Independent Researcher</p>
 </tr>
 </tbody>
 </table>
-<p>The production decision is not a single-model claim; it is a governed ensemble<br />
+<p>The production decision is not a single-model claim; it is a governed ensemble
 choice validated across open-universe and deduped-manual lanes.</p>
 <p><strong>Table 2a.</strong> Current contender <code>k_rate</code> MAE (model-family lane, sparse-set run).</p>
 <p>Table 2a is a challenger-screen table for single-model error behavior on shared sparse feature sets; it is not the deployment champion table.</p>
@@ -303,11 +304,11 @@ choice validated across open-universe and deduped-manual lanes.</p>
 </tr>
 </tbody>
 </table>
-<p>The current ensemble-sweep ranking artifact does <strong>not</strong> include <code>k_rate</code> MAE<br />
-columns; it is ranked on decision metrics (ROI/risk/market-skill). Therefore,<br />
-ensemble <code>k_rate</code> MAE is reported as <strong>not available in that artifact lane</strong>.<br />
-Also, family-model tags in this lane reflect a mixed budget (some default configs,<br />
-some small inner-fold tuning), so rankings should be read as practical challenger<br />
+<p>The current ensemble-sweep ranking artifact does <strong>not</strong> include <code>k_rate</code> MAE
+columns; it is ranked on decision metrics (ROI/risk/market-skill). Therefore,
+ensemble <code>k_rate</code> MAE is reported as <strong>not available in that artifact lane</strong>.
+Also, family-model tags in this lane reflect a mixed budget (some default configs,
+some small inner-fold tuning), so rankings should be read as practical challenger
 screens rather than a perfectly equal hyperparameter-budget bakeoff.</p>
 <p>Why Ridge can rank first in Table 2a and not be the deployment champion:</p>
 <ol>
@@ -454,18 +455,63 @@ screens rather than a perfectly equal hyperparameter-budget bakeoff.</p>
 </ul>
 <p>Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance.</p>
 <blockquote>
-<p><strong>DSR provenance (2026-08-27).</strong> <code>PSR</code>, <code>DSR</code>, <code>sigma_sr</code>, <code>sr_star</code>, the <code>N=5161</code><br />
-trial count, and the §8.4 power targets all come from<br />
-<code>artifacts/odds_log/quant_honesty_aug21_summary.json</code> (<code>n_trials=5161</code>;<br />
-<code>sr_star=0.8544</code>). The method is Bailey &amp; López de Prado (2014), <em>The Deflated Sharpe<br />
-Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality</em>, JPM.<br />
-<strong>Status:</strong> the artifact records that 5161 configurations were tried (feature-set ×<br />
-model-family × hyperparameter draws across the search that produced the frozen<br />
-champion), but it does not yet store a per-family breakdown of that 5161. That<br />
-breakdown is tracked as SSAC27 item 5 in <code>docs/EXECUTION_BACKLOG.md</code> so the<br />
+<p><strong>DSR provenance (2026-08-27).</strong> <code>PSR</code>, <code>DSR</code>, <code>sigma_sr</code>, <code>sr_star</code>, the <code>N=5161</code>
+trial count, and the §8.4 power targets all come from
+<code>artifacts/odds_log/quant_honesty_aug21_summary.json</code> (<code>n_trials=5161</code>;
+<code>sr_star=0.8544</code>). The method is Bailey &amp; López de Prado (2014), <em>The Deflated Sharpe
+Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality</em>, JPM.
+<strong>Status:</strong> the artifact records that 5161 configurations were tried (feature-set ×
+model-family × hyperparameter draws across the search that produced the frozen
+champion), but it does not yet store a per-family breakdown of that 5161. That
+breakdown is tracked as SSAC27 item 5 in <code>docs/EXECUTION_BACKLOG.md</code> so the
 deflation is fully auditable before submission; the 5161 figure itself is pinned.</p>
 </blockquote>
-<h3>8.3 Slippage sensitivity (fixed 26-bet set)</h3>
+<h3>8.2.1 Post-freeze KING-floor lane (honest OOS replacement, through 2026-08-31)</h3>
+<p>After the FAIL freeze audit, the only epistemically valid money lane is <strong>post-freeze</strong> under the locked profile. Extracted from the deduped settled ledger with <code>game_date &gt; 2026-08-21</code> and <code>passes_floor == True</code> (live dual-ensemble gate; stake &gt; 0):</p>
+<table>
+<thead>
+<tr>
+<th>Lane</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">ROI</th>
+<th style="text-align: right;">Win rate</th>
+<th style="text-align: right;">CLV mean (pp)</th>
+<th style="text-align: right;">CLV &gt;0 (n)</th>
+<th>Span</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Post-freeze KING floor</td>
+<td style="text-align: right;">74</td>
+<td style="text-align: right;">−0.0155</td>
+<td style="text-align: right;">0.486</td>
+<td style="text-align: right;">+0.0159</td>
+<td style="text-align: right;">0.586 (29)</td>
+<td>2026-08-22–08-31</td>
+</tr>
+<tr>
+<td>· overs only</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">−0.2464</td>
+<td style="text-align: right;">0.378</td>
+<td style="text-align: right;">+0.0058</td>
+<td style="text-align: right;">0.632 (19)</td>
+<td>same</td>
+</tr>
+<tr>
+<td>· unders only</td>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">+0.2933</td>
+<td style="text-align: right;">0.655</td>
+<td style="text-align: right;">+0.0351</td>
+<td style="text-align: right;">0.500 (10)</td>
+<td>same</td>
+</tr>
+</tbody>
+</table>
+<p>Source: <code>docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md</code>. Interpretation: sample size is improved vs the demoted n=26 search lane but still below DSR power targets; aggregate ROI is slightly negative; side asymmetry is first-order. <strong>Do not treat this table as a claimed edge.</strong></p>
+<h3>8.3 Slippage sensitivity (fixed 26-bet policy-search set)</h3>
 <p>To test execution fragility, adverse fill haircuts were applied to the same 26-bet audited set (no re-selection of bets).</p>
 <table>
 <thead>
@@ -510,17 +556,17 @@ deflation is fully auditable before submission; the 5161 figure itself is pinned
 </table>
 <p>The profile remains positive under this small haircut grid, but risk-adjusted metrics compress as expected.</p>
 <blockquote>
-<p><strong>Source + freshness note (2026-08-27).</strong> All five rows come verbatim from<br />
-<code>artifacts/odds_log/slippage_sensitivity_top3_floor12_aug21.csv</code>. A prior revision<br />
-of this table carried a Sharpe column extrapolated from the deployment profile's<br />
-<code>0.4438</code>; the authoritative slippage artifact instead reports a self-consistent<br />
-Sharpe series beginning at <code>0.4352</code>. That base-row value (<code>0.4352</code>) differs from the<br />
-deployment-profile Sharpe <code>0.4438</code> reported in Table 3 / §8.2 because the<br />
-<code>quant_honesty</code> and <code>slippage</code> artifacts were generated with the <strong>pre-correction</strong><br />
-Sharpe/max-DD/Calmar point estimates, while the deployment-profile figure comes from<br />
-the re-audited <code>open_top3_transfer...replay</code> JSON. The adjudicated authoritative<br />
-deployment Sharpe is <code>0.4438</code>; the slippage series is the internally consistent<br />
-source for §8.3 and should be re-seeded/rebuilt alongside the quant-honesty artifact<br />
+<p><strong>Source + freshness note (2026-08-27).</strong> All five rows come verbatim from
+<code>artifacts/odds_log/slippage_sensitivity_top3_floor12_aug21.csv</code>. A prior revision
+of this table carried a Sharpe column extrapolated from the deployment profile's
+<code>0.4438</code>; the authoritative slippage artifact instead reports a self-consistent
+Sharpe series beginning at <code>0.4352</code>. That base-row value (<code>0.4352</code>) differs from the
+deployment-profile Sharpe <code>0.4438</code> reported in Table 3 / §8.2 because the
+<code>quant_honesty</code> and <code>slippage</code> artifacts were generated with the <strong>pre-correction</strong>
+Sharpe/max-DD/Calmar point estimates, while the deployment-profile figure comes from
+the re-audited <code>open_top3_transfer...replay</code> JSON. The adjudicated authoritative
+deployment Sharpe is <code>0.4438</code>; the slippage series is the internally consistent
+source for §8.3 and should be re-seeded/rebuilt alongside the quant-honesty artifact
 when the deployment-profile point estimates are next refreshed.</p>
 </blockquote>
 <h3>8.4 Sample-size plan from DSR power targets</h3>
@@ -530,8 +576,8 @@ when the deployment-profile point estimates are next refreshed.</p>
 <li><code>n ≈ 147</code> bets to reach <code>DSR &gt; 0.8</code>.</li>
 </ul>
 <p>At the current recommendation density (about one recommendation per slate day), this corresponds to roughly <code>72</code> to <code>121</code> additional graded recommendations beyond the current audited set.</p>
-<p>For clarity of interpretation: Sharpe is mean excess return per unit total<br />
-volatility, Sortino is mean excess return per unit downside volatility, and ROI<br />
+<p>For clarity of interpretation: Sharpe is mean excess return per unit total
+volatility, Sortino is mean excess return per unit downside volatility, and ROI
 is return over stake in the same evaluation lane.</p>
 <p>Metric-purpose rule used in this manuscript:</p>
 <ul>
@@ -540,16 +586,16 @@ is return over stake in the same evaluation lane.</p>
 </ul>
 <p><strong>Figure 2.</strong> Reliability diagram for count-layer line probabilities. Points near the diagonal indicate well-calibrated bins. Mean ECE ≈ 0.024 with no post-hoc recalibration — <strong>pre-deployment walk-forward 2024 diagnostic only</strong> (<code>artifacts/model_quality/phase11c_calibration/</code>, <code>n=4607</code> rows across 3 chronological windows, <code>ece_mean=0.0243</code>, <code>ece_max=0.0403</code>; raw probabilities, no isotonic transfer applied).</p>
 <blockquote>
-<p><strong>Lane clarification (ECE 0.024 vs 0.0639).</strong> The two ECE values cited in this<br />
-manuscript are <em>not</em> comparable and must not be conflated:<br />
-- <strong>ECE ≈ 0.024</strong> (here and in Fig. 2) is the broad <strong>pre-deployment walk-forward<br />
-  2024 diagnostic</strong> across <code>n=4607</code> raw predictions / 3 windows — it is an internal<br />
-  calibration-quality check of the frozen stack, not a deployed-lane claim.<br />
-- <strong>ECE 0.0639 / MCE 0.1353</strong> (Table 3 / A.5) is the <strong>deployed 26-bet audited manual<br />
-  lane</strong> (<code>open_top3_transfer...replay</code> JSON), computed on only <code>n=26</code> graded bets on<br />
-  the <em>post-isotonic-transfer</em> integrated profile. Small-sample realization on a<br />
-  different, far smaller population — not evidence of a calibration regression.<br />
-Both numbers are artifact-backed; the apparent 2.6× gap is a population/lane artifact,<br />
+<p><strong>Lane clarification (ECE 0.024 vs 0.0639).</strong> The two ECE values cited in this
+manuscript are <em>not</em> comparable and must not be conflated:
+- <strong>ECE ≈ 0.024</strong> (here and in Fig. 2) is the broad <strong>pre-deployment walk-forward
+  2024 diagnostic</strong> across <code>n=4607</code> raw predictions / 3 windows — it is an internal
+  calibration-quality check of the frozen stack, not a deployed-lane claim.
+- <strong>ECE 0.0639 / MCE 0.1353</strong> (Table 3 / A.5) is the <strong>deployed 26-bet audited manual
+  lane</strong> (<code>open_top3_transfer...replay</code> JSON), computed on only <code>n=26</code> graded bets on
+  the <em>post-isotonic-transfer</em> integrated profile. Small-sample realization on a
+  different, far smaller population — not evidence of a calibration regression.
+Both numbers are artifact-backed; the apparent 2.6× gap is a population/lane artifact,
 not a defect.</p>
 </blockquote>
 <p>These checks are confirmatory: they did not uncover large unused gains on the frozen stack’s internal metrics.</p>
@@ -580,10 +626,10 @@ not a defect.</p>
 </ul>
 <p>Interpretation note: this profile generated <code>26</code> recommendations in the audited manual lane, approximately one recommendation per slate day over the sampled period.</p>
 <p>Execution note: reported replay metrics assume fills at recorded replay prices; explicit slippage/transaction-cost haircuts should be applied in subsequent robustness updates.</p>
-<p>This split keeps winner selection explicit: open-universe breadth ranking and<br />
+<p>This split keeps winner selection explicit: open-universe breadth ranking and
 deployment robustness are related but distinct optimization targets.</p>
-<p><strong>Larger settled-threshold view (operational, not the audited-26 lane).</strong><br />
-To calibrate floor behavior on a broader post-freeze operations sample, settled positive-stake rows from <code>2026-07-31</code> forward were bucketed by policy floor. This is an execution-policy diagnostic lane (volume/ROI tradeoff), not a replacement for the 26-bet audited manual lane above.</p>
+<p><strong>Larger settled-threshold view (operational diagnostic; mixed pre/post-freeze).</strong><br />
+To calibrate floor behavior on a broader operations sample, settled positive-stake rows from <code>2026-07-31</code> forward were bucketed by policy floor. This window <strong>includes both pre-freeze and post-freeze days</strong> and is an execution-policy diagnostic (volume/ROI tradeoff), <strong>not</strong> a pure post-freeze OOS claim and not a replacement for either the demoted 26-bet search lane or the §8.2.1 KING-floor post-freeze lane.</p>
 <table>
 <thead>
 <tr>
@@ -683,8 +729,8 @@ To calibrate floor behavior on a broader post-freeze operations sample, settled 
 <hr />
 <h2>Reproducibility statement</h2>
 <p>Code for the leakage-safe pipeline, nested selection utilities, trainers, and count layer lives in the public repository: <a href="https://github.com/Cbkaplinger/MLB-Props">https://github.com/Cbkaplinger/MLB-Props</a> (Python ≥ 3.11; Polars for feature construction; scikit-learn and LightGBM for models; pytest for automated leakage and pipeline checks). Experiments reported here were run on a local Windows workstation with a project-local virtual environment. Primary data are pitch-level Statcast exports accessed via Baseball Savant (commonly retrieved with community tooling such as pybaseball); users should respect Baseball Savant / MLB terms of use for redistribution and commercial use. Generated local artifacts (model binaries, fold summaries, and governance outputs) are reproducible from the documented runners but are not required to read the manuscript’s tables and figures.</p>
-<p>At the Aug 2026 freeze checkpoint, operator and research notebook surfaces were<br />
-re-executed end-to-end after policy and calibration updates, with successful<br />
+<p>At the Aug 2026 freeze checkpoint, operator and research notebook surfaces were
+re-executed end-to-end after policy and calibration updates, with successful
 execution recorded in the notebook execution artifacts under <code>artifacts/odds_log/</code>.</p>
 <h3>Data Availability</h3>
 <p>Statcast data can be retrieved per-user via public tools (e.g., pybaseball) rather than redistributing bulk parquet, which helps sidestep Baseball Savant / MLB terms-of-use concerns around bulk redistribution.</p>
@@ -692,7 +738,7 @@ execution recorded in the notebook execution artifacts under <code>artifacts/odd
 <div style="page-break-before: always;"></div>
 
 <h2>Appendix A. Repository map</h2>
-<p>Internal repository names, paths, and frozen-artifact identifiers are collected here so the body text can stay narrative. They do not change any metric reported above.<br />
+<p>Internal repository names, paths, and frozen-artifact identifiers are collected here so the body text can stay narrative. They do not change any metric reported above.
 Repository cleanup governance and keep/hold/delete audit protocol are maintained in <code>docs/reference/repo_canonical_map.md</code> and <code>docs/reference/repo_waste_sweep_checklist.md</code>, with the latest pass report at <code>docs/reference/reports/repo_quality_passthrough/2026-08-21.md</code>.</p>
 <h3>A.1 Feature-set aliases</h3>
 <p><strong>Table A1.</strong> Feature-set aliases used in code.</p>
@@ -807,7 +853,7 @@ Repository cleanup governance and keep/hold/delete audit protocol are maintained
 <li><strong>Deployment lane (transfer + runtime):</strong> transfer calibration from open panel to manual lane, then deploy via config-driven live scorer.</li>
 </ol>
 <h3>A.5 Active production profile snapshot</h3>
-<p><strong>Table A5.</strong> Current deployment profile from<br />
+<p><strong>Table A5.</strong> Current deployment profile from
 <code>open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json</code>.</p>
 <table>
 <thead>
@@ -873,12 +919,12 @@ Repository cleanup governance and keep/hold/delete audit protocol are maintained
 </table>
 <p><em>Bootstrap 95% CIs: ROI <code>[0.0337, 0.8072]</code>, Sharpe <code>[0.0431, 0.9997]</code>, Sortino <code>[0.0459, 0.7866]</code>, PnL <code>[+1.85u, +45.45u]</code> (10,000-resample percentile, pinned in <code>quant_honesty_aug21_summary.json</code>; date-block variant in §8.2). Note: <code>quant_honesty_aug21_summary.json</code> still carries pre-correction Sharpe/DD/Calmar point estimates for this lane; they are superseded by the values above, which come from the deduped replay artifact named at the head of this table.</em></p>
 <p><strong>Consistency note on ablation tables.</strong><br />
-<code>k_rate</code> MAE contender comparisons come from sparse-set ablation artifacts,<br />
-including the parity snapshots at<br />
-<code>artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_base/ablation_summary_ranked.csv</code><br />
-and<br />
-<code>artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_tuned_small/ablation_summary_ranked.csv</code>.<br />
-Deployment-king tables come from deduped replay/transfer artifacts and are<br />
+<code>k_rate</code> MAE contender comparisons come from sparse-set ablation artifacts,
+including the parity snapshots at
+<code>artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_base/ablation_summary_ranked.csv</code>
+and
+<code>artifacts/model_quality/sparse72_model_family_ablation/aug21_parity_tuned_small/ablation_summary_ranked.csv</code>.
+Deployment-king tables come from deduped replay/transfer artifacts and are
 ranked on decision metrics, not <code>k_rate</code> MAE.</p>
 <hr />
 <h2>References</h2>

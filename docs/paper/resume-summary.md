@@ -32,7 +32,8 @@ This project demonstrates a blended profile across:
 | Counts / lines | Binomial / Poisson on projected TBF | Expected K and P(K ≥ L) |
 
 **Active deployment profile (frozen `KING_PROFILE_AUG2026`, 2026-08-21):** blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`, edge floor `0.12`.  
-**Policy-search diagnostics (pre-freeze `n=26`, 2026-07-30–08-17; not post-freeze OOS):** ROI `0.4363`, PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, max drawdown `0.1905`, market-skill deltas `+0.2069` (Brier) / `+0.1551` (LogLoss). Audit 2026-09-01: these ROI/Sharpe figures are **selection-window evidence**, not validated deployment edge.
+**Policy-search diagnostics (pre-freeze `n=26`, 2026-07-30–08-17; not post-freeze OOS):** ROI `0.4363`, PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, max drawdown `0.1905`, market-skill deltas `+0.2069` (Brier) / `+0.1551` (LogLoss). Audit 2026-09-01: these ROI/Sharpe figures are **selection-window evidence**, not validated deployment edge.  
+**Post-freeze KING-floor lane (2026-08-22–08-31, `n=74`):** ROI `−1.55%`, win rate `48.6%`, CLV mean `+1.59`pp (beat-close `58.6%` on `n_clv=29`); overs `n=45` / `−24.6%` ROI vs unders `n=29` / `+29.3%` ROI. Honest OOS sample — larger than n=26, still underpowered, **not** a claimed edge.
 
 ---
 

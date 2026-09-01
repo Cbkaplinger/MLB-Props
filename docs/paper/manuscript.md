@@ -21,7 +21,9 @@ The active production lane uses a **two-model LightGBM blend** across frozen fea
 
 **Statistical caution is the headline.** Trial-adjusted significance testing with the Bailey–López de Prado Deflated Sharpe Ratio [12] yields `DSR = 0.0349` on the audited `n=26` manual lane, with `PSR = 0.9701` against a zero-Sharpe benchmark. At the observed sample size and `N=5161` configuration search breadth, the raw Sharpe is positive but *not* evidence of a durable post-selection edge: the DSR power plan indicates roughly `n≈98` graded bets are needed to reach `DSR > 0.5` and `n≈147` for `DSR > 0.8`. We report performance transparently precisely because it is underpowered; no persistent betting-edge claim is made on the current sample.
 
-**Policy-freeze audit (2026-09-01): FAIL.** The same `n=26` ROI `0.4363` / Sharpe `0.4438` / PnL `+24.17u` window spans slate dates `2026-07-30`–`2026-08-17`, entirely *before* the declared `KING_PROFILE_AUG2026` freeze (`2026-08-21T16:10:00Z`). The live blend was explicitly selected as `best_manual_roi_after_open_calibration_transfer_deduped`. Those decision metrics are therefore **pre-freeze policy-search evidence**, not post-freeze out-of-sample deployment performance, and are demoted from headline claims (full audit: `docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`). Market-skill deltas on that search window remain artifact-backed diagnostics only. A placebo/null decision-lane control is still required before any edge claim (see §8.2, §8.4).
+**Policy-freeze audit (2026-09-01): FAIL.** The same `n=26` ROI `0.4363` / Sharpe `0.4438` / PnL `+24.17u` window spans slate dates `2026-07-30`–`2026-08-17`, entirely *before* the declared `KING_PROFILE_AUG2026` freeze (`2026-08-21T16:10:00Z`). The live blend was explicitly selected as `best_manual_roi_after_open_calibration_transfer_deduped`. Those decision metrics are therefore **pre-freeze policy-search evidence**, not post-freeze out-of-sample deployment performance, and are demoted from headline claims (full audit: `docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`).
+
+**Post-freeze operational sample (through 2026-08-31):** under the locked dual-ensemble KING floor gate (`passes_floor`, `game_date > 2026-08-21`) the live ledger has **`n=74`** settled tickets with ROI **`−1.55%`**, win rate `48.6%`, and thin-sample CLV mean `+1.59`pp (beat-close share `58.6%` on `n_clv=29`). Side split is severe: overs `n=45` / ROI `−24.6%` vs unders `n=29` / ROI `+29.3%`. This is the honest replacement lane for the demoted 26-bet story — larger, still underpowered, and **not** a validated edge (detail: `docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md`). A placebo/null decision-lane control remains required before any edge claim (see §8.2, §8.4).
 
 The main contribution is an end-to-end quant workflow that links leakage-safe modeling, chronological evaluation, and governed decision operations in a reproducible system.
 
@@ -357,7 +359,19 @@ Interpretation: raw Sharpe is positive, but trial-adjusted significance remains 
 > breakdown is tracked as SSAC27 item 5 in `docs/EXECUTION_BACKLOG.md` so the
 > deflation is fully auditable before submission; the 5161 figure itself is pinned.
 
-### 8.3 Slippage sensitivity (fixed 26-bet set)
+### 8.2.1 Post-freeze KING-floor lane (honest OOS replacement, through 2026-08-31)
+
+After the FAIL freeze audit, the only epistemically valid money lane is **post-freeze** under the locked profile. Extracted from the deduped settled ledger with `game_date > 2026-08-21` and `passes_floor == True` (live dual-ensemble gate; stake &gt; 0):
+
+| Lane | n | ROI | Win rate | CLV mean (pp) | CLV &gt;0 (n) | Span |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Post-freeze KING floor | 74 | −0.0155 | 0.486 | +0.0159 | 0.586 (29) | 2026-08-22–08-31 |
+| · overs only | 45 | −0.2464 | 0.378 | +0.0058 | 0.632 (19) | same |
+| · unders only | 29 | +0.2933 | 0.655 | +0.0351 | 0.500 (10) | same |
+
+Source: `docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md`. Interpretation: sample size is improved vs the demoted n=26 search lane but still below DSR power targets; aggregate ROI is slightly negative; side asymmetry is first-order. **Do not treat this table as a claimed edge.**
+
+### 8.3 Slippage sensitivity (fixed 26-bet policy-search set)
 
 To test execution fragility, adverse fill haircuts were applied to the same 26-bet audited set (no re-selection of bets).
 
@@ -452,8 +466,8 @@ Execution note: reported replay metrics assume fills at recorded replay prices; 
 This split keeps winner selection explicit: open-universe breadth ranking and
 deployment robustness are related but distinct optimization targets.
 
-**Larger settled-threshold view (operational, not the audited-26 lane).**  
-To calibrate floor behavior on a broader post-freeze operations sample, settled positive-stake rows from `2026-07-31` forward were bucketed by policy floor. This is an execution-policy diagnostic lane (volume/ROI tradeoff), not a replacement for the 26-bet audited manual lane above.
+**Larger settled-threshold view (operational diagnostic; mixed pre/post-freeze).**  
+To calibrate floor behavior on a broader operations sample, settled positive-stake rows from `2026-07-31` forward were bucketed by policy floor. This window **includes both pre-freeze and post-freeze days** and is an execution-policy diagnostic (volume/ROI tradeoff), **not** a pure post-freeze OOS claim and not a replacement for either the demoted 26-bet search lane or the §8.2.1 KING-floor post-freeze lane.
 
 | Policy | Bets (`n`) | ROI |
 | --- | ---: | ---: |
