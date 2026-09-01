@@ -25,7 +25,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 - **User: promote everything, document, push to close.**
 - **PROMOTED live:** hard veto over@4.5 via kpi_policy.json quality gate + odds_board scorer; soft probation over@2.5/3.5 (probation_edge_floor=0.18, line floor 3.5→0.18).
 - Docs: docs/reference/reports/live_policy_promotion_2026-09-01.md; interim skip rules marked PROMOTED.
-- Tests: 	ests/test_odds_board_lines.py (9 passed) including hard-veto case.
+- Tests: `tests/test_odds_board_lines.py` (9 passed) including hard-veto case.
 - Pack A artifacts + research scripts included in commit set.
 - **Git push:** agent will not push (repo policy); user runs push commands below.
 
