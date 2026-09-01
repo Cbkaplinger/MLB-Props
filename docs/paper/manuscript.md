@@ -457,16 +457,16 @@ To calibrate floor behavior on a broader post-freeze operations sample, settled 
 
 | Policy | Bets (`n`) | ROI |
 | --- | ---: | ---: |
-| Single floor `0.08` | `233` | `0.0396` |
-| Single floor `0.10` | `214` | `0.0562` |
-| Single floor `0.12` | `193` | `0.0918` |
-| Single floor `0.14` | `153` | `0.0395` |
-| Single floor `0.16` | `112` | `0.0864` |
-| Dual floor (`over=0.10`, `under=0.08`) | `225` | `0.0457` |
+| Single floor `0.08` | `277` | `0.0182` |
+| Single floor `0.10` | `248` | `0.0331` |
+| Single floor `0.12` | `222` | `0.0710` |
+| Single floor `0.14` | `175` | `0.0482` |
+| Single floor `0.16` | `127` | `0.0859` |
+| Dual floor (`over=0.10`, `under=0.08`) | `263` | `0.0281` |
 
-> **Freshness note (2026-08-27).** The counts above are the *post-dedupe* operational bucketing of settled positive-stake rows from `2026-07-31` forward, drawn from the regenerable `artifacts/odds_log/runtime_floor_calibration.csv`. Earlier manuscript revisions reported inflated raw-row counts (`307/285/265/209/159/299`); the honest deduped ledger yields the smaller `n` above. Because these counts roll forward as the live ledger settles, this table is a point-in-time operational snapshot.
+> **Freshness note (2026-09-01).** The counts above are the *post-dedupe* operational bucketing of settled positive-stake rows from `2026-07-31` forward, drawn from the regenerable `artifacts/odds_log/runtime_floor_calibration.csv` (regenerated with the morning monitoring snapshot). Earlier manuscript revisions reported inflated raw-row counts (`307/285/265/209/159/299`), then an Aug-27 deduped snapshot (`233/214/193/153/112/225`); the live deduped ledger now yields the `n` above. Because these counts roll forward as the ledger settles, this table is a point-in-time operational snapshot — not a frozen evaluation claim.
 
-Interpretation: tighter floors reduce volume and improve realized ROI in this window; the active `0.12` deployment floor remains the current balance point between throughput and edge quality.
+Interpretation: higher floors still cut volume; ROI is not strictly monotone in floor (the `0.14` bucket dips vs `0.12`/`0.16` in this window). The active `0.12` deployment floor remains the current balance point between throughput and edge quality.
 
 Working hypothesis for edge persistence: strikeout-prop markets are thinner and adjust less uniformly than major side/total markets, so leakage-safe pitcher-form and lineup-context features can remain underpriced at some times of day. This is a practical market-microstructure hypothesis, not a proof of persistent inefficiency.
 
