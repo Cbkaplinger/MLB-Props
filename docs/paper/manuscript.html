@@ -304,6 +304,44 @@ choice validated across open-universe and deduped-manual lanes.</p>
 </tr>
 </tbody>
 </table>
+<p><strong>Table 2b.</strong> Chronological game-level naive baselines (Marcel lane; <strong>not</strong> the Table 2a outer-fold protocol).</p>
+<table>
+<thead>
+<tr>
+<th>Baseline</th>
+<th style="text-align: right;">Test <code>k_rate</code> MAE</th>
+<th style="text-align: right;">n</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Marcel (3/2/1 + EB regress, no age)</td>
+<td style="text-align: right;">0.08257</td>
+<td style="text-align: right;">1413</td>
+<td><code>marcel_baseline.py</code></td>
+</tr>
+<tr>
+<td>Prior-season only</td>
+<td style="text-align: right;">0.08301</td>
+<td style="text-align: right;">1413</td>
+<td>same split</td>
+</tr>
+<tr>
+<td>Train-mean</td>
+<td style="text-align: right;">0.08538</td>
+<td style="text-align: right;">1413</td>
+<td>same split</td>
+</tr>
+<tr>
+<td>Frozen LightGBM (registry freeze ref.)</td>
+<td style="text-align: right;">≈0.0787</td>
+<td style="text-align: right;">—</td>
+<td>same test start; not re-fit here</td>
+</tr>
+</tbody>
+</table>
+<p>Delta over Marcel for the freeze reference: ≈ <strong>−0.0039</strong> absolute MAE. Sparse72 ridge <strong>0.07668</strong> (Table 2a) cannot be subtracted from Marcel without fold-aligned preds — different evaluation contract. Source: <code>docs/reference/reports/ssac27_naive_mae_baseline_2026-09-01.md</code>.</p>
 <p>The current ensemble-sweep ranking artifact does <strong>not</strong> include <code>k_rate</code> MAE
 columns; it is ranked on decision metrics (ROI/risk/market-skill). Therefore,
 ensemble <code>k_rate</code> MAE is reported as <strong>not available in that artifact lane</strong>.
@@ -455,16 +493,18 @@ screens rather than a perfectly equal hyperparameter-budget bakeoff.</p>
 </ul>
 <p>Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance.</p>
 <blockquote>
-<p><strong>DSR provenance (2026-08-27).</strong> <code>PSR</code>, <code>DSR</code>, <code>sigma_sr</code>, <code>sr_star</code>, the <code>N=5161</code>
-trial count, and the §8.4 power targets all come from
+<p><strong>DSR provenance (updated 2026-09-01).</strong> <code>PSR</code>, <code>DSR</code>, <code>sigma_sr</code>, <code>sr_star</code>, the
+<code>N=5161</code> trial count, and the §8.4 power targets come from
 <code>artifacts/odds_log/quant_honesty_aug21_summary.json</code> (<code>n_trials=5161</code>;
-<code>sr_star=0.8544</code>). The method is Bailey &amp; López de Prado (2014), <em>The Deflated Sharpe
-Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality</em>, JPM.
-<strong>Status:</strong> the artifact records that 5161 configurations were tried (feature-set ×
-model-family × hyperparameter draws across the search that produced the frozen
-champion), but it does not yet store a per-family breakdown of that 5161. That
-breakdown is tracked as SSAC27 item 5 in <code>docs/EXECUTION_BACKLOG.md</code> so the
-deflation is fully auditable before submission; the 5161 figure itself is pinned.</p>
+<code>sr_star=0.8544</code>). Method: Bailey &amp; López de Prado (2014), <em>The Deflated Sharpe
+Ratio</em>, JPM [12]. <strong>What 5161 is:</strong> eligible <strong>blend × edge-floor</strong> configurations from
+the Aug-21 deduped ensemble sweep — 3 feature-set lanes on a weight-0.05 simplex
+(231 blends) × floors <code>0.005…0.12</code> step <code>0.005</code> (24) = 5544 grid rows, minus 383 with
+<code>n_bets &lt; 25</code> → <strong>5161</strong> (<code>ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv</code>;
+metadata <code>ensemble_sweep_ensemble_full_aug21_deduped.json</code>; producer
+<code>production/ops/run_model_ensemble_sweep.py</code>). <strong>What it is not:</strong> Optuna HP trials or
+model-family architecture search. Full write-up:
+<code>docs/reference/reports/ssac27_n5161_enumeration_2026-09-01.md</code>.</p>
 </blockquote>
 <h3>8.2.1 Post-freeze KING-floor lane (honest OOS replacement, through 2026-08-31)</h3>
 <p>After the FAIL freeze audit, the only epistemically valid money lane is <strong>post-freeze</strong> under the locked profile. Extracted from the deduped settled ledger with <code>game_date &gt; 2026-08-21</code> and <code>passes_floor == True</code> (live dual-ensemble gate; stake &gt; 0):</p>
@@ -511,6 +551,17 @@ deflation is fully auditable before submission; the 5161 figure itself is pinned
 </tbody>
 </table>
 <p>Source: <code>docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md</code>. Interpretation: sample size is improved vs the demoted n=26 search lane but still below DSR power targets; aggregate ROI is slightly negative; side asymmetry is first-order. <strong>Do not treat this table as a claimed edge.</strong></p>
+<h3>8.2.2 Null / placebo decision lanes (post-freeze)</h3>
+<p>Matched nulls vs the locked KING floor (<code>0.12</code>) on post-freeze settled opportunities:</p>
+<table>
+<thead><tr><th>Lane</th><th style="text-align:right">n</th><th style="text-align:right">ROI</th><th style="text-align:right">Win rate</th><th style="text-align:right">CLV mean (pp)</th><th style="text-align:right">CLV &gt;0</th></tr></thead>
+<tbody>
+<tr><td>KING <code>passes_floor</code></td><td style="text-align:right">74</td><td style="text-align:right">−0.0155</td><td style="text-align:right">0.486</td><td style="text-align:right">+0.0159</td><td style="text-align:right">0.586</td></tr>
+<tr><td>Random-prob (matched n/floor)</td><td style="text-align:right">74</td><td style="text-align:right">−0.0917</td><td style="text-align:right">0.459</td><td style="text-align:right">+0.0108</td><td style="text-align:right">0.464</td></tr>
+<tr><td>Naive-prior (matched n/floor)</td><td style="text-align:right">74</td><td style="text-align:right">−0.0562</td><td style="text-align:right">0.473</td><td style="text-align:right">+0.0112</td><td style="text-align:right">0.474</td></tr>
+<tr><td>Shuffle-edge on KING set</td><td style="text-align:right">56</td><td style="text-align:right">−0.0256</td><td style="text-align:right">0.482</td><td style="text-align:right">+0.0203</td><td style="text-align:right">0.600</td></tr>
+</tbody></table>
+<p>Report: <code>docs/reference/reports/ssac27_null_decision_lane_2026-09-01.md</code>. Null references only — <strong>no decision-layer edge claim</strong>.</p>
 <h3>8.3 Slippage sensitivity (fixed 26-bet policy-search set)</h3>
 <p>To test execution fragility, adverse fill haircuts were applied to the same 26-bet audited set (no re-selection of bets).</p>
 <table>
@@ -676,7 +727,7 @@ To calibrate floor behavior on a broader operations sample, settled positive-sta
 </blockquote>
 <p>Interpretation: higher floors still cut volume; ROI is not strictly monotone in floor (the <code>0.14</code> bucket dips vs <code>0.12</code>/<code>0.16</code> in this window). The active <code>0.12</code> deployment floor remains the current balance point between throughput and edge quality.</p>
 <p>Working hypothesis for edge persistence: strikeout-prop markets are thinner and adjust less uniformly than major side/total markets, so leakage-safe pitcher-form and lineup-context features can remain underpriced at some times of day. This is a practical market-microstructure hypothesis, not a proof of persistent inefficiency.</p>
-<p><strong>Figure 3.</strong> Cumulative PnL overlay for the deployed champion (<code>top3</code>) and open-top transfer profile (<code>top1</code>) at floor <code>0.12</code>, shown in <code>50 USD</code> units. The overlay highlights the breadth-versus-robustness tradeoff described in this section.</p>
+<p><strong>Figure 3.</strong> Cumulative PnL overlay for <code>top3</code> vs <code>top1</code> at floor <code>0.12</code> (<code>1u = 50 USD</code>). <strong>Lane:</strong> Aug-21 transfer picks / policy-search window (not post-freeze OOS). <strong>n:</strong> top3 = 26, top1 = 27. <strong>Date span:</strong> <code>2026-07-30</code>–<code>2026-08-17</code>. <strong>Generator:</strong> <code>docs/paper/make_figures.py</code> → <code>fig_equity_top3_vs_top1()</code> from the pinned picks CSV. Lineage: <code>docs/reference/reports/ssac27_honesty_slippage_lineage_2026-09-01.md</code>.</p>
 <p><img alt="Equity curve overlay" src="figures/equity_curve_top3_vs_top1_aug21.png" /></p>
 <hr />
 <h3>8.6 Interpretability and model-driver evidence (artifact-backed)</h3>

@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: mlb-props-fast-tests
+        name: MLB-Props fast integrity tests
+        entry: python -m pytest -q tests/test_odds_ledger.py tests/test_real_bets.py tests/test_registries.py
+        language: system
+        pass_filenames: false
+        always_run: true

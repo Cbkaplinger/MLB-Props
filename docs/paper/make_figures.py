@@ -286,12 +286,54 @@ def fig4_calibration() -> None:
     plt.close(fig)
 
 
+def fig_equity_top3_vs_top1() -> None:
+    """Regenerate Fig 3 equity overlay from the pinned Aug-21 picks artifact."""
+    picks_path = (
+        Path(__file__).resolve().parents[2]
+        / "artifacts"
+        / "odds_log"
+        / "open_top3_transfer_bestfloor_picks_aug21_deduped_top3_from_dedupedsweep.csv"
+    )
+    if not picks_path.exists():
+        print(f"skip equity curve — missing {picks_path}")
+        return
+
+    picks = pl.read_csv(picks_path)
+    fig, ax = plt.subplots(figsize=(8.5, 4.2))
+    for cfg, color, label in (
+        ("top3", GREEN, "top3 @ floor 0.12 (n=26 policy-search)"),
+        ("top1", BLUE, "top1 @ floor 0.12"),
+    ):
+        sub = (
+            picks.filter((pl.col("config") == cfg) & (pl.col("best_floor") == 0.12))
+            .sort("game_date_d")
+            .with_columns((pl.col("stake") * pl.col("rpd") / 50.0).alias("pnl_u"))
+        )
+        if sub.is_empty():
+            continue
+        x = sub["game_date_d"].to_list()
+        y = np.cumsum(sub["pnl_u"].to_numpy())
+        ax.plot(x, y, color=color, linewidth=2.0, label=f"{label} (end={y[-1]:+.2f}u)")
+
+    ax.axhline(0.0, color="#888888", linewidth=0.8, linestyle="--")
+    ax.set_title("Equity overlay — top3 vs top1 (Aug-21 transfer picks)")
+    ax.set_xlabel("Game date")
+    ax.set_ylabel("Cumulative PnL (u, 1u=50 USD)")
+    ax.tick_params(axis="x", rotation=45)
+    ax.grid(True, linestyle=":", linewidth=0.7, color="#bbbbbb")
+    ax.legend(frameon=False, fontsize=8, loc="upper left")
+    fig.tight_layout()
+    fig.savefig(OUT / "equity_curve_top3_vs_top1_aug21.png")
+    plt.close(fig)
+
+
 def main() -> None:
     fig1_pipeline()
     # fig2_model_comparison() REMOVED 2026-08-27: stale 248-feature figure,
     # not referenced by the manuscript, contradicted sparse-lane body numbers.
     fig3_ablation()
     fig4_calibration()
+    fig_equity_top3_vs_top1()
     print(f"Wrote figures to {OUT}")
 
 

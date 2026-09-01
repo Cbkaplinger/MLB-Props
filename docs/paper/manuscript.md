@@ -199,6 +199,17 @@ Table 2a is a challenger-screen table for single-model error behavior on shared 
 | 4 | lightgbm | `production_sparse72` | 0.07707 |
 | 5 | histgbr | `production_sparse72` | 0.07721 |
 
+**Table 2b.** Chronological game-level naive baselines (Marcel lane; **not** the Table 2a outer-fold protocol).
+
+| Baseline | Test `k_rate` MAE | n | Notes |
+| --- | ---: | ---: | --- |
+| Marcel (3/2/1 + EB regress, no age) | 0.08257 | 1413 | `marcel_baseline.py` |
+| Prior-season only | 0.08301 | 1413 | same split |
+| Train-mean | 0.08538 | 1413 | same split |
+| Frozen LightGBM (registry freeze ref.) | ≈0.0787 | — | same test start; not re-fit here |
+
+Delta over Marcel for the freeze reference: ≈ **−0.0039** absolute MAE. Sparse72 ridge **0.07668** (Table 2a) cannot be subtracted from Marcel without fold-aligned preds — different evaluation contract. Source: `docs/reference/reports/ssac27_naive_mae_baseline_2026-09-01.md`.
+
 The current ensemble-sweep ranking artifact does **not** include `k_rate` MAE
 columns; it is ranked on decision metrics (ROI/risk/market-skill). Therefore,
 ensemble `k_rate` MAE is reported as **not available in that artifact lane**.
@@ -348,16 +359,18 @@ Multiple-testing-aware Sharpe diagnostics (Bailey/López de Prado style):
 
 Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance.
 
-> **DSR provenance (2026-08-27).** `PSR`, `DSR`, `sigma_sr`, `sr_star`, the `N=5161`
-> trial count, and the §8.4 power targets all come from
+> **DSR provenance (updated 2026-09-01).** `PSR`, `DSR`, `sigma_sr`, `sr_star`, the
+> `N=5161` trial count, and the §8.4 power targets come from
 > `artifacts/odds_log/quant_honesty_aug21_summary.json` (`n_trials=5161`;
-> `sr_star=0.8544`). The method is Bailey & López de Prado (2014), *The Deflated Sharpe
-> Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality*, JPM.
-> **Status:** the artifact records that 5161 configurations were tried (feature-set ×
-> model-family × hyperparameter draws across the search that produced the frozen
-> champion), but it does not yet store a per-family breakdown of that 5161. That
-> breakdown is tracked as SSAC27 item 5 in `docs/EXECUTION_BACKLOG.md` so the
-> deflation is fully auditable before submission; the 5161 figure itself is pinned.
+> `sr_star=0.8544`). Method: Bailey & López de Prado (2014), *The Deflated Sharpe
+> Ratio*, JPM [12]. **What 5161 is:** eligible **blend × edge-floor** configurations from
+> the Aug-21 deduped ensemble sweep — 3 feature-set lanes on a weight-0.05 simplex
+> (231 blends) × floors `0.005…0.12` step `0.005` (24) = 5544 grid rows, minus 383 with
+> `n_bets < 25` → **5161** (`ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv`;
+> metadata `ensemble_sweep_ensemble_full_aug21_deduped.json`; producer
+> `production/ops/run_model_ensemble_sweep.py`). **What it is not:** Optuna HP trials or
+> model-family architecture search. Full write-up:
+> `docs/reference/reports/ssac27_n5161_enumeration_2026-09-01.md`.
 
 ### 8.2.1 Post-freeze KING-floor lane (honest OOS replacement, through 2026-08-31)
 
@@ -370,6 +383,19 @@ After the FAIL freeze audit, the only epistemically valid money lane is **post-f
 | · unders only | 29 | +0.2933 | 0.655 | +0.0351 | 0.500 (10) | same |
 
 Source: `docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md`. Interpretation: sample size is improved vs the demoted n=26 search lane but still below DSR power targets; aggregate ROI is slightly negative; side asymmetry is first-order. **Do not treat this table as a claimed edge.**
+
+### 8.2.2 Null / placebo decision lanes (post-freeze)
+
+Matched nulls vs the locked KING floor (`0.12`) on post-freeze settled opportunities (`game_date > 2026-08-21`), produced by `production/ops/run_null_decision_lane.py`:
+
+| Lane | n | ROI | Win rate | CLV mean (pp) | CLV &gt;0 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| KING `passes_floor` | 74 | −0.0155 | 0.486 | +0.0159 | 0.586 |
+| Random-prob (matched n/floor) | 74 | −0.0917 | 0.459 | +0.0108 | 0.464 |
+| Naive-prior (matched n/floor) | 74 | −0.0562 | 0.473 | +0.0112 | 0.474 |
+| Shuffle-edge on KING set | 56 | −0.0256 | 0.482 | +0.0203 | 0.600 |
+
+Report: `docs/reference/reports/ssac27_null_decision_lane_2026-09-01.md`. Random/naive may impute stake on non-bet ledger candidates and are **null references**, not production policies. KING is less red than the matched nulls and posts a higher beat-close share than random/naive, but absolute ROI remains negative and margins are not DSR-grade — consistent with the demoted n=26 / weak DSR posture. **No decision-layer edge claim.**
 
 ### 8.3 Slippage sensitivity (fixed 26-bet policy-search set)
 
@@ -484,7 +510,7 @@ Interpretation: higher floors still cut volume; ROI is not strictly monotone in 
 
 Working hypothesis for edge persistence: strikeout-prop markets are thinner and adjust less uniformly than major side/total markets, so leakage-safe pitcher-form and lineup-context features can remain underpriced at some times of day. This is a practical market-microstructure hypothesis, not a proof of persistent inefficiency.
 
-**Figure 3.** Cumulative PnL overlay for the deployed champion (`top3`) and open-top transfer profile (`top1`) at floor `0.12`, shown in `50 USD` units. The overlay highlights the breadth-versus-robustness tradeoff described in this section.
+**Figure 3.** Cumulative PnL overlay for `top3` vs `top1` at floor `0.12` (`1u = 50 USD`). **Lane:** Aug-21 transfer picks / policy-search window (not post-freeze OOS). **n:** top3 = 26, top1 = 27. **Date span:** `2026-07-30`–`2026-08-17` on the pinned picks CSV. **Generator:** `docs/paper/make_figures.py` → `fig_equity_top3_vs_top1()` from `artifacts/odds_log/open_top3_transfer_bestfloor_picks_aug21_deduped_top3_from_dedupedsweep.csv` (`pnl_u = stake × rpd / 50`). Bootstrap CIs for the top3 lane’s ROI/Sharpe are in `quant_honesty_aug21_summary.json` (§8.2); the figure itself is a path overlay, not a CI ribbon. Headline Sharpe/DD/Calmar for this lane follow the authoritative replay JSON (0.4438 / 0.1905 / 2.2903); honesty/slippage artifacts retain pre-correction baseline Sharpe 0.4352 by intentional freeze — see `docs/reference/reports/ssac27_honesty_slippage_lineage_2026-09-01.md`.
 
 ![Equity curve overlay](figures/equity_curve_top3_vs_top1_aug21.png)
 

@@ -33,7 +33,7 @@ research = [
     "statsmodels",
     "streamlit",
 ]
-dev = ["pytest"]
+dev = ["pytest", "pre-commit"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
