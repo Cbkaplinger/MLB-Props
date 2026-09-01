@@ -188,7 +188,7 @@ Evidence anchors: `docs/reference/reports/postfreeze_king_profile_metrics_2026-0
 
 12. **[WAITING ON USER] Item 6 backfill** — still needs your decision-time `bet_price`/`stake`/`pnl` for the 8 confirmed tickets (Valdez, Suarez, Messick, Skenes, Melton, G.Rodriguez, Cantillo, Sasaki) plus the 9th ticket's identity, to complete the real-bet ledger write.
 
-13. **[APPROVED — DEFERRED] Local MLflow Tracking (thin v1).** Useful when actively iterating Strikeout/TBF train or Optuna — **not** on the critical path after the SSAC audit wave. See Session Snapshot → “MLflow — what it actually helps.” Resume when you ask or when train iteration restarts; do not jump here to avoid thinking through null-lane / post-freeze ops / MAE-lane issues.
+13. **[APPROVED — DEFERRED] Local MLflow Tracking (thin v1).** **Not built.** Useful only when actively iterating Strikeout/TBF train or Optuna (run compare). **Wrong tool for ops/ROI cycles** (veto, settle pack, real_bets, CLV). Standing rule: do not propose Item 13 as next work while FORWARD is ops-focused. Resume when you ask or train iteration restarts.
 
 14. **[DONE research 2026-09-01 — promote gated] Granular open calibration challenger (ROI path).** Fit line / line-bucket (and optional side-aware apply) isotonic/Platt on **open 2025–2026** with chrono-safe holdout; score **post-freeze** as pure OOS on skill vs market + shadow KING ROI. Do not refit on post-freeze tickets. Do not edit live calibrator / KING without sign-off. Script: production/ops/fit_granular_open_calibration.py.
 
@@ -235,8 +235,10 @@ Evidence anchors: `docs/reference/reports/postfreeze_king_profile_metrics_2026-0
 - Every real-money conclusion requires ≥50 real tickets before being treated as evidence of edge. The current 9-ticket, +24.1% ROI record is now fully auditable (6W–3L, all outcomes confirmed) — a good start, not proof; don't let it drive stake-sizing yet.
 - Verify settlement-rule parity (prediction-market vs. sportsbook K definitions, extra innings, early exits) before trusting any grading as final.
 - Personal accounts/API keys only — never company-owned tooling for any of this.
-- Do not touch `KING_PROFILE_AUG2026`, floors, staking, or the champion file without explicit sign-off after evidence is reviewed.
+- Do not touch `KING_PROFILE_AUG2026`, floors, staking, or the champion file without explicit sign-off after evidence is reviewed. *(Exception already signed 2026-09-01: live `over@4.5` hard veto + soft probation 2.5/3.5 via `kpi_policy` / `odds_board` — see live promotion report.)*
 - A pre-registered sample-size gate that is *exactly* met (not comfortably exceeded) should be treated as "not yet conclusive" — do not size up or treat as validated edge until the sample comfortably clears the threshold with margin.
+- **Ops cycle ≠ train cycle.** While FORWARD is ops/ROI (veto, weekly settle pack, real_bets, CLV), do **not** propose MLflow, Optuna sweeps, or “log trains somewhere” as the next step. Item 13 MLflow stays APPROVED but DEFERRED until the user resumes Strikeout/TBF train or Optuna — it compares training runs; it does not fix line/side selection or live ROI.
+- Do not reopen deferred items (MLflow, live calib, monotone swap, hard-veto all ≤3.5 overs, asym-floor live) from a single green week or thin bootstrap — only via FORWARD reopen criteria or explicit user ask.
 
 ## SSAC27 Track — Manuscript Critical Review (added 2026-08-27)
 
