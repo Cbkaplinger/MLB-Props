@@ -210,3 +210,23 @@ def test_dedupe_ledger_props_keeps_best_book_per_side() -> None:
     over_rows = ded.filter(pl.col("side") == "over")
     assert over_rows.height == 1
     assert float(over_rows["edge"][0]) == max(float(dk_over["edge"]), float(fd_over["edge"]))
+def test_dedupe_ledger_props_pnl_not_double_counted() -> None:
+    # Regression guard for item-11 follow-up: status/KPI total_pnl must be summed
+    # over ONE row per prop (canonical dedupe) so a DK+FD pair on the same prop is
+    # not double-counted. This is the class of bug that produced $+1041.04 on a raw
+    # ledger vs the honest deduped $+84.51.
+    dk = _row(book="draftkings", over_price=-120, under_price=104, p_model_over=0.62)
+    fd = _row(book="fanduel", over_price=-130, under_price=100, p_model_over=0.62)
+    raw = pl.DataFrame([dk, fd]).with_columns(
+        pl.lit("settled").alias("status"),
+        pl.lit(50.0).alias("stake"),
+        pl.lit(45.0).alias("pnl"),
+    )
+    # Same prop, same side -> dedupe collapses to one row (best-edge book).
+    ded = dedupe_ledger_props(raw)
+    assert ded.height == 1
+    assert abs(float(raw["pnl"].sum()) - 90.0) < 1e-9  # double-counted raw sum
+    assert abs(float(ded["pnl"].sum()) - 45.0) < 1e-9  # honest, one row per prop
+    assert float(ded["pnl"].sum()) != float(raw["pnl"].sum())
+
+

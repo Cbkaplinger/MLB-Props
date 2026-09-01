@@ -42,7 +42,7 @@ from Python.training import (
 OPEN_CSV = ROOT / "data" / "Odds-Open-Close-2025-2026" / "pitcher_strikeouts_early_open_2025_2026.csv"
 PITCHER_GAMES = ROOT / "data" / "processed" / "pitcher_games.parquet"
 LEDGER = ROOT / "artifacts" / "odds_log" / "ledger.parquet"
-ENSEMBLE_RANKED = ROOT / "artifacts" / "odds_log" / "ensemble_sweep_ranked_ensemble_full_aug21.csv"
+ENSEMBLE_RANKED = ROOT / "artifacts" / "odds_log" / "ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv"
 OUT_DIR = ROOT / "artifacts" / "odds_log"
 
 

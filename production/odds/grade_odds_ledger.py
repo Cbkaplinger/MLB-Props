@@ -303,6 +303,8 @@ def main() -> None:
                     print(line)
             settled = settled_bets(ledger)
             if settled.height:
+                # One row per prop (no DK+FD double count) so status PnL is honest.
+                settled = dedupe_ledger_props(settled)
                 pnl = float(settled["pnl"].sum())
                 print(f"settled={settled.height}  total_pnl=${pnl:+.2f}")
                 clvs = [c for c in settled["clv_pp"].to_list() if c is not None]
@@ -392,7 +394,8 @@ def main() -> None:
             return
         print(curve)
         settled = settled_bets(ledger)
-        print(f"n_settled={settled.height}  (exploratory until n>=100 + time-split freeze)")
+        n_settled = int(dedupe_ledger_props(settled).height) if not settled.is_empty() else 0
+        print(f"n_settled={n_settled}  (exploratory until n>=100 + time-split freeze)")
 
 
 if __name__ == "__main__":

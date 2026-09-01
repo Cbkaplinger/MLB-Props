@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 SUMMARY_JSON = ODDS_DIR / "daily_operator_summary.json"
 SUMMARY_CSV = ODDS_DIR / "daily_operator_summary_latest.csv"
@@ -43,6 +47,8 @@ def _ledger_snapshot() -> dict[str, object]:
     ).with_columns(pl.col("game_date").cast(pl.Utf8).str.slice(0, 10).alias("gdate"))
     if settled.is_empty():
         return {}
+    # One row per prop (no DK+FD double count) so daily ROI/PnL are honest.
+    settled = dedupe_ledger_props(settled)
     latest_date = settled.select(pl.col("gdate").max()).item()
     latest_day = settled.filter(pl.col("gdate") == latest_date)
     over = latest_day.filter(pl.col("side") == "over")

@@ -13,12 +13,16 @@ Outputs:
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 
 LEDGER_PATH = ODDS_DIR / "ledger.parquet"
@@ -309,7 +313,7 @@ def main() -> None:
         return
 
     ledger = pl.read_parquet(LEDGER_PATH)
-    settled = (
+    settled_raw = (
         ledger.with_columns(
             pl.col("game_date").cast(pl.Utf8).str.slice(0, 10).alias("game_date"),
             pl.col("edge").cast(pl.Float64),
@@ -324,9 +328,13 @@ def main() -> None:
             & (pl.col("game_date") >= "2026-07-31")
         )
     )
+    # One row per prop (no DK+FD double count) for floor/monthly/decile ROI stats.
+    settled = dedupe_ledger_props(settled_raw) if not settled_raw.is_empty() else settled_raw
 
     floor_tbl = _compute_floor_table(settled)
-    slip_tbl = _compute_slippage_segments(settled)
+    # Slippage is segmented BY BOOK — keeping raw-by-book rows is intentional, so
+    # it uses the raw frame (not the deduped prop view).
+    slip_tbl = _compute_slippage_segments(settled_raw)
     month_tbl = _compute_monthly_regime(settled)
     edge_tbl = _compute_edge_deciles(settled)
     reco = pl.read_parquet(RECO_PATH) if RECO_PATH.exists() else pl.DataFrame()

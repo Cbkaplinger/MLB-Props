@@ -19,6 +19,7 @@ from Python import config
 from Python.count_layer import expected_strikeouts, fit_count_layer_kappa, p_strikeouts_ge
 from Python.features import TARGET
 from Python.market import bootstrap_mean_ci, devig_two_way
+from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
 from Python.registries import resolve_feature_names
 from Python.tbf import TBF_DEFAULT_FEATURE_SET, TBF_TARGET, tbf_feature_names
 from Python.training import (
@@ -137,13 +138,15 @@ def _load_settled_ledger() -> pl.DataFrame:
     if not LEDGER_PATH.exists():
         raise FileNotFoundError(f"Missing {LEDGER_PATH}")
     led = pl.read_parquet(LEDGER_PATH)
-    return led.filter(
+    settled = led.filter(
         (pl.col("status") == "settled")
         & pl.col("line").is_not_null()
         & pl.col("side").is_not_null()
         & pl.col("bet_price").is_not_null()
         & (pl.col("stake").cast(pl.Float64).fill_null(0.0) > 0)
     )
+    # One row per prop (no DK+FD double count) so sweep stats are honest.
+    return dedupe_ledger_props(settled) if not settled.is_empty() else settled
 
 
 def _fit_models(train: pd.DataFrame, k_features: list[str], tbf_features: list[str]):

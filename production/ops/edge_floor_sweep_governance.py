@@ -29,6 +29,7 @@ from Python import config
 from Python.count_layer import fit_count_layer_kappa, p_strikeouts_ge
 from Python.features import TARGET
 from Python.market import devig_two_way
+from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
 from Python.registries import resolve_feature_names
 from Python.tbf import TBF_DEFAULT_FEATURE_SET, TBF_TARGET, tbf_feature_names
 from Python.training import (
@@ -71,13 +72,15 @@ def _feature_constraints(features: list[str]) -> list[int]:
 
 def _load_settled_ledger() -> pl.DataFrame:
     led = pl.read_parquet(LEDGER_PATH)
-    return led.filter(
+    settled = led.filter(
         (pl.col("status") == "settled")
         & pl.col("line").is_not_null()
         & pl.col("side").is_not_null()
         & pl.col("bet_price").is_not_null()
         & (pl.col("stake").cast(pl.Float64).fill_null(0.0) > 0)
     )
+    # One row per prop (no DK+FD double count) so sweep ROI/quant stats are honest.
+    return dedupe_ledger_props(settled) if not settled.is_empty() else settled
 
 
 def _apply_recent_window(settled: pl.DataFrame, recent_n: int | None) -> pl.DataFrame:
