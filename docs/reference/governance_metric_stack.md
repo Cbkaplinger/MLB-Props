@@ -52,20 +52,15 @@ Open-snapshot counterfactual checkpoint (all snapshots, no dedupe):
 
 ### 1/16 Kelly Operating Translation (Unit = $50)
 
-For the current ensemble winner replay slice:
+The open-snapshot counterfactual artifact (`open_snapshot_counterfactual_aug21_full_universe_sparse72.json`) reports ROI and risk metrics **without encoding a fixed per-bet flat stake**, so a $/unit translation depends on an explicit flat-stake assumption. Using a flat `1.00u = $50` per graded bet (no Kelly fraction, for transparency) over the `n_bets=538` winner lane:
 
-- total stake: `$10,613.55` (`212.27u`)
-- total profit: `$8,619.27` (`172.39u`)
-- average stake/bet: `1.98u` (`~$99`)
-- average profit/bet: `1.61u` (`~$81`)
+- total stake: `538u` (`$26,900`)
+- total profit: `61.22u` (`$3,061`) — from `roi=0.1138 × 538u`
+- realized Sharpe / Sortino: `0.1041` / `0.1138`; max drawdown `57.4%` (this broad unselected-universe lane is high-variance and is *not* the governed deployment profile; see the audited 26-bet lane in the paper, Section 8).
 
-If bankroll is `$2,000` (`40u`), replay-equivalent bankroll path is:
+If instead you anchor on the audited 26-bet deployment lane (Section 8), the artifact-backed values are `pnl=1208.55` (`$24.17u`), `roi=0.4363`, `stake=2770.08` (`$55.40u`).
 
-- starting bankroll: `40u` (`$2,000`)
-- ending bankroll: `212.39u` (`$10,619`)
-- net: `+172.39u` (`+$8,619`)
-
-This assumes replay turnover/stake cadence is comparable; realized live path can differ.
+> **Freshness note (2026-08-27):** the quoted open-snapshot counterfactual was computed *pre-dedupe* on the full snapshot universe (line 46). The `n_bets=538` / `roi=0.1138` point values reproduce from that frozen artifact, but they are an exploratory universe-wide lane, not the deduped settled ledger. Earlier revisions of this section printed a non-reconciling `+$8,619.27` / `172.39u` profit that was inconsistent with the very `roi=0.1138` cited above; that figure has been removed.
 
 ## 1) Forecast Quality (Probability + Calibration)
 

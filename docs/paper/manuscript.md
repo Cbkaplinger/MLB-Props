@@ -17,9 +17,11 @@ Independent Researcher
 
 This paper presents a leakage-safe **pregame** machine learning pipeline for starting-pitcher strikeout projection from Baseball Savant (Statcast) pitch-level data. The core target is game-level strikeout rate `k_rate = K / PA` for starters who face at least nine batters, using only pregame features. A Polars-first three-level pipeline builds game aggregates, lagged rolling form, and a model-ready training frame under strict chronological validation.
 
-The active production lane uses a **two-model LightGBM blend** across frozen feature sets (`production_sparse72_monotone`, `production_final58_consensus`) with weights `0.60 / 0.40`, plus a Ridge projected-TBF companion [2]. Count projections follow `E[K] = k_rate_hat × TBF_hat`, then convert to line probabilities via binomial/Poisson on projected exposure only [3, 4]. Governance is run through deduped replay + transfer calibration, where the active deployment profile reports ROI `0.4363`, PnL `+24.17u` (`1u = 50 USD`), Sharpe `0.4352`, Sortino `0.4277`, and positive market-skill deltas (`+0.2069` Brier, `+0.1551` LogLoss) on artifact-backed evaluation.
+The active production lane uses a **two-model LightGBM blend** across frozen feature sets (`production_sparse72_monotone`, `production_final58_consensus`) with weights `0.60 / 0.40`, plus a Ridge projected-TBF companion [2]. Count projections follow `E[K] = k_rate_hat × TBF_hat`, then convert to line probabilities via binomial/Poisson on projected exposure only [3, 4].
 
-Trial-adjusted significance testing reports a Deflated Sharpe Ratio (DSR) of `0.0349`, indicating that the current 26-bet audited sample is still underpowered for a strong post-selection edge claim.
+**Statistical caution is the headline.** Trial-adjusted significance testing with the Bailey–López de Prado Deflated Sharpe Ratio [12] yields `DSR = 0.0349` on the audited `n=26` manual lane, with `PSR = 0.9701` against a zero-Sharpe benchmark. At the observed sample size and `N=5161` configuration search breadth, the raw Sharpe is positive but *not* evidence of a durable post-selection edge: the DSR power plan indicates roughly `n≈98` graded bets are needed to reach `DSR > 0.5` and `n≈147` for `DSR > 0.8`. We report performance transparently precisely because it is underpowered; no persistent betting-edge claim is made on the current sample.
+
+On the same audited lane the deployable profile shows ROI `0.4363` (95% CI `[0.034, 0.807]`), Sharpe `0.4438` (95% CI `[0.043, 1.000]`), PnL `+24.17u` (95% CI `[+1.85u, +45.45u]`), and positive market-skill deltas (`+0.2069` Brier, `+0.1551` LogLoss) on artifact-backed evaluation. These are reported as **governed operational evidence pending (a) a policy-freeze audit and (b) a placebo/null decision-lane control** — not as a claimed statistical edge (see §8.2, §8.4).
 
 The main contribution is an end-to-end quant workflow that links leakage-safe modeling, chronological evaluation, and governed decision operations in a reproducible system.
 
@@ -50,6 +52,8 @@ The modeling claim is simple and compositional. A leakage-safe estimate of strik
 **Chronological evaluation and leakage control.** When targets are ordered in time, randomly reshuffled cross-validation overstates accuracy by allowing future information into training folds [11]. Forecasting practice therefore prefers expanding or rolling windows and features that are known at the forecast origin. This paper treats those constraints as hard engineering rules (shifted rolling windows, prior-season park factors, date-disjoint partitions) and verifies them with tests and audits rather than as an after-the-fact caveat.
 
 **Count models for rate × exposure.** Once a mean rate and an exposure (here, projected batters faced) are specified, Poisson or binomial probabilities are standard for count outcomes [3, 4]. Line probabilities use those trials on *projected* exposure only. A beta-binomial dispersion check collapses to the binomial limit under the frozen mean, consistent with a well-specified mean model absorbing extra-binomial variance [4].
+
+**Governed decisioning and performance evaluation.** Reporting strategies built on small, post-selection samples are vulnerable to overstatement. The Bailey–López de Prado performance-evaluation framework—Deflated and Probabilistic Sharpe Ratios with trial-count adjustment—provides a principled way to deflate observed risk-adjusted returns for the number of configurations searched [12]. This manuscript adopts that framework (§8.2–§8.4) and complements it with market-relative skill diagnostics (Brier/LogLoss skill vs market) and closing-line-value (CLV) as decision-level evidence, consistent with practice standards that separate model accuracy from market edge.
 
 ---
 
@@ -294,15 +298,17 @@ Component metrics are necessary but incomplete. Once rate and TBF are frozen, th
 | Evaluation gate | Result |
 | --- | --- |
 | Active deployment blend | `0.60 sparse72_monotone / 0.40 final58` |
-| Decision-lane ROI | `0.4363` |
-| Decision-lane PnL | `+24.17u` (`1u = 50 USD`) |
-| Decision-lane Sharpe | `0.4352` |
-| Decision-lane Sortino | `0.4277` |
-| Decision-lane Calmar | `1.1841` |
-| Decision-lane max drawdown | `0.3685` |
+| Decision-lane ROI | `0.4363` (95% CI `[0.0337, 0.8072]`) |
+| Decision-lane PnL | `+24.17u` (`1u = 50 USD`) (95% CI `[+1.85u, +45.45u]`) |
+| Decision-lane Sharpe | `0.4438` (95% CI `[0.0431, 0.9997]`) |
+| Decision-lane Sortino | `0.4277` (95% CI `[0.0459, 0.7866]`) |
+| Decision-lane Calmar | `2.2903` |
+| Decision-lane max drawdown | `0.1905` |
 | Market-skill deltas | `+0.2069` Brier skill vs market, `+0.1551` LogLoss skill vs market |
-| Probability quality (active profile) | Brier `0.2090`, LogLoss `0.6087`, ECE `0.0639`, MCE `0.1353` |
+| Probability quality (active profile) | Brier `0.2090`, LogLoss `0.6087`, ECE `0.0639`, MCE `0.1353` — *deployed 26-bet audited manual lane, post-isotonic-transfer, `n=26`* |
 | Execution controls | Board-to-ledger parity lock, quality gates, policy profile freeze `KING_PROFILE_AUG2026` |
+
+*Bootstrap 95% CIs (10,000 resamples) on the decision metrics are the pinned values in `artifacts/odds_log/quant_honesty_aug21_summary.json`; full intervals including the date-block bootstrap are reported in §8.2. Calmar has no interval in that artifact and is shown as a point estimate.*
 
 Calibration is summarized by expected calibration and scoring diagnostics [5, 6]. The active deployment profile reports ECE `0.0639`, MCE `0.1353`, and positive market-skill deltas versus market baseline, which is the paper's direct "ensemble versus books" evidence.
 
@@ -318,10 +324,12 @@ Each lane answers a different question; winners are not interchangeable across l
 
 The active audited manual lane contains `n=26` graded recommendations (`top3`, floor `0.12`). Because this sample is small, uncertainty and selection effects are reported explicitly.
 
+Point estimates below are the authoritative values from the replay artifact `artifacts/odds_log/open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`; the 95% CI bounds below are the pinned values in `artifacts/odds_log/quant_honesty_aug21_summary.json` (bootstrap `bootstrap_iid_ci` and `bootstrap_block_by_date_ci`) and are shown for transparency. Note that the *point estimates* in Table 3 / §8.2 are taken from the replay artifact, while `quant_honesty_aug21_summary.json` still carries the pre-correction Sharpe/max-DD/Calmar values for the same lane; the CI bounds themselves are carried by that artifact. All corrected point estimates sit within their stated intervals.
+
 Bootstrap percentile intervals (10,000 resamples):
 
 - ROI `0.4363` with 95% CI `[0.0337, 0.8072]`
-- Sharpe `0.4352` with 95% CI `[0.0431, 0.9997]`
+- Sharpe `0.4438` with 95% CI `[0.0431, 0.9997]`
 - Sortino `0.4277` with 95% CI `[0.0459, 0.7866]`
 - PnL `+24.17u` (`1u = 50 USD`) with 95% CI `[+1.85u, +45.45u]`
 
@@ -338,6 +346,17 @@ Multiple-testing-aware Sharpe diagnostics (Bailey/López de Prado style):
 
 Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance.
 
+> **DSR provenance (2026-08-27).** `PSR`, `DSR`, `sigma_sr`, `sr_star`, the `N=5161`
+> trial count, and the §8.4 power targets all come from
+> `artifacts/odds_log/quant_honesty_aug21_summary.json` (`n_trials=5161`;
+> `sr_star=0.8544`). The method is Bailey & López de Prado (2014), *The Deflated Sharpe
+> Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality*, JPM.
+> **Status:** the artifact records that 5161 configurations were tried (feature-set ×
+> model-family × hyperparameter draws across the search that produced the frozen
+> champion), but it does not yet store a per-family breakdown of that 5161. That
+> breakdown is tracked as SSAC27 item 5 in `docs/EXECUTION_BACKLOG.md` so the
+> deflation is fully auditable before submission; the 5161 figure itself is pinned.
+
 ### 8.3 Slippage sensitivity (fixed 26-bet set)
 
 To test execution fragility, adverse fill haircuts were applied to the same 26-bet audited set (no re-selection of bets).
@@ -345,11 +364,24 @@ To test execution fragility, adverse fill haircuts were applied to the same 26-b
 | Probability haircut (pp) | ROI | PnL (u, `1u=50 USD`) | Sharpe | Sortino |
 | ---: | ---: | ---: | ---: | ---: |
 | 0.0 | 0.4363 | 24.17 | 0.4352 | 0.4277 |
-| 0.5 | 0.4313 | 23.89 | 0.4387 | 0.4206 |
-| 1.0 | 0.4263 | 23.62 | 0.4336 | 0.4135 |
-| 2.0 | 0.4163 | 23.06 | 0.4234 | 0.3997 |
+| 0.5 | 0.4313 | 23.89 | 0.4301 | 0.4206 |
+| 1.0 | 0.4263 | 23.62 | 0.4250 | 0.4135 |
+| 2.0 | 0.4163 | 23.06 | 0.4148 | 0.3997 |
 
 The profile remains positive under this small haircut grid, but risk-adjusted metrics compress as expected.
+
+> **Source + freshness note (2026-08-27).** All five rows come verbatim from
+> `artifacts/odds_log/slippage_sensitivity_top3_floor12_aug21.csv`. A prior revision
+> of this table carried a Sharpe column extrapolated from the deployment profile's
+> `0.4438`; the authoritative slippage artifact instead reports a self-consistent
+> Sharpe series beginning at `0.4352`. That base-row value (`0.4352`) differs from the
+> deployment-profile Sharpe `0.4438` reported in Table 3 / §8.2 because the
+> `quant_honesty` and `slippage` artifacts were generated with the **pre-correction**
+> Sharpe/max-DD/Calmar point estimates, while the deployment-profile figure comes from
+> the re-audited `open_top3_transfer...replay` JSON. The adjudicated authoritative
+> deployment Sharpe is `0.4438`; the slippage series is the internally consistent
+> source for §8.3 and should be re-seeded/rebuilt alongside the quant-honesty artifact
+> when the deployment-profile point estimates are next refreshed.
 
 ### 8.4 Sample-size plan from DSR power targets
 
@@ -369,7 +401,19 @@ Metric-purpose rule used in this manuscript:
 - MAE/RMSE/R² claims come from chronological model-evaluation lanes (2023–2024 walk-forward/CV and 2025 holdout protocol).
 - Open 2025–2026 and manual replay lanes are used for market/decision metrics (Brier/LogLoss skill vs market, ROI, Sharpe, Sortino, drawdown, CLV), not MAE promotion claims.
 
-**Figure 2.** Reliability diagram for count-layer line probabilities. Points near the diagonal indicate well-calibrated bins; mean ECE ≈ 0.024 with no post-hoc recalibration.
+**Figure 2.** Reliability diagram for count-layer line probabilities. Points near the diagonal indicate well-calibrated bins. Mean ECE ≈ 0.024 with no post-hoc recalibration — **pre-deployment walk-forward 2024 diagnostic only** (`artifacts/model_quality/phase11c_calibration/`, `n=4607` rows across 3 chronological windows, `ece_mean=0.0243`, `ece_max=0.0403`; raw probabilities, no isotonic transfer applied).
+
+> **Lane clarification (ECE 0.024 vs 0.0639).** The two ECE values cited in this
+> manuscript are *not* comparable and must not be conflated:
+> - **ECE ≈ 0.024** (here and in Fig. 2) is the broad **pre-deployment walk-forward
+>   2024 diagnostic** across `n=4607` raw predictions / 3 windows — it is an internal
+>   calibration-quality check of the frozen stack, not a deployed-lane claim.
+> - **ECE 0.0639 / MCE 0.1353** (Table 3 / A.5) is the **deployed 26-bet audited manual
+>   lane** (`open_top3_transfer...replay` JSON), computed on only `n=26` graded bets on
+>   the *post-isotonic-transfer* integrated profile. Small-sample realization on a
+>   different, far smaller population — not evidence of a calibration regression.
+> Both numbers are artifact-backed; the apparent 2.6× gap is a population/lane artifact,
+> not a defect.
 
 These checks are confirmatory: they did not uncover large unused gains on the frozen stack’s internal metrics.
 
@@ -399,7 +443,7 @@ Failure-mode behavior in operations: if parity or quality gates fail, the promot
 - **Open-universe deduped sweep top profile:** `0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58`  
   ROI `0.6612`, Sharpe `0.9468`, Sortino `0.6954`, skill deltas `+0.0825` Brier / `+0.0645` LogLoss.
 - **Active deployment champion (deduped transfer lane):** `0.60 sparse72_monotone / 0.40 final58`  
-  ROI `0.4363`, PnL `+24.17u` (`1u = 50 USD`), Sharpe `0.4352`, Sortino `0.4277`, max drawdown `0.3685`, skill deltas `+0.2069` Brier / `+0.1551` LogLoss.
+  ROI `0.4363`, PnL `+24.17u` (`1u = 50 USD`), Sharpe `0.4438`, Sortino `0.4277`, max drawdown `0.1905`, skill deltas `+0.2069` Brier / `+0.1551` LogLoss.
 
 Interpretation note: this profile generated `26` recommendations in the audited manual lane, approximately one recommendation per slate day over the sampled period.
 
@@ -413,12 +457,14 @@ To calibrate floor behavior on a broader post-freeze operations sample, settled 
 
 | Policy | Bets (`n`) | ROI |
 | --- | ---: | ---: |
-| Single floor `0.08` | `307` | `0.0388` |
-| Single floor `0.10` | `285` | `0.0485` |
-| Single floor `0.12` | `265` | `0.0710` |
-| Single floor `0.14` | `209` | `0.0744` |
-| Single floor `0.16` | `159` | `0.0933` |
-| Dual floor (`over=0.10`, `under=0.08`) | `299` | `0.0421` |
+| Single floor `0.08` | `233` | `0.0396` |
+| Single floor `0.10` | `214` | `0.0562` |
+| Single floor `0.12` | `193` | `0.0918` |
+| Single floor `0.14` | `153` | `0.0395` |
+| Single floor `0.16` | `112` | `0.0864` |
+| Dual floor (`over=0.10`, `under=0.08`) | `225` | `0.0457` |
+
+> **Freshness note (2026-08-27).** The counts above are the *post-dedupe* operational bucketing of settled positive-stake rows from `2026-07-31` forward, drawn from the regenerable `artifacts/odds_log/runtime_floor_calibration.csv`. Earlier manuscript revisions reported inflated raw-row counts (`307/285/265/209/159/299`); the honest deduped ledger yields the smaller `n` above. Because these counts roll forward as the live ledger settles, this table is a point-in-time operational snapshot.
 
 Interpretation: tighter floors reduce volume and improve realized ROI in this window; the active `0.12` deployment floor remains the current balance point between throughput and edge quality.
 
@@ -448,6 +494,8 @@ Driver-level interpretation used for interviews and operational review:
 - **Deployment implication:** MAE rank and deployment rank diverge by design; governance winners are selected on market-skill and risk metrics, not MAE alone.
 
 ### 8.7 Start-level case narratives (audited 26-bet lane)
+
+The narrative cases in this section are **explicitly illustrative and anecdotal**: `n=3` individual starts are presented to convey decision behavior, not to support any statistical claim. No directional inference for the lane's edge should be drawn from them; the aggregate evidence is governed by §8.2–§8.4.
 
 The audited lane (`top3`, floor `0.12`) contains both high-edge confirmations and misses. The purpose of these examples is to show **decision behavior under uncertainty**, not to re-argue MAE.
 
@@ -601,13 +649,15 @@ Raw governance artifact filenames are maintained in the repository documentation
 | Stake | `55.40u` (`1u = 50 USD`) |
 | PnL | `+24.17u` (`1u = 50 USD`) |
 | ROI | `0.4363` |
-| Sharpe / Sortino / Calmar | `0.4352` / `0.4277` / `1.1841` |
-| Max drawdown | `0.3685` |
+| Sharpe / Sortino / Calmar | `0.4438` / `0.4277` / `2.2903` |
+| Max drawdown | `0.1905` |
 | CLV mean (pp) | `0.0252` |
 | Positive CLV share | `0.70` |
-| Brier / LogLoss | `0.2090` / `0.6087` |
-| ECE / MCE | `0.0639` / `0.1353` |
+| Brier / LogLoss | `0.2090` / `0.6087` — deployed 26-bet manual lane, post-isotonic-transfer, `n=26` |
+| ECE / MCE | `0.0639` / `0.1353` — deployed 26-bet manual lane, post-isotonic-transfer, `n=26` |
 | Market skill deltas | `+0.2069` Brier / `+0.1551` LogLoss |
+
+*Bootstrap 95% CIs: ROI `[0.0337, 0.8072]`, Sharpe `[0.0431, 0.9997]`, Sortino `[0.0459, 0.7866]`, PnL `[+1.85u, +45.45u]` (10,000-resample percentile, pinned in `quant_honesty_aug21_summary.json`; date-block variant in §8.2). Note: `quant_honesty_aug21_summary.json` still carries pre-correction Sharpe/DD/Calmar point estimates for this lane; they are superseded by the values above, which come from the deduped replay artifact named at the head of this table.*
 
 **Consistency note on ablation tables.**  
 `k_rate` MAE contender comparisons come from sparse-set ablation artifacts,
@@ -635,4 +685,5 @@ ranked on decision metrics, not `k_rate` MAE.
 9. Tango, T. M. Marcel the Monkey Forecasting System. Tangotiger / Hardball Times documentation of the minimal season projection baseline (weighted recent seasons, regression to the mean, age adjustment). URL: [https://www.tangotiger.net/marcel/](https://www.tangotiger.net/marcel/) (accessed 2026-07-28).
 10. Silver, N. Introducing PECOTA. In Huckabay, G., Kahrl, C., Pease, D., et al. (Eds.), *Baseball Prospectus 2003*. Brassey’s, 2003, pp. 507–514.
 11. Bergmeir, C., Hyndman, R. J., and Koo, B. A note on the validity of cross-validation for evaluating autoregressive time series prediction. *Computational Statistics & Data Analysis*, 120:70–83, 2018.
+12. Bailey, D. H., and López de Prado, M. The Deflated Sharpe Ratio: correcting for selection bias, backtest overfitting and non-normality. *The Journal of Portfolio Management*, 40(5):94–107, 2014.
 

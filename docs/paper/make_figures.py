@@ -133,66 +133,15 @@ def fig1_pipeline() -> None:
 
 
 def fig2_model_comparison() -> None:
-    models = ["Mean", "Ridge", "LightGBM"]
-    mae = [0.0854, 0.0788, 0.0783]
-    rmse = [0.1070, 0.0993, 0.0983]
-    x = np.arange(len(models))
-    width = 0.34
+    """REMOVED 2026-08-27 (SSAC27 item 1).
 
-    fig, ax = plt.subplots(figsize=(7.0, 4.0))
-    b1 = ax.bar(
-        x - width / 2,
-        mae,
-        width,
-        label="MAE",
-        color=GREEN,
-        edgecolor="white",
-        linewidth=0.5,
-        zorder=3,
-    )
-    b2 = ax.bar(
-        x + width / 2,
-        rmse,
-        width,
-        label="RMSE",
-        color=BLUE,
-        edgecolor="white",
-        linewidth=0.5,
-        zorder=3,
-    )
-    ax.set_xticks(x)
-    ax.set_xticklabels(models)
-    ax.set_ylabel("Error on k-rate")
-    ax.set_title("Chronological test error by model (248-feature screen)", pad=10)
-    ax.set_ylim(0, 0.125)
-    ax.grid(axis="y", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
-    ax.set_axisbelow(True)
-
-    for bars in (b1, b2):
-        for bar in bars:
-            h = bar.get_height()
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                h + 0.0025,
-                f"{h:.4f}",
-                ha="center",
-                va="bottom",
-                fontsize=8.5,
-                color="#222222",
-                zorder=4,
-            )
-
-    ax.legend(
-        frameon=False,
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.10),
-        ncol=2,
-        fontsize=9,
-    )
-    fig.tight_layout()
-    fig.subplots_adjust(bottom=0.18)
-    fig.savefig(OUT / "fig2_model_comparison.png")
-    plt.close(fig)
+    This figure hardcoded 248-feature-registry Mean/Ridge/LightGBM MAE
+    (0.0854/0.0788/0.0783) titled "248-feature screen", which contradicted the
+    manuscript body's sparse-set (72/58-feature) parity contract (MAE ~0.0767, see
+    Table 2a / 8.6) and produced `fig2_model_comparison.png`. It was NOT referenced
+    by the manuscript, so it has been removed rather than regenerated with a
+    potentially mixed-lane (sparse-model vs 248-feature naive) baseline.
+    """
 
 
 def fig3_ablation() -> None:
@@ -295,12 +244,12 @@ def fig4_calibration() -> None:
             label="Reliability bins (K ≥ 5.5)",
             zorder=3,
         )
-        note = "Mean ECE ≈ 0.024 (no recalibration)"
+        note = "Pre-deploy walk-forward ECE ≈ 0.024 (ece_mean, n=4607 raw, no recal)"
     else:
         x = np.array([0.15, 0.30, 0.45, 0.60, 0.75, 0.88])
         y = x + np.array([0.02, -0.015, 0.01, -0.02, 0.015, -0.01])
         ax.scatter(x, y, s=70, color=BLUE, label="Reliability bins", zorder=3)
-        note = "Mean ECE ≈ 0.024 (schematic)"
+        note = "Schematic placeholder — regenerate from phase11c reliability_bins.csv"
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -339,7 +288,8 @@ def fig4_calibration() -> None:
 
 def main() -> None:
     fig1_pipeline()
-    fig2_model_comparison()
+    # fig2_model_comparison() REMOVED 2026-08-27: stale 248-feature figure,
+    # not referenced by the manuscript, contradicted sparse-lane body numbers.
     fig3_ablation()
     fig4_calibration()
     print(f"Wrote figures to {OUT}")
