@@ -2,6 +2,7 @@
 
 **Dated:** 2026-09-01  
 **Status:** **PROMOTED to live policy** (see `live_policy_promotion_2026-09-01.md`). Paper/`KING` freeze notes updated; quality gate enforces hard veto.  
+**Further instructions / what next:** [`docs/EXECUTION_BACKLOG.md`](../../EXECUTION_BACKLOG.md) — this report is the rule card, not the work queue.  
 **Evidence:** post-freeze KING ledger + weekly settle pack.
 
 ## Hard rule (do this)

@@ -2,6 +2,8 @@
 
 Quick routing: "I need to do X -> run Y".
 
+> **Work queue / approvals:** [`docs/EXECUTION_BACKLOG.md`](../docs/EXECUTION_BACKLOG.md) is the master plan (PAST/PRESENT/FORWARD/DEFERRED). This index is command routing only — not a competing backlog.
+
 ## Core Daily Commands
 
 - Refresh Statcast:

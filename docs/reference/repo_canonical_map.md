@@ -2,6 +2,8 @@
 
 This file is the cleanup anchor for "what is canonical vs optional vs archive."
 
+> **Work queue / next actions:** [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md) is the master instruction file. This map only classifies surfaces; it does not approve or schedule work.
+
 ## Canonical casing policy
 
 - Canonical root naming is lowercase for family references in code/docs:
@@ -13,6 +15,7 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
 
 ## Canonical daily surfaces
 
+- **`docs/EXECUTION_BACKLOG.md`** — master work-state / approvals / agent plan (not a runtime script; open first)
 - `production/ops/run_daily.py` (morning refresh/score entrypoint)
 - `production/ops/live_krate_ensemble.json` (active k-rate blend selection)
 - `production/odds/grade_odds_ledger.py` (settle + CLV updates)

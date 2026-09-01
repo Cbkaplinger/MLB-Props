@@ -76,17 +76,20 @@ Use repository cleanup history as guardrails:
 
 - Respect prior no-delete guidance for active `production/notebooks/*.ipynb` and `production/ops/*.py` families unless user explicitly approves.
 - Treat `src/Python/` as pipeline-core and default to `keep`.
-- Treat `artifacts/{models,projection_log,odds_log,feature_research,stabilization,count_layer}/` as protected unless deletion is explicitly approved.
+- Treat local `artifacts/{models,projection_log,odds_log,feature_research,stabilization,count_layer,model_quality,notebook_exec}/` as protected unless deletion is explicitly approved (prefer `.gitignore` coverage).
 - Prefer documentation consolidation (link to canonical docs) over deleting nuanced historical notes.
 - Before deletion, run dependency/reference checks and require smoke-check plan.
+- **Work-queue canon:** `docs/EXECUTION_BACKLOG.md` is the only holy work-state file. Cleanup may retarget subordinate docs to it; never create a parallel backlog.
 
-## MLB-Props Current-State Rules (Aug 2026)
+## MLB-Props Current-State Rules (Sep 2026)
 
-- Treat `production/ops/kpi_policy.json` + `production/README.md` + `production/INDEX.md` as canonical runtime truth.
+- Treat `docs/EXECUTION_BACKLOG.md` + `AGENTS.md` + `.cursor/rules/execution-backlog.mdc` as the agent/work-plan source of truth.
+- Treat `production/ops/kpi_policy.json` + `production/README.md` + `production/INDEX.md` as canonical **runtime** truth.
 - Treat `docs/research/step11_discipline_registry_freeze.md` as the active freeze anchor.
 - For historical step cleanup, consolidate closed `docs/research/step*.md` files into one summary doc before deleting originals.
 - Keep freeze-lineage docs (`step11_*`, `step10_*`, and any currently referenced freeze companion) unless explicitly approved for removal.
 - Preserve parity-lock and gate documentation (`--from-recommendations`, execution-vs-research split) in all cleanup edits.
+- Live decision policy (4.5-over veto + soft probation) is documented in `docs/reference/reports/live_policy_promotion_2026-09-01.md`; further promotes stay gated in the backlog DEFERRED table.
 
 ## Allowed Automatic Changes
 
@@ -122,12 +125,14 @@ For each approved cleanup/reorg batch:
 
 - Update impacted folder README(s).
 - Update canonical operational docs first:
+  - `docs/EXECUTION_BACKLOG.md` (Session Snapshot PRESENT / docs hierarchy if work-state changed)
   - `production/INDEX.md`
   - `production/RUNBOOK.md`
   - `production/README.md`
   - `docs/reference/repo_canonical_map.md`
 - Update dependent reference docs/diagrams/paper notes only where paths or claims changed.
 - Prefer links to canonical docs over duplicating procedures.
+- Prefer links to `docs/EXECUTION_BACKLOG.md` over duplicating “next steps” lists.
 
 ## Filename and Folder Standardization
 

@@ -3,6 +3,9 @@
 Four phase diagrams. Open each file for detail; this index only shows how they
 relate.
 
+> Live ops / approvals / deferred work: [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md).
+> This index is a research-status map, not the work queue.
+
 ```mermaid
 flowchart TB
   classDef built fill:#1b5e20,stroke:#a5d6a7,color:#fff

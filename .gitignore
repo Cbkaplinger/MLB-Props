@@ -3,11 +3,18 @@
 __pycache__/
 **/__pycache__/
 .pycache/
-*.pyc
+*.py[cod]
+*$py.class
 *.egg-info/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
+# Local data / generated outputs (lowercase + Windows legacy casing)
 Data/processed/
 data/processed/
 Data/dimensions/
@@ -18,6 +25,9 @@ models/Strikeout-Model/Saved-Models/
 models/Strikeout-Model/results/Test-Predictions/
 Models/**/Graphs/
 models/**/Graphs/
+# Experiment / tracking local DBs (Item 13 MLflow deferred — still ignore if scaffolded locally)
+mlruns/
+mlartifacts/
 .venv/
 **/.venv/
 venv/

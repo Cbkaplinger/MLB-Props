@@ -1,7 +1,8 @@
 # Interim Post-Freeze Ops Stance
 
 **Dated:** 2026-09-01  
-**Status:** ACTIVE interim guidance — **shadow / paper first**; live `KING_PROFILE` / floors / staking **unchanged** until explicit promotion sign-off.  
+**Status:** **SUPERSEDED for live ops** — 4.5-over hard veto + soft probation were **promoted** 2026-09-01 (`live_policy_promotion_2026-09-01.md`). Keep this file as the pre-promote shadow rationale only.  
+**What to do next:** [`docs/EXECUTION_BACKLOG.md`](../../EXECUTION_BACKLOG.md) (Session Snapshot). Do not treat shadow-only rows below as current live instructions.  
 **Evidence:** `docs/reference/reports/postfreeze_king_profile_metrics_2026-09-01.md` + shadow extract `docs/reference/reports/shadow_asymmetric_policy_2026-09-01.md`.
 
 ## What we believe right now

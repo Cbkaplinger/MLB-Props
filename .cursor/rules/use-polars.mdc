@@ -34,3 +34,5 @@ pa = df[df["events"].notna()].groupby("batter").size()
 
 Existing tested pandas code (e.g. `reliability.py`, `train.py` helpers) can stay;
 migrate opportunistically.
+
+Work prioritization still comes from `docs/EXECUTION_BACKLOG.md` (see `execution-backlog.mdc`); this rule is library preference only.

@@ -1,7 +1,8 @@
 # Live Policy Promotion — 2026-09-01
 
 **Status:** PROMOTED (user sign-off 2026-09-01)  
-**Scope:** decision policy only — **no** calibration map swap, **no** champion→monotone, **no** book-quality filter.
+**Scope:** decision policy only — **no** calibration map swap, **no** champion→monotone, **no** book-quality filter.  
+**Master work-state after this promote:** [`docs/EXECUTION_BACKLOG.md`](../../EXECUTION_BACKLOG.md) (FORWARD / DEFERRED / Waiting on user).
 
 ## What went live
 

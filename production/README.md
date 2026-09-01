@@ -21,6 +21,7 @@ odds/CLV tracking, and holdout monitoring.
 
 ## Documentation Map
 
+- **Work queue / approvals (master):** `docs/EXECUTION_BACKLOG.md` (see also root `AGENTS.md`)
 - Quick command map: `production/INDEX.md`
 - Detailed operating runbook: `production/RUNBOOK.md`
 - CLV policy + gates: `docs/reference/market_clv_gates.md`

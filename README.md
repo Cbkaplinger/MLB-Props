@@ -6,6 +6,7 @@ ledger parity lock.
 
 ## Current source of truth
 
+- **Work queue / agent plan:** [`docs/EXECUTION_BACKLOG.md`](docs/EXECUTION_BACKLOG.md) (holy file — open first; see also [`AGENTS.md`](AGENTS.md))
 - Code repository: [github.com/Cbkaplinger/MLB-Props](https://github.com/Cbkaplinger/MLB-Props)
 - Paper: [Technical manuscript (`docs/paper/manuscript.md`)](docs/paper/manuscript.md)
 - Daily operations: `production/README.md`

@@ -3,6 +3,9 @@
 Version-controlled architecture and roadmap diagrams for the strikeout-rate
 pipeline. Prefer these over ad-hoc chat exports.
 
+> **Live work-state / what to do next:** [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md).
+> These diagrams are architecture + research-status visuals — not the ops backlog.
+
 Render the Mermaid blocks in GitHub, VS Code / Cursor Mermaid preview, or any
 Mermaid-compatible viewer.
 
@@ -38,3 +41,4 @@ Canonical prose: `docs/reference/model-card.md`, `docs/reference/dev-notes.md`,
 and `docs/research/statistical_audit_and_sequencing_report.md`. When a diagram
 and those docs disagree, fix both. Exit-anomaly governance canonical doc:
 `docs/reference/exit_anomaly_protocol.md`. Ops runbook: `production/README.md`.
+**Live plan:** `docs/EXECUTION_BACKLOG.md` (wins over any “next” language in diagrams).

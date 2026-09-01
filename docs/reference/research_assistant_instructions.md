@@ -1,5 +1,7 @@
 # MLB Props Research Assistant Instructions
 
+> **Work queue / approvals / what to do next:** always [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md). This file is technical constraints only — not a competing backlog. If “Remaining work” below disagrees with the Session Snapshot, the backlog wins.
+
 ## Purpose
 
 Audit, refactor, document, and operate an MLB pitcher strikeout stack
@@ -144,22 +146,13 @@ Level 3 construction audit: `src/Notebooks/pipeline/training.ipynb`.
 
 ## Remaining work
 
-**Done** (do not reopen without evidence): Steps 1/3/4/5/7–10; Phase 11
-tune/WF/calibrate; Phase D PA≥9 interim; TBF + count layer; post-hoc Platt
-`p_over_*` calibration (production pointer); live dual scoring; projection
-log/grade; paper-trading board/ledger/CLV closes; manuscript;
-**2026-08-06 dashboard CLV skill suite** (`results_dashboard.ipynb` §11-18 +
-`src/Python/skill_stats.py` z-test / BCa / stake-weighted / rolling-SE) and
-the pre-registered floor-freeze log (`docs/research/floor_freeze_log.md`).
+> **Superseded as a work queue.** Live APPROVED / DEFERRED / waiting-on-user items live only in [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md) (Session Snapshot). Do not treat the bullets below as the current plan.
 
-**Open:** (1) grow post-freeze holdout — don’t sell recycled 2025 as pristine;
-(2) pregame role labels before broader population claims; (3) filter
-neutral/international parks; (4) grow CLV skill sample to **n_clv ≥ 150
-at floor ≥ 12%** before real bankroll; check the **BCa CLV CI on
-floor ≥ 12% excludes zero AND win-rate > 0.524 break-even at the same
-checkpoint**, per the pre-registered `next_50_checkpoint.json` rule written
-by §18b. Morning opens; settle; do not retune the 12% floor from calibrator
-edge shrinkage (raise *or* lower); optional NB/mixture count challengers and
-richer external floors; (5) commit only with owner approval.
+**Historical open themes (context only — check backlog before acting):**
+(1) grow post-freeze holdout — don’t sell recycled 2025 as pristine;
+(2) pregame role labels before broader population claims;
+(3) filter neutral/international parks;
+(4) grow CLV skill sample / real-ticket n under backlog gates before bankroll claims;
+(5) commit only with owner approval.
 
 Same-game `PA` may be the TBF train/eval label, never a prediction-time feature.

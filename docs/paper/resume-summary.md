@@ -2,6 +2,8 @@
 
 **Cameron Kaplinger** - AI Engineer (Data Science background) - Portfolio artifact (updated Aug 2026)
 
+> **Repo work queue (not this resume):** live approvals / next steps live in [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md). This page is a portfolio summary only.
+
 Primary project link: [GitHub repository](https://github.com/Cbkaplinger/MLB-Props)  
 Secondary long-form write-up: [Technical manuscript](https://github.com/Cbkaplinger/MLB-Props/blob/main/docs/paper/manuscript.md)
 

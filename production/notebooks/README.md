@@ -2,6 +2,8 @@
 
 Use this as the canonical notebook routing map.
 
+> **Work queue:** [`docs/EXECUTION_BACKLOG.md`](../../docs/EXECUTION_BACKLOG.md). This README routes notebooks only.
+
 ## Daily Operator Path (in order)
 
 1. `daily_projections.ipynb`

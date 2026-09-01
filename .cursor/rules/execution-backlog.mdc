@@ -1,0 +1,15 @@
+---
+description: Master work-state file is docs/EXECUTION_BACKLOG.md — open first, update every turn
+alwaysApply: true
+---
+
+# Execution backlog is the master instruction file
+
+**Canonical work-state file:** `docs/EXECUTION_BACKLOG.md`
+
+- Open it first every session (Snapshot → Waiting on user → FORWARD → **DEFERRED** → Standing Rules).
+- It is the only source of truth for APPROVED / BLOCKED / waiting-on-user / parked / deferred work and for PAST / PRESENT / FORWARD / DEFERRED plans.
+- Do **not** invent a parallel backlog, “next session” doc, or competing todo list. If the user drops in a markdown plan, reconcile it **into** `docs/EXECUTION_BACKLOG.md`, then retire the stray file.
+- After any turn that changes work state, update the Session Snapshot (all four blocks) before ending.
+- Dated reports under `docs/reference/reports/`, research notes, paper resume, and `docs/reference/research_assistant_instructions.md` are **subordinate**: evidence, ops recipes, or technical constraints — never a competing work queue.
+- Never pull **DEFERRED** items (including Item 13 MLflow) unless the user asks or the reopen condition is met.

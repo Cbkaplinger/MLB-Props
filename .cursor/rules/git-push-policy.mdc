@@ -10,3 +10,4 @@ alwaysApply: true
 - After a commit (or when the user asks to publish), give the exact commands for the user to run themselves, step by step.
 - Do not assume push permission from phrases like "ship it", "publish", or "push the changes" — provide the commands and wait for the user to execute them.
 - Prefer: show `git status` / branch tracking context, then the precise `git push` (or `git push -u origin HEAD`) line for the user to copy.
+- Work-state / what to prioritize next still comes from `docs/EXECUTION_BACKLOG.md` (see `execution-backlog.mdc`); push policy only covers publishing mechanics.

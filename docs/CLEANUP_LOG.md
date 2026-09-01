@@ -1,8 +1,22 @@
 # Repository cleanup log
 
+> **Not an instruction file.** Historical cleanup checkpoints only. For what to do next, use [`docs/EXECUTION_BACKLOG.md`](EXECUTION_BACKLOG.md).
+>
 > Metric lane note: this log preserves historical checkpoints and may include
 > legacy freeze values. Use `docs/reference/governance_metric_stack.md` for
 > current winners and active deployment champions.
+
+## Repo-quality passthrough — 2026-09-01
+
+Low-risk hygiene + doc consistency pass (no production deletes).
+
+- Expanded `.gitignore` for portable `artifacts/`, caches, coverage, local MLflow dirs.
+- Aligned `.cursor/skills/repo-quality-passthrough/{SKILL,reference}.md` to backlog-as-master + real smoke commands.
+- Retargeted `production/{INDEX,RUNBOOK,README,notebooks/README}.md`, `docs/diagrams/*`, reports README to `docs/EXECUTION_BACKLOG.md`.
+- Hold ledger: `docs/reference/reports/repo_quality_hold_inventory_2026-09-01.md`.
+- Left protected: `src/Python/`, `production/ops|odds|projections|notebooks`, local `artifacts/**`, freeze-lineage research notes.
+
+---
 
 ## Docs folder families — 2026-07-28 (late afternoon)
 

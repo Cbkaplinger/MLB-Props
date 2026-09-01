@@ -2,6 +2,8 @@
 
 Detailed operations reference for daily production workflow.
 
+> **Work queue / approvals:** [`docs/EXECUTION_BACKLOG.md`](../docs/EXECUTION_BACKLOG.md) is the master instruction file. This runbook is how to run commands — not what to prioritize next.
+
 ## Scope
 
 This runbook covers operational commands only.

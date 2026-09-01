@@ -4,6 +4,9 @@ Research spine is feature-frozen with current sparse-set governance lanes.
 Phase 11.A–C remains historical verification context. Live assembly + paper
 trading / CLV are shipped; dashed edges = still open.
 
+> **Live prioritization:** [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md)
+> (FORWARD / DEFERRED). This roadmap diagram is research status, not the ops queue.
+>
 > Metric lane note: deployment champions are selected on decision metrics, while
 > single-model MAE winners are tracked separately in
 > `docs/reference/governance_metric_stack.md`.

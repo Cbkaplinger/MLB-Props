@@ -2,21 +2,37 @@
 > **This is the ONE holy file.** Single source of truth for what is approved, blocked, waiting on the user, and parked. Do NOT create parallel backlog files. When the user drags in a markdown file, reconcile it INTO this file, then it / the old file goes away. Keep it evergreen (see Evergreen Rule below).
 >
 > **Always open this file first** (`docs/EXECUTION_BACKLOG.md`). After every user prompt / agent turn that changes work state, update the **Session Snapshot** before ending.
+> Also linked from root `AGENTS.md` and `.cursor/rules/execution-backlog.mdc` so every agent session sees this as master.
+
+### Document hierarchy (this file wins)
+| Kind | Path | Role vs this backlog |
+| --- | --- | --- |
+| **Master work state** | `docs/EXECUTION_BACKLOG.md` (this file) | Approvals, Snapshot PAST/PRESENT/FORWARD/DEFERRED, standing ops rules |
+| Agent entry pointer | `AGENTS.md`, `.cursor/rules/execution-backlog.mdc` | Point here only — no second queue |
+| Research constraints | `docs/reference/research_assistant_instructions.md` | How to build/leakage-safe — **not** a todo list |
+| Ops runbooks | `production/README.md`, `INDEX.md`, `RUNBOOK.md` | How to run commands |
+| Dated evidence | `docs/reference/reports/*.md` | Point-in-time reports; must say if SUPERSEDED and point here for “what next” |
+| Paper / resume | `docs/paper/manuscript.md`, `resume-summary.md` | Publication narrative — not the live work queue |
+| Cleanup history | `docs/CLEANUP_LOG.md` | Historical cleanup log — not instructions |
+| Canonical surfaces | `docs/reference/repo_canonical_map.md` | What code/docs are canonical vs archive |
+
+If another doc’s “next steps” disagree with the Session Snapshot, **this file wins**. Fix the subordinate doc to redirect here.
 
 ## Directive (read this first, every session)
 You have blanket approval for every item below marked APPROVED. Execute them **in order**; do not re-ask on anything already approved. Do not start new discovery/analysis/philosophizing until every APPROVED item is DONE or marked BLOCKED with a one-line reason. Notice something interesting mid-task? Put it in "Parking Lot," don't chase it. Report only on item completion or a true block — not every intermediate find.
 
 ### Iterative session loop (required)
-1. **Read** this file (Snapshot → Waiting on user → Forward plan → Standing Rules).
-2. **Do** the next APPROVED item(s) only.
-3. **Write back** before the turn ends — Snapshot must always have three labeled blocks:
+1. **Read** this file (Snapshot → Waiting on user → Forward → **Deferred** → Standing Rules).
+2. **Do** the next APPROVED item(s) only — **never** pull work from **DEFERRED** unless the user asks or the reopen condition is clearly met.
+3. **Write back** before the turn ends — Snapshot must always have four labeled blocks:
    - **PAST** — durable completed work (what already shipped).
    - **PRESENT** — where we are now / what just finished this turn.
    - **FORWARD** — concrete ordered plan for the next session(s).
+   - **DEFERRED** — approved-or-parked work that is *not* next (with why + reopen trigger).
    - Also refresh Waiting on user; add ideas to Parking Lot; never silent-drop threads.
 4. Tell the user briefly what changed and point them back here for the plan.
 
-**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened — update PAST/PRESENT/FORWARD, item statuses, Parking Lot, and **pre-write the next session's plan** so no thread is lost. Close every session with this file reflecting "here is where we were, where we are, and where we're heading next."
+**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened — update PAST/PRESENT/FORWARD/**DEFERRED**, item statuses, Parking Lot, and **pre-write the next session's plan** so no thread is lost. Close every session with this file reflecting "here is where we were, where we are, where we're heading next, and what we are deliberately not doing yet."
 
 ---
 
@@ -32,14 +48,13 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 | Item 14 granular open calib challenger | DONE (research) | Holdout preferred global_iso; still < market — **not** live-promoted |
 | Pack A weekly settle pack + game_date bootstrap | DONE | Parallel ledgers for continuous A/B |
 | Book-quality filter | WONT_DO | Books for lines only; usually synced |
-| Live **over@4.5 hard veto** + soft probation 2.5/3.5 | **DONE 2026-09-01** | `kpi_policy` + `odds_board`; commit `7e03ced` (+ typo fix `0f8df76`) |
-| Item 13 MLflow | DEFERRED | Until train/Optuna iteration resumes |
+| Live **over@4.5 hard veto** + soft probation 2.5/3.5 | **DONE 2026-09-01** | `kpi_policy` + `odds_board`; commits `7e03ced` / `0f8df76` / backlog follow-ups |
 
 ### PRESENT — where we are / just completed
 - **Live betting stance is promoted**, not shadow-only: recommendations should HOLD/skip **4.5 overs** (`veto_4_5_over`); 2.5/3.5 overs on soft probation (higher edge floor 0.18).
 - Unders stay on the existing floor; **no stake-up**; **no live calib swap**; **no monotone champion swap**.
-- Docs: `docs/reference/reports/live_policy_promotion_2026-09-01.md`; interim skip rules marked PROMOTED; settle pack + diagnosis/shadow reports in tree.
-- Tests green for board veto path (`tests/test_odds_board_lines.py`).
+- **Holy-file cleanup:** backlog is explicitly master (`AGENTS.md` + `.cursor/rules/execution-backlog.mdc`; subordinate docs redirect here).
+- **Repo-quality passthrough:** expanded `.gitignore`; skill/reference/READMEs/diagrams retargeted to this backlog; hold inventory at `docs/reference/reports/repo_quality_hold_inventory_2026-09-01.md`. Local caches wiped. Resume/manuscript HTML+PDF **kept**. No production deletes.
 - Working thesis unchanged: binding constraint was **toxic over lines / side error**, not “need another floor sweep.” Veto is **risk control** (bootstrap still wide) — keep measuring weekly.
 - **Publish gap:** local `main` ahead of `origin` — push still waiting on you.
 
@@ -55,9 +70,8 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    ```
    Read: status quo vs `veto_4_5_over` ROI/CLV + bootstrap CIs. Promote nothing else from one green week.
 5. **You — Item 6/#12 when prices ready:** fill decision-time `bet_price`/`stake`/`pnl` (8 named tickets + 9th identity) so money ROI ≠ paper.
-6. **Hold (do not start next):** live calib swap, champion→monotone, hard-veto all ≤3.5 overs, asym-over-floor live promote, MLflow — reopen only if weekly pack says **probs** (not selection) are still the bind, or you explicitly ask.
-7. **Optional polish (low priority):** regenerate `manuscript.pdf`; dashboard `_dedupe_frame` → canonical `dedupe_ledger_props`.
-8. **Agent — every turn:** refresh PAST / PRESENT / FORWARD in this Snapshot.
+6. **Optional polish (low priority):** regenerate `manuscript.pdf`; dashboard `_dedupe_frame` → canonical `dedupe_ledger_props`.
+7. **Agent — every turn:** refresh PAST / PRESENT / FORWARD / **DEFERRED** in this Snapshot. Do not invent work from DEFERRED.
 
 ### Waiting on user
 - [ ] Push commits to origin.
@@ -65,14 +79,25 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 - [ ] Confirm day-to-day style for 2.5/3.5 overs (skip vs half-size).
 - [ ] Item 6/#12 real-bet prices when available.
 
-### Explicitly deferred (not forgotten)
-| Item | Why deferred | Reopen when |
-| --- | --- | --- |
-| **Item 13 MLflow** | Never built this cycle; only useful for train/Optuna run compare | You start model retrain / Optuna again |
-| Champion→monotone | Softens under bleed only; doesn’t fix 4.5 overs | After ≥2–3 settle weeks under veto, if unders still soft |
-| Live calib (Item 14) | Open holdout still worse than market; post-freeze ROI pick = overfit trap | Holdout skill clears market **and** you sign off |
-| Asym over floor live | Shadow-green but may impute stakes; veto is narrower first move | Weekly pack + real stakes support it |
-| Hard-veto all ≤3.5 overs | Starves learning; bootstrap wide | Only with pre-registered n + CI gates |
+### DEFERRED — approved or parked, but not next
+> Agents: **do not start these** to look busy or to avoid ops work. Move an item DEFERRED ↔ FORWARD only when the reopen condition is met **or** the user explicitly asks.
+
+| Item | Status | Why deferred (standing instruction) | Reopen when |
+| --- | --- | --- | --- |
+| **Item 13 — Local MLflow v1** | APPROVED · DEFERRED | **Wrong tool for this ops cycle.** Helps train/Optuna run compare, not freeze/null/CLV/veto decisions. Do **not** install or scaffold MLflow mid-ops. Never built this cycle. | User resumes Strikeout/TBF train or Optuna, **or** explicitly asks for Item 13 |
+| Champion → monotone swap (#9) | EVIDENCE DONE · swap gated | Softens under bleed only; does **not** fix 4.5 overs. No champion-file edit without sign-off. | ≥2–3 settle weeks under live veto **and** unders still soft **and** user signs off |
+| Live calib promote (Item 14 research done) | RESEARCH DONE · not live | Open holdout still < market; picking by post-freeze ROI is an overfit trap. Do **not** edit live calibrator. | Holdout Brier skill clears market **and** user signs off a chrono-safe promote gate |
+| Asym over-floor live promote | SHADOW ONLY | Shadow-green but may impute stakes; narrower 4.5 veto is first live move. | Weekly pack + **real** stakes support it; user signs off |
+| Hard-veto all overs ≤3.5 | PARKED | Starves learning; bootstrap wide. | Pre-registered n + CI gates + user ask |
+| Broader model retrain / count-layer 4.5 fix | PARKED | Only if weekly pack says **probs** (not selection) remain the bind after veto. | User asks **or** over Brier skill stays deeply negative with veto on |
+| MLflow v2 / W&B | PARKING LOT | After Item 13 only. | Item 13 done + multi-run train loop exists |
+| SSAC future-work 9–13 | PARKED | Post-abstract depth; not ops path. | After abstract / user ask |
+
+**Anti-patterns (agent must refuse unless user overrides):**
+- Starting MLflow, Optuna sweeps, or "just one more floor search" during a live-betting / settle-pack week.
+- Refitting calibration on the post-freeze evaluation window.
+- Silent edits to `KING_PROFILE`, floors, staking, or champion without explicit sign-off.
+- Promoting a deferred item because it has a green shadow ROI on thin n.
 
 ## Strategy Plan — 2026-09-01 (for user hole-poking)
 
@@ -188,57 +213,38 @@ Evidence anchors: `docs/reference/reports/postfreeze_king_profile_metrics_2026-0
 
 12. **[WAITING ON USER] Item 6 backfill** — still needs your decision-time `bet_price`/`stake`/`pnl` for the 8 confirmed tickets (Valdez, Suarez, Messick, Skenes, Melton, G.Rodriguez, Cantillo, Sasaki) plus the 9th ticket's identity, to complete the real-bet ledger write.
 
-13. **[APPROVED — DEFERRED] Local MLflow Tracking (thin v1).** **Not built.** Useful only when actively iterating Strikeout/TBF train or Optuna (run compare). **Wrong tool for ops/ROI cycles** (veto, settle pack, real_bets, CLV). Standing rule: do not propose Item 13 as next work while FORWARD is ops-focused. Resume when you ask or train iteration restarts.
+13. **[APPROVED — DEFERRED] Local MLflow Tracking (thin v1).** Useful when actively iterating Strikeout/TBF train or Optuna — **not** on the critical path for this ops cycle (wrong tool for freeze/null/CLV/veto work). See Session Snapshot → **DEFERRED**. Resume when you ask or when train iteration restarts; do not jump here mid-ops.
 
 14. **[DONE research 2026-09-01 — promote gated] Granular open calibration challenger (ROI path).** Fit line / line-bucket (and optional side-aware apply) isotonic/Platt on **open 2025–2026** with chrono-safe holdout; score **post-freeze** as pure OOS on skill vs market + shadow KING ROI. Do not refit on post-freeze tickets. Do not edit live calibrator / KING without sign-off. Script: production/ops/fit_granular_open_calibration.py.
 
 
 ## Next Session — Open Questions & Plan (evergreen)
-> **Canonical live plan lives in Session Snapshot → PAST / PRESENT / FORWARD.** This section mirrors FORWARD and keeps historical polish notes.
+> **Not a second backlog.** Canonical live plan = Session Snapshot → **PAST / PRESENT / FORWARD / DEFERRED** (top of this file). Checklists below are a short mirror only.
 
 **Waiting on user (blocks these):**
 - [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
-- [ ] Item 6: per-ticket `bet_price`/`stake`/`pnl` for the 8 + the 9th ticket's identity. Fill `REAL_TICKETS` in `production/ops/backfill_real_bets.py`, run, verify 6W–3L / +$109.80 / $455.
-- [ ] Item 9: explicit sign-off to swap champion→monotone, or leave as is (deferred; not needed for 4.5 veto).
+- [ ] Item 6/#12: per-ticket decision-time prices/stakes/pnl for the 8 + 9th identity.
+- [ ] Item 9: explicit champion→monotone sign-off, or leave deferred (not needed for 4.5 veto).
 
 **Ready / operating now:**
-- [x] **Phase A+B** — interim stance + shadow asymmetric/line-veto metrics — DONE 2026-09-01.
-- [x] **`veto_4_5_over` live promote** — DONE 2026-09-01 (`kpi_policy` + `odds_board`).
-- [x] Soft probation 2.5/3.5 overs — DONE (floors).
-- [x] Pack A weekly settle pack — DONE; **re-run each settle week** (ops habit).
-- [ ] **Item 13 — MLflow v1** — APPROVED but **deferred** until train/Optuna iteration resumes.
-- [x] **SSAC27 Track items 5–8 + Item 10 — DONE 2026-09-01**. Future-work 9–13 parked.
-- [x] Item 10: `.pre-commit-config.yaml` + hook proven on commit.
-- [x] **CI fix 2026-09-01:** joblib/sklearn/lightgbm install path.
+- [x] Live `veto_4_5_over` + soft probation 2.5/3.5 — DONE 2026-09-01.
+- [x] Weekly settle pack habit — re-run after each settle week.
+- [ ] Item 13 MLflow — APPROVED but **DEFERRED** (wrong tool for this ops cycle).
+- [ ] Optional polish: regenerate `manuscript.pdf`; dashboard dedupe → canonical `dedupe_ledger_props`.
 
-**Push:** user-timed. Agent never pushes; after promote commits, push is the remaining publish step.
+**Blocked / parked (see DEFERRED + Execution Order):** Item 7 CUSUM rewrite; Item 2 history split; SSAC future-work 9–13.
 
-**Next session polish (optional, not blocking SSAC 1–8):**
-- [ ] Regenerate `manuscript.pdf` locally (Playwright/browser).
-- [ ] Optional: align dashboard `_dedupe_frame` to canonical `dedupe_ledger_props`.
-- [x] **Docs freshness sweep — COMPLETE 2026-08-27** (see completed bullets historically below). **Ledger refresh 2026-09-01:** reran `clv_basis_reconcile.py` + deduped `grade_odds_ledger.py --status` — current honest ledger is `790` settled / `+$10.55` / ROI ≈ `+0.05%`; full-cohort CLV `n_closed=493`, `price_devig_gt0=0.544`. The 2026-08-27 `643 / +$84.51` figures remain valid as that day's fix-evidence snapshot only.
-- [x] **Docs freshness sweep detail (2026-08-27):** Audited ALL docs, diagrams, paper (.md + rendered .html), reference/research docs, and this backlog for stale/inaccurate numbers. Results:
-  - **Ledger PnL figures**: confirmed NO stale raw-row figures (1118/+$576.15/+$1,041.04/688) remain in any tracked `.md`/`.py` except this backlog's intentional old-vs-new fix-evidence table (rows 14/18/19/28/52/59) and a regression-test explanatory comment.
-  - **Paper deployment-profile (paper-vs-resume discrepancy)**: reconciled Sharpe `0.4352`→`0.4438`, max-DD `0.3685`→`0.1905`, Calmar `1.1841`→`2.2903` (derived 0.4363/0.1905) against source `open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json` **in `manuscript.md` (6 spots) and the STALE RENDER `manuscript.html` (9 spots)** — the rendered HTML had not been regenerated after the earlier `.md` fix and still carried all the old figures. Both now agree.
-  - **NEW stale find — manuscript §8.5 floor-bucketing table** was computed on the RAW ledger (`307`/`285`/`265`/`209`/`159`/`299` bets). Replaced in both `.md` and `.html` with the deduped authoritative values from `runtime_floor_calibration.csv` (`233`/`214`/`193`/`153`/`112`/`225`, ROIs `0.0396`/`0.0562`/`0.0918`/`0.0395`/`0.0864`/`0.0457`) + a point-in-time freshness note.
-  - **NEW stale find — `docs/reference/governance_metric_stack.md` §1/16 Kelly**: quoted `+$8,619.27`/`172.39u` profit on the open-snapshot counterfactual lane that (a) is not derivable from the cited artifact (which stores no stake/pnl) and (b) **contradicts its own `roi=0.1138`** (0.1138×212.27u=24.2u, not 172.39u). Rewrote the block using the artifact-backed metrics + an explicit flat-stake assumption that reconciles, plus a freshness note.
-  - **CIs in manuscript §8.2** (`[0.0431, 0.9997]` etc.): confirmed not regenerable from any committed artifact (`_audit_boot_ci_full.json` is a different Brier/LogLoss skill bootstrap). Point estimates corrected to authoritative values; added an explicit §8.2 provenance note that bounds are session-derived bootstrap estimates (all corrected points sit within them) so they're not confused with pinned artifact values.
-  - **Reference/research/diagrams**: confirmed clean or legitimate frozen point-in-time records (e.g., `market_clv_gates.md` 2026-08-06 freeze log `330/199/72`, `floor_freeze_log.md`). `daily_kpi_protocol.md` correct. `resume-summary.{md,html}` verified already authoritative (no stale figures).
-- [ ] Item-11 follow-up (optional): align dashboard `_dedupe_frame` to canonical `dedupe_ledger_props` (currently keys on `book` too, so cross-book dupes may persist in dashboard displays).
-
-**Blocked until scripts/sign-off:**
-- [ ] Item 7 (CUSUM/regime rewrite) — needs generator restored. Item 11 confirms `regime_model_report.json` is an orphan too (no source).
-- [ ] Item 2 (`close_watcher.py` history split) — parked forever unless user explicitly wants `de942c3` history rewritten.
+**Historical polish notes** (2026-08-27 freshness sweep detail, ledger refresh figures): kept in git history; intentionally not repeated here so this section cannot compete with the Snapshot.
 
 ## Standing Rules (apply to all of the above)
 - Never mutate historical labels (hold→bet relabeling) — always append new records instead.
 - Every real-money conclusion requires ≥50 real tickets before being treated as evidence of edge. The current 9-ticket, +24.1% ROI record is now fully auditable (6W–3L, all outcomes confirmed) — a good start, not proof; don't let it drive stake-sizing yet.
 - Verify settlement-rule parity (prediction-market vs. sportsbook K definitions, extra innings, early exits) before trusting any grading as final.
 - Personal accounts/API keys only — never company-owned tooling for any of this.
-- Do not touch `KING_PROFILE_AUG2026`, floors, staking, or the champion file without explicit sign-off after evidence is reviewed. *(Exception already signed 2026-09-01: live `over@4.5` hard veto + soft probation 2.5/3.5 via `kpi_policy` / `odds_board` — see live promotion report.)*
+- Do not touch `KING_PROFILE_AUG2026`, floors, staking, or the champion file without explicit sign-off after evidence is reviewed.
+- **DEFERRED is binding:** Item 13 (MLflow) and other Snapshot → DEFERRED rows are not idle backlog to fill quiet turns. Do not scaffold/install them during an ops/policy week unless the user asks or the reopen condition is met.
+- Prefer weekly settle-pack measurement and real-bet logging over new tooling while the live 4.5-over veto is the active experiment.
 - A pre-registered sample-size gate that is *exactly* met (not comfortably exceeded) should be treated as "not yet conclusive" — do not size up or treat as validated edge until the sample comfortably clears the threshold with margin.
-- **Ops cycle ≠ train cycle.** While FORWARD is ops/ROI (veto, weekly settle pack, real_bets, CLV), do **not** propose MLflow, Optuna sweeps, or “log trains somewhere” as the next step. Item 13 MLflow stays APPROVED but DEFERRED until the user resumes Strikeout/TBF train or Optuna — it compares training runs; it does not fix line/side selection or live ROI.
-- Do not reopen deferred items (MLflow, live calib, monotone swap, hard-veto all ≤3.5 overs, asym-floor live) from a single green week or thin bootstrap — only via FORWARD reopen criteria or explicit user ask.
 
 ## SSAC27 Track — Manuscript Critical Review (added 2026-08-27)
 
