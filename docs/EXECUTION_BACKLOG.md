@@ -44,21 +44,35 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 - **Publish gap:** local `main` ahead of `origin` — push still waiting on you.
 
 ### FORWARD — plan looking ahead (ordered)
-1. **You:** `git push origin HEAD` (or `git push -u origin HEAD`) so remote matches promoted policy.
-2. **Ops habit (every settle day/week):**
-   - Bet under promoted rules (hard-skip 4.5 overs; soft-touch 2.5/3.5).
-   - Log real tickets + hard skips → `real_bets` / checklist.
-   - Run `python production/ops/run_weekly_policy_settle_pack.py` and read ROI/CLV/bootstrap vs status quo.
-3. **Do not** hard-veto all ≤3.5 overs or 5.5 overs yet unless expanding n + bootstrap stay favorable.
-4. **Item 6 / #12:** fill decision-time prices/stakes into real_bets when you have them (money-truth ROI).
-5. **Hold:** calib promote, champion→monotone, MLflow — reopen only if weekly pack says probs (not selection) are still the bind.
-6. **Paper:** keep post-freeze / null / DSR framing non-claim until real-ticket n or powered OOS clears.
-7. Refresh this Snapshot (PAST / PRESENT / FORWARD) every turn.
+> **Pick up here next session.** Owner tags: **You** = human; **Agent** = do when asked / next coding turn.
+
+1. **You — publish:** `git push origin HEAD` so remote has the promoted veto (local ahead of origin).
+2. **You — tonight/next slate smoke check:** open recommendations; confirm any **4.5 over** is HOLD/skip with reason `veto_4_5_over` (not BET). Soft-touch 2.5/3.5 (skip or half-size is your call).
+3. **You — cash discipline:** flat stake; no under stake-up; log every real ticket + every hard 4.5-over skip → `docs/reference/reports/real_bets_logging_checklist.md` / `production/ops/backfill_real_bets.py`.
+4. **Agent or You — weekly habit (after each settle week):**
+   ```powershell
+   python production/ops/run_weekly_policy_settle_pack.py
+   ```
+   Read: status quo vs `veto_4_5_over` ROI/CLV + bootstrap CIs. Promote nothing else from one green week.
+5. **You — Item 6/#12 when prices ready:** fill decision-time `bet_price`/`stake`/`pnl` (8 named tickets + 9th identity) so money ROI ≠ paper.
+6. **Hold (do not start next):** live calib swap, champion→monotone, hard-veto all ≤3.5 overs, asym-over-floor live promote, MLflow — reopen only if weekly pack says **probs** (not selection) are still the bind, or you explicitly ask.
+7. **Optional polish (low priority):** regenerate `manuscript.pdf`; dashboard `_dedupe_frame` → canonical `dedupe_ledger_props`.
+8. **Agent — every turn:** refresh PAST / PRESENT / FORWARD in this Snapshot.
 
 ### Waiting on user
 - [ ] Push commits to origin.
-- [ ] Confirm day-to-day style for 2.5/3.5 overs (skip vs half-size) as you bet.
+- [ ] Smoke-check live board for 4.5-over HOLD.
+- [ ] Confirm day-to-day style for 2.5/3.5 overs (skip vs half-size).
 - [ ] Item 6/#12 real-bet prices when available.
+
+### Explicitly deferred (not forgotten)
+| Item | Why deferred | Reopen when |
+| --- | --- | --- |
+| **Item 13 MLflow** | Never built this cycle; only useful for train/Optuna run compare | You start model retrain / Optuna again |
+| Champion→monotone | Softens under bleed only; doesn’t fix 4.5 overs | After ≥2–3 settle weeks under veto, if unders still soft |
+| Live calib (Item 14) | Open holdout still worse than market; post-freeze ROI pick = overfit trap | Holdout skill clears market **and** you sign off |
+| Asym over floor live | Shadow-green but may impute stakes; veto is narrower first move | Weekly pack + real stakes support it |
+| Hard-veto all ≤3.5 overs | Starves learning; bootstrap wide | Only with pre-registered n + CI gates |
 
 ## Strategy Plan — 2026-09-01 (for user hole-poking)
 
