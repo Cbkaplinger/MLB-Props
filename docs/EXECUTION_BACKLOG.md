@@ -66,9 +66,14 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 - [ ] Item 9: explicit sign-off to swap champion→monotone, or leave as is. (Unders bleed softens −2.72%→−1.66% but is NOT fixed either way.)
 
 **Ready to execute (approved, no re-ask):**
-- [x] **SSAC27 Track items 5–8 + Item 10 — DONE 2026-09-01** (see SSAC27 section statuses). Next SSAC depth is future-work 9–13 only (post-deadline); do not start before Oct abstract polish.
-- [x] Item 10: `.pre-commit-config.yaml` + `pre-commit install`; fast 28 tests ~3.9s.
+- [x] **SSAC27 Track items 5–8 + Item 10 — DONE 2026-09-01** (commit `561d354`). Next SSAC depth is future-work 9–13 only (post-deadline); do not start before Oct abstract polish / PDF regen when Playwright available.
+- [x] Item 10: `.pre-commit-config.yaml` + `pre-commit install`; fast 28 tests ~3.9s (hook proven on commit).
 - [x] **CI fix 2026-09-01:** `ModuleNotFoundError: joblib` on collection of `test_live_assembly` / `test_prob_calibration`. Workflow now installs `joblib scikit-learn lightgbm`; `joblib` declared in research extras. Local collect+10 tests green.
+
+**Next session polish (optional, not blocking SSAC 1–8):**
+- [ ] Regenerate `manuscript.pdf` locally (Playwright/browser).
+- [ ] Optional: align dashboard `_dedupe_frame` to canonical `dedupe_ledger_props`.
+- [ ] User `git push` when ready (local `main` may be ahead of origin with CI + SSAC commits).
 - [x] **Docs freshness sweep — COMPLETE 2026-08-27** (see completed bullets historically below). **Ledger refresh 2026-09-01:** reran `clv_basis_reconcile.py` + deduped `grade_odds_ledger.py --status` — current honest ledger is `790` settled / `+$10.55` / ROI ≈ `+0.05%`; full-cohort CLV `n_closed=493`, `price_devig_gt0=0.544`. The 2026-08-27 `643 / +$84.51` figures remain valid as that day's fix-evidence snapshot only.
 - [x] **Docs freshness sweep detail (2026-08-27):** Audited ALL docs, diagrams, paper (.md + rendered .html), reference/research docs, and this backlog for stale/inaccurate numbers. Results:
   - **Ledger PnL figures**: confirmed NO stale raw-row figures (1118/+$576.15/+$1,041.04/688) remain in any tracked `.md`/`.py` except this backlog's intentional old-vs-new fix-evidence table (rows 14/18/19/28/52/59) and a regression-test explanatory comment.
