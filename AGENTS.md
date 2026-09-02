@@ -13,3 +13,10 @@ That backlog is the single holy work-state file (APPROVED / BLOCKED / waiting / 
 | Paper / portfolio summary | `docs/paper/manuscript.md`, `docs/paper/resume-summary.md` |
 
 Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); never `git push` (`.cursor/rules/git-push-policy.mdc`).
+
+## Cheap-agent / Mac handoff (2026-09-02)
+
+- Context excludes: `.cursorignore`, `.clineignore` (same rules), `.cursorindexingignore`
+- Always-on rule: `.cursor/rules/agent-context.mdc` → backlog + `docs/reference/repo_canonical_map.md`
+- Historical CLV API research: `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`
+- Live odds remain SharpAPI (`SHARPAPI_KEY`); do not confuse with historical backfill vendors

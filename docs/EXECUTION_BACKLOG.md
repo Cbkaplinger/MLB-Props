@@ -57,6 +57,8 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 - **Repo-quality passthrough:** expanded `.gitignore`; skill/reference/READMEs/diagrams retargeted to this backlog; hold inventory at `docs/reference/reports/repo_quality_hold_inventory_2026-09-01.md`. Local caches wiped. Resume/manuscript HTML+PDF **kept**. No production deletes.
 - Working thesis unchanged: binding constraint was **toxic over lines / side error**, not “need another floor sweep.” Veto is **risk control** (bootstrap still wide) — keep measuring weekly.
 - **Publish gap:** local `main` ahead of `origin` — push still waiting on you.
+- **2026-09-02 Mac handoff (DONE on Lenovo):** `.cursorignore` + `.clineignore` + refreshed `.cursorindexingignore` + `.cursor/rules/agent-context.mdc` + `AGENTS.md` pointer. Agents should stop eating data/artifacts. Harness migrate (Cline/DeepSeek) still parked.
+- **2026-09-02 historical CLV API research (DONE):** report at `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`. Verdict: free SmartStake HF (2026 Mar–Jul) → OddsPapi smoke → paid burst **the-odds-api.com** (~$59 / 100k credits) for full 2025–2026 open/close K props → parquet → cancel. Skip SharpAPI Enterprise / OddsBlaze / SportsGameOdds for backfill. Live path stays SharpAPI.
 
 ### FORWARD — plan looking ahead (ordered)
 > **Pick up here next session.** Owner tags: **You** = human; **Agent** = do when asked / next coding turn.
@@ -74,7 +76,9 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 7. **Agent — every turn:** refresh PAST / PRESENT / FORWARD / **DEFERRED** in this Snapshot. Do not invent work from DEFERRED.
 
 ### Waiting on user
-- [ ] Push commits to origin.
+- [ ] Push commits to origin (include Mac handoff + CLV research report when you commit).
+- [ ] Hand `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md` (+ Perplexity prompt inside) to Perplexity for final walkthrough.
+- [ ] On Mac: pull, confirm `.cursorignore` active, turn Cursor Auto off; Cline + DeepSeek when ready.
 - [ ] Smoke-check live board for 4.5-over HOLD.
 - [ ] Confirm day-to-day style for 2.5/3.5 overs (skip vs half-size).
 - [ ] Item 6/#12 real-bet prices when available.
@@ -293,6 +297,8 @@ Grounding for how this project holds up against sportsbooks and how results are 
 - **13.** Live-sample accumulation toward the DSR targets the paper itself computes (n ≈ 98 for DSR>0.5; n ≈ 147 for DSR>0.8). The only thing that ever makes the *betting* half defensible. Future — but the abstract must NOT claim betting edge before this.
 
 ## Parking Lot (new ideas noticed mid-task — do not act on these until the list above is clear)
+- **Cheap agent stack (2026-09-02) — PARTIAL DONE:** ignore-files + agent-context rule shipped. Still parked: Cline/OpenCode + DeepSeek V4 Flash on Mac; kill Cursor Auto/credits; escalate Kimi/GLM; Claude escape hatch. Never route Lenovo work through Chinese APIs. Reopen when user starts Mac harness migrate.
+- **Historical K CLV backfill (2026-09-02) — RESEARCH DONE, pull PARKED:** see `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`. Execute free HF + OddsPapi smoke then optional The Odds API month only when user asks. Do not start paid pull mid-ops week.
 - **Book-quality filter — WONT_DO** (user 2026-09-01): books used for lines only; usually synced.
 
 - **Live A/B parallel ledgers:** score every opportunity under status_quo / veto_4_5 / asym16 even when only one rule is bet live.

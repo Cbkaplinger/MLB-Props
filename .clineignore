@@ -1,0 +1,57 @@
+# Agent context exclusions — keep prompts on code/docs, not multi-GB data.
+# Indexing alone is not enough; without this, agents still glob/read junk.
+# Docs, AGENTS.md, production/, src/, and the canonical map stay visible.
+
+# --- Environments / VCS bulk ---
+.venv/
+**/venv/
+.git/
+
+# --- Raw & processed data (binary / huge) ---
+data/
+Data/
+**/Savant-Data/
+**/*.parquet
+**/*.parquet.tmp
+**/*.feather
+**/*.arrow
+**/*.csv.gz
+**/*.pkl
+**/*.joblib
+**/*.h5
+**/*.hdf5
+
+# --- Pipeline / model artifacts ---
+artifacts/
+Artifacts/
+models/**/Saved-Models/
+Models/**/Saved-Models/
+models/**/results/Test-Predictions/
+Models/**/results/Test-Predictions/
+models/**/Graphs/
+Models/**/Graphs/
+**/*.pt
+**/*.pth
+**/*.onnx
+**/*.lgb
+**/*.txt.gz
+
+# --- Caches / logs / notebooks checkpoints ---
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+*.log
+mlruns/
+mlartifacts/
+
+# --- Generated diagrams / heavy media (keep source .md/.py) ---
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.pdf
+**/*.html

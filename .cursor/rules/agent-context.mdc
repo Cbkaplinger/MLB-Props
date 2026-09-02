@@ -1,0 +1,28 @@
+---
+description: Point agents at canonical map + backlog; do not explore data/artifacts
+alwaysApply: true
+---
+
+# Agent context discipline (token cost)
+
+This repo’s disk weight is mostly `data/`, `artifacts/`, `.venv/`, and `.git` — not source.
+Those paths are excluded by `.cursorignore` / `.clineignore`. Do **not** try to “discover” them.
+
+## Open first (in order)
+1. `docs/EXECUTION_BACKLOG.md` — master work queue (PAST / PRESENT / FORWARD / DEFERRED)
+2. `docs/reference/repo_canonical_map.md` — what is canonical vs archive
+3. `AGENTS.md` — pointer table only
+
+## Prefer reading
+- `production/` ops + odds scripts
+- `src/Python/` libraries
+- `docs/reference/` and `docs/paper/` markdown
+- Dated evidence under `docs/reference/reports/` when cited by the backlog
+
+## Do not
+- Glob or summarize parquet / Savant / Artifacts / model binaries
+- Re-explore the whole tree each session
+- Invent a parallel backlog or “next session” doc
+
+Live odds path today: SharpAPI (`SHARPAPI_KEY`) via `production/odds/poll_odds.py`.
+Historical K-line / CLV backfill research: `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`
