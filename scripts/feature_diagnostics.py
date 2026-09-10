@@ -39,7 +39,7 @@ WINDOW_RE = re.compile(r"_(P\d+|std(?:_vL|_vR|_shrunk)?)$")
 
 def _load_train_module() -> ModuleType:
     """Load the production trainer so its exact season and split policy is reused."""
-    path = PROJECT_ROOT / "Models" / "Strikeout-Model" / "train.py"
+    path = PROJECT_ROOT / "models" / "Strikeout-Model" / "train.py"
     spec = importlib.util.spec_from_file_location("mlb_props_train", path)
     if spec is None or spec.loader is None:
         raise ImportError(f"could not load trainer from {path}")

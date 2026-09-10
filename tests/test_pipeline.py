@@ -26,7 +26,7 @@ def _pitcher_games():
             pitcher=1, player_name="Doe, J", pitcher_name="J Doe", p_throws="R",
             home_team="AAA", away_team="BBB", is_home=True, opp_team="BBB",
             K=k, PA=pa, Outs=18, Pitches=90, k_rate=k / pa,
-            Whiffs=12, ff_velo=95.0,   # raw same-game columns -> should be dropped
+            Whiffs=12, Swings=40, ff_velo=95.0,   # raw same-game columns -> should be dropped
         ))
     return pl.DataFrame(rows, schema_overrides={"game_date": pl.Date})
 

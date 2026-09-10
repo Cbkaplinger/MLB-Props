@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PREDICT = ROOT / "Models" / "Strikeout-Model" / "predict_slate.py"
+PREDICT = ROOT / "models" / "Strikeout-Model" / "predict_slate.py"
 
 
 def main() -> None:

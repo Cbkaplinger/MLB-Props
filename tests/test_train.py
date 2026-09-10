@@ -13,7 +13,7 @@ from Python import training
 def _load_train_module():
     path = (
         Path(__file__).resolve().parents[1]
-        / "Models"
+        / "models"
         / "Strikeout-Model"
         / "train.py"
     )

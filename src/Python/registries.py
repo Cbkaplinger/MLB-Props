@@ -61,6 +61,8 @@ FEATURE_SETS = (
     "research_interactions_p5",
     "research_interactions_p10",
     "research_interactions_p20",
+    "research_age_curve",
+    "research_command_single",
 )
 
 # Phase-3 / 2026-08-03 LGBM lift nominees (nested both-fold + 2025 confirm).
@@ -541,6 +543,42 @@ def production_final58_consensus_features(frame: pd.DataFrame) -> tuple[str, ...
     )
 
 
+_FINAL58_DEPLOYED_JSON = config.MODEL_DIR / "lightgbm_krate_20260821_054126.json"
+
+
+def research_age_curve_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Deployed final58 (from its saved sidecar) + age terms (backlog #32-34).
+
+    Reads the frozen model's own feature list so the challenger nests the
+    production bundle exactly (the consensus CSV is gone from artifacts).
+    """
+    sidecar = _FINAL58_DEPLOYED_JSON
+    if not sidecar.exists():
+        raise FileNotFoundError(f"Missing deployed sidecar {sidecar}")
+    base = list(json.loads(sidecar.read_text(encoding="utf-8"))["features"])
+    cols = set(frame.columns if hasattr(frame, "columns") else frame)
+    for extra in ("pitcher_age", "pitcher_age2", "age_x_whiff_gap", "age_x_velo_gap"):
+        if extra in cols and extra not in base:
+            base.append(extra)
+    from Python.features import validate_pregame_features as _validate
+
+    return _validate([f for f in base if f in cols])
+
+
+def research_command_single_features(frame: pd.DataFrame) -> tuple[str, ...]:
+    """Deployed final58 sidecar + cmd_roll30 ONLY (single-feature rule, #50)."""
+    sidecar = _FINAL58_DEPLOYED_JSON
+    if not sidecar.exists():
+        raise FileNotFoundError(f"Missing deployed sidecar {sidecar}")
+    base = list(json.loads(sidecar.read_text(encoding="utf-8"))["features"])
+    cols = set(frame.columns if hasattr(frame, "columns") else frame)
+    if "cmd_roll30" in cols and "cmd_roll30" not in base:
+        base.append("cmd_roll30")
+    from Python.features import validate_pregame_features as _validate
+
+    return _validate([f for f in base if f in cols])
+
+
 def production_final58_refined_features(frame: pd.DataFrame) -> tuple[str, ...]:
     """Refined final58 with targeted rolling-window swap improvements."""
     return _feature_list_from_csv(
@@ -723,6 +761,10 @@ def resolve_feature_names(
         return research_interactions_p5_features(frame)
     if feature_set == "research_interactions_p10":
         return research_interactions_p10_features(frame)
+    if feature_set == "research_age_curve":
+        return research_age_curve_features(frame)
+    if feature_set == "research_command_single":
+        return research_command_single_features(frame)
     return research_interactions_p20_features(frame)
 
 

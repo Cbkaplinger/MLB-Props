@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from Python import config  # noqa: E402
 from Python.pipeline import rolling, training  # noqa: E402
 
-WF_SCRIPT = ROOT / "Models" / "Strikeout-Model" / "research" / "walkforward_stack_backtest.py"
+WF_SCRIPT = ROOT / "models" / "Strikeout-Model" / "research" / "walkforward_stack_backtest.py"
 OUT_ROOT = ROOT / "artifacts" / "model_quality" / "anomaly_policy_sensitivity"
 LINES = ("3_5", "4_5", "5_5", "6_5", "7_5")
 BACKFILL_SCRIPT = ROOT / "scripts" / "backfill_historical_exit_anomaly_overrides.py"

@@ -200,8 +200,10 @@ def test_feature_sets_constant() -> None:
         "research_air_profile_p5",
         "research_air_profile_p10",
         "research_air_profile_p20",
-        "research_interactions_all",
-        "research_interactions_p5",
-        "research_interactions_p10",
-        "research_interactions_p20",
-    )
+            "research_interactions_all",
+            "research_interactions_p5",
+            "research_interactions_p10",
+            "research_interactions_p20",
+            "research_age_curve",
+            "research_command_single",
+        )
