@@ -8,7 +8,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib import parse, request
+from urllib import request
 import os
 
 import polars as pl
@@ -21,6 +21,10 @@ from Python.odds_ledger import dedupe_ledger_props  # noqa: E402
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 OUT_PATH = ODDS_DIR / "automation_self_check_latest.json"
 LEDGER_PATH = ODDS_DIR / "ledger.parquet"
+NOTIFY_STATE_PATH = ODDS_DIR / "automation_self_check_notify_state.json"
+# Re-send a still-open RISK at most this often (a daily reminder, not per-run
+# spam). A *new* risk fingerprint always notifies immediately.
+NOTIFY_REMIND_HOURS = 20.0
 
 # Pre-registered real-bankroll win-rate bar (see market_clv_gates.md).
 BANKROLL_WR_BAR = 0.524
@@ -38,6 +42,11 @@ TASKS = [
     "MLBProps_CloseWatcherWatchdog",
     "MLBProps_EndOfDaySettle",
     "MLBProps_EndOfDaySettleBackfill",
+    "MLBProps_NightlyDrift",
+    # Self-watch: last_result here reflects the PREVIOUS scheduled self-check
+    # run, so a repeatedly-crashing self-check still pages via the other
+    # chains (morning/midday run this script inline with --notify-on-red).
+    "MLBProps_AutomationSelfCheck",
 ]
 
 KEY_FILES = [
@@ -182,19 +191,82 @@ def _send_ntfy(text: str) -> tuple[bool, str]:
         return False, f"ntfy_error={exc}"
 
 
-def _send_telegram(text: str) -> tuple[bool, str]:
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-    if not token or not chat_id:
-        return False, "telegram_env_missing"
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    body = parse.urlencode({"chat_id": chat_id, "text": text}).encode("utf-8")
-    req = request.Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
+def _risk_fingerprint(
+    unhealthy: list[dict[str, str]],
+    missing_files: list[str],
+    stale_ledger: bool,
+) -> str:
+    """Stable id for the current risk shape (drives notify dedupe)."""
+    parts = sorted(f"{r.get('task')}:{r.get('last_result', '?')}" for r in unhealthy)
+    return "|".join([",".join(parts), ",".join(sorted(missing_files)), str(bool(stale_ledger))])
+
+
+def _load_notify_state() -> dict:
+    if not NOTIFY_STATE_PATH.exists():
+        return {}
     try:
-        with request.urlopen(req, timeout=20) as resp:
-            return True, f"telegram_status={resp.status}"
-    except Exception as exc:  # noqa: BLE001
-        return False, f"telegram_error={exc}"
+        return json.loads(NOTIFY_STATE_PATH.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _should_notify(fingerprint: str, now: datetime) -> tuple[bool, str]:
+    """Notify on new risk, or as a daily reminder while risk stays open.
+
+    Before 2026-09-08 every chain run with --notify-on-red paged on every
+    RISK, so one stuck condition (e.g. a stale ledger over a quiet weekend)
+    spammed 3+ identical notifications a day. Now: first sighting notifies,
+    repeats notify at most once per NOTIFY_REMIND_HOURS.
+    """
+    state = _load_notify_state()
+    last_fp = str(state.get("fingerprint") or "")
+    last_sent_raw = str(state.get("last_sent_utc") or "")
+    if fingerprint != last_fp:
+        return True, "new_risk_fingerprint"
+    try:
+        last_sent = datetime.fromisoformat(last_sent_raw.replace("Z", "+00:00"))
+        age_h = (now - last_sent).total_seconds() / 3600.0
+    except Exception:  # noqa: BLE001
+        return True, "unparseable_last_sent"
+    if age_h >= NOTIFY_REMIND_HOURS:
+        return True, f"daily_reminder age_h={age_h:.1f}"
+    return False, f"duplicate_suppressed age_h={age_h:.1f}"
+
+
+def _record_notify(fingerprint: str, now_utc: str) -> None:
+    NOTIFY_STATE_PATH.write_text(
+        json.dumps(
+            {"fingerprint": fingerprint, "last_sent_utc": now_utc},
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _describe_risk(
+    unhealthy: list[dict[str, str]],
+    missing_files: list[str],
+    ledger_health: dict[str, object],
+) -> list[str]:
+    """Human-readable risk lines for the notification body."""
+    lines: list[str] = []
+    for r in unhealthy:
+        lines.append(
+            f"- task {r.get('task')} last_result={r.get('last_result', '?')} "
+            f"(status={r.get('status', '?')}, next={r.get('next_run_time', '?')}). "
+            "Non-zero last_result = that run failed; check its log in artifacts/ops_log/."
+        )
+    for fp in missing_files:
+        lines.append(f"- missing expected file: {fp}")
+    fresh = ledger_health.get("freshness") or {}
+    if ledger_health.get("stale"):
+        lines.append(
+            f"- ledger stale: last settled game_date={fresh.get('last_game_date')} "
+            f"({fresh.get('days_since_last_settled')}d ago, n_settled={fresh.get('n_settled')}). "
+            "Usually clears on its own at the next 3am settle once games complete; "
+            "if it persists, the settle chain is failing."
+        )
+    return lines
 
 
 def main() -> None:
@@ -228,17 +300,33 @@ def main() -> None:
     print(f"wrote {OUT_PATH}")
 
     if status != "ok" and args.notify_on_red:
+        fingerprint = _risk_fingerprint(unhealthy, missing_files, stale_ledger)
+        now_utc = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        send, reason = _should_notify(fingerprint, now)
+        detail_lines = _describe_risk(unhealthy, missing_files, ledger_health)
         text = (
-            "Automation self-check RISK\n"
-            f"unhealthy_tasks={len(unhealthy)} "
-            f"missing_files={len(missing_files)} "
-            f"stale_ledger={stale_ledger}\n"
-            f"see {OUT_PATH}"
+            "MLBProps Automation self-check RISK\n"
+            + "\n".join(detail_lines)
+            + f"\nsee {OUT_PATH}"
         )
-        nt_ok, _ = _send_ntfy(text)
-        tg_ok, _ = _send_telegram(text)
-        payload["notify_sent"] = {"ntfy": nt_ok, "telegram": tg_ok}
+        if send:
+            nt_ok, _ = _send_ntfy(text)
+            payload["notify_sent"] = {"ntfy": nt_ok}
+            if nt_ok:
+                _record_notify(fingerprint, now_utc)
+            payload["notify_reason"] = reason
+            print(f"risk notify sent ({reason})")
+        else:
+            payload["notify_sent"] = {"ntfy": False}
+            payload["notify_reason"] = reason
+            print(f"risk notify skipped ({reason})")
         OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    elif status == "ok":
+        # Risk cleared: drop the dedupe state so the NEXT risk notifies
+        # immediately instead of being mistaken for a duplicate.
+        if NOTIFY_STATE_PATH.exists():
+            NOTIFY_STATE_PATH.unlink()
+        print("status ok")
 
 
 if __name__ == "__main__":

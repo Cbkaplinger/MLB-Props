@@ -42,6 +42,13 @@ Quick routing: "I need to do X -> run Y".
   - `powershell -ExecutionPolicy Bypass -File production/ops/run_market_refresh.ps1`
 - One-command end-of-day settle:
   - `powershell -ExecutionPolicy Bypass -File production/ops/run_end_of_day_settle.ps1`
+- Nightly drift check (settle freshness, model/side drift, veto-leak, tail watch,
+  feature freshness, ship watch; exit 0/1/2/3 = GREEN/YELLOW/RED/crash):
+  - `python production/ops/check_nightly_drift.py`
+- Drawdown brake monitor (paper track, SHADOW — needs sign-off for live stakes):
+  - `python production/ops/check_drawdown_brake.py`
+- One-command nightly drift chain (settle+grade+drift+self-check, pages on RED):
+  - `powershell -ExecutionPolicy Bypass -File production/ops/run_nightly_drift.ps1`
 - Start close watcher in background:
   - `powershell -ExecutionPolicy Bypass -File production/ops/start_close_watcher_background.ps1`
 - Create/update daily scheduled automation tasks:

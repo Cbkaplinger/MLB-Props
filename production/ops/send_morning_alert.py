@@ -1,27 +1,33 @@
-"""Send morning recommendation/status alert.
+"""Send morning recommendation/status alert via ntfy.sh.
 
-Channels (free-first):
-- ntfy.sh via NTFY_TOPIC (or NTFY_URL)
-- Telegram bot via TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID
-- ALERT_WEBHOOK_URL (generic JSON webhook; posts {"text": "..."} )
-- Twilio SMS (legacy fallback)
+Single channel (2026-09-08 decision): ntfy.sh via NTFY_TOPIC (or NTFY_URL).
+Telegram / generic-webhook / Twilio senders were deleted — nothing else is
+configured and unconfigured dead code only invites silent-alert bugs.
 
-Always writes artifacts/odds_log/morning_alert_latest.json with preview + send status.
+Always writes artifacts/odds_log/morning_alert_latest.json with preview + send status
+(unless --record-name overrides the record file, e.g. the nightly drift banner).
 """
 
 from __future__ import annotations
 
 import argparse
-import base64
 import json
+import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib import parse, request
-import os
+from urllib import request
 
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+from Python.env_load import load_project_dotenv  # noqa: E402
+
+# Load repo .env so NTFY_TOPIC / NTFY_URL is available even when run from Task
+# Scheduler, which does NOT inherit the interactive shell's environment.
+load_project_dotenv()
+
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 OUT_PATH = ODDS_DIR / "morning_alert_latest.json"
 
@@ -100,17 +106,7 @@ def _build_message() -> str:
     return "\n".join(lines)
 
 
-def _send_webhook(url: str, text: str) -> tuple[bool, str]:
-    data = json.dumps({"text": text}).encode("utf-8")
-    req = request.Request(url, data=data, headers={"Content-Type": "application/json"})
-    try:
-        with request.urlopen(req, timeout=15) as resp:
-            return True, f"webhook_status={resp.status}"
-    except Exception as exc:
-        return False, f"webhook_error={exc}"
-
-
-def _send_ntfy(text: str) -> tuple[bool, str]:
+def _send_ntfy(text: str, *, title: str = "MLB Props - Daily Recs") -> tuple[bool, str]:
     topic = os.getenv("NTFY_TOPIC", "").strip()
     ntfy_url = os.getenv("NTFY_URL", "").strip()
     if not ntfy_url and topic:
@@ -121,8 +117,8 @@ def _send_ntfy(text: str) -> tuple[bool, str]:
         ntfy_url,
         data=text.encode("utf-8"),
         headers={
-            "Title": "MLB Props - Daily Recs",
-            "Priority": "default",
+            "Title": title,
+            "Priority": "high" if title != "MLB Props - Daily Recs" else "default",
             "Content-Type": "text/plain; charset=utf-8",
         },
         method="POST",
@@ -134,78 +130,48 @@ def _send_ntfy(text: str) -> tuple[bool, str]:
         return False, f"ntfy_error={exc}"
 
 
-def _send_telegram(text: str) -> tuple[bool, str]:
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-    if not token or not chat_id:
-        return False, "telegram_env_missing"
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    body = parse.urlencode({"chat_id": chat_id, "text": text}).encode("utf-8")
-    req = request.Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
-    try:
-        with request.urlopen(req, timeout=20) as resp:
-            return True, f"telegram_status={resp.status}"
-    except Exception as exc:
-        return False, f"telegram_error={exc}"
-
-
-def _send_twilio(text: str) -> tuple[bool, str]:
-    sid = os.getenv("TWILIO_ACCOUNT_SID", "")
-    token = os.getenv("TWILIO_AUTH_TOKEN", "")
-    from_n = os.getenv("TWILIO_FROM_NUMBER", "")
-    to_n = os.getenv("ALERT_TO_NUMBER", "")
-    if not all([sid, token, from_n, to_n]):
-        return False, "twilio_env_missing"
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
-    body = parse.urlencode({"From": from_n, "To": to_n, "Body": text}).encode("utf-8")
-    auth = base64.b64encode(f"{sid}:{token}".encode("utf-8")).decode("ascii")
-    req = request.Request(
-        url,
-        data=body,
-        headers={"Authorization": f"Basic {auth}", "Content-Type": "application/x-www-form-urlencoded"},
-    )
-    try:
-        with request.urlopen(req, timeout=20) as resp:
-            return True, f"twilio_status={resp.status}"
-    except Exception as exc:
-        return False, f"twilio_error={exc}"
-
-
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument(
+        "--failure-message",
+        default="",
+        help=(
+            "When the morning workflow died before the board was built, pass a "
+            "short failure summary. It is prepended as a RED banner so a broken "
+            "automation run still pages you instead of staying silent."
+        ),
+    )
+    p.add_argument(
+        "--record-name",
+        default="morning_alert_latest.json",
+        help=(
+            "Send-record filename under artifacts/odds_log/ (basename only). "
+            "The nightly drift banner passes its own name so a 5am failure "
+            "record never overwrites the morning picks record."
+        ),
+    )
     args = p.parse_args()
 
     msg = _build_message()
+    if args.failure_message.strip():
+        msg = f"AUTOMATION FAILURE\n{args.failure_message.strip()}\n\n{msg}"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    webhook = os.getenv("ALERT_WEBHOOK_URL", "").strip()
     send_results: list[dict[str, object]] = []
 
     if args.dry_run:
         send_results.append({"channel": "preview", "ok": True, "detail": "dry_run"})
     else:
-        ntfy_ok, ntfy_detail = _send_ntfy(msg)
-        if ntfy_detail != "ntfy_env_missing":
-            send_results.append({"channel": "ntfy", "ok": ntfy_ok, "detail": ntfy_detail})
+        title = "MLBProps AUTOMATION FAILURE" if args.failure_message.strip() else "MLB Props - Daily Recs"
+        ntfy_ok, ntfy_detail = _send_ntfy(msg, title=title)
+        send_results.append({"channel": "ntfy", "ok": ntfy_ok, "detail": ntfy_detail})
 
-        tg_ok, tg_detail = _send_telegram(msg)
-        if tg_detail != "telegram_env_missing":
-            send_results.append({"channel": "telegram", "ok": tg_ok, "detail": tg_detail})
-
-        if webhook:
-            ok, detail = _send_webhook(webhook, msg)
-            send_results.append({"channel": "webhook", "ok": ok, "detail": detail})
-
-        tw_ok, tw_detail = _send_twilio(msg)
-        if tw_detail != "twilio_env_missing":
-            send_results.append({"channel": "twilio_sms", "ok": tw_ok, "detail": tw_detail})
-
-        if not send_results:
+        if not send_results or not any(r.get("ok") for r in send_results):
             send_results.append(
                 {
                     "channel": "none",
                     "ok": False,
-                    "detail": "No ntfy/Telegram/webhook/Twilio configuration found; preview only.",
+                    "detail": "ntfy not configured (NTFY_TOPIC/NTFY_URL) or send failed; preview only.",
                 }
             )
 
@@ -213,10 +179,23 @@ def main() -> None:
         "sent_utc": now,
         "message": msg,
         "results": send_results,
+        "any_sent": any(r.get("ok") for r in send_results),
     }
-    OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print(f"wrote {OUT_PATH}")
+    # Dry-run previews must NOT clobber the last real send record: the
+    # automation self-check and the operator both read morning_alert_latest.json
+    # as "last actually-sent alert". (A --dry-run test on 2026-09-08 overwrote
+    # the live record with a preview payload.)
+    out_path = OUT_PATH.parent / "morning_alert_preview.json" if args.dry_run else OUT_PATH.parent / Path(args.record_name).name
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"wrote {out_path}")
     print(msg)
+
+    # Fail loudly (non-zero) when no alert channel is configured or every
+    # channel failed, so the morning workflow / automation self-check catches a
+    # silent alert failure instead of reporting success. Dry-run previews don't
+    # exit non-zero.
+    if not args.dry_run and (not send_results or not payload["any_sent"]):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

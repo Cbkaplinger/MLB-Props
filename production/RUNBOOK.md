@@ -119,6 +119,9 @@ Creates:
 - `MLBProps_MorningWorkflow`
 - `MLBProps_CloseWatcherStart`
 - `MLBProps_EndOfDaySettle`
+- `MLBProps_NightlyDrift` (05:30 — best-effort settle→grade→drift→self-check;
+  pages ntfy on RED/step-failure only; YELLOW nights file quietly to
+  `artifacts/odds_log/nightly_drift_latest.json` for morning review)
 
 The settle script also writes a gate-monitoring artifact each run:
 
