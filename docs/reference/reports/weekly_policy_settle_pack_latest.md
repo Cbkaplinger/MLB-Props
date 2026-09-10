@@ -1,6 +1,6 @@
 # Weekly policy settle pack
 
-**Generated:** 2026-09-01T18:44:14Z  
+**Generated:** 2026-09-10T01:26:02Z  
 **Window:** game_date > 2026-08-21 (post-freeze)  
 **Status:** ops / shadow — does not edit live KING.
 
@@ -19,43 +19,44 @@
 
 | Lane | n | ROI | WR | CLV>0 | over/under |
 | --- | ---: | ---: | ---: | ---: | --- |
-| `status_quo_king_floor` | 74 | -0.0155 | 0.4865 | 0.5862 | 45/29 |
-| `veto_4_5_over` | 56 | 0.0825 | 0.5357 | 0.5 | 27/29 |
-| `veto_2_5_over` | 70 | 0.0335 | 0.5143 | 0.5862 | 41/29 |
-| `probation_skip_2_5_3_5_over` | 53 | 0.0669 | 0.5283 | 0.5909 | 24/29 |
-| `veto_low_line_overs_le4_5` | 35 | 0.2563 | 0.6286 | 0.4615 | 6/29 |
-| `asym_over16_under12` | 58 | 0.1056 | 0.569 | 0.6154 | 20/38 |
-| `asym16_plus_veto_4_5` | 53 | 0.1399 | 0.5849 | 0.5455 | 15/38 |
+| `status_quo_king_floor` | 120 | 0.0345 | 0.5083 | 0.4898 | 72/48 |
+| `veto_4_5_over` | 91 | 0.0957 | 0.5385 | 0.4444 | 43/48 |
+| `veto_2_5_over` | 114 | 0.0517 | 0.5263 | 0.4792 | 66/48 |
+| `probation_skip_2_5_3_5_over` | 88 | 0.0569 | 0.5341 | 0.4865 | 40/48 |
+| `veto_low_line_overs_le4_5` | 59 | 0.1643 | 0.5932 | 0.4167 | 11/48 |
+| `asym_over16_under12` | 102 | 0.1729 | 0.6078 | 0.5517 | 34/68 |
+| `asym16_plus_veto_4_5` | 92 | 0.2101 | 0.6304 | 0.52 | 24/68 |
 
 ## Block-bootstrap ROI (by game_date)
 
 | Lane | blocks | p2.5 | p50 | p97.5 |
 | --- | ---: | ---: | ---: | ---: |
-| `status_quo_king_floor` | 9 | -0.233 | -0.0281 | 0.2272 |
-| `veto_4_5_over` | 9 | -0.2015 | 0.076 | 0.4297 |
-| `asym16_plus_veto_4_5` | 9 | -0.0652 | 0.1397 | 0.3473 |
-| `veto_low_line_overs_le4_5` | 9 | -0.1788 | 0.2623 | 0.6149 |
+| `status_quo_king_floor` | 15 | -0.1494 | 0.0335 | 0.2153 |
+| `veto_4_5_over` | 15 | -0.1132 | 0.0917 | 0.3313 |
+| `asym16_plus_veto_4_5` | 15 | 0.0595 | 0.2107 | 0.3603 |
+| `veto_low_line_overs_le4_5` | 15 | -0.1168 | 0.1635 | 0.4239 |
 
 ## Status-quo line × side
 
 | Line | Side | n | ROI | WR |
 | ---: | --- | ---: | ---: | ---: |
-| 2.5 | over | 4 | -1.0 | 0.0 |
-| 3.5 | over | 17 | -0.0594 | 0.4706 |
+| 1.5 | over | 1 | -1.0 | 0.0 |
+| 2.5 | over | 6 | -0.2051 | 0.1667 |
+| 3.5 | over | 26 | 0.0358 | 0.5 |
 | 3.5 | under | 3 | 0.656 | 0.6667 |
-| 4.5 | over | 18 | -0.4086 | 0.3333 |
-| 4.5 | under | 10 | 0.4001 | 0.7 |
-| 5.5 | over | 4 | -0.07 | 0.5 |
-| 5.5 | under | 7 | 0.476 | 0.7143 |
-| 6.5 | over | 2 | 0.2466 | 0.5 |
-| 6.5 | under | 4 | -0.1222 | 0.5 |
-| 7.5 | under | 2 | 0.0177 | 0.5 |
-| 8.5 | under | 3 | 0.2639 | 0.6667 |
+| 4.5 | over | 29 | -0.1973 | 0.4138 |
+| 4.5 | under | 14 | 0.238 | 0.6429 |
+| 5.5 | over | 6 | 0.1473 | 0.5 |
+| 5.5 | under | 10 | 0.5573 | 0.7 |
+| 6.5 | over | 4 | 0.5423 | 0.75 |
+| 6.5 | under | 9 | -0.3389 | 0.3333 |
+| 7.5 | under | 7 | 0.0401 | 0.5714 |
+| 8.5 | under | 5 | 0.4576 | 0.8 |
 
 ## Brier skill vs market (status quo)
-- All: `{'available': True, 'n': 74, 'brier_model': 0.27926, 'brier_market': 0.25099, 'brier_skill_vs_market': -0.11262}`
-- Over: `{'available': True, 'n': 45, 'brier_model': 0.32246, 'brier_market': 0.25221, 'brier_skill_vs_market': -0.27854}`
-- Under: `{'available': True, 'n': 29, 'brier_model': 0.21223, 'brier_market': 0.2491, 'brier_skill_vs_market': 0.14804}`
+- All: `{'available': True, 'n': 120, 'brier_model': 0.27193, 'brier_market': 0.25147, 'brier_skill_vs_market': -0.08136}`
+- Over: `{'available': True, 'n': 72, 'brier_model': 0.29816, 'brier_market': 0.25253, 'brier_skill_vs_market': -0.18069}`
+- Under: `{'available': True, 'n': 48, 'brier_model': 0.23258, 'brier_market': 0.24988, 'brier_skill_vs_market': 0.06922}`
 
 ## Reproduce
 ```bash
