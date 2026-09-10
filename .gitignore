@@ -19,6 +19,21 @@ Data/processed/
 data/processed/
 Data/dimensions/
 data/dimensions/
+# Statcast snapshots are LOCAL-ONLY (2026-09-08 decision): ~2GB tracked bloated
+# .git to 2.1GB and the 2026 file is rewritten by every refresh, poisoning every
+# future commit/push. Files stay on disk; fresh clones rebuild via
+# production/ops/refresh_statcast.py (incremental Savant fetch). History keeps
+# old blobs until a filter-repo pass (optional follow-up, needs sign-off).
+data/Savant-Data/
+Data/Savant-Data/
+# Historical odds pulls (SmartStake HF cache, Kalshi cache, Odds API raw JSON +
+# normalized parquet). Vendor data is re-downloadable; never commit it.
+data/Odds-Historical/
+Data/Odds-Historical/
+# Open-command CV data (HF tomdoyo/open-command; CC BY-NC-SA 4.0 research only).
+# Re-downloadable; per-pitch layer ~250MB/season. Never commit.
+data/Open-Command/
+Data/Open-Command/
 artifacts/
 Artifacts/
 models/Strikeout-Model/Saved-Models/
