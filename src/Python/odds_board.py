@@ -16,7 +16,7 @@ import polars as pl
 
 from Python import config
 from Python.kpi_policy import load_kpi_policy
-from Python.count_layer import p_strikeouts_ge
+from Python.count_layer import COUNT_LAYER_FAMILY_DEFAULT, p_strikeouts_ge
 from Python.market import (
     DEFAULT_EDGE_FLOOR,
     evaluate_side,
@@ -240,7 +240,8 @@ def p_model_over_for_line(board_row: dict[str, Any], line: float) -> float | Non
     Preference order:
       1. ``p_over_*_cal`` (post-hoc calibrated)
       2. ``p_over_*`` (raw count-layer)
-      3. binomial fallback from ``k_rate_pred`` × ``projected_tbf``
+      3. count-layer fallback from ``k_rate_pred`` × ``projected_tbf``
+         (COUNT_LAYER_FAMILY_DEFAULT — Poisson since 2026-09-10, #29)
     """
     col = _line_to_col(line)
     cal_col = f"{col}_cal"
@@ -265,7 +266,7 @@ def p_model_over_for_line(board_row: dict[str, Any], line: float) -> float | Non
             float(line),
             k_rate=[float(rate)],
             projected_tbf=[float(tbf)],
-            family="binomial",
+            family=COUNT_LAYER_FAMILY_DEFAULT,
         )
     except (TypeError, ValueError):
         return None

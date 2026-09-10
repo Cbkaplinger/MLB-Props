@@ -16,12 +16,15 @@ $env:PYTHONIOENCODING = "utf-8"
 function Run-Step {
     param([string]$Label, [string[]]$ScriptArgs)
     Write-Host "`n[$Label] $($ScriptArgs -join ' ')"
-    & $python @ScriptArgs
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    # -u = unbuffered python so a killed run still leaves truthful step logs.
+    & $python -u @ScriptArgs
+    if ($LASTEXITCODE -ne 0) { throw "step [$Label] exited $LASTEXITCODE" }
 }
 
 Write-Host "Starting market refresh in $repoRoot"
 
+$failure = ""
+try {
 $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative")
 if ($QuietBoard) {
     Write-Warning "QuietBoard requested, but odds_board.py has no --quiet flag; running with normal output."
@@ -35,7 +38,22 @@ Run-Step "6 aux_market_shadow_score" @("production/ops/build_aux_market_shadow_s
 Run-Step "7 runtime_monitoring_snapshot" @("production/ops/build_runtime_monitoring_snapshot.py")
 Run-Step "7b weekly_policy_digest" @("production/ops/build_weekly_policy_digest.py")
 Run-Step "7c automation_self_check" @("production/ops/build_automation_self_check.py", "--notify-on-red")
-Run-Step "8 morning_alert" @("production/ops/send_morning_alert.py")
+} catch { $failure += "market refresh chain FAILED: $($_.Exception.Message)`n" }
+try {
+    if ($failure) {
+        Run-Step "8 morning_alert (FAILURE banner)" @("production/ops/send_morning_alert.py", "--failure-message", $failure)
+    } else {
+        Run-Step "8 morning_alert" @("production/ops/send_morning_alert.py")
+    }
+} catch {
+    Write-Warning "Alert step failed: $($_.Exception.Message)"
+    if (-not $failure) { $failure = "alert FAILED: $($_.Exception.Message)`n" }
+}
+
+if ($failure) {
+    Write-Warning "Market refresh DEGRADED:`n$failure"
+    exit 1
+}
 
 Write-Host "`nMarket refresh complete."
 

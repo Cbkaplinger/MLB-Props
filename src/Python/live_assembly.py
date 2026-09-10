@@ -22,7 +22,12 @@ import polars as pl
 
 from Python import config
 from Python.bullpen import add_bullpen_lookback_features
-from Python.count_layer import DEFAULT_K_LINES, PROJECTION_K_LINES, attach_count_predictions
+from Python.count_layer import (
+    COUNT_LAYER_FAMILY_DEFAULT,
+    DEFAULT_K_LINES,
+    PROJECTION_K_LINES,
+    attach_count_predictions,
+)
 from Python.daily_lineups import DailySlate
 from Python import identity
 from Python.projection_support import EXTREME_REST_DAYS, mark_out_of_support
@@ -192,8 +197,13 @@ def score_frame(
     lines: Sequence[float] | None = None,
     calibration_path: Path | None | bool = True,
     krate_ensemble_config: Path | None | bool = True,
+    count_family: str | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Score a feature frame with frozen k-rate + TBF + binomial count layer.
+    """Score a feature frame with frozen k-rate + TBF + count-layer probs.
+
+    ``count_family``: None resolves to ``COUNT_LAYER_FAMILY_DEFAULT``
+    ("poisson" since 2026-09-10, backlog #29). Pass "binomial" explicitly
+    for legacy behavior.
 
     ``calibration_path``:
       - ``True`` (default): load production calibrator pointer if present
@@ -274,7 +284,9 @@ def score_frame(
         projected_tbf=tbf_hat,
         lines=line_set,
         kappa=None,
+        family=count_family or COUNT_LAYER_FAMILY_DEFAULT,
     )
+    report_family = count_family or COUNT_LAYER_FAMILY_DEFAULT
 
     cal_meta: dict[str, Any] = {
         "calibration_applied": False,
@@ -315,6 +327,7 @@ def score_frame(
         "tbf_n_features": len(tbf_features),
         "tbf_alpha": tbf.get("ridge_alpha"),
         "lines": list(line_set),
+        "count_family": report_family,
         "n_scored": int(len(scored)),
         "mean_k_rate_pred": float(np.mean(k_hat)),
         "mean_projected_tbf": float(np.mean(tbf_hat)),

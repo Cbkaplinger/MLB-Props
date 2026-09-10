@@ -230,3 +230,43 @@ def test_dedupe_ledger_props_pnl_not_double_counted() -> None:
     assert float(ded["pnl"].sum()) != float(raw["pnl"].sum())
 
 
+def test_atomic_write_parquet_roundtrip_no_tmp_leftovers(tmp_path: Path) -> None:
+    # Writers must be all-or-nothing: after a successful write the file reads
+    # back whole and no .tmp staging files remain in the directory.
+    from Python.odds_ledger import atomic_write_parquet, atomic_write_text
+
+    target = tmp_path / "ledger.parquet"
+    frame = pl.DataFrame({"a": [1, 2, 3]})
+    atomic_write_parquet(frame, target)
+    assert pl.read_parquet(target).height == 3
+    assert list(tmp_path.glob("*.tmp")) == []
+
+    sidecar = tmp_path / "meta.json"
+    atomic_write_text(sidecar, '{"n": 3}')
+    assert sidecar.read_text(encoding="utf-8") == '{"n": 3}'
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_atomic_write_parquet_failure_keeps_old_file(tmp_path: Path) -> None:
+    # A failed write must leave the previous good file untouched (this is the
+    # crash-mid-write class that used to truncate ledger.parquet).
+    from Python.odds_ledger import atomic_write_parquet
+
+    target = tmp_path / "ledger.parquet"
+    good = pl.DataFrame({"a": [1]})
+    atomic_write_parquet(good, target)
+
+    class Boom:
+        def write_parquet(self, *_a, **_k):
+            raise RuntimeError("simulated crash mid-write")
+
+    try:
+        atomic_write_parquet(Boom(), target)  # type: ignore[arg-type]
+    except RuntimeError:
+        pass
+    # Old file intact and readable; staging file cleaned up.
+    assert pl.read_parquet(target).height == 1
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+

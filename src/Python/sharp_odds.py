@@ -19,6 +19,34 @@ from typing import Any
 SHARP_API_BASE = "https://api.sharpapi.io/api/v1"
 DEFAULT_MARKET = "player_strikeouts"
 
+# ---------------------------------------------------------------------------
+# Client-side rate limiting.
+# SharpAPI enforces per-key limits (Free=12 req/min, Hobby=120, Pro=300, ...).
+# Polling/pagination hot-loops (close_watcher ticks, aux probes, open poll)
+# can burst well past the window and trip 429s, whose retry cannot recover a
+# big overrun. We therefore throttle every request to a safe floor so callers
+# stay under their tier window regardless of how aggressively they loop.
+# MIN_INTERVAL_S is intentionally conservative: 12/min -> one request / 6s.
+# Blocking each request also serializes concurrent racers (the pagination loop
+# and the aux probe share this time base), which prevents interleaved bursts.
+# ---------------------------------------------------------------------------
+import threading
+
+_RATE_LIMIT_LOCK = threading.Lock()
+_MIN_REQUEST_INTERVAL_S = float(os.getenv("SHARPAPI_MIN_INTERVAL_S", "6.0"))
+_LAST_REQUEST_TS = 0.0
+
+
+def _rate_limit_wait() -> None:
+    """Block until at least ``_MIN_REQUEST_INTERVAL_S`` since the last request."""
+    global _LAST_REQUEST_TS
+    with _RATE_LIMIT_LOCK:
+        now = time.time()
+        wait = _LAST_REQUEST_TS + _MIN_REQUEST_INTERVAL_S - now
+        if wait > 0:
+            time.sleep(wait)
+        _LAST_REQUEST_TS = time.time()
+
 
 @dataclass(frozen=True)
 class StrikeoutQuote:
@@ -58,13 +86,18 @@ def _get_json(
     req = urllib.request.Request(url, headers={"X-API-Key": api_key})
     last_err: Exception | None = None
     for attempt in range(max_retries):
+        _rate_limit_wait()
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
             body = exc.read().decode(errors="replace")
             if exc.code == 429 and attempt + 1 < max_retries:
-                time.sleep(10 * (attempt + 1))
+                # 429 means the server is already rate-limited. Back off a bit
+                # MORE than a nominal tick so the window can drain, then retry.
+                # Repeated 429s still raise below so they are never silently
+                # swallowed into a long silent hang.
+                time.sleep(20 * (attempt + 1))
                 last_err = exc
                 continue
             raise SystemExit(f"SharpAPI HTTP {exc.code}: {body[:500]}") from exc
@@ -87,7 +120,14 @@ def fetch_odds_rows(
     max_pages: int = 20,
     sleep_s: float = 0.15,
 ) -> list[dict[str, Any]]:
-    """Paginate ``GET /odds`` and return raw row dicts."""
+    """Paginate ``GET /odds`` and return raw row dicts.
+
+    Every request is gated by the module-level rate limiter, so a pagination
+    loop can never burst past the per-key window. ``sleep_s`` is an additional
+    per-page pause that is already covered by the limiter's minimum interval,
+    so it defaults to 0 to avoid double-sleeping; callers that pass a larger
+    value still get it as a floor.
+    """
     api_key = get_api_key()
     rows: list[dict[str, Any]] = []
     cursor: str | None = None

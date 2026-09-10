@@ -30,7 +30,7 @@ from typing import Any, Iterable
 import polars as pl
 
 from Python import config
-from Python.odds_ledger import stable_ticket_id
+from Python.odds_ledger import atomic_write_parquet, stable_ticket_id
 
 ODDS_DIR = config.OUTPUT_DIR / "odds_log"
 REAL_BETS_PATH = ODDS_DIR / "real_bets.parquet"
@@ -112,7 +112,10 @@ def load_real_bets(path: Path = REAL_BETS_PATH) -> pl.DataFrame:
 
 
 def _write_meta(path: Path, n_rows: int = 0) -> None:
-    META_PATH.write_text(
+    from Python.odds_ledger import atomic_write_text
+
+    atomic_write_text(
+        META_PATH,
         json.dumps(
             {
                 "path": str(path),
@@ -121,7 +124,6 @@ def _write_meta(path: Path, n_rows: int = 0) -> None:
             },
             indent=2,
         ),
-        encoding="utf-8",
     )
 
 
@@ -160,7 +162,7 @@ def append_real_bets(
             frame = batch
         else:
             frame = pl.concat([ledger, batch], how="diagonal_relaxed")
-        frame.write_parquet(path)
+        atomic_write_parquet(frame, path)
         _write_meta(path, frame.height)
     else:
         frame = ledger

@@ -7,7 +7,9 @@ See ``docs/reference/market_clv_gates.md``.
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -85,8 +87,57 @@ def ensure_odds_dir() -> Path:
     return ODDS_DIR
 
 
+def atomic_write_parquet(frame: pl.DataFrame, path: Path) -> None:
+    """Write parquet atomically (temp file + os.replace).
+
+    Every ledger mutation used to be ``frame.write_parquet(path)`` directly: a
+    crash / power loss / standby-suspend mid-write left a truncated
+    ``ledger.parquet`` that every later run failed to read, and two overlapped
+    writers (poll + settle, watcher tick + manual close) resolved as
+    last-writer-wins with the loser's updates silently dropped. os.replace on
+    the same volume is atomic on both Windows and Linux, so readers always see
+    the old file or the new file, never a half-written one. (Does not serialize
+    concurrent writers — see module note — it only makes each write all-or-nothing.)
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
+    try:
+        os.close(fd)
+        frame.write_parquet(tmp)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Same all-or-nothing guarantee as atomic_write_parquet, for sidecar JSON."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def norm_player_name(s: str) -> str:
-    return re.sub(r"[^a-z ]", "", (s or "").lower()).strip()
+    """Lowercase ASCII name key. Folds accents (Jesús→jesus) so vendor feeds
+    with diacritics join against plain-ASCII books/RG/MLBAM strings."""
+    import unicodedata
+
+    ascii_s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z ]", "", ascii_s.lower()).strip()
 
 
 def parse_event_start_utc(raw: str | None) -> datetime | None:
@@ -156,7 +207,8 @@ def load_ledger(path: Path = LEDGER_PATH) -> pl.DataFrame:
 
 
 def _write_meta(path: Path, n_rows: int) -> None:
-    META_PATH.write_text(
+    atomic_write_text(
+        META_PATH,
         json.dumps(
             {
                 "path": str(path),
@@ -165,7 +217,6 @@ def _write_meta(path: Path, n_rows: int) -> None:
             },
             indent=2,
         ),
-        encoding="utf-8",
     )
 
 
@@ -177,7 +228,7 @@ def append_rows(rows: Iterable[dict[str, Any]], *, path: Path = LEDGER_PATH) -> 
         frame = pl.concat([prev, batch], how="diagonal_relaxed")
     else:
         frame = batch
-    frame.write_parquet(path)
+    atomic_write_parquet(frame, path)
     _write_meta(path, frame.height)
     return frame
 
@@ -230,7 +281,7 @@ def append_open_rows(
         frame = pl.DataFrame(fresh)
     else:
         frame = pl.concat([ledger, pl.DataFrame(fresh)], how="diagonal_relaxed")
-    frame.write_parquet(path)
+    atomic_write_parquet(frame, path)
     _write_meta(path, frame.height)
     return frame, len(fresh), skipped
 
@@ -292,7 +343,7 @@ def replace_open_slate(
         frame = ledger
     else:
         frame = pl.concat([ledger, pl.DataFrame(fresh)], how="diagonal_relaxed")
-    frame.write_parquet(path)
+    atomic_write_parquet(frame, path)
     _write_meta(path, frame.height)
     return frame, len(fresh), removed
 
@@ -618,7 +669,7 @@ def apply_void(
 
 def save_ledger(frame: pl.DataFrame, path: Path = LEDGER_PATH) -> None:
     ensure_odds_dir()
-    frame.write_parquet(path)
+    atomic_write_parquet(frame, path)
     _write_meta(path, frame.height)
 
 
@@ -733,5 +784,5 @@ def run_threshold_curve(
     frame = pl.DataFrame(curve)
     if write:
         ensure_odds_dir()
-        frame.write_parquet(CURVE_PATH)
+        atomic_write_parquet(frame, CURVE_PATH)
     return frame

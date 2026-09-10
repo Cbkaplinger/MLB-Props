@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from Python.count_layer import PROJECTION_K_LINES, p_strikeouts_ge
+from Python.count_layer import (
+    COUNT_LAYER_FAMILY_DEFAULT,
+    PROJECTION_K_LINES,
+    p_strikeouts_ge,
+)
 import polars as pl
 
 from Python.odds_board import (
@@ -43,7 +47,8 @@ def test_p_model_over_falls_back_for_missing_line() -> None:
     row = {"k_rate_pred": rate, "projected_tbf": tbf, "expected_K": rate * tbf}
     got = p_model_over_for_line(row, 2.5)
     expected = float(
-        p_strikeouts_ge(2.5, k_rate=[rate], projected_tbf=[tbf], family="binomial")[0]
+        p_strikeouts_ge(2.5, k_rate=[rate], projected_tbf=[tbf],
+                        family=COUNT_LAYER_FAMILY_DEFAULT)[0]
     )
     assert got == expected
 

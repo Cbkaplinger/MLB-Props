@@ -25,6 +25,11 @@ PROJECTION_K_LINES: tuple[float, ...] = (2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5)
 # Above this concentration, beta-binomial ≈ binomial for prop work.
 BINOMIAL_KAPPA_FLOOR: float = 1.0e5
 
+# Live count family. "poisson" since 2026-09-10 (backlog #29; race + gate).
+# Revert: set back to "binomial". Binomial stays the attach() default so
+# unit tests pin legacy behavior and research can request either explicitly.
+COUNT_LAYER_FAMILY_DEFAULT: str = "poisson"
+
 
 def expected_strikeouts(
     k_rate: np.ndarray | pd.Series,
@@ -203,6 +208,7 @@ def attach_count_predictions(
     projected_tbf: np.ndarray,
     lines: Sequence[float] = DEFAULT_K_LINES,
     kappa: float | None = None,
+    family: str = "binomial",
 ) -> pd.DataFrame:
     """Return a copy with ``projected_tbf``, ``expected_K``, and line probs."""
     out = frame.copy()
@@ -215,7 +221,7 @@ def attach_count_predictions(
             line,
             k_rate=k_rate,
             projected_tbf=projected_tbf,
-            family="binomial",
+            family=family,
         )
         if kappa is not None:
             out[f"{key}_bb"] = p_strikeouts_ge(
