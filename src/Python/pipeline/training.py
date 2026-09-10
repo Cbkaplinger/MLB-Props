@@ -237,6 +237,219 @@ def opposing_lineup_features(
     return joined.group_by("game_pk", "pitcher").agg(aggregations)
 
 
+def _age_key(name: str | None) -> str:
+    """Order-invariant name key (L3 family-first vs map given-first)."""
+    import re
+    import unicodedata
+
+    ascii_s = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode("ascii")
+    return " ".join(sorted(re.sub(r"[^a-z ]", "", ascii_s.lower()).split()))
+
+
+def _join_command_features(frame: pl.DataFrame) -> pl.DataFrame:
+    """Attach trailing-30d rolling command (open-command, research stage).
+
+    Leakage-safe: cmd_roll30 uses strictly prior dates. Same-day aggregates
+    (cmd_med/cmd_tail) are NEVER joined (in-game pitches = leakage).
+    Missing (pre-2024, <2 priors) stays null (LightGBM-native).
+    Requires data/Open-Command/start_command.parquet (build_start_command.py).
+    """
+    from Python import config as _config
+
+    cmd = pl.read_parquet(
+        _config.PROJECT_ROOT / "data" / "Open-Command" / "start_command.parquet"
+    ).select(["date", "key", "cmd_roll30"])
+    return frame.with_columns(
+        pl.col("player_name").map_elements(_age_key, return_dtype=pl.Utf8).alias("_ckey"),
+        pl.col("game_date").cast(pl.Utf8).str.slice(0, 10).alias("_cdate"),
+    ).join(cmd, left_on=["_cdate", "_ckey"], right_on=["date", "key"], how="left").drop(
+        ["_ckey", "_cdate"])
+
+
+def _join_age_features(frame: pl.DataFrame) -> pl.DataFrame:
+    """Attach pitcher age + age interactions from local dimensions.
+
+    DOB is static public info (known pregame) — leakage-safe by construction.
+    Requires data/dimensions/player_id_map.parquet + player_ages.parquet;
+    rebuild the latter with production/ops/market_research/build_age_table.py.
+    Missing ages stay null (LightGBM-native); no silent median fill.
+    Missing dimension FILES degrade the same way (null columns + loud print),
+    matching _join_command_features/_join_kadj_features: CI and fresh clones
+    have no data/dimensions, and a rebuild must never hard-fail on that.
+    Null-rate drift is watched by feature-freshness monitoring.
+    """
+    from Python import config as _config
+
+    try:
+        idmap = pl.read_parquet(_config.PROJECT_ROOT / "data" / "dimensions" / "player_id_map.parquet")
+        ages = pl.read_parquet(_config.PROJECT_ROOT / "data" / "dimensions" / "player_ages.parquet")
+    except FileNotFoundError:
+        print("[level 3] age dimensions absent; age terms null (see build_age_table.py)")
+        return frame.with_columns(
+            pl.lit(None, dtype=pl.Float64).alias("pitcher_age"),
+            pl.lit(None, dtype=pl.Float64).alias("pitcher_age2"),
+            pl.lit(None, dtype=pl.Float64).alias("age_x_whiff_gap"),
+            pl.lit(None, dtype=pl.Float64).alias("age_x_velo_gap"),
+        )
+    if "mlb_id" not in idmap.columns or "birth_date" not in ages.columns:
+        raise ValueError("age dimensions missing expected columns; see build_age_table.py")
+    dim = idmap.select(["mlb_id", "player_name"]).join(
+        ages.select(["mlb_id", "birth_date"]), on="mlb_id", how="inner"
+    ).with_columns(
+        pl.col("player_name").map_elements(_age_key, return_dtype=pl.Utf8).alias("_agekey"),
+        pl.col("birth_date").str.strptime(pl.Date, "%Y-%m-%d").alias("_dob"),
+    ).select(["_agekey", "_dob"]).unique(subset=["_agekey"], keep="first")
+    out = frame.with_columns(
+        pl.col("player_name").map_elements(_age_key, return_dtype=pl.Utf8).alias("_agekey"),
+        pl.col("game_date").cast(pl.Date).alias("_gdate"),
+    ).join(dim, on="_agekey", how="left").with_columns(
+        ((pl.col("_gdate") - pl.col("_dob")).dt.total_days() / 365.25).alias("pitcher_age"),
+    ).with_columns(
+        (pl.col("pitcher_age") * pl.col("pitcher_age")).alias("pitcher_age2"),
+        (pl.col("pitcher_age") * (pl.col("whiff_rate_P5").cast(pl.Float64)
+                                  - pl.col("whiff_rate_P20").cast(pl.Float64))).alias("age_x_whiff_gap"),
+        (pl.col("pitcher_age") * (pl.col("ff_velo_P1").cast(pl.Float64)
+                                  - pl.col("ff_velo_P10").cast(pl.Float64))).alias("age_x_velo_gap"),
+    ).drop(["_agekey", "_dob", "_gdate"])
+    n_missing = out["pitcher_age"].null_count()
+    if n_missing:
+        print(f"[level 3] age join: {n_missing}/{out.height} rows lack DOB (null, kept)")
+    return out
+
+
+def _null_kadj_frame(frame: pl.DataFrame) -> pl.DataFrame:
+    """kadj-absent fallback: null column + all-missing flag (never silent zeros)."""
+    return frame.with_columns(
+        pl.lit(None, dtype=pl.Float64).alias("kadj"),
+        pl.lit(1, dtype=pl.Int8).alias("kadj_missing"),
+    )
+
+
+def _join_kadj_features(
+    frame: pl.DataFrame,
+    pitch_type_games: pl.DataFrame | None = None,
+) -> pl.DataFrame:
+    """Attach usage-weighted per-pitch CSW residual vs league (WS8 kAdj).
+
+    For each start G (strictly prior dates only):
+        kadj = sum_pt usage_prior5_pt * (pitcher_roll20_csw_pt - league_prior_csw_pt)
+
+    League prior = expanding pitch-weighted CSW per pitch_type over dates < G.
+    Pitcher roll = pitch-weighted CSW per pitch_type over prior 20 starts.
+    Usage = pitch shares over prior 5 starts. Gates: >=5 prior starts AND
+    >=300 prior pitches, else null + kadj_missing=1 (LightGBM-native).
+
+    Same algorithm as the validated probe
+    (production/ops/market_research/ws8_kadj_probe.py) — L3 parity is
+    behavioral (coverage ~93%, YoY r ~0.75). Missing/low-history stays null;
+    no silent zero-fill (a zero residual is a claim, a null is honesty).
+    """
+    from Python import config as _config
+
+    if pitch_type_games is None:
+        path = _config.PITCH_TYPE_GAMES_PATH
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Missing pitch-type games: {path} (Level 2 output)"
+            )
+        pitch_type_games = pl.read_parquet(path)
+    required = {"game_pk", "pitcher", "game_date", "pitch_type", "Pitches", "CSW"}
+    if missing := sorted(required - set(pitch_type_games.columns)):
+        raise ValueError(f"pitch_type_games is missing columns: {missing}")
+    if missing := sorted({"game_pk", "pitcher", "game_date"} - set(frame.columns)):
+        raise ValueError(f"frame is missing kadj keys: {missing}")
+
+    pt = (
+        pitch_type_games.filter(pl.col("Pitches") > 0)
+        .with_columns(pl.col("game_date").cast(pl.Date))
+        .sort(["game_date", "game_pk"])
+    )
+    fr = frame.with_columns(pl.col("game_date").cast(pl.Date))
+    if fr.select("game_pk", "pitcher").is_duplicated().any():
+        raise ValueError("frame contains duplicate (game_pk, pitcher) keys")
+
+    # Expanding league prior per (pitch_type, date), strictly prior dates.
+    daily = (
+        pt.group_by(["pitch_type", "game_date"])
+        .agg(pl.col("CSW").sum().alias("csw"), pl.col("Pitches").sum().alias("pit"))
+        .sort(["pitch_type", "game_date"])
+        .with_columns(
+            pl.col("csw").cum_sum().shift(1).over("pitch_type").alias("pcsw"),
+            pl.col("pit").cum_sum().shift(1).over("pitch_type").alias("ppit"),
+        )
+        .with_columns(
+            pl.when(pl.col("ppit") > 0)
+            .then(pl.col("pcsw") / pl.col("ppit"))
+            .otherwise(None)
+            .alias("prior_mean")
+        )
+    )
+    league: dict[tuple[str, str], float] = {}
+    for r in daily.select(["pitch_type", "game_date", "prior_mean"]).to_dicts():
+        if r["prior_mean"] is not None:
+            league[(r["pitch_type"], str(r["game_date"]))] = float(r["prior_mean"])
+
+    pt_by_pitcher: dict[int, list[dict]] = {}
+    for r in pt.to_dicts():
+        pt_by_pitcher.setdefault(int(r["pitcher"]), []).append(r)
+
+    rows = []
+    for r in fr.sort(["game_date", "game_pk"]).to_dicts():
+        pid = int(r["pitcher"])
+        gdate = r["game_date"]
+        hist = [h for h in pt_by_pitcher.get(pid, []) if h["game_date"] < gdate]
+        starts = sorted({(h["game_date"], int(h["game_pk"])) for h in hist})
+        n_prior = len(starts)
+        tot_pit = sum(int(h["Pitches"]) for h in hist)
+        if n_prior < 5 or tot_pit < 300:
+            rows.append({"game_pk": r["game_pk"], "pitcher": pid,
+                         "kadj": None})
+            continue
+        last20 = set(starts[-20:])
+        last5 = set(starts[-5:])
+        roll: dict[str, list[int]] = {}
+        use: dict[str, int] = {}
+        use_tot = 0
+        for h in hist:
+            key = (h["game_date"], int(h["game_pk"]))
+            if key in last20:
+                slot = roll.setdefault(h["pitch_type"], [0, 0])
+                slot[0] += int(h["CSW"])
+                slot[1] += int(h["Pitches"])
+            if key in last5:
+                use[h["pitch_type"]] = use.get(h["pitch_type"], 0) + int(h["Pitches"])
+                use_tot += int(h["Pitches"])
+        kadj = 0.0
+        wsum = 0.0
+        gstr = str(gdate)
+        for ptype, pcount in use.items():
+            w = pcount / use_tot if use_tot else 0.0
+            csw, pit = roll.get(ptype, (0, 0))
+            base = league.get((ptype, gstr))
+            if pit <= 0 or base is None:
+                continue
+            kadj += w * (csw / pit - base)
+            wsum += w
+        rows.append({"game_pk": r["game_pk"], "pitcher": pid,
+                     "kadj": kadj if wsum else None})
+
+    kj = pl.DataFrame(
+        rows,
+        schema={"game_pk": pl.Int64, "pitcher": pl.Int64, "kadj": pl.Float64},
+        strict=False,
+    ).with_columns(
+        pl.col("kadj").cast(pl.Float64),
+        pl.col("kadj").is_null().cast(pl.Int8).alias("kadj_missing"),
+    )
+    out = fr.join(kj, on=["game_pk", "pitcher"], how="left", validate="1:1")
+    if out.height != fr.height:
+        raise ValueError(f"kadj join changed row count: {fr.height} -> {out.height}")
+    n_missing = out["kadj"].null_count()
+    if n_missing:
+        print(f"[level 3] kadj join: {n_missing}/{out.height} rows lack history (null, kept)")
+    return out
+
+
 def _join_park_factors(
     frame: pl.DataFrame,
     park_factors: pl.DataFrame,
@@ -318,6 +531,17 @@ def build_pitcher_training(
         )
     if park_factors is not None:
         out = _join_park_factors(out, park_factors)
+    out = _join_age_features(out)
+    try:
+        out = _join_kadj_features(out)
+    except FileNotFoundError:
+        print("[level 3] pitch-type games absent; kadj null (Level 2 output missing)")
+        out = _null_kadj_frame(out)
+    try:
+        out = _join_command_features(out)
+    except FileNotFoundError:
+        print("[level 3] Open-Command parquet absent; cmd_roll30 null (see build_start_command.py)")
+        out = out.with_columns(pl.lit(None, dtype=pl.Float64).alias("cmd_roll30"))
     return out.sort(["game_date", "player_name"])
 
 

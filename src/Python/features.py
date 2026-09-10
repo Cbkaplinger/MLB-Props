@@ -56,7 +56,21 @@ APPROVED_CONTEXT_FEATURES = frozenset(
         "opp_lineup_whiff",
         "opp_lineup_swstr",
         "opp_lineup_chase",
-        # TBF covariates (experimental for k-rate; allowed when include_experimental).
+        # Static pregame context: pitcher age from public DOB (MLBAM), known
+        # months before first pitch. U-shaped skill (backlog #32); age enters
+        # via level terms + interactions, never post-hoc overlays (#33).
+        "pitcher_age",
+        "pitcher_age2",
+        "age_x_whiff_gap",
+        "age_x_velo_gap",
+        # Command (open-command CV miss, trailing-30d rolling only — same-day
+        # aggregates use in-game pitches and would leak; backlog #50).
+        "cmd_roll30",
+        # kAdj (WS8): usage-weighted per-pitch CSW residual vs league,
+        # prior-only with hard history gates; null + kadj_missing when gated
+        # (backlog #54 probe, #60 L3). A zero residual is a claim; nulls stay.
+        "kadj",
+        "kadj_missing",
         "days_rest",
         "days_rest_capped",
         "is_season_debut",
