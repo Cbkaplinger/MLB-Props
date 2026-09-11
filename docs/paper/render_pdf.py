@@ -35,6 +35,8 @@ h1 {
   line-height: 1.25;
   margin: 0 0 0.35em;
   font-weight: 700;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 h2 {
   font-size: 15pt;
@@ -42,6 +44,7 @@ h2 {
   padding-bottom: 0.18em;
   border-bottom: 1px solid #bbb;
   font-weight: 700;
+  break-after: avoid;
   page-break-after: avoid;
 }
 h3 {
@@ -49,8 +52,10 @@ h3 {
   margin: 1.05em 0 0.35em;
   font-weight: 700;
   color: #222;
+  break-after: avoid;
   page-break-after: avoid;
 }
+p, li { orphans: 3; widows: 3; }
 p { margin: 0.5em 0; }
 ul, ol {
   margin: 0.4em 0 0.65em 1.35em;
@@ -65,6 +70,8 @@ table {
   margin: 0.35em 0 0.95em;
   font-size: 10.5pt;
 }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
 th, td {
   border: 1px solid #999;
   padding: 0.32em 0.45em;
@@ -81,7 +88,10 @@ code {
   background: #f4f4f4;
   padding: 0.04em 0.22em;
   border-radius: 2px;
+  overflow-wrap: anywhere;
 }
+a { color: #1a0dab; text-decoration: underline; }
+a:visited { color: #4a148c; }
 hr { border: none; border-top: 1px solid #ccc; margin: 1.15em 0; }
 strong { font-weight: 700; }
 em { font-style: italic; }
@@ -99,8 +109,14 @@ em { font-style: italic; }
 sub { font-size: 0.75em; }
 figure {
   margin: 1em 0 1.15em;
+  break-inside: avoid;
   page-break-inside: avoid;
   text-align: center;
+}
+figure p { text-align: left; }
+img {
+  max-width: 100%;
+  height: auto;
 }
 figure img {
   max-width: 100%;
@@ -144,6 +160,26 @@ def promote_table_captions(md_text: str) -> str:
     )
 
 
+def wrap_figures(html: str) -> str:
+    """Keep each caption with its figure: wrap adjacent caption+image pairs.
+
+    Markdown emits `<p><strong>Figure N.</strong>...</p>` followed by a
+    separate `<p><img ...></p>`. Without grouping, Chromium paginates them
+    apart (captions stranded from figures across 5 pages in the 2026-09-11
+    build). Wrapping in <figure> activates the break-inside: avoid rule.
+    """
+
+    def repl(match: re.Match[str]) -> str:
+        return f"<figure>{match.group(1)}{match.group(2)}</figure>"
+
+    return re.sub(
+        r"(<p><strong>Figure \d+\..*?</p>)\s*(<p><img.*?</p>)",
+        repl,
+        html,
+        flags=re.DOTALL,
+    )
+
+
 def build_html(md_text: str) -> str:
     md_text = promote_table_captions(md_text)
     body = markdown.markdown(
@@ -152,6 +188,7 @@ def build_html(md_text: str) -> str:
         output_format="html5",
     )
     body = embed_images(body)
+    body = wrap_figures(body)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,9 +216,16 @@ def main() -> None:
             path=str(PDF_PATH),
             format="Letter",
             print_background=True,
+            display_header_footer=True,
+            header_template="<span></span>",
+            footer_template=(
+                "<div style='width:100%;text-align:center;"
+                "font-size:9pt;color:#555;'>"
+                "<span class='pageNumber'></span></div>"
+            ),
             margin={
                 "top": "0.55in",
-                "bottom": "0.55in",
+                "bottom": "0.7in",
                 "left": "0.55in",
                 "right": "0.55in",
             },

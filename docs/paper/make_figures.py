@@ -21,6 +21,7 @@ plt.rcParams.update(
         "figure.dpi": 160,
         "savefig.dpi": 300,
         "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.1,
         "axes.spines.top": False,
         "axes.spines.right": False,
     }
@@ -74,14 +75,14 @@ def _arrow(ax, x0, y0, x1, y1) -> None:
 
 
 def fig1_pipeline() -> None:
-    fig, ax = plt.subplots(figsize=(9.0, 4.0))
-    ax.set_xlim(0, 10.2)
+    fig, ax = plt.subplots(figsize=(7.0, 3.4))
+    ax.set_xlim(0, 7.0)
     ax.set_ylim(0, 4.2)
     ax.axis("off")
 
-    bw, bh = 2.05, 1.05
+    bw, bh = 1.42, 1.05
     top_y, bot_y = 2.35, 0.45
-    xs = [0.35, 2.75, 5.15, 7.55]
+    xs = [0.24, 1.90, 3.56, 5.22]
 
     top_labels = [
         "Raw Statcast\nparquet",
@@ -119,12 +120,12 @@ def fig1_pipeline() -> None:
         )
 
     ax.text(
-        5.1,
+        3.5,
         3.85,
         "Leakage-safe pregame stack: rate × exposure → expected strikeouts",
         ha="center",
         va="center",
-        fontsize=11,
+        fontsize=10,
         fontweight="bold",
         color="#111111",
     )
@@ -165,7 +166,7 @@ def fig3_ablation() -> None:
 
     y = np.arange(len(labels))
     height = 0.32
-    fig, ax = plt.subplots(figsize=(8.2, 4.8))
+    fig, ax = plt.subplots(figsize=(7.0, 4.4))
     ax.barh(
         y + height / 2,
         lgbm_mean,
@@ -213,7 +214,7 @@ def fig3_ablation() -> None:
     )
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.22, left=0.32)
-    fig.savefig(OUT / "fig3_ablation.png")
+    fig.savefig(OUT / "fig2_ablation.png")
     plt.close(fig)
 
 
@@ -282,7 +283,7 @@ def fig4_calibration() -> None:
     )
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.16)
-    fig.savefig(OUT / "fig4_calibration.png")
+    fig.savefig(OUT / "fig8_reliability.png")
     plt.close(fig)
 
 
@@ -299,7 +300,7 @@ def fig_equity_top3_vs_top1() -> None:
         return
 
     picks = pl.read_csv(picks_path)
-    fig, ax = plt.subplots(figsize=(8.5, 4.2))
+    fig, ax = plt.subplots(figsize=(7.0, 4.0))
     for cfg, color, label in (
         ("top3", GREEN, "top3 @ floor 0.12 (n=26 policy-search)"),
         ("top1", BLUE, "top1 @ floor 0.12"),
@@ -353,7 +354,7 @@ def fig5_juiced_roi() -> None:
     vals = [100.0 * s[1] for s in slices]
     colors = [GREEN, BLUE, "#ef6c00", "#6a1b9a", "#757575"]
     y = np.arange(len(labels))
-    fig, ax = plt.subplots(figsize=(8.2, 4.4))
+    fig, ax = plt.subplots(figsize=(7.0, 4.0))
     ax.barh(y, vals, height=0.55, color=colors, edgecolor="white", zorder=3)
     for i, v in enumerate(vals):
         ax.text(v + (0.25 if v >= 0 else -0.25), i, f"{v:+.1f}%",
@@ -366,7 +367,7 @@ def fig5_juiced_roi() -> None:
     ax.grid(axis="x", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
     ax.set_axisbelow(True)
     fig.tight_layout()
-    fig.savefig(OUT / "fig5_juiced_roi.png")
+    fig.savefig(OUT / "fig4_juiced_roi.png")
     plt.close(fig)
 
 
@@ -382,7 +383,7 @@ def fig6_edge_band() -> None:
     y26 = [0.08, 0.05, 0.15, 0.25, 0.231, 0.10, -0.02]
     x = np.arange(len(bands))
     w = 0.36
-    fig, ax = plt.subplots(figsize=(8.6, 4.4))
+    fig, ax = plt.subplots(figsize=(7.0, 4.0))
     ax.bar(x - w / 2, y25, w, label="2025 mornings (fair)", color=GREEN,
            edgecolor="white", zorder=3)
     ax.bar(x + w / 2, y26, w, label="2026 mornings (fair)", color=BLUE,
@@ -398,7 +399,7 @@ def fig6_edge_band() -> None:
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=8.5)
     fig.tight_layout()
-    fig.savefig(OUT / "fig6_edge_band.png")
+    fig.savefig(OUT / "fig5_edge_band.png")
     plt.close(fig)
 
 
@@ -427,7 +428,7 @@ def fig7_white() -> None:
     p50, p95 = white.get("luck_max_p50", 0.028), white.get("luck_max_p95", 0.074)
     mu, sd = p50, max((p95 - p50) / 1.645, 1e-4)
     luck = rng.normal(mu, sd, 2000)
-    fig, ax = plt.subplots(figsize=(8.2, 4.4))
+    fig, ax = plt.subplots(figsize=(7.0, 4.0))
     ax.hist(luck, bins=40, color="#90caf9", edgecolor="white",
             label="Luck-max null (best-of-36, 2000 resamples)", zorder=3)
     ax.axvline(champ["roi"], color=GREEN, lw=2.5,
@@ -440,7 +441,7 @@ def fig7_white() -> None:
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=8.5)
     fig.tight_layout()
-    fig.savefig(OUT / "fig7_white.png")
+    fig.savefig(OUT / "fig6_white.png")
     plt.close(fig)
 
 
@@ -456,30 +457,30 @@ def fig8_over_under() -> None:
     roi = [-0.2132, 0.238, 0.1473, 0.5573, 0.0358, 0.2744]
     colors = [GREEN if v >= 0 else "#c62828" for v in roi]
     y = np.arange(len(labels))
-    fig, ax = plt.subplots(figsize=(8.2, 4.4))
+    fig, ax = plt.subplots(figsize=(7.0, 4.0))
     ax.barh(y, [100 * v for v in roi], height=0.55, color=colors,
             edgecolor="white", zorder=3)
     ax.set_yticks(y)
-    ax.set_yticklabels(labels)
+    ax.set_yticklabels(labels, fontsize=9)
     ax.axvline(0, color="#222", lw=1.1)
     ax.set_xlabel("Status-quo ROI (%) — weekly pack, overlapping CIs")
-    ax.set_title("Unders carry, 4.5-overs bleed (Brier skill: under +0.06, over −0.15)",
-                 pad=10)
+    ax.set_title("Unders carry, 4.5-overs bleed", pad=10)
+    ax.set_xlim(-45, 65)
     ax.grid(axis="x", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
     ax.set_axisbelow(True)
     fig.tight_layout()
-    fig.savefig(OUT / "fig8_over_under.png")
+    fig.savefig(OUT / "fig3_overunder.png")
     plt.close(fig)
 
 
 def fig9_policy_flow() -> None:
     """Policy governance flowchart: freeze → measure → select → promote."""
-    fig, ax = plt.subplots(figsize=(9.0, 3.4))
-    ax.set_xlim(0, 10.2)
+    fig, ax = plt.subplots(figsize=(7.0, 3.2))
+    ax.set_xlim(0, 7.0)
     ax.set_ylim(0, 3.4)
     ax.axis("off")
-    bw, bh, y = 1.72, 0.95, 1.35
-    xs = [0.25, 2.19, 4.13, 6.07, 8.01]
+    bw, bh, y = 1.20, 0.95, 1.35
+    xs = [0.15, 1.52, 2.89, 4.26, 5.63]
     labels = [
         "Freeze\nmodel",
         "Measure\njuiced + rejects",
@@ -491,12 +492,12 @@ def fig9_policy_flow() -> None:
         _box(ax, x, y, bw, bh, text, fontsize=8.5)
     for i in range(4):
         _arrow(ax, xs[i] + bw + 0.02, y + bh / 2, xs[i + 1] - 0.02, y + bh / 2)
-    ax.text(5.1, 2.85, "Policy governance loop (every gate pre-registered)",
-            ha="center", fontsize=11, fontweight="bold", color="#111111")
-    ax.text(5.1, 0.75, "Stress (White-lite, exclusions) gates promotion · "
+    ax.text(3.5, 2.85, "Policy governance loop (every gate pre-registered)",
+            ha="center", fontsize=10, fontweight="bold", color="#111111")
+    ax.text(3.5, 0.75, "Stress (White-lite, exclusions) gates promotion · "
             "peeks disclosed · refusals logged, never silent",
-            ha="center", fontsize=8.5, color="#333333")
-    fig.savefig(OUT / "fig9_policy_flow.png")
+            ha="center", fontsize=8, color="#333333")
+    fig.savefig(OUT / "fig7_policy_flow.png")
     plt.close(fig)
 
 

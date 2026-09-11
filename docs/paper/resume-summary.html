@@ -23,6 +23,8 @@ h1 {
   line-height: 1.25;
   margin: 0 0 0.35em;
   font-weight: 700;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 h2 {
   font-size: 15pt;
@@ -30,6 +32,7 @@ h2 {
   padding-bottom: 0.18em;
   border-bottom: 1px solid #bbb;
   font-weight: 700;
+  break-after: avoid;
   page-break-after: avoid;
 }
 h3 {
@@ -37,8 +40,10 @@ h3 {
   margin: 1.05em 0 0.35em;
   font-weight: 700;
   color: #222;
+  break-after: avoid;
   page-break-after: avoid;
 }
+p, li { orphans: 3; widows: 3; }
 p { margin: 0.5em 0; }
 ul, ol {
   margin: 0.4em 0 0.65em 1.35em;
@@ -53,6 +58,8 @@ table {
   margin: 0.35em 0 0.95em;
   font-size: 10.5pt;
 }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
 th, td {
   border: 1px solid #999;
   padding: 0.32em 0.45em;
@@ -69,7 +76,10 @@ code {
   background: #f4f4f4;
   padding: 0.04em 0.22em;
   border-radius: 2px;
+  overflow-wrap: anywhere;
 }
+a { color: #1a0dab; text-decoration: underline; }
+a:visited { color: #4a148c; }
 hr { border: none; border-top: 1px solid #ccc; margin: 1.15em 0; }
 strong { font-weight: 700; }
 em { font-style: italic; }
@@ -87,8 +97,14 @@ em { font-style: italic; }
 sub { font-size: 0.75em; }
 figure {
   margin: 1em 0 1.15em;
+  break-inside: avoid;
   page-break-inside: avoid;
   text-align: center;
+}
+figure p { text-align: left; }
+img {
+  max-width: 100%;
+  height: auto;
 }
 figure img {
   max-width: 100%;
