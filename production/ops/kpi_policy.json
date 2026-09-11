@@ -40,7 +40,11 @@
         {"side": "over", "line": 2.5},
         {"side": "over", "line": 3.5}
       ],
-      "probation_edge_floor": 0.18
+      "probation_edge_floor": 0.18,
+      "block_edge_above_cap": true,
+      "edge_cap": 0.20,
+      "offset_cap": 0.02,
+      "season": {"regular_end": "2026-09-27", "postseason": "hold_all_no_bets", "backlog": "#103"}
     }
   },
   "operating_profile": {
@@ -117,8 +121,10 @@
     "notes": [
       "Execution source-of-truth uses board artifact open polling (--from-recommendations).",
       "Default execution mode is conservative (base edge floor 0.12) with line floors, line-price correction, and deploy-matrix filtering enabled.",
-      "Production probability calibration pointer is isotonic (prob_calibration_isotonic_20260821_160723).",
-      "2026-09-01 promote (user sign-off): hard veto over@4.5; soft probation over@2.5/3.5 via probation_edge_floor=0.18; book-quality filter WONT_DO; calib map unchanged.",
+      "Production probability calibration pointer is WS1c per-line Platt (prob_calibration_ws1c_platt_20260910_012559; shipped 2026-09-10). Supersedes isotonic 20260821. Revert: copy artifacts/models/prob_calibration_production.backup_pre_ws1c_20260910_012559.json over the pointer.",
+      "Count layer default is Poisson (src/Python/count_layer.py COUNT_LAYER_FAMILY_DEFAULT). Revert: set back to binomial.",
+      "2026-09-01 promote (user sign-off): hard veto over@4.5; soft probation over@2.5/3.5 via probation_edge_floor=0.18; book-quality filter WONT_DO.",
+      "2026-09-10: postseason HOLD after season.regular_end=2026-09-27. Offset cap 0.02, stacker overlay, morning edge cap, and drawdown-brake multiplier are research-done and NOT live.",
       "Further changes require explicit re-test / re-freeze cycle."
     ]
   }

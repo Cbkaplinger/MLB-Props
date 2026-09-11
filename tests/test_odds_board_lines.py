@@ -10,7 +10,11 @@ from Python.count_layer import (
 import polars as pl
 
 from Python.odds_board import (
+    _clip_offset,
+    _edge_cap_reason,
     _line_to_col,
+    _postseason_hold_reason,
+    _robust_refusal_reason,
     apply_quality_gate,
     p_model_over_for_line,
     quality_gate_hold_reason,
@@ -115,13 +119,14 @@ def test_quality_gate_holds_risky_rows_when_enabled() -> None:
 
 
 def test_quality_gate_hard_vetoes_4_5_over() -> None:
+    # Edges kept below the 0.20 edge cap so this test isolates the veto.
     frame = pl.DataFrame(
         [
             {
                 "recommendation": "BET",
                 "best_side": "over",
                 "line": 4.5,
-                "edge": 0.25,
+                "edge": 0.15,
                 "days_rest": 5.0,
                 "opp_lineup_k_vs_hand": 0.18,
                 "passes_floor": True,
@@ -130,7 +135,7 @@ def test_quality_gate_hard_vetoes_4_5_over() -> None:
                 "recommendation": "BET",
                 "best_side": "under",
                 "line": 4.5,
-                "edge": 0.25,
+                "edge": 0.15,
                 "days_rest": 5.0,
                 "opp_lineup_k_vs_hand": 0.18,
                 "passes_floor": True,
@@ -176,3 +181,208 @@ def test_quality_gate_hold_reason_rules() -> None:
     assert "matchup_tier_risk" in reason
     assert "under_long_rest_risk" in reason
     assert "edge_below_dynamic_min" in reason
+
+
+def test_postseason_hold_fires_past_cutoff() -> None:
+    rules = {"season": {"regular_end": "2026-09-27"}}
+    assert _postseason_hold_reason({"game_date": "2026-09-20"}, rules) is None
+    assert _postseason_hold_reason({"game_date": "2026-09-27"}, rules) is None
+    assert _postseason_hold_reason({"game_date": "2026-10-03"}, rules) == "postseason_hold"
+
+
+def test_postseason_hold_absent_without_key() -> None:
+    assert _postseason_hold_reason({"game_date": "2026-10-03"}, {}) is None
+    assert _postseason_hold_reason(
+        {"game_date": "2026-10-03"}, {"season": {}}) is None
+    assert _postseason_hold_reason(
+        {}, {"season": {"regular_end": "2026-09-27"}}) is None
+
+
+def _quote(player: str, line: float, over: float, under: float) -> StrikeoutQuote:
+    return StrikeoutQuote(
+        player_name=player, line=line, over_american=over, under_american=under,
+        sportsbook="fanduel", home_team="NYM", away_team="PHI",
+        event_id="evt", event_start_time="2026-09-20T23:10:00Z", is_main_line=True)
+
+
+def _brow(p_over: float, line: float, tbf: float = 22.0) -> dict:
+    col = _line_to_col(line)
+    return {"game_date": "2026-09-20", "player_name": "Test Arm",
+            "expected_K": 6.0, "projected_tbf": tbf,
+            "maturity_bucket": "early_lt10", col: p_over - 0.06,
+            f"{col}_cal": p_over}
+
+
+def test_step2_columns_flag_gilbert_class() -> None:
+    # Map kept below the live 0.02 offset cap so this tests share math, not
+    # the clip (see test_offset_cap_clips_gilbert_class below).
+    omap = {(6.5, "fav_-169_to_-140", "early_lt10"): 0.015}
+    s = score_quote_against_board(
+        _brow(0.70, 6.5), _quote("Test Arm", 6.5, -142, 112),
+        unit_dollars=50.0, edge_floor=0.01, prob_offset_map=omap)
+    assert s is not None
+    assert s["offset_value"] == 0.015
+    assert abs(s["offset_share_of_edge"] - 0.015 / s["edge"]) < 1e-4  # stored round(4)
+    assert s["offset_gt_half_edge"] == (abs(0.015 / s["edge"]) > 0.5)
+    assert s["opener_flag"] is False
+    assert "postseason" not in s["policy_reason"]
+
+
+def test_offset_cap_clips_gilbert_class() -> None:
+    # Owner-directed 2026-09-11: ±0.02 clip in the live edge calc.
+    omap = {(6.5, "fav_-169_to_-140", "early_lt10"): 0.06}
+    s = score_quote_against_board(
+        _brow(0.70, 6.5), _quote("Test Arm", 6.5, -142, 112),
+        unit_dollars=50.0, edge_floor=0.01, prob_offset_map=omap)
+    assert s is not None
+    assert s["offset_value"] == 0.02
+    assert _clip_offset(0.06, {}) == 0.06  # missing key = legacy passthrough
+    assert _clip_offset(-0.06, {"offset_cap": 0.02}) == -0.02
+
+
+def test_step2_opener_flag_short_outing() -> None:
+    s = score_quote_against_board(
+        _brow(0.80, 2.5, tbf=23.0), _quote("Test Arm", 2.5, -110, -110),
+        unit_dollars=50.0, edge_floor=0.01, prob_offset_map={})
+    assert s is not None
+    assert s["opener_flag"] is True
+    assert s["offset_share_of_edge"] == 0.0
+    assert s["offset_gt_half_edge"] is False
+
+
+def test_step2_no_map_leaves_bet_logic_untouched() -> None:
+    a = score_quote_against_board(
+        _brow(0.70, 6.5), _quote("Test Arm", 6.5, -126, -104),
+        unit_dollars=50.0, edge_floor=0.12)
+    b = score_quote_against_board(
+        _brow(0.70, 6.5), _quote("Test Arm", 6.5, -126, -104),
+        unit_dollars=50.0, edge_floor=0.12, prob_offset_map={})
+    assert a is not None and b is not None
+    assert a["recommendation"] == b["recommendation"]
+    assert a["edge"] == b["edge"]
+    assert b["offset_share_of_edge"] == 0.0
+
+
+def test_edge_cap_reason_fires_and_fail_open() -> None:
+    rules = {"block_edge_above_cap": True, "edge_cap": 0.20}
+    assert _edge_cap_reason(0.25, rules) == "edge_cap"
+    assert _edge_cap_reason(0.20, rules) == "edge_cap"
+    assert _edge_cap_reason(0.19, rules) is None
+    assert _edge_cap_reason(0.25, {}) is None
+    assert _edge_cap_reason(
+        0.25, {"block_edge_above_cap": False, "edge_cap": 0.20}) is None
+
+
+def test_robust_refusal_reason() -> None:
+    rules = {"robust_shrink_refusal": True}
+    # edge 0.15 on p=0.70 → shrunk 0.05 < floor 0.12 → refuse
+    assert _robust_refusal_reason(0.70, 0.15, 0.12, rules) == "robust_refusal"
+    # edge 0.19 on p=0.60 → shrunk 0.14 ≥ floor → survives
+    assert _robust_refusal_reason(0.60, 0.19, 0.12, rules) is None
+    # raw edge below floor belongs to below_floor, not refusal
+    assert _robust_refusal_reason(0.60, 0.10, 0.12, rules) is None
+    assert _robust_refusal_reason(0.70, 0.15, 0.12, {}) is None
+
+
+def test_quality_gate_holds_edge_above_cap() -> None:
+    frame = pl.DataFrame(
+        [
+            {
+                "recommendation": "BET",
+                "best_side": "over",
+                "line": 6.5,
+                "edge": 0.25,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+            {
+                "recommendation": "BET",
+                "best_side": "under",
+                "line": 6.5,
+                "edge": 0.15,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+        ]
+    )
+    out, _meta = apply_quality_gate(frame, enabled=True)
+    over = out.filter(pl.col("best_side") == "over")
+    under = out.filter(pl.col("best_side") == "under")
+    assert over["recommendation"][0] == "HOLD"
+    assert "edge_cap" in over["quality_gate_reason"][0]
+    assert under["recommendation"][0] == "BET"
+
+
+def _tmp_policy_with_refusal(tmp_path) -> str:
+    import json as _json
+
+    p = tmp_path / "kpi_refusal.json"
+    p.write_text(
+        _json.dumps(
+            {
+                "quality_gate": {
+                    "rules": {"robust_shrink_refusal": True},
+                    "dynamic_min_edge": {
+                        "base": 0.12,
+                        "elevated": 0.14,
+                        "elevated_when_n_warn_gte": 2,
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(p)
+
+
+def test_quality_gate_robust_refusal_needs_columns(tmp_path) -> None:
+    # p=0.70 edge=0.15 floor 0.12 → shrunk 0.05 → HOLD robust_refusal.
+    # Refusal is OFF in live policy (reverted 2026-09-11); this test drives
+    # it through an explicit policy file. Mirror is fail-open without the
+    # p_model / edge_floor_effective columns.
+    frame = pl.DataFrame(
+        [
+            {
+                "recommendation": "BET",
+                "best_side": "over",
+                "line": 6.5,
+                "edge": 0.15,
+                "p_model": 0.70,
+                "edge_floor_effective": 0.12,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+        ]
+    )
+    out, _meta = apply_quality_gate(
+        frame, enabled=True, kpi_policy_path=_tmp_policy_with_refusal(tmp_path)
+    )
+    assert out["recommendation"][0] == "HOLD"
+    assert "robust_refusal" in out["quality_gate_reason"][0]
+
+
+def test_score_quote_holds_edge_above_cap() -> None:
+    s = score_quote_against_board(
+        _brow(0.95, 6.5), _quote("Test Arm", 6.5, -110, -110),
+        unit_dollars=50.0, edge_floor=0.12, prob_offset_map={})
+    assert s is not None
+    assert s["recommendation"] == "HOLD"
+    assert "edge_cap" in s["policy_reason"]
+    assert s["stake"] == 0.0
+
+
+def test_score_quote_holds_robust_refusal(tmp_path) -> None:
+    # Refusal is OFF in live policy (reverted 2026-09-11); driven here
+    # through an explicit policy file to keep the code path tested for the
+    # October family dimension.
+    s = score_quote_against_board(
+        _brow(0.65, 6.5), _quote("Test Arm", 6.5, -110, -110),
+        unit_dollars=50.0, edge_floor=0.12, prob_offset_map={},
+        kpi_policy_path=_tmp_policy_with_refusal(tmp_path))
+    assert s is not None
+    assert s["recommendation"] == "HOLD"
+    assert "robust_refusal" in s["policy_reason"]
+    assert s["stake"] == 0.0

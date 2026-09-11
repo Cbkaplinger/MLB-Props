@@ -338,11 +338,13 @@ def score_quote_against_board(
     prob_offset_map: dict[tuple[float, str, str], float] | None = None,
     line_floor_map: dict[str, float] | None = None,
     deploy_segment_states: dict[tuple[float, str, str], str] | None = None,
+    kpi_policy_path: str | Path | None = None,
 ) -> dict[str, Any] | None:
     col = _line_to_col(quote.line)
     p_over = p_model_over_for_line(board_row, quote.line)
     if p_over is None:
         return None
+    policy_rules = load_kpi_policy(kpi_policy_path).get("quality_gate", {}).get("rules", {})
     over_price_bucket = _price_bucket(float(quote.over_american))
     maturity_bucket = _maturity_bucket(board_row)
     correction_key = (float(quote.line), over_price_bucket, maturity_bucket)
@@ -352,6 +354,11 @@ def score_quote_against_board(
         if prob_offset_map is not None
         else 0.0
     )
+    # Owner-directed 2026-09-11: clip the price-bucket correction to
+    # ±offset_cap so edge can never be manufactured out of worsening prices
+    # (Gilbert lesson, #84-85). Silent shaping; visible via offset_value /
+    # offset_share_of_edge columns (#113.2). Revert = delete the key.
+    offset = _clip_offset(offset, policy_rules)
     p_over = min(max(float(p_over) + offset, 1e-6), 1.0 - 1e-6)
     effective_floor = (
         float(line_floor_map.get(_line_key(quote.line), edge_floor))
@@ -373,7 +380,6 @@ def score_quote_against_board(
         1.0 - p_over, quote.over_american, quote.under_american, "under"
     )
     best = over_ev if float(over_ev["edge"]) >= float(under_ev["edge"]) else under_ev
-    policy_rules = load_kpi_policy().get("quality_gate", {}).get("rules", {})
     effective_floor = _probation_edge_floor(
         str(best["side"]), float(quote.line), policy_rules, effective_floor
     )
@@ -397,6 +403,45 @@ def score_quote_against_board(
         policy_reason = (
             veto_reason if not policy_reason else f"{policy_reason};{veto_reason}"
         )
+    post_reason = _postseason_hold_reason(board_row, policy_rules)
+    if post_reason:
+        passes = False
+        policy_reason = (
+            post_reason if not policy_reason else f"{policy_reason};{post_reason}"
+        )
+        veto_reason = veto_reason or post_reason
+    # Step-2 observability (#113.2): flag Gilbert-class tickets. Offset share
+    # = price-bucket correction as a fraction of the taken edge; opener flag
+    # = book-implied short outing (line<=2.5) or projected TBF<15 (mirrors
+    # the low-TBF quality gate). Display only — never feeds passes/BET.
+    _edge_best = float(best["edge"])
+    _share = (float(offset) / _edge_best) if abs(_edge_best) > 1e-9 else 0.0
+    try:
+        _tbf = board_row.get("projected_tbf")
+        _tbf_f = float(_tbf) if _tbf is not None else None
+    except (TypeError, ValueError):
+        _tbf_f = None
+    _opener = bool(float(quote.line) <= 2.5 or (_tbf_f is not None and _tbf_f < 15.0))
+    # Owner-directed 2026-09-11: extreme-edge damage control. Cap refuses
+    # edges at/above the live maximum; robust refusal drops tickets whose
+    # edge exists only via overconfident p (mirrors the juiced robust arm).
+    # Both are hard HOLDs, same path as veto/postseason. Sizing of
+    # survivors is unchanged (1/16-Kelly on live p).
+    cap_reason = _edge_cap_reason(_edge_best, policy_rules)
+    if cap_reason:
+        passes = False
+        policy_reason = (
+            cap_reason if not policy_reason else f"{policy_reason};{cap_reason}"
+        )
+    robust_reason = _robust_refusal_reason(
+        float(best["p_model"]), _edge_best, effective_floor, policy_rules
+    )
+    if robust_reason:
+        passes = False
+        policy_reason = (
+            robust_reason if not policy_reason else f"{policy_reason};{robust_reason}"
+        )
+    veto_reason = veto_reason or cap_reason or robust_reason
     return {
         "game_date": str(board_row.get("game_date")),
         "game_pk": board_row.get("game_pk"),
@@ -435,6 +480,10 @@ def score_quote_against_board(
         "stake": round(float(sizing["stake"]), 2) if passes else 0.0,
         "over_edge": round(float(over_ev["edge"]), 4),
         "under_edge": round(float(under_ev["edge"]), 4),
+        "offset_value": round(float(offset), 5),
+        "offset_share_of_edge": round(float(_share), 4),
+        "offset_gt_half_edge": bool(abs(_share) > 0.5),
+        "opener_flag": _opener,
         "event_start_time": quote.event_start_time,
         "oos_reason": oos,
         "recommendation": (
@@ -485,6 +534,110 @@ def _side_line_veto_reason(
             return str(row.get("reason") or "side_line_veto")
         except (TypeError, ValueError):
             continue
+    return None
+
+
+def _clip_offset(offset: float, rules: dict[str, Any]) -> float:
+    """Clip the price-bucket correction to ±``offset_cap``.
+
+    Owner-directed 2026-09-11 (correction audit #85/#97: cap_0.02 was the
+    only level with better ROI, monotonic across 3 levels). Missing or
+    unparsable key = uncapped legacy behavior (fail-open). The clip is
+    silent shaping — observability stays in the offset_value /
+    offset_share_of_edge columns.
+    """
+    try:
+        cap = rules.get("offset_cap", None)
+    except AttributeError:
+        return float(offset)
+    if cap is None:
+        return float(offset)
+    try:
+        c = float(cap)
+    except (TypeError, ValueError):
+        return float(offset)
+    return min(max(float(offset), -c), c)
+
+
+def _edge_cap_reason(
+    edge: float,
+    rules: dict[str, Any],
+) -> str | None:
+    """Return ``edge_cap`` when the taken-side edge exceeds the live maximum.
+
+    Owner-directed 2026-09-11 (morning-elbow #91-92 + juiced band arm):
+    extreme disagreement with the market means we are wrong, not bold.
+    Missing key or disabled flag = no cap (fail-open, same pattern as the
+    postseason hold). Revert = set ``block_edge_above_cap`` false.
+    """
+    try:
+        cap = rules.get("edge_cap", None)
+    except AttributeError:
+        return None
+    if cap is None or not bool(rules.get("block_edge_above_cap", False)):
+        return None
+    try:
+        if float(edge) >= float(cap):
+            return "edge_cap"
+    except (TypeError, ValueError):
+        return None
+    return None
+
+
+def _robust_refusal_reason(
+    p_model: float,
+    edge: float,
+    floor: float,
+    rules: dict[str, Any],
+) -> str | None:
+    """Return ``robust_refusal`` when the edge survives only via overconfidence.
+
+    Mirrors the juiced-ledger robust arm
+    (``juiced_replay_ledger.py:179``): shrink *p* 50% toward 0.5, recompute
+    the edge against the same market (``edge_shrunk = edge - 0.5*(p-0.5)``),
+    refuse when it no longer clears the floor. Rows already below the floor
+    belong to ``below_floor`` — this function returns None for them.
+    Disabled flag = no refusal (fail-open). Revert = set
+    ``robust_shrink_refusal`` false.
+    """
+    if not bool(rules.get("robust_shrink_refusal", False)):
+        return None
+    try:
+        p = float(p_model)
+        e = float(edge)
+        fl = float(floor)
+    except (TypeError, ValueError):
+        return None
+    if e < fl:
+        return None
+    if e - 0.5 * (p - 0.5) < fl:
+        return "robust_refusal"
+    return None
+
+
+def _postseason_hold_reason(
+    board_row: dict[str, Any],
+    rules: dict[str, Any],
+) -> str | None:
+    """Return hold reason when the slate is past the regular season.
+
+    Backlog #103: no postseason modeling or betting. Reads
+    ``rules["season"]["regular_end"]`` (YYYY-MM-DD, kpi_policy.json);
+    missing key = no hold (fail-open toward regular behavior, never
+    toward a surprise blackout). Revert = delete the season key.
+    """
+    try:
+        end = str((rules.get("season") or {}).get("regular_end") or "")[:10]
+    except (TypeError, ValueError, AttributeError):
+        return None
+    if not end:
+        return None
+    try:
+        gd = str(board_row.get("game_date") or "")[:10]
+    except (TypeError, ValueError):
+        return None
+    if gd and gd > end:
+        return "postseason_hold"
     return None
 
 
@@ -625,10 +778,39 @@ def apply_quality_gate(
             veto_reason_expr = (
                 pl.when(hit).then(pl.lit(reason_v)).otherwise(veto_reason_expr)
             )
+    try:
+        cap_f = (
+            float(rules.get("edge_cap"))
+            if rules.get("edge_cap") is not None
+            else None
+        )
+    except (TypeError, ValueError):
+        cap_f = None
+    cond_cap = (
+        cond_core
+        & pl.lit(bool(rules.get("block_edge_above_cap", False)) and cap_f is not None)
+        & (pl.col("edge") >= float(cap_f if cap_f is not None else 0.0))
+    )
+    if {"p_model", "edge_floor_effective"}.issubset(
+        set(gated.columns)
+    ) and bool(rules.get("robust_shrink_refusal", False)):
+        cond_robust = (
+            cond_core
+            & (pl.col("edge") >= pl.col("edge_floor_effective").cast(pl.Float64))
+            & (
+                (
+                    pl.col("edge")
+                    - 0.5 * (pl.col("p_model").cast(pl.Float64) - 0.5)
+                )
+                < pl.col("edge_floor_effective").cast(pl.Float64)
+            )
+        )
+    else:
+        cond_robust = pl.lit(False)
 
     gated = gated.with_columns(
         (
-            cond_matchup | cond_rest | cond_rest_any | cond_low_tbf | cond_edge | cond_veto
+            cond_matchup | cond_rest | cond_rest_any | cond_low_tbf | cond_edge | cond_veto | cond_cap | cond_robust
         ).alias("quality_gate_block")
     )
     gated = gated.with_columns(
@@ -653,6 +835,12 @@ def apply_quality_gate(
                     .otherwise(pl.lit("")),
                     pl.when(cond_veto)
                     .then(veto_reason_expr)
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_cap)
+                    .then(pl.lit("edge_cap"))
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_robust)
+                    .then(pl.lit("robust_refusal"))
                     .otherwise(pl.lit("")),
                 ],
                 separator=";",
