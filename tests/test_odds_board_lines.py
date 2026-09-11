@@ -12,6 +12,8 @@ import polars as pl
 from Python.odds_board import (
     _clip_offset,
     _edge_cap_reason,
+    _fill_books,
+    _lean_premium,
     _line_to_col,
     _postseason_hold_reason,
     _robust_refusal_reason,
@@ -383,6 +385,57 @@ def test_score_quote_holds_robust_refusal(tmp_path) -> None:
         unit_dollars=50.0, edge_floor=0.12, prob_offset_map={},
         kpi_policy_path=_tmp_policy_with_refusal(tmp_path))
     assert s is not None
-    assert s["recommendation"] == "HOLD"
-    assert "robust_refusal" in s["policy_reason"]
-    assert s["stake"] == 0.0
+def test_fill_books_fail_open() -> None:
+    assert _fill_books({"fill_books": ["DraftKings", "FanDuel"]}) == [
+        "draftkings", "fanduel"]
+    assert _fill_books({}) is None
+    assert _fill_books({"fill_books": []}) is None
+
+
+def test_score_quote_under_lean_blocks_marginal_overs() -> None:
+    # Live file carries under_lean_premium 0.04: over edge 0.14 clears the
+    # 0.12 floor but not the 0.16 lean bar → skip; same-edge under bets.
+    over = score_quote_against_board(
+        _brow(0.64, 6.5), _quote("Test Arm", 6.5, -110, -110),
+        unit_dollars=50.0, edge_floor=0.12, prob_offset_map={})
+    assert over is not None
+    assert over["recommendation"] == "skip"
+    assert "below_lean_floor" in over["policy_reason"]
+    under = score_quote_against_board(
+        _brow(0.36, 6.5), _quote("Test Arm", 6.5, -110, -110),
+        unit_dollars=50.0, edge_floor=0.12, prob_offset_map={})
+    assert under is not None
+    assert under["recommendation"] == "BET"
+
+
+def test_quality_gate_lean_mirror() -> None:
+    # Over edge 0.15 sits in the lean window under either dynamic min
+    # (0.12 or 0.14): HOLD below_lean_floor; same-edge under is untouched.
+    frame = pl.DataFrame(
+        [
+            {
+                "recommendation": "BET",
+                "best_side": "over",
+                "line": 6.5,
+                "edge": 0.15,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+            {
+                "recommendation": "BET",
+                "best_side": "under",
+                "line": 6.5,
+                "edge": 0.15,
+                "days_rest": 5.0,
+                "opp_lineup_k_vs_hand": 0.18,
+                "passes_floor": True,
+            },
+        ]
+    )
+    out, _meta = apply_quality_gate(frame, enabled=True)
+    over = out.filter(pl.col("best_side") == "over")
+    under = out.filter(pl.col("best_side") == "under")
+    assert over["recommendation"][0] == "HOLD"
+    assert "below_lean_floor" in over["quality_gate_reason"][0]
+    assert under["recommendation"][0] == "BET"

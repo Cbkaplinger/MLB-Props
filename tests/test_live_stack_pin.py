@@ -25,6 +25,8 @@ from Python.kpi_policy import load_kpi_policy  # noqa: E402
 from Python.odds_board import (  # noqa: E402
     _clip_offset,
     _edge_cap_reason,
+    _fill_books,
+    _lean_premium,
     _postseason_hold_reason,
     _probation_edge_floor,
     _robust_refusal_reason,
@@ -72,13 +74,25 @@ def test_pin_edge_cap_and_robust_refusal() -> None:
     # October family dimension; live key must be absent/disabled.
     rules = load_kpi_policy().get("quality_gate", {}).get("rules", {})
     assert rules.get("block_edge_above_cap") is True
-    assert float(rules.get("edge_cap")) == 0.20
+    assert float(rules.get("edge_cap")) == 0.24  # promoted from 0.20 (champion)
     assert not rules.get("robust_shrink_refusal", False)
     assert _edge_cap_reason(0.25, rules) == "edge_cap"
     assert _edge_cap_reason(0.15, rules) is None
     on = dict(rules, robust_shrink_refusal=True)
     assert _robust_refusal_reason(0.70, 0.15, 0.12, on) == "robust_refusal"
     assert _robust_refusal_reason(0.60, 0.19, 0.12, on) is None
+
+
+def test_pin_champion_promotion() -> None:
+    # Promoted 2026-09-11 from the 2025-lock selection (floor 0.12 /
+    # cap 0.24 / under-lean / DK+FD-only; 2025 +15.5% LCB +7.4%,
+    # disclosed-peek 2026 judge +15.6%). Stakes/veto/probation/clip/Kelly
+    # unchanged.
+    rules = load_kpi_policy().get("quality_gate", {}).get("rules", {})
+    assert float(rules.get("edge_cap")) == 0.24
+    assert float(rules.get("under_lean_premium")) == 0.04
+    assert _lean_premium(rules) == 0.04
+    assert _fill_books(rules) == ["draftkings", "fanduel"]
 
 
 def test_pin_offset_cap() -> None:

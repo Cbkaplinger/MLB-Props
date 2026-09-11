@@ -383,11 +383,15 @@ def score_quote_against_board(
     effective_floor = _probation_edge_floor(
         str(best["side"]), float(quote.line), policy_rules, effective_floor
     )
+    # Champion 2026-09-11 (under-lean): overs must clear floor + premium.
+    lean_floor = effective_floor + (
+        _lean_premium(policy_rules) if str(best["side"]) == "over" else 0.0
+    )
     sizing = size_in_units(
         float(best["p_model"]),
         float(best["price_american"]),
         edge=float(best["edge"]),
-        edge_floor=effective_floor,
+        edge_floor=lean_floor,
         unit_dollars=unit_dollars,
     )
     fair_key = col.replace("p_over_", "fair_amer_", 1)
@@ -395,6 +399,12 @@ def score_quote_against_board(
     in_support = oos is None
     passes = bool(sizing["passes_floor"]) and in_support and segment_allowed
     policy_reason = "" if segment_allowed else "segment_disabled_by_deploy_matrix"
+    if (
+        not bool(sizing["passes_floor"])
+        and not policy_reason
+        and float(best["edge"]) >= effective_floor
+    ):
+        policy_reason = "below_lean_floor"
     veto_reason = _side_line_veto_reason(
         str(best["side"]), float(quote.line), policy_rules
     )
@@ -434,7 +444,7 @@ def score_quote_against_board(
             cap_reason if not policy_reason else f"{policy_reason};{cap_reason}"
         )
     robust_reason = _robust_refusal_reason(
-        float(best["p_model"]), _edge_best, effective_floor, policy_rules
+        float(best["p_model"]), _edge_best, lean_floor, policy_rules
     )
     if robust_reason:
         passes = False
@@ -471,7 +481,7 @@ def score_quote_against_board(
         "p_model": round(float(best["p_model"]), 3),
         "p_market": round(float(best["p_market"]), 3),
         "edge": round(float(best["edge"]), 4),
-        "edge_floor_effective": round(float(effective_floor), 4),
+        "edge_floor_effective": round(float(lean_floor), 4),
         "passes_floor": passes,
         "segment_allowed": segment_allowed,
         "segment_state": segment_state,
@@ -557,6 +567,28 @@ def _clip_offset(offset: float, rules: dict[str, Any]) -> float:
     except (TypeError, ValueError):
         return float(offset)
     return min(max(float(offset), -c), c)
+
+
+def _fill_books(rules: dict[str, Any]) -> list[str] | None:
+    """Allowed fill books (lowercase). Missing/empty key = fail-open (all)."""
+    try:
+        books = rules.get("fill_books", None)
+    except AttributeError:
+        return None
+    if not books:
+        return None
+    try:
+        return [str(b).lower() for b in books]
+    except TypeError:
+        return None
+
+
+def _lean_premium(rules: dict[str, Any]) -> float:
+    """Extra edge floor for overs under the under-lean (0 = off)."""
+    try:
+        return float(rules.get("under_lean_premium", 0.0) or 0.0)
+    except (TypeError, ValueError, AttributeError):
+        return 0.0
 
 
 def _edge_cap_reason(
@@ -759,6 +791,14 @@ def apply_quality_gate(
         & pl.lit(bool(rules.get("block_edge_below_min", True)))
         & (pl.col("edge") < float(min_edge))
     )
+    lean_prem = _lean_premium(rules)
+    cond_lean = (
+        cond_core
+        & pl.lit(lean_prem > 0)
+        & pl.col(side_col).eq("over")
+        & (pl.col("edge") >= float(min_edge))
+        & (pl.col("edge") < float(min_edge) + lean_prem)
+    )
     cond_veto = pl.lit(False)
     veto_reason_expr = pl.lit("")
     if "line" in gated.columns and bool(rules.get("block_side_line_veto", False)):
@@ -810,7 +850,7 @@ def apply_quality_gate(
 
     gated = gated.with_columns(
         (
-            cond_matchup | cond_rest | cond_rest_any | cond_low_tbf | cond_edge | cond_veto | cond_cap | cond_robust
+            cond_matchup | cond_rest | cond_rest_any | cond_low_tbf | cond_edge | cond_veto | cond_cap | cond_robust | cond_lean
         ).alias("quality_gate_block")
     )
     gated = gated.with_columns(
@@ -841,6 +881,9 @@ def apply_quality_gate(
                     .otherwise(pl.lit("")),
                     pl.when(cond_robust)
                     .then(pl.lit("robust_refusal"))
+                    .otherwise(pl.lit("")),
+                    pl.when(cond_lean)
+                    .then(pl.lit("below_lean_floor"))
                     .otherwise(pl.lit("")),
                 ],
                 separator=";",
@@ -927,6 +970,15 @@ def build_recommendations(
             sportsbook=sportsbook, main_only=True, is_live=False
         )
     quotes = _dedupe_quotes(quotes)
+    # Champion 2026-09-11 (DK+FD-only universe): fill only where we fill.
+    # Missing/empty fill_books = fail-open (all books). Count the drop.
+    _pre_rules = load_kpi_policy(kpi_policy_path).get("quality_gate", {}).get("rules", {})
+    _allowed_books = _fill_books(_pre_rules)
+    n_book_filtered_out = 0
+    if _allowed_books is not None:
+        _before = len(quotes)
+        quotes = [q for q in quotes if str(q.sportsbook).lower() in _allowed_books]
+        n_book_filtered_out = _before - len(quotes)
     rows: list[dict[str, Any]] = []
     unmatched: list[str] = []
     prob_offset_map = _load_line_price_offsets() if apply_line_price_correction else None
@@ -1021,6 +1073,7 @@ def build_recommendations(
         "slate_date": str(board["game_date"][0]),
         "n_board": board.height,
         "n_quotes": len(quotes),
+        "n_book_filtered_out": int(n_book_filtered_out),
         "n_matched_raw": n_matched_raw,
         "n_matched": frame.height,
         "n_bet": int(frame.filter(pl.col("recommendation") == "BET").height)
