@@ -108,7 +108,9 @@ Flag unsafe proposals explicitly.
   lineup is the only both-fold bootstrap keep; do not oversell other families.
 - `expected_K = k_rate_hat × tbf_hat` with projected exposure only.
 - Markets/CLV/Kelly are a **product layer** (odds never train LightGBM) —
-  see `docs/reference/market_clv_gates.md` and `production/README.md`.
+  see `docs/reference/market_clv_gates.md`,
+  `docs/reference/oddsapi_replay_architecture.md` (frozen-model 2025-present
+  open/close replay; freeze vs work vs product), and `production/README.md`.
   Statistical skill checks on the CLV ledger live in
   `src/Python/skill_stats.py` (z-test, BCa CI, stake-weighted bootstrap,
   rolling SE ribbon) — used by `production/notebooks/results_dashboard.ipynb`

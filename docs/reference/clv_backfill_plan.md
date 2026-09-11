@@ -1,9 +1,13 @@
 # Historical CLV Backfill — Full Execution Plan (2026-09-08)
 
-> Status: APPROVED structure, AWAITING $59 subscription. Master work-state stays
-> `docs/EXECUTION_BACKLOG.md`; this doc is the stable reference the backlog points to.
-> Standing rules apply throughout: post hoc only, chrono-safe splits, post-freeze
-> window eval-only, no live policy edits without sign-off.
+> Status: BUY DONE 2026-09-08 ($119/5M; remaining ~3.72M as of 2026-09-11).
+> This file is the pull-protocol reference (credits, books, timestamp
+> intent). Replay architecture and freeze/work/product:
+> [`oddsapi_replay_architecture.md`](oddsapi_replay_architecture.md).
+> Envelope recovery showed reconstructed `snapshot_ts` is not a true close —
+> use vendor timestamps. Master work-state stays `docs/EXECUTION_BACKLOG.md`.
+> Standing rules: post hoc only, chrono-safe splits, post-freeze eval-only,
+> no live policy edits without sign-off. Do not re-buy.
 
 ## 0. Objective
 

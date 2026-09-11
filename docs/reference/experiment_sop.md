@@ -80,7 +80,7 @@ Open-beating is timing signal, not money.
 
 ## 7. Known gaps (fill when cheap)
 
-Age column PRESENT since 2026-09-10 (`_join_age_features`, nulls kept); vet-decline cohort unblocked. `snapshot_ts` FIXED (reconstructed, $0). BetRivers alt-bleed in main market (median robust, QA flag); debut priors = league average (minor-league translation parked as too costly, 2026-09-10 user call); consensus CSVs gone from artifacts (deployed sidecar pattern is the fix).
+Age column PRESENT since 2026-09-10 (`_join_age_features`, nulls kept); vet-decline cohort unblocked. `snapshot_ts` in the normalized book-line parquet is still **reconstructed** (commence-5min/5h/30h). Vendor envelope timestamps were recovered 2026-09-11 into `snapshot_envelope.parquet` — replay must join those; 12 closes have vendor_ts after commence. See `oddsapi_replay_architecture.md`. BetRivers alt-bleed in main market (median robust, QA flag); debut priors = league average (minor-league translation parked as too costly, 2026-09-10 user call); consensus CSVs gone from artifacts (deployed sidecar pattern is the fix).
 
 ## 8. Hardening log (amendments with a lived incident behind each)
 
@@ -104,3 +104,29 @@ Age column PRESENT since 2026-09-10 (`_join_age_features`, nulls kept); vet-decl
   ledger logs every opportunity by design — ledger overs are never leaks.
 - L3 null-schema (2026-09-10 #60): build join frames with explicit schemas.
   Inference from leading null-gated rows crashes on real data.
+- ASCII-only research scripts (2026-09-10 #73): non-ASCII docstrings
+  (em-dash, approx) crash `--help` on cp1252 Windows consoles. Write
+  scripts ASCII-only.
+- Polars to_numpy has no dtype kwarg (2026-09-10 #73): use
+  `.to_numpy().astype(float)`, never `.to_numpy(dtype=...)`.
+- Nested policy selection (2026-09-10 #109): live veto/floors were picked
+  on 2026 paper n=74; WS1c/stacker date-cuts ate 2025; harness peeked 2026
+  twice. Do not retune live filters from more 2026 paper. Remaining
+  September is confirmatory. Clean juiced 2025-select / 2026-judge is
+  post-9/27. Replay spec: `docs/reference/oddsapi_replay_architecture.md`.
+  Live plan: `docs/EXECUTION_BACKLOG.md` (pack #113 steps 0-4 built). Not
+  Streamlit and not another nested experiment.
+- CLV sign/scale (2026-09-11 #113.0): canonical close-minus-bet on devigged
+  pairs only (`clv_pp`/`clv_pp_from_americans`). Never raw-implied vs fair
+  (inherits full vig as fake CLV, ~+2.7pp) and never decision-minus-close.
+  Harness, bins, and ledger attach all failed this once; fixed everywhere.
+- Vendor snapshot envelopes (2026-09-11 #121): historical Odds API JSON
+  wraps `timestamp/previous/next`. The normalizer dropped the wrapper.
+  Reconstructed close clocks are not first-pitch closes (12 after
+  commence; 173 >10 min off). Research joins must use
+  `snapshot_envelope.parquet`. Never forward-fill from `next_timestamp`.
+- Juiced replay book pick (2026-09-11 #123): live floors speak juiced.
+  Script `juiced_replay_ledger.py` is the measurement. Next-book fallback
+  after DK/FD soaks BetRivers (soft/suspect). DK+FD-only is a separate
+  arm, not interchangeable with all-books ROI. 2026 juiced ROI is
+  confirmatory -- do not retune live policy from it.

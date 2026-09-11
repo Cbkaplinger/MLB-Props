@@ -22,6 +22,7 @@ odds/CLV tracking, and holdout monitoring.
 ## Documentation Map
 
 - **Work queue / approvals (master):** `docs/EXECUTION_BACKLOG.md` (see also root `AGENTS.md`)
+- Frozen-model Odds API replay spec: `docs/reference/oddsapi_replay_architecture.md`
 - Quick command map: `production/INDEX.md`
 - Detailed operating runbook: `production/RUNBOOK.md`
 - CLV policy + gates: `docs/reference/market_clv_gates.md`
@@ -111,7 +112,7 @@ Current live policy default (from `production/ops/kpi_policy.json`):
 - profile: `A_edge12`
 - flat floor: `0.12`
 - optional side profile for counterfactual runs: `E_over10_under8`
-- context: open-snapshot counterfactual replay currently favors `production_sparse72` + `isotonic` + `edge_floor=0.12` under positive-skill gating.
+- context: **live** calibrator is WS1c per-line Platt + Poisson (shipped 2026-09-10), not isotonic. The Aug-21 open-snapshot replay that favored `production_sparse72` + `isotonic` + `edge_floor=0.12` is a search-lane label.
 
 ## Open-Snapshot Counterfactual Replay
 

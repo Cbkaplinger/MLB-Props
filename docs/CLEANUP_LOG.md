@@ -6,6 +6,19 @@
 > legacy freeze values. Use `docs/reference/governance_metric_stack.md` for
 > current winners and active deployment champions.
 
+## Repo-quality passthrough — 2026-09-11
+
+Low-risk hygiene only (no production deletes).
+
+- Ignored `tmp_nb_figs/` (769 KB session PNG dump from notebook extract; regenerable).
+- Removed the local `tmp_nb_figs/` files after ignore coverage.
+- Retargeted SOP competing “next build” line to the backlog (`go step 3`).
+- Canonical map gained OpenCode handoff + golden-metrics pointers.
+- Hold ledger: `docs/reference/reports/repo_quality_hold_inventory_2026-09-11.md`.
+- Left protected: `src/Python/`, `production/ops|odds|projections|notebooks`, untracked research/ops scripts from pack #113, local `artifacts/**`.
+
+---
+
 ## Repo-quality passthrough — 2026-09-01
 
 Low-risk hygiene + doc consistency pass (no production deletes).

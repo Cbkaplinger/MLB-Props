@@ -13,6 +13,13 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
 - Keep all new references lowercase. On Windows, legacy uppercase path aliases
   may still appear in historical notes/tool output; treat lowercase as source of truth.
 
+## Agent / metrics surfaces (not a second queue)
+
+- `docs/reference/opencode_handoff.md` — OpenCode paste contract. Snapshot wins if they disagree.
+- `docs/reference/cursor_deep_dive_brief.md` — short pointer at the handoff.
+- `docs/reference/golden_metrics.md` — canonical numbers + JSON sources. Cite; do not recompute.
+- `docs/reference/oddsapi_replay_architecture.md` — frozen-model 2025-present open/close replay spec (not a queue). Inventory evidence: `docs/reference/reports/oddsapi_replay_inventory_2026-09-11.md`. Measurement: `production/ops/market_research/juiced_replay_ledger.py` (#123).
+
 ## Canonical daily surfaces
 
 - **`docs/EXECUTION_BACKLOG.md`** — master work-state / approvals / agent plan (not a runtime script; open first)

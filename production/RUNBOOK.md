@@ -100,6 +100,21 @@ Append only; do not replace open snapshot after morning lock:
 powershell -ExecutionPolicy Bypass -File production/ops/run_end_of_day_settle.ps1
 ```
 
+Hard guard (#113.1): `--auto-settle-api` settles only Live/Final games
+(unstarted tickets log `API skip (unstarted)` and stay open; postponements
+still void). Only post-game tasks pass the flag (end-of-day 03:00, nightly
+drift 05:30) — `run_catchup.ps1` and morning/midday wrappers must not.
+
+Paid-history clocks (observability, #113.0):
+
+```powershell
+.\.venv\Scripts\python.exe production/odds/grade_odds_ledger.py --attach-paid-clocks
+```
+
+Backfills friend-open / consensus-morning / consensus-close fair probs +
+canonical `clv_paid_*_pp` onto ledger rows (fill-null, idempotent). Runs
+warn-only at the end of `pull_regular_season_closeout.py`.
+
 ## Daily Scheduler (Windows Task Scheduler)
 
 Create/update automated tasks:
@@ -119,7 +134,8 @@ Creates:
 - `MLBProps_MorningWorkflow`
 - `MLBProps_CloseWatcherStart`
 - `MLBProps_EndOfDaySettle`
-- `MLBProps_NightlyDrift` (05:30 — best-effort settle→grade→drift→self-check;
+- `MLBProps_NightlyDrift` (05:30 — best-effort settle→grade→drift→self-check
+  + warn-only policy-freshness + stacker-gate shadow;
   pages ntfy on RED/step-failure only; YELLOW nights file quietly to
   `artifacts/odds_log/nightly_drift_latest.json` for morning review)
 
@@ -203,8 +219,8 @@ Current operating profile:
 - open-snapshot counterfactual optional side profile: `E_over10_under8`
   - `edge_min_over=0.10`
   - `edge_min_under=0.08`
-- current open-universe winner (skill-gated): `production_sparse72` + `isotonic` + `edge_floor=0.12`.
-- current deduped-manual transfer winner: blend `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`, `isotonic`, `edge_floor=0.12`.
+- current **live** stack (2026-09-10): same blend `0.00 / 0.60 / 0.40`, juiced `edge_floor=0.12`, **Poisson** count layer, **WS1c Platt** pointer (not isotonic), 4.5-over veto, 2.5/3.5 probation `0.18`, postseason HOLD after `2026-09-27`.
+- Aug-21 search-lane labels (historical, not live quality): open-universe winner was `production_sparse72` + `isotonic` + `edge_floor=0.12`; deduped-manual transfer winner used the same blend + isotonic. Do not cite those as the production calibrator.
 - run this check at least once per day:
 
 ```powershell

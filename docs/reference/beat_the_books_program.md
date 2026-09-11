@@ -104,3 +104,6 @@ stability gate (YoY/split-half r≥0.7 + min-n) before any window/feature enters
 
 Skill (CLV vs consensus/Kalshi) gates selection; `real_bets` Novig fills gate
 staking. Paper ROI never sizes stakes. ≥50 real tickets before any edge claim.
+Frozen-model Odds API replay (open/morning decision, close grade, juiced
+prices, vendor timestamps): `docs/reference/oddsapi_replay_architecture.md`.
+Not a workstream — a measurement layer under WS6/WS7.

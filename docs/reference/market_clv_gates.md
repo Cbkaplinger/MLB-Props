@@ -1,6 +1,9 @@
 # Market / CLV gates (pre-registered)
 
 **Status:** locked operating protocol for the betting product layer  
+**Replay / freeze-vs-work:** `docs/reference/oddsapi_replay_architecture.md`
+(floors are evidence thresholds, not ROI maxima; 1/16-Kelly is conservative
+sizing, not an optimum; juiced replay is the next measurement).
 **Scope:** odds never enter the strikeout trainer  
 **Code:** `src/Python/market.py`, `skill_stats.py`, `odds_ledger.py`, `odds_close.py`, `odds_board.py`, `sharp_odds.py`  
 **Ops:** `production/odds/odds_board.py`, `poll_odds.py`, `close_watcher.py`, `grade_odds_ledger.py`  
