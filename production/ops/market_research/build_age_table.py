@@ -8,6 +8,7 @@ Age-as-of computed downstream (WS2-age).
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import urllib.request
@@ -28,6 +29,8 @@ def fetch(ids: list[int]) -> list[dict]:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.parse_args()
     m = pl.read_parquet(MAP).select(["mlb_id"]).unique()
     ids = [int(x) for x in m["mlb_id"].to_list() if x is not None]
     print(f"ids: {len(ids)}")

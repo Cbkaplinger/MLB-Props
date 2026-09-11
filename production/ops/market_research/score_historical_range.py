@@ -42,15 +42,19 @@ def main() -> None:
     ap.add_argument("--end", default="2026-09-09")
     ap.add_argument("--sample", type=int, default=0,
                     help="score only every Nth date with rows (timing probe)")
+    ap.add_argument("--out", type=str, default=str(OUT),
+                    help="output parquet (default: frozen panel path; pass a NEW "
+                    "path for config-variant rescores — never overwrite frozen)")
     args = ap.parse_args()
+    out_path = Path(args.out)
 
     done: set[str] = set()
-    if OUT.exists():
+    if out_path.exists():
         try:
-            done = set(pl.scan_parquet(OUT).select("gd").collect()["gd"].unique().to_list())
+            done = set(pl.scan_parquet(out_path).select("gd").collect()["gd"].unique().to_list())
         except Exception:
             pass
-    print(f"resume: {len(done)} dates already scored; output {OUT}")
+    print(f"resume: {len(done)} dates already scored; output {out_path}")
 
     import pandas as pd  # noqa: E402
     from datetime import datetime, timezone  # noqa: E402
@@ -83,16 +87,16 @@ def main() -> None:
         print(f"{s}: scored {len(pdf)} rows")
         if len(frames) >= 10:  # checkpoint every 10 dates
             out = pl.concat(frames, how="diagonal_relaxed")
-            if OUT.exists():
-                out = pl.concat([pl.read_parquet(OUT), out], how="diagonal_relaxed")
-            out.write_parquet(OUT)
+            if out_path.exists():
+                out = pl.concat([pl.read_parquet(out_path), out], how="diagonal_relaxed")
+            out.write_parquet(out_path)
             frames = []
     if frames:
         out = pl.concat(frames, how="diagonal_relaxed")
-        if OUT.exists():
-            out = pl.concat([pl.read_parquet(OUT), out], how="diagonal_relaxed")
-        out.write_parquet(OUT)
-    print(f"done: +{n_new} rows, {n_skip} dates skipped, output {OUT}")
+        if out_path.exists():
+            out = pl.concat([pl.read_parquet(out_path), out], how="diagonal_relaxed")
+        out.write_parquet(out_path)
+    print(f"done: +{n_new} rows, {n_skip} dates skipped, output {out_path}")
 
 
 if __name__ == "__main__":

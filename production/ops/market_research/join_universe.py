@@ -110,11 +110,17 @@ def friend_panel() -> pl.DataFrame:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--scores", type=str, default=str(SCORED),
+                    help="scored-starts parquet in (default: frozen scores)")
+    ap.add_argument("--panel-out", type=str, default=str(ODDS_DIR / "universe_panel.parquet"),
+                    help="output panel path (pass NEW path for variants)")
+    ap.add_argument("--audit-out", type=str, default=str(ODDS_DIR / "universe_join_audit.json"),
+                    help="output audit path (pass NEW path for variants)")
     args = ap.parse_args()
     evdate = load_event_date_map()
     print(f"event-date map: {len(evdate)} events")
 
-    sc = pl.scan_parquet(SCORED).select(
+    sc = pl.scan_parquet(args.scores).select(
         ["gd", "key_sorted", "player_name", "expected_K", "K",
          "p_over_2_5", "p_over_3_5", "p_over_4_5", "p_over_5_5",
          "p_over_6_5", "p_over_7_5", "p_over_8_5", "p_over_9_5",
@@ -164,11 +170,11 @@ def main() -> None:
                            on=["gd", "key", "line"], how="left")
         audit["sources"][name] = {"book_props": pf.height, "matched": matched,
                                   "rate": matched / panel.height if panel.height else 0.0}
-    out = ODDS_DIR / "universe_panel.parquet"
+    out = Path(args.panel_out)
     panel.write_parquet(out)
     audit["panel_rows"] = panel.height
     audit["panel_path"] = str(out)
-    atomic_write_text(ODDS_DIR / "universe_join_audit.json",
+    atomic_write_text(Path(args.audit_out),
                       json.dumps(audit, indent=2, default=str))
     print(json.dumps(audit, indent=2, default=str))
 
