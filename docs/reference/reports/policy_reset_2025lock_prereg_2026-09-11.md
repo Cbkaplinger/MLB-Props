@@ -48,3 +48,11 @@ ahead of this judge, with the peek accepted in writing (backlog OWNER
 DECISIONS). `robust_refusal` shipped with it and was **reverted the same
 day** after lake measurement showed it destroys the selection year. Full
 suite 336 green; pin updated same commit.
+
+## Promotion (executed 2026-09-11, owner order)
+
+Champion promoted the same day it was judged: cap 0.20 → 0.24,
+`under_lean_premium` 0.04, `fill_books` [DK, FD]. Board-fired that evening
+(Snell U7.5 FD BET at 19.3% — under the 0.24 cap that refused it at 0.20
+that morning). Stakes/veto/probation/clip/Kelly untouched. 345 green.
+Peek disclosure in backlog PROMOTION bullet.

@@ -13,6 +13,11 @@ rows kept with a reason. 2026 numbers are confirmatory (prior harness
 peek) -- do not retune floors from this run.
 
   python production/ops/market_research/juiced_replay_ledger.py
+  python production/ops/market_research/juiced_replay_ledger.py --floor-uniform 0.08 --cap 0.20 --out-suffix __f008
+  python production/ops/market_research/juiced_replay_ledger.py --under-lean --book-universe dkfd --out-suffix __dkfd_lean
+
+Selection runs (any override flag) write sidecar outputs and must pass
+--out-suffix. Bare run reproduces the canonical 2026-09-11 report.
 """
 from __future__ import annotations
 
@@ -66,6 +71,14 @@ BOOK_PREF = {
 # Pre-registered edge bands for the flat-unit arm (not a live rule).
 BANDS = ((0.18, 2.0), (0.12, 1.5), (0.0, 1.0))
 
+# Selection-engine (2025-lock prereg 2026-09-11): uniform floor candidates,
+# edge-cap candidates, and the under-lean premium. Veto 4.5-over and the
+# 2.5/3.5 probation bump are NOT searched (standing risk controls).
+UNIFORM_FLOOR_CANDIDATES = (0.08, 0.10, 0.12)
+CAP_CANDIDATES = (0.18, 0.20, 0.24)
+UNDER_LEAN_PREMIUM = 0.04
+SELECTION_LINES = (2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5)
+
 
 def _floors() -> dict[float, float]:
     raw = json.loads(FLOOR_PATH.read_text(encoding="utf-8"))
@@ -82,7 +95,19 @@ def _event_frame(evdate: dict[str, str]) -> pl.DataFrame:
     )
 
 
-def _two_way_paid(snapshot: str, ev: pl.DataFrame) -> pl.DataFrame:
+def _two_way_paid(
+    snapshot: str,
+    ev: pl.DataFrame,
+    allowed_books: set[str] | None = None,
+) -> pl.DataFrame:
+    bk = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
+        (pl.col("market") == "pitcher_strikeouts")
+        & (pl.col("snapshot") == snapshot)
+        & pl.col("line").is_not_null()
+        & pl.col("price").is_not_null()
+    ).collect()
+    if allowed_books is not None:
+        bk = bk.filter(pl.col("book").is_in(sorted(allowed_books)))
     bk = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
         (pl.col("market") == "pitcher_strikeouts")
         & (pl.col("snapshot") == snapshot)
@@ -118,7 +143,7 @@ def _two_way_paid(snapshot: str, ev: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _two_way_friend() -> pl.DataFrame:
+def _two_way_friend(allowed_books: set[str] | None = None) -> pl.DataFrame:
     if not FRIEND.exists():
         return pl.DataFrame(schema={
             "gd": pl.Utf8, "key": pl.Utf8, "line": pl.Float64,
@@ -127,7 +152,10 @@ def _two_way_friend() -> pl.DataFrame:
     fo = pl.read_csv(FRIEND).filter(
         pl.col("over_odds").is_not_null() & pl.col("under_odds").is_not_null()
         & pl.col("line").is_not_null()
-    ).with_columns(
+    )
+    if allowed_books is not None:
+        fo = fo.filter(pl.col("bookmaker").is_in(sorted(allowed_books)))
+    fo = fo.with_columns(
         pl.col("game_date").cast(pl.Utf8).alias("gd"),
         pl.col("player_name").map_elements(sorted_key, return_dtype=pl.Utf8).alias("key"),
         pl.col("bookmaker").map_elements(_pref, return_dtype=pl.Int64).alias("pref"),
@@ -152,12 +180,35 @@ def live_floor(line: float, side: str, floors: dict[float, float]) -> float:
     return fl
 
 
-def policy_reason(side: str, line: float, edge: float, floors: dict[float, float]) -> str:
+def uniform_floors(value: float) -> dict[float, float]:
+    """One floor for every selection line (probation bump still applies)."""
+    return {line: float(value) for line in SELECTION_LINES}
+
+
+def policy_reason(
+    side: str,
+    line: float,
+    edge: float,
+    floors: dict[float, float],
+    *,
+    cap: float | None = None,
+    under_premium: float = 0.0,
+) -> str:
+    """Filter reason ("" = taken). Veto always on; cap/premium opt-in.
+
+    Default (cap=None, premium=0) reproduces the canonical 2026-09-11 run.
+    Selection runs pass --cap / --under-lean explicitly and write sidecar
+    outputs, never the canonical paths.
+    """
     if side == "over" and round(float(line), 1) == 4.5:
         return "veto_4_5_over"
     fl = live_floor(line, side, floors)
+    if str(side) == "over" and float(under_premium) > 0:
+        fl = fl + float(under_premium)
     if edge < fl:
         return "below_floor"
+    if cap is not None and edge >= float(cap):
+        return "edge_cap"
     return ""
 
 
@@ -240,15 +291,35 @@ def _cell(rows: list[dict], line: float, side: str) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.parse_args()
-    floors = _floors()
+    ap.add_argument("--floor-uniform", type=float, default=None,
+                    help="uniform floor for all lines (selection engine)")
+    ap.add_argument("--cap", type=float, default=None,
+                    help="edge cap HOLD (selection engine; live is 0.20)")
+    ap.add_argument("--under-lean", action="store_true",
+                    help="overs need floor+0.04 (selection engine)")
+    ap.add_argument("--book-universe", choices=("next", "dkfd"), default="next",
+                    help="next = DK else FD else next US book (canonical); "
+                         "dkfd = DK else FD only")
+    ap.add_argument("--out-suffix", default="",
+                    help="sidecar suffix; empty reproduces canonical outputs")
+    args = ap.parse_args()
+    floors = uniform_floors(args.floor_uniform) if args.floor_uniform is not None else _floors()
+    cap = args.cap
+    premium = UNDER_LEAN_PREMIUM if args.under_lean else 0.0
+    allowed = {"draftkings", "fanduel"} if args.book_universe == "dkfd" else None
+    out_parquet = OUT_PARQUET if not args.out_suffix else OUT_PARQUET.with_name(
+        OUT_PARQUET.stem + args.out_suffix + OUT_PARQUET.suffix)
+    out_report = OUT_REPORT if not args.out_suffix else OUT_REPORT.with_name(
+        OUT_REPORT.stem + args.out_suffix + OUT_REPORT.suffix)
+    print(f"floors={'uniform %.2f' % args.floor_uniform if args.floor_uniform is not None else 'live-file'} "
+          f"cap={cap} under_lean={args.under_lean} book={args.book_universe} out={args.out_suffix or 'canonical'}")
     evdate = load_event_date_map()
     ev = _event_frame(evdate)
     print("attaching paid morning/close two-way pairs...")
-    morning = _two_way_paid("morning", ev)
-    close = _two_way_paid("close", ev)
+    morning = _two_way_paid("morning", ev, allowed)
+    close = _two_way_paid("close", ev, allowed)
     print(f"morning pairs {morning.height} close pairs {close.height}")
-    friend = _two_way_friend()
+    friend = _two_way_friend(allowed)
     print(f"friend open pairs {friend.height}")
 
     env_path = HIST / "snapshot_envelope.parquet"
@@ -307,7 +378,7 @@ def main() -> None:
         edge = float(best["edge"])
         p_side = float(best["p_model"])
         amer = float(best["price_american"])
-        reason = policy_reason(side, line, edge, floors)
+        reason = policy_reason(side, line, edge, floors, cap=cap, under_premium=premium)
         accepted = reason == ""
         won = (y == 1.0) if side == "over" else (y == 0.0)
         fl = live_floor(line, side, floors)
@@ -349,7 +420,7 @@ def main() -> None:
 
     taken = [r for r in rows if r.get("accepted")]
     frame = pl.DataFrame(rows)
-    atomic_write_parquet(frame, OUT_PARQUET)
+    atomic_write_parquet(frame, out_parquet)
 
     def year_slice(yr: str | None) -> list[dict]:
         if yr is None:
@@ -437,7 +508,14 @@ def main() -> None:
             "decision": "friend open else paid morning",
             "book": "DK else FD else next US book with two-way quote (canonical per owner 2026-09-11)",
             "dk_fd_only": "sensitivity, not the headline",
-            "policy": "live floors + 4.5-over veto + 2.5/3.5 probation bump",
+            "policy": (
+                "live floors + 4.5-over veto + 2.5/3.5 probation bump"
+                if args.floor_uniform is None and cap is None and premium == 0.0
+                and args.book_universe == "next"
+                else f"SELECTION floors={args.floor_uniform} cap={cap} "
+                     f"under_lean={args.under_lean} book={args.book_universe} "
+                     f"(veto+probation on; prereg 2026-09-11)"
+            ),
             "sizing_arms": ["flat1u", "edge_band", "kelly_1_16", "robust_kelly"],
             "label_2026": "confirmatory -- do not retune live policy",
             "fills": "unmodeled; paper juiced prices",
@@ -475,7 +553,7 @@ def main() -> None:
             "y2026_confirmatory": probation_pack(year_slice("2026")),
         },
     }
-    atomic_write_text(OUT_REPORT, json.dumps(rep, indent=2, default=str))
+    atomic_write_text(out_report, json.dumps(rep, indent=2, default=str))
     print(json.dumps({
         "n_candidates": rep["n_candidates"],
         "n_taken": rep["n_taken"],
@@ -488,8 +566,8 @@ def main() -> None:
         "by_book": by_book,
         "probation_all": rep["probation_2_5_3_5"]["all"],
     }, indent=2, default=str))
-    print(f"wrote {OUT_PARQUET}")
-    print(f"wrote {OUT_REPORT}")
+    print(f"wrote {out_parquet}")
+    print(f"wrote {out_report}")
 
 
 if __name__ == "__main__":
