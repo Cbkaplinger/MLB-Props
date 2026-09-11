@@ -107,12 +107,19 @@ Writes:
 - `artifacts/odds_log/policy_scenario_sweep.parquet` (historical snapshots)
 - `artifacts/odds_log/policy_scenario_sweep_latest.csv` (latest run only)
 
-Current live policy default (from `production/ops/kpi_policy.json`):
+Current live policy (champion, promoted 2026-09-11 from a 2025-lock selection):
 
-- profile: `A_edge12`
-- flat floor: `0.12`
-- optional side profile for counterfactual runs: `E_over10_under8`
+- profile: `A_edge12` + line floors (`line_floor_policy.json`)
+- edge cap `0.24` (`edge_cap` HOLD) + under-lean `+0.04` on overs + DK+FD-only universe
+- offset clip `±0.02`; 4.5-over veto; 2.5/3.5 probation; TBF ≥ 15; postseason HOLD 2026-09-27
 - context: **live** calibrator is WS1c per-line Platt + Poisson (shipped 2026-09-10), not isotonic. The Aug-21 open-snapshot replay that favored `production_sparse72` + `isotonic` + `edge_floor=0.12` is a search-lane label.
+
+Frozen-model replay research (no live change from these scripts):
+
+- `production/ops/market_research/juiced_replay_ledger.py` — juiced 1u ledger, rejects kept (`--floor-uniform/--cap/--under-lean/--book-universe` selection overrides write sidecars)
+- `production/ops/market_research/select_2025_champion.py` — 36-config 2025-lock selection + White-lite stress + disclosed 2026 judge
+- `production/ops/market_research/slate_shock_join.py` — featured totals → slate correlation (exposure caps, never a K feature)
+- `production/ops/market_research/pull_regular_season_closeout.py` — K+outs closeout driver (refuses today/future and past 2026-09-28)
 
 ## Open-Snapshot Counterfactual Replay
 

@@ -63,7 +63,15 @@ flowchart TB
   FEAT --> PARK
 ```
 
-## Status (2026-08-11)
+## Status (2026-09-11, replay era — August rows below retained for lineage)
+
+| Track | State |
+|---|---|
+| Frozen stack | **Poisson + WS1c live** (shipped 2026-09-10; ship-lift +0.0016) |
+| Live policy | **Champion** (cap 0.24 / lean +0.04 / DK+FD-only / clip ±0.02; 2025 +15.5% → 2026 +15.6% disclosed peek; pin green) |
+| Sizing | **1/16-Kelly live**, flat 1u research benchmark (flat wins paper ROI everywhere; "⅛ Kelly" in August rows below is stale) |
+| Replay lake | **On disk** (vendor envelopes, juiced ledger, slate totals joined) |
+| Retrain | **Closed** (walk-forward dead #66) |
 
 | Track | State |
 |---|---|

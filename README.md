@@ -1,8 +1,15 @@
 # MLB Props
 
-Production-first MLB pitcher strikeout props stack with a frozen operating
-profile (`KING_PROFILE_AUG2026`), execution/research gate split, and board to
-ledger parity lock.
+Production-first MLB pitcher strikeout props stack: frozen model (k-rate
+ensemble × TBF ridge → Poisson + WS1c), a policy layer promoted by
+pre-registered selection (2025-lock champion: floor `0.12` / cap `0.24` /
+under-lean / DK+FD-only, 2025 ROI `+15.5%` → disclosed-peek 2026 `+15.6%`),
+board-to-ledger parity lock, and a 345+ test suite with a regression pin
+on the live stack.
+
+Start here: [Technical manuscript](docs/paper/manuscript.md) ·
+[Resume summary](docs/paper/resume-summary.md) ·
+[Freeze playbook](docs/reference/reports/freeze_playbook_2026-09-11.md)
 
 ## Current source of truth
 
@@ -261,9 +268,9 @@ Ridge TBF (`docs/research/tbf_first_model_findings.md`) and count-layer stack
 
 ## Current baseline and research surface
 
-The active governance surface includes single-model and ensemble lanes. Current
-manual-lane winner uses the live ensemble config above; open-universe skill lane
-still tracks `production_sparse72 + isotonic` for market-skill monitoring.
+The active governance surface includes single-model and ensemble lanes.
+Open-universe skill is measured on the live Poisson + WS1c config
+(`rescore_cal_report.json`, skill −0.0043, n=19,533); isotonic is retired.
 Prior freeze registries (`production`, `step10_180`, `step7_185`) remain
 available for backtests and comparisons.
 
@@ -281,19 +288,20 @@ Companion sets and legacy registries are retained for provenance and backtests
 only (`step7_185`, `pre_freeze_248`, `ridge_vif`), while production promotion
 follows the metric lanes above.
 
-### Current winners (artifact-backed)
+### Current winners (artifact-backed; search lanes labeled, never live claims)
 
+- **Live champion (2025-lock selection, promoted 2026-09-11):**
+  floor `0.12` / cap `0.24` / under-lean `+0.04` / DK+FD-only —
+  2025 `n=558` ROI `+15.5%` LCB `+7.4%`, White-lite p<0.0005,
+  disclosed-peek 2026 `n=485` ROI `+15.6%`.
+  Prereg: `docs/reference/reports/policy_reset_2025lock_prereg_2026-09-11.md`.
 - **Single-model MAE lane winner:** `mean_expected_k_mae=1.7621`
-  (Ridge on `production_sparse72`, tied by lane with
-  `production_sparse72_monotone` in current governance notes).
-- **Active deployment king (deduped transfer lane):**
-  `0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58`,
-  `isotonic`, `edge_floor=0.12`, with current replay metrics:
-  `ROI=0.4363`, `PnL=1208.55`, `Sharpe=0.4438`, `Sortino=0.4277`,
-  `Brier skill=+0.2069`, `LogLoss skill=+0.1551`.
-- **Open-universe deduped sweep top profile:** `0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58`,
-  `ROI=0.6612`, `Sharpe=0.9468`, `Sortino=0.6954`,
-  `Brier skill=+0.0825`, `LogLoss skill=+0.0645`.
+  (Ridge on `production_sparse72`).
+- **Historical search lanes (Aug-21, retired as evidence):**
+  deduped sweep top (`0.05/0.45/0.50`, ROI `0.6612`) and the n=26
+  deployment-king transfer (ROI `0.4363`, Sharpe `0.4438`) diagnosed the
+  search; they are not production quality. Full numbers in manuscript
+  Table A5.
 
 The older date-disjoint 227-feature evaluation that consulted 2025 remains
 historical benchmark evidence. The invalid overlapping-date run is retained

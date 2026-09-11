@@ -24,15 +24,18 @@ flowchart TB
   ART["K-rate scorer (live)<br/>ensemble config + frozen artifacts<br/>manual-winner blend active"]:::built
 
   TBF["Projected TBF · models/TBF-Model<br/>Ridge + workload_context_bullpen"]:::built
-  EXP["count_layer.py<br/>expected_K + P(K≥line)<br/>chrono eval DONE"]:::built
+  EXP["count_layer.py<br/>Poisson live · WS1c Platt<br/>expected_K + P(K≥line)"]:::built
 
   P11["Phase 11 · model quality<br/>tune · walk-forward · calibrate DONE"]:::built
   DL["daily_lineups.py<br/>RotoGrinders + MLB IDs"]:::built
-  LIVE["Live assembly + production ops<br/>log · grade · odds · CLV<br/>segment-aware correction + deploy matrix"]:::built
+  LIVE["Live assembly + production ops<br/>log · grade · odds · CLV<br/>champion policy: cap/lean/DKFD/clip<br/>regression pin green"]:::built
   ANOM["Exit-anomaly governance<br/>override tags · training mask<br/>rolling contamination policy"]:::built
   REP["Anomaly reports<br/>process + rolling PASS/WARN"]:::built
   MON["Focused monitors + policy simulator<br/>KPI · calibration · gate · PnL"]:::built
   MKT["Paper trading product<br/>SharpAPI DK/FD · tip closes"]:::partial
+  JUICE["Juiced replay ledger<br/>frozen probs · juiced prices<br/>rejects kept · flat 1u"]:::built
+  SEL["2025-lock selection<br/>36 configs · White-checked<br/>champion live"]:::built
+  SLATE["Slate shock join<br/>featured totals → exposure<br/>caps unbuilt"]:::partial
 
   OPEN["Open risk<br/>opener / piggyback population"]:::risk
   REG["Step 11 registry freeze<br/>RESOLVED · production 184"]:::built
@@ -48,6 +51,9 @@ flowchart TB
   DL --> LIVE
   LIVE --> MON
   LIVE --> MKT
+  EXP --> JUICE --> SEL
+  SEL --> LIVE
+  MKT --> SLATE
   ART -.-> OPEN
   ART --> REG
 ```

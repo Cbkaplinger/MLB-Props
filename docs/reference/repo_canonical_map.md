@@ -18,7 +18,8 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
 - `docs/reference/opencode_handoff.md` — OpenCode paste contract. Snapshot wins if they disagree.
 - `docs/reference/cursor_deep_dive_brief.md` — short pointer at the handoff.
 - `docs/reference/golden_metrics.md` — canonical numbers + JSON sources. Cite; do not recompute.
-- `docs/reference/oddsapi_replay_architecture.md` — frozen-model 2025-present open/close replay spec (not a queue). Inventory evidence: `docs/reference/reports/oddsapi_replay_inventory_2026-09-11.md`. Measurement: `production/ops/market_research/juiced_replay_ledger.py` (#123).
+- `docs/reference/oddsapi_replay_architecture.md` — frozen-model 2025-present open/close replay spec (not a queue). Inventory evidence: `docs/reference/reports/oddsapi_replay_inventory_2026-09-11.md`. Measurement: `production/ops/market_research/juiced_replay_ledger.py` (#123). Selection: `production/ops/market_research/select_2025_champion.py` (2025-lock, prereg `docs/reference/reports/policy_reset_2025lock_prereg_2026-09-11.md`). Slate join: `production/ops/market_research/slate_shock_join.py`. Freeze contract: `docs/reference/reports/freeze_playbook_2026-09-11.md`.
+- Live policy (champion 2026-09-11): `production/ops/kpi_policy.json` (`edge_cap` 0.24, `under_lean_premium` 0.04, `fill_books` DK/FD, `offset_cap` 0.02) + `line_floor_policy.json`; pin: `tests/test_live_stack_pin.py`.
 
 ## Canonical daily surfaces
 

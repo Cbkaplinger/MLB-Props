@@ -33,7 +33,13 @@ flowchart TB
   C -.->|"gates"| D
 ```
 
-**Status snapshot (2026-08-21):**
+**Status snapshot (2026-09-11, replay era):**
+
+- **Frozen stack:** k-rate ensemble (train 2023–24) × TBF ridge → **Poisson** count layer → **WS1c per-line Platt** (live 2026-09-10) → policy filter → 1/16-Kelly → SharpAPI board.
+- **Live policy (champion, promoted 2026-09-11):** line floors + 4.5-over veto + 2.5/3.5 probation + edge cap 0.24 + under-lean +0.04 + DK+FD-only + offset clip ±0.02 (`kpi_policy.json`; pin green).
+- **Replay era (supersedes the 08-21 snapshot below):** vendor envelopes recovered (9,189 files); juiced 1u ledger (+7.3% / +12.3% DK+FD, rejects kept); 2025-lock selection (champion +15.5%, White p<0.0005, 2026 repeat +15.6% disclosed peek); slate totals joined (1,633 correlated pairs). Details: `docs/reference/oddsapi_replay_architecture.md`, `freeze_playbook_2026-09-11.md`.
+- **Retrain closed** (walk-forward dead, #66). Reopen only on new data or offseason review.
+- Prior 2026-08-21 snapshot retained below for lineage (isotonic pointer, 1/16-Kelly now — the "⅛ Kelly" line below is stale).
 
 - **Feature spine locked:** LightGBM `production` **184** (Step 11 discipline
   lift on Step 10 P1) ×

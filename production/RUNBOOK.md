@@ -212,14 +212,15 @@ Automation helpers:
 .\.venv\Scripts\python.exe production/ops/recalibrate_top3_ensembles_open_to_manual.py --ranked-ensemble-csv artifacts/odds_log/ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv --top-n 3 --calibration-mode isotonic --floors "0.08,0.10,0.12" --dedupe-manual --output-tag aug21_deduped_top3_from_dedupedsweep
 ```
 
-Current operating profile:
+Current operating profile (champion, promoted 2026-09-11):
 
 - `A_edge12` (from `production/ops/kpi_policy.json`)
-  - `edge_min=0.12`
+  - `edge_min=0.12` + line floors; `edge_cap=0.24`; `under_lean_premium=0.04` (overs)
+  - `fill_books=[draftkings, fanduel]`; `offset_cap=0.02`
 - open-snapshot counterfactual optional side profile: `E_over10_under8`
   - `edge_min_over=0.10`
   - `edge_min_under=0.08`
-- current **live** stack (2026-09-10): same blend `0.00 / 0.60 / 0.40`, juiced `edge_floor=0.12`, **Poisson** count layer, **WS1c Platt** pointer (not isotonic), 4.5-over veto, 2.5/3.5 probation `0.18`, postseason HOLD after `2026-09-27`.
+- current **live** stack (2026-09-11): same blend `0.00 / 0.60 / 0.40`, juiced `edge_floor=0.12`, **Poisson** count layer, **WS1c Platt** pointer (not isotonic), 4.5-over veto, 2.5/3.5 probation `0.18`, postseason HOLD after `2026-09-27`.
 - Aug-21 search-lane labels (historical, not live quality): open-universe winner was `production_sparse72` + `isotonic` + `edge_floor=0.12`; deduped-manual transfer winner used the same blend + isotonic. Do not cite those as the production calibrator.
 - run this check at least once per day:
 

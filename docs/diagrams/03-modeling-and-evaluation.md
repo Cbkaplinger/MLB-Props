@@ -26,7 +26,7 @@ flowchart TB
   S10["Legacy freeze lineage lock<br/>superseded by sparse-set governance"]:::built
   S12["Step 12: feature-set + family ablation<br/>MAE/skill/risk gates complete"]:::built
   ENS["Deduped ensemble governance<br/>one-opportunity-one-bet fairness"]:::built
-  TOP["Current production winner<br/>0.00 sparse72 / 0.60 mono / 0.40 final58<br/>isotonic · conservative floor 0.12"]:::built
+  TOP["Current production winner<br/>0.00 sparse72 / 0.60 mono / 0.40 final58<br/>Poisson + WS1c · champion policy live"]:::built
 
   TUNE["11.A Tune LGBM + Ridge α<br/>done (flat/no lift)"]:::built
   WF["11.B Walk-forward stack backtest<br/>done"]:::built
