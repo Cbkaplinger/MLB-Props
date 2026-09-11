@@ -34,6 +34,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 from Python.market import bet_pnl, bootstrap_mean_ci  # noqa: E402
+from Python.market import american_to_implied_prob, devig_two_way  # noqa: E402
 from Python.odds_ledger import (  # noqa: E402
     LEDGER_PATH,
     apply_close,
@@ -47,6 +48,132 @@ from Python.odds_ledger import (  # noqa: E402
 )
 
 GATE_NEXT_N_PATH = LEDGER_PATH.parent / "gate_next_n_comparison.parquet"
+MR_DIR = ROOT / "production" / "ops" / "market_research"
+FRIEND_DIR = ROOT / "data" / "Odds-Open-Close-2025-2026"
+PAID_COLS = ["paid_open_over", "paid_morning_over", "paid_close_over",
+             "clv_paid_open_pp", "clv_paid_morning_pp", "clv_paid_close_pp"]
+
+
+def _mr_join_keys():
+    """join_keys lives in market_research (precedent: ops reports import it)."""
+    if str(MR_DIR) not in sys.path:
+        sys.path.insert(0, str(MR_DIR))
+    from join_keys import read_consensus_cache, sorted_key  # noqa: E402
+    return read_consensus_cache, sorted_key
+
+
+def _friend_opens() -> pl.DataFrame:
+    """Friend -12h opens, devigged per row then median by key.
+
+    Documented inline copy of join_universe.friend_panel (kept local so
+    production/odds never imports the research join module).
+    """
+    _, sorted_key = _mr_join_keys()
+    frames = []
+    for f, market in [("pitcher_strikeouts_early_open_2025_2026.csv", "pitcher_strikeouts"),
+                      ("pitcher_outs_open_2025_2026.csv", "pitcher_outs")]:
+        fp = FRIEND_DIR / f
+        if not fp.exists():
+            continue
+        df = pl.scan_csv(fp, ignore_errors=True).select(
+            ["game_date", "player_name", "line", "over_odds", "under_odds"]).collect()
+        rows = []
+        for r in df.to_dicts():
+            try:
+                po = 1.0 / american_to_implied_prob(float(r["over_odds"]))
+                pu = 1.0 / american_to_implied_prob(float(r["under_odds"]))
+            except (TypeError, ValueError, ZeroDivisionError):
+                continue
+            tot = po + pu
+            if tot <= 0:
+                continue
+            rows.append({"gd": str(r["game_date"])[:10], "key": sorted_key(r["player_name"]),
+                         "line": float(r["line"]), "market": market, "fair": po / tot})
+        if rows:
+            frames.append(pl.DataFrame(rows))
+    if not frames:
+        return pl.DataFrame({"gd": [], "key": [], "line": [], "market": [],
+                             "fair": [], "n_books": []})
+    pf = pl.concat(frames)
+    return pf.group_by(["gd", "key", "line", "market"]).agg(
+        pl.col("fair").median().alias("fair"), pl.len().alias("n_books"))
+
+
+def attach_paid_clocks(
+    ledger: pl.DataFrame,
+    morning: pl.DataFrame,
+    close: pl.DataFrame,
+    friend: pl.DataFrame,
+) -> tuple[pl.DataFrame, dict]:
+    """Backfill paid-history clocks onto ledger rows (observability only).
+
+    Left-joins consensus morning/close + friend opens on (gd, key, line,
+    market); writes paid_*_over fair probs + clv_paid_*_pp (CANONICAL sign:
+    paid-close-fair minus devigged-bet-side, x100 — positive = market moved
+    toward our side, matching clv_pp in Python.market).
+    Fair cols are fill-null (panel-sourced); CLV cols are ALWAYS recomputed
+    (deterministic from prices — a math fix must propagate, never linger).
+    Never touches close_over / clv_pp / recommendation-adjacent columns.
+    Returns (frame, audit).
+    """
+    from datetime import datetime, timezone  # local: keeps import block stable
+    _, sorted_key = _mr_join_keys()
+    audit: dict = {"n_rows": int(ledger.height), "matched": {}, "filled": {}}
+    if ledger.is_empty():
+        return ledger, audit
+    work = ledger.with_columns(
+        pl.col("game_date").cast(pl.Utf8).str.slice(0, 10).alias("gd"),
+        pl.col("player_name").map_elements(
+            lambda s: sorted_key(str(s)), return_dtype=pl.Utf8).alias("key"))
+    for col in PAID_COLS:
+        if col not in work.columns:
+            work = work.with_columns(pl.lit(None, dtype=pl.Float64).alias(col))
+    if "paid_clocks_attached_utc" not in work.columns:
+        work = work.with_columns(pl.lit(None, dtype=pl.Utf8).alias("paid_clocks_attached_utc"))
+    stamp = datetime.now(timezone.utc).isoformat()
+    pairs = [("friend", friend, "paid_open_over", "clv_paid_open_pp"),
+             ("morning", morning, "paid_morning_over", "clv_paid_morning_pp"),
+             ("close", close, "paid_close_over", "clv_paid_close_pp")]
+    for name, panel, pcol, ccol in pairs:
+        cols = ["gd", "key", "line", "market", "fair"]
+        ok = all(c in panel.columns for c in cols)
+        if pcol in work.columns:
+            # Re-derive fair from the panel every run (ledger never edits
+            # it); avoids _right-suffixed stale joins on re-runs.
+            work = work.drop(pcol)
+        sub = panel.select(cols).rename({"fair": pcol}) if ok else None
+        m = work.join(sub, on=["gd", "key", "line", "market"], how="left") if sub is not None else work.with_columns(pl.lit(None, dtype=pl.Float64).alias(pcol))
+        matched = int(m.filter(pl.col(pcol).is_not_null()).height) if pcol in m.columns else 0
+        audit["matched"][name] = matched
+        lut: dict[str, float] = {}
+        for r in m.select(["ticket_id", "side", "bet_price", "over_price",
+                           "under_price", pcol, ccol]).to_dicts():
+            fair = r.get(pcol)
+            if fair is None:
+                continue
+            try:
+                fo, fu = devig_two_way(float(r["over_price"]), float(r["under_price"]))
+            except (TypeError, ValueError):
+                continue
+            p_bet = fo if str(r.get("side")) == "over" else fu
+            p_close = float(fair) if str(r.get("side")) == "over" else 1.0 - float(fair)
+            lut[str(r["ticket_id"])] = (p_close - p_bet) * 100.0
+        audit["filled"][name] = len(lut)
+        if lut:
+            vals = pl.DataFrame([{"ticket_id": t, ccol: v} for t, v in lut.items()])
+            work = m.join(vals, on="ticket_id", how="left", suffix="_new")
+            # CLV recomputed every run (deterministic math); fair stays fill-null.
+            work = work.with_columns(pl.col(f"{ccol}_new").alias(ccol)).drop(f"{ccol}_new")
+            work = work.with_columns(
+                pl.when(pl.col("paid_clocks_attached_utc").is_null()
+                        & pl.col("ticket_id").is_in(list(lut)))
+                .then(pl.lit(stamp)).otherwise(pl.col("paid_clocks_attached_utc"))
+                .alias("paid_clocks_attached_utc"))
+        else:
+            work = m
+    drop = [c for c in ("gd", "key") if c in work.columns and c not in ledger.columns]
+    work = work.drop(drop)
+    return work, audit
 
 
 def _parse_settle(raw: str) -> tuple[str, str, float]:
@@ -87,12 +214,21 @@ def _fetch_pitcher_result(game_pk: int, pitcher_id: int) -> dict:
         ) as resp:
             feed = json.loads(resp.read().decode())
     except Exception:  # noqa: BLE001
-        return {"so": None, "game_final": False, "appeared": False}
+        return {"so": None, "game_final": False, "game_started": False, "appeared": False}
     status = feed.get("gameData", {}).get("status", {})
-    game_final = str(status.get("abstractGameState") or "") == "Final"
+    abstract = str(status.get("abstractGameState") or "")
+    game_final = abstract == "Final"
+    game_started = abstract in {"Live", "Final"}
     detailed = str(status.get("detailedState") or "")
     if detailed in {"Postponed", "Cancelled", "Suspended"}:
-        return {"so": None, "game_final": True, "appeared": False, "detailed": detailed}
+        return {"so": None, "game_final": True, "game_started": game_started,
+                "appeared": False, "detailed": detailed}
+    if abstract not in {"Live", "Final"}:
+        # Pre-game (#83): probable pitchers ride a zero-valued pitching
+        # skeleton (strikeOuts=0). Settling on it fabricates a K=0 final.
+        # Stay open until first pitch. (Postponed etc. handled above, so
+        # the void path still fires for unplayed games — #88 review.)
+        return {"so": None, "game_final": False, "game_started": False, "appeared": False}
     teams = feed.get("liveData", {}).get("boxscore", {}).get("teams", {})
     for side in ("away", "home"):
         for _, pdata in teams.get(side, {}).get("players", {}).items():
@@ -122,14 +258,59 @@ def _fetch_pitcher_result(game_pk: int, pitcher_id: int) -> dict:
                     "hits_allowed": float(h_allowed) if h_allowed is not None else None,
                     "walks_allowed": float(bb_allowed) if bb_allowed is not None else None,
                     "game_final": game_final,
+                    "game_started": True,
                     "appeared": True,
                 }
-            return {"so": None, "game_final": game_final, "appeared": bool(pitching)}
-    return {"so": None, "game_final": game_final, "appeared": False}
+            return {"so": None, "game_final": game_final, "game_started": True,
+                    "appeared": bool(pitching)}
+    return {"so": None, "game_final": game_final, "game_started": game_final,
+            "appeared": False}
 
 
-def _fetch_k_from_api(game_pk: int, pitcher_id: int) -> float | None:
-    return _fetch_pitcher_result(game_pk, pitcher_id)["so"]
+def auto_settle_api(
+    ledger: pl.DataFrame, *, void_scratches: bool = False,
+) -> tuple[pl.DataFrame, dict]:
+    """Settle open tickets via MLB API with the hard guard (#113 step 1).
+
+    Order per ticket: void (Final + never appeared) -> skip+log unless the
+    game started (Live/Final) -> settle on a real line. Pregame K=0 never
+    settles. Returns (ledger, {"settled": n, "voided": n, "skipped": n}).
+    """
+    stats = {"settled": 0, "voided": 0, "skipped": 0}
+    if ledger.is_empty():
+        return ledger, stats
+    open_rows = ledger.filter(pl.col("status") == "open")
+    for t in open_rows.to_dicts():
+        pk, pid = t.get("game_pk"), t.get("pitcher")
+        if pk is None or pid is None:
+            continue
+        res = _fetch_pitcher_result(int(pk), int(pid))
+        if void_scratches and res["game_final"] and not res["appeared"]:
+            reason = res.get("detailed") or "scratched"
+            ledger = apply_void(ledger, ticket_id=t["ticket_id"], reason=reason)
+            print(f"API void ({reason}): {t['player_name']}")
+            stats["voided"] += 1
+            continue
+        if not res.get("game_started", False):
+            print(f"API skip (unstarted): {t['player_name']}")
+            stats["skipped"] += 1
+            continue
+        if res["so"] is not None:
+            ledger = apply_settle(
+                ledger,
+                ticket_id=t["ticket_id"],
+                settle_value=res["so"],
+                settle_context={
+                    "ip": res.get("ip"),
+                    "outs": res.get("outs"),
+                    "hits_allowed": res.get("hits_allowed"),
+                    "walks_allowed": res.get("walks_allowed"),
+                    "strikeouts": res.get("so"),
+                },
+            )
+            print(f"API settle: {t['player_name']} K={res['so']}")
+            stats["settled"] += 1
+    return ledger, stats
 
 
 def _write_gate_next_n_artifact(ledger: pl.DataFrame, *, next_n: int) -> None:
@@ -277,6 +458,14 @@ def main() -> None:
             "(probable-starter scratch) instead of leaving them open forever"
         ),
     )
+    p.add_argument(
+        "--attach-paid-clocks",
+        action="store_true",
+        help=("Backfill paid-history clocks (friend open, consensus morning + "
+              "close) onto ledger rows as paid_*_over + clv_paid_*_pp. "
+              "Observability only: fill-null, never touches close_over/clv_pp "
+              "or any scoring column."),
+    )
     args = p.parse_args()
 
     if not LEDGER_PATH.exists() and not args.status:
@@ -289,6 +478,7 @@ def main() -> None:
         and not args.close
         and not args.curve
         and not args.auto_settle_api
+        and not args.attach_paid_clocks
         and not args.void
     )
     if args.status or did_status_only:
@@ -359,30 +549,23 @@ def main() -> None:
             print(f"settled: {t['player_name']} K={k}")
 
     if args.auto_settle_api and not ledger.is_empty():
-        open_rows = ledger.filter(pl.col("status") == "open")
-        for t in open_rows.to_dicts():
-            pk, pid = t.get("game_pk"), t.get("pitcher")
-            if pk is None or pid is None:
-                continue
-            res = _fetch_pitcher_result(int(pk), int(pid))
-            if res["so"] is not None:
-                ledger = apply_settle(
-                    ledger,
-                    ticket_id=t["ticket_id"],
-                    settle_value=res["so"],
-                    settle_context={
-                        "ip": res.get("ip"),
-                        "outs": res.get("outs"),
-                        "hits_allowed": res.get("hits_allowed"),
-                        "walks_allowed": res.get("walks_allowed"),
-                        "strikeouts": res.get("so"),
-                    },
-                )
-                print(f"API settle: {t['player_name']} K={res['so']}")
-            elif args.void_scratches and res["game_final"] and not res["appeared"]:
-                reason = res.get("detailed") or "scratched"
-                ledger = apply_void(ledger, ticket_id=t["ticket_id"], reason=reason)
-                print(f"API void ({reason}): {t['player_name']}")
+        ledger, stats = auto_settle_api(ledger, void_scratches=args.void_scratches)
+        print(f"auto-settle: {stats}")
+
+    if args.attach_paid_clocks and not ledger.is_empty():
+        read_consensus_cache, _ = _mr_join_keys()
+        morning = read_consensus_cache("pitcher_strikeouts", "morning")
+        close_hist = read_consensus_cache("pitcher_strikeouts", "close")
+        try:
+            outs_m = read_consensus_cache("pitcher_outs", "morning")
+            outs_c = read_consensus_cache("pitcher_outs", "close")
+            morning = pl.concat([morning, outs_m], how="diagonal_relaxed")
+            close_hist = pl.concat([close_hist, outs_c], how="diagonal_relaxed")
+        except Exception as exc:
+            print(f"paid clocks: outs panels unavailable ({exc}); K-only")
+        friend = _friend_opens()
+        ledger, audit = attach_paid_clocks(ledger, morning, close_hist, friend)
+        print(f"paid clocks: {json.dumps(audit, default=str)}")
 
     save_ledger(ledger)
     _write_gate_next_n_artifact(ledger, next_n=max(1, int(args.gate_next_n)))

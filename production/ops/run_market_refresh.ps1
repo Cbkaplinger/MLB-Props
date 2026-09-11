@@ -25,12 +25,13 @@ Write-Host "Starting market refresh in $repoRoot"
 
 $failure = ""
 try {
-$boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative")
+$boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative", "--write-quotes", "artifacts/odds_log/sharp_quotes_latest.parquet")
 if ($QuietBoard) {
     Write-Warning "QuietBoard requested, but odds_board.py has no --quiet flag; running with normal output."
 }
 Run-Step "1 odds_board" $boardArgs
-Run-Step "2 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--roi-mode", "conservative", "--from-recommendations")
+Run-Step "2 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--roi-mode", "conservative", "--from-recommendations", "--quotes-file", "artifacts/odds_log/sharp_quotes_latest.parquet")
+Run-Step "2b frozen_edge_watch" @("production/ops/frozen_edge_watch.py")
 Run-Step "3 ledger_status" @("production/odds/grade_odds_ledger.py", "--status")
 Run-Step "4 reconcile_board_vs_ledger" @("production/ops/build_board_ledger_reconciliation.py")
 Run-Step "5 compact_aux_quote_history" @("production/ops/compact_aux_quote_history.py", "--retention-days", "120")

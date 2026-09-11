@@ -62,7 +62,7 @@ if (-not $SkipGradeAllLogged) {
 } catch { $failure += "grade FAILED: $($_.Exception.Message)`n" }
 try {
 if (-not $SkipOddsBoard) {
-    $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative")
+    $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative", "--write-quotes", "artifacts/odds_log/sharp_quotes_latest.parquet")
     if ($QuietBoard) { $boardArgs += "--quiet" }
     Run-Step "3 odds_board" $boardArgs
 }

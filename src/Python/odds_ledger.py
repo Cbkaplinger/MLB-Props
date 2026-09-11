@@ -207,8 +207,14 @@ def load_ledger(path: Path = LEDGER_PATH) -> pl.DataFrame:
 
 
 def _write_meta(path: Path, n_rows: int) -> None:
+    # #88 review: tests use tmp ledger paths but the old code always wrote
+    # the PRODUCTION sidecar (clobbering last_ledger.json with pytest tmp
+    # paths + racing background holders on Windows). Scope the sidecar:
+    # production ledger -> production meta; anything else -> alongside file.
+    path = Path(path)
+    meta = META_PATH if path == LEDGER_PATH else path.with_name(path.stem + "_meta.json")
     atomic_write_text(
-        META_PATH,
+        meta,
         json.dumps(
             {
                 "path": str(path),

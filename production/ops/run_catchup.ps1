@@ -1,9 +1,11 @@
 # Catch-up run for after the box was off / automation missed a day or two.
 #
-# Settles everything the nightly settle missed, grades all logged projection
-# dates, then self-checks and alerts. It does NOT fabricate paper slates for
-# days with no morning run (no projections were logged, no lines captured) —
-# those stay a documented gap; this only closes out what actually exists.
+# Reports ledger status, grades all logged projection dates, then
+# self-checks and alerts. It does NOT settle (#113 step 1: only post-game
+# tasks pass --auto-settle-api; intraday settling fabricated K=0 finals in
+# #83) and does NOT fabricate paper slates for days with no morning run
+# (no projections were logged, no lines captured) — those stay a
+# documented gap; this only closes out what actually exists.
 #
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File production\ops\run_catchup.ps1
@@ -30,7 +32,7 @@ Write-Host "Starting catch-up in $repoRoot"
 
 $failure = ""
 try {
-    Run-Step "1 settle" @("production/odds/grade_odds_ledger.py", "--auto-settle-api", "--void-scratches", "--status", "--curve")
+    Run-Step "1 ledger_status" @("production/odds/grade_odds_ledger.py", "--status", "--curve")
 } catch { $failure += "settle FAILED: $($_.Exception.Message)`n" }
 try {
     Run-Step "2 grade_all_logged" @("production/projections/grade_projections.py", "--all-logged", "--preferred-only")

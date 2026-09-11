@@ -198,12 +198,23 @@ def _poll_open(
     side_edge_floors: dict[str, float] | None,
     policy_signature: str,
     policy_label: str,
+    quotes_file: str | None = None,
+    quotes_max_age_min: float = 30.0,
 ) -> None:
+    shared = None
+    if quotes_file:
+        from Python.sharp_odds import read_quotes_parquet  # noqa: E402
+        try:
+            shared = read_quotes_parquet(quotes_file, max_age_min=quotes_max_age_min)
+            print(f"shared quotes: {len(shared)} <- {quotes_file}")
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"shared quotes unavailable ({exc}); live fetch fallback")
     rows, unmatched, n_quotes = poll_open_tickets(
         board,
         unit=unit,
         edge_floor=edge_floor,
         book=book,
+        quotes=shared,
         quality_gate=quality_gate,
         kpi_policy_path=kpi_policy,
         apply_line_price_correction=apply_line_price_correction,
@@ -548,6 +559,20 @@ def main() -> None:
         action="store_true",
         help="Open only: allow direct live quote polling instead of the board-artifact source-of-truth mode.",
     )
+    p.add_argument(
+        "--quotes-file",
+        type=str,
+        default=None,
+        help=("Shared-fetch contract (#113.3): reuse the board's persisted "
+              "quote set instead of a second SharpAPI fetch. Falls back to "
+              "live fetch when missing/stale."),
+    )
+    p.add_argument(
+        "--quotes-max-age-min",
+        type=float,
+        default=30.0,
+        help="Refuse shared quotes older than this (minutes).",
+    )
     args = p.parse_args()
 
     edge_floor = float(args.edge_floor)
@@ -641,6 +666,8 @@ def main() -> None:
                 side_edge_floors=side_edge_floors,
                 policy_signature=policy_signature,
                 policy_label=policy_label,
+                quotes_file=args.quotes_file,
+                quotes_max_age_min=args.quotes_max_age_min,
             )
     else:
         _poll_close(board, book=args.book, dry_run=args.dry_run)

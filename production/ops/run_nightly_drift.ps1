@@ -69,6 +69,12 @@ if ($driftCode -eq 2) { $driftRed = $true }
 elseif ($driftCode -ne 0 -and $driftCode -ne 1) { $failure += "drift_check FAILED: exit $driftCode`n" }
 try { Run-Step "4 automation_self_check" "production/ops/build_automation_self_check.py" @("--notify-on-red") }
 catch { $failure += "self_check FAILED: $($_.Exception.Message)`n" }
+# Shadow evidence (never pages: warn-only by design — research scripts must
+# not degrade a night or wake the owner).
+try { Run-Step "4b policy_freshness" "production/ops/policy_freshness_audit.py" @() }
+catch { Write-Warning "policy_freshness warn-only: $($_.Exception.Message)" }
+try { Run-Step "4c stacker_gate" "production/ops/market_research/ledger_gate_stacker.py" @() }
+catch { Write-Warning "stacker_gate warn-only: $($_.Exception.Message)" }
 
 # Alert only on degradation: step failures or a RED drift verdict.
 # A YELLOW drift (warnings / thin-n) stays quiet by design — it is filed in

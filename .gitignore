@@ -57,4 +57,6 @@ env/
 _cw_full.diff
 _q.py
 close_watcher.pre_split_backup.py
+# Session scratch: notebook PNG dumps (regenerate from production/notebooks)
+tmp_nb_figs/
 # docs/EXECUTION_BACKLOG.md is intentionally TRACKED (the ONE holy file) — do not re-ignore it

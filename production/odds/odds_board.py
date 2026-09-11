@@ -1,6 +1,6 @@
 """Live strikeout recommendation board (model × SharpAPI odds).
 
-Terminal prints **BET only** (≥ edge floor, in-support).
+Terminal prints **BET only** (>= edge floor, in-support).
 Full matched slate (BET + skip + OOS) is always written for monitoring / curves.
 
 Examples:
@@ -33,6 +33,7 @@ from Python.odds_board import (  # noqa: E402
     build_recommendations,
     write_recommendations,
 )
+from Python.sharp_odds import fetch_mlb_strikeout_quotes, write_quotes_parquet  # noqa: E402
 
 
 def _print_table(frame: pl.DataFrame, *, bets_only: bool) -> None:
@@ -106,6 +107,13 @@ def main() -> None:
     p.add_argument("--open-html", action="store_true")
     p.add_argument("--no-write", action="store_true")
     p.add_argument(
+        "--write-quotes",
+        type=str,
+        default=None,
+        help=("Shared-fetch contract (#113.3): fetch SharpAPI once, score from "
+              "it, and persist the quote set here for poll_open to reuse."),
+    )
+    p.add_argument(
         "--quality-gate",
         action="store_true",
         help="Mark risky BET rows as HOLD based on latest diagnostics.",
@@ -158,12 +166,19 @@ def main() -> None:
     if args.roi_mode == "profit_lock":
         side_edge_floors = {"over": 0.10, "under": 0.08}
 
+    shared_quotes = None
+    if args.write_quotes:
+        shared_quotes = fetch_mlb_strikeout_quotes(
+            sportsbook=args.book, main_only=True, is_live=False)
+        write_quotes_parquet(shared_quotes, args.write_quotes)
+        print(f"shared quotes: {len(shared_quotes)} -> {args.write_quotes}")
     frame, meta = build_recommendations(
         slate=args.date,
         preferred_only=not args.all_starters,
         unit_dollars=args.unit,
         edge_floor=edge_floor,
         sportsbook=args.book,
+        quotes=shared_quotes,
         best_book_only=not args.all_books,
         quality_gate=args.quality_gate,
         kpi_policy_path=args.kpi_policy,

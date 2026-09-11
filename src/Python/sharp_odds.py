@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 SHARP_API_BASE = "https://api.sharpapi.io/api/v1"
@@ -227,3 +230,83 @@ def fetch_mlb_strikeout_quotes(
         is_live=is_live,
     )
     return pair_strikeout_quotes(rows, main_only=main_only)
+
+
+_QUOTE_FIELDS = [f.name for f in fields(StrikeoutQuote)]
+
+
+def write_quotes_parquet(quotes: list[StrikeoutQuote], path: str | Path) -> Path:
+    """Persist a fetched quote set atomically with a fetch timestamp.
+
+    Shared-fetch contract (#113.3): one SharpAPI fetch feeds both board
+    scoring and open polling, so both consumers price identically.
+    """
+    import polars as pl
+
+    path = Path(path)
+    rows = []
+    for q in quotes:
+        d = asdict(q)
+        d["fetched_at_utc"] = datetime.now(timezone.utc).isoformat()
+        rows.append(d)
+    frame = pl.DataFrame(rows, schema={**{k: pl.String for k in _QUOTE_FIELDS
+                                          if k not in ("line", "over_american",
+                                                       "under_american", "is_main_line")},
+                                       "line": pl.Float64, "over_american": pl.Float64,
+                                       "under_american": pl.Float64, "is_main_line": pl.Boolean,
+                                       "fetched_at_utc": pl.String})
+    if frame.is_empty():
+        frame = pl.DataFrame(schema=frame.schema)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".",
+                               suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.close()
+        frame.write_parquet(tmp)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    return path
+
+
+def read_quotes_parquet(
+    path: str | Path, *, max_age_min: float | None = 30.0,
+) -> list[StrikeoutQuote]:
+    """Load a shared quote set; refuse stale files unless max_age_min=None.
+
+    Raises FileNotFoundError (missing) or ValueError (stale) so callers fall
+    back to a live fetch explicitly — never silently price off old quotes.
+    """
+    import polars as pl
+
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"no shared quotes at {path}")
+    frame = pl.read_parquet(path)
+    if max_age_min is not None and "fetched_at_utc" in frame.columns:
+        try:
+            stamped = frame["fetched_at_utc"].drop_nulls()
+            if not stamped.is_empty():
+                age = (datetime.now(timezone.utc)
+                       - datetime.fromisoformat(str(stamped[0]))).total_seconds() / 60.0
+                if age > float(max_age_min):
+                    raise ValueError(
+                        f"shared quotes {age:.1f}m old > {max_age_min}m; refusing")
+        except ValueError:
+            raise
+        except Exception:
+            pass
+    out = []
+    for r in frame.to_dicts():
+        kw = {k: r.get(k) for k in _QUOTE_FIELDS}
+        kw["line"] = float(kw["line"])
+        kw["over_american"] = float(kw["over_american"])
+        kw["under_american"] = float(kw["under_american"])
+        kw["is_main_line"] = bool(kw["is_main_line"])
+        out.append(StrikeoutQuote(**kw))
+    return out
