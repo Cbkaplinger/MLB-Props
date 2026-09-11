@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "production" / "ops" / "market_research"))
 
+from conftest import artifact_path  # noqa: E402
 from Python.market import bet_pnl  # noqa: E402
 from select_2025_champion import (  # noqa: E402
     apply_config,
@@ -15,6 +16,17 @@ from select_2025_champion import (  # noqa: E402
     floor_for,
     run_stress,
 )
+
+
+def test_artifact_path_helper() -> None:
+    from conftest import artifact_path
+
+    assert artifact_path("pyproject.toml").exists()
+    try:
+        artifact_path("artifacts", "does_not_exist_12345.parquet")
+        raise AssertionError("should have skipped")
+    except BaseException as exc:  # pytest Skipped
+        assert type(exc).__name__ == "Skipped"
 
 
 def test_canonical_money_math() -> None:
@@ -25,7 +37,7 @@ def test_canonical_money_math() -> None:
 
 def test_selector_matches_ledger_on_canonical_taken() -> None:
     df = pl.read_parquet(
-        ROOT / "artifacts" / "odds_log" / "juiced_replay_candidates.parquet"
+        artifact_path("artifacts", "odds_log", "juiced_replay_candidates.parquet")
     ).filter((pl.col("yr") == "2025") & (pl.col("accepted")))
     assert len(df) > 1000
     recomputed = sum(
@@ -48,7 +60,7 @@ def test_floor_and_concentration_helpers() -> None:
 
 def test_loosest_config_is_a_superset() -> None:
     df = pl.read_parquet(
-        ROOT / "artifacts" / "odds_log" / "juiced_replay_candidates.parquet"
+        artifact_path("artifacts", "odds_log", "juiced_replay_candidates.parquet")
     ).filter(pl.col("yr") == "2025")
     loose = apply_config(df, 0.08, 99.0, "both", "next")
     tight = apply_config(df, 0.12, 0.20, "lean", "dkfd")
@@ -58,7 +70,7 @@ def test_loosest_config_is_a_superset() -> None:
 
 def test_stress_battery_structure() -> None:
     df = pl.read_parquet(
-        ROOT / "artifacts" / "odds_log" / "juiced_replay_candidates.parquet"
+        artifact_path("artifacts", "odds_log", "juiced_replay_candidates.parquet")
     ).filter(pl.col("yr") == "2025")
     champ = {"floor": 0.12, "cap": 0.24, "side": "lean", "book": "dkfd"}
     s = run_stress(df, champ, n_boot=20)

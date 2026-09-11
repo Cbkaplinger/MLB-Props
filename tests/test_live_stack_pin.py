@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from Python.count_layer import COUNT_LAYER_FAMILY_DEFAULT  # noqa: E402
 from Python.kpi_policy import load_kpi_policy  # noqa: E402
+from conftest import artifact_path  # noqa: E402
 from Python.odds_board import (  # noqa: E402
     _clip_offset,
     _edge_cap_reason,
@@ -40,10 +41,11 @@ def test_pin_poisson_default() -> None:
 
 
 def test_pin_ws1c_pointer_matches_file() -> None:
-    ptr = json.loads((ROOT / "artifacts" / "models"
-                      / "prob_calibration_production.json").read_text(encoding="utf-8"))
+    ptr = json.loads(artifact_path(
+        "artifacts", "models", "prob_calibration_production.json"
+    ).read_text(encoding="utf-8"))
     assert "ws1c" in str(ptr.get("joblib", "")).lower()
-    bundle = joblib.load(ROOT / "artifacts" / "models" / ptr["joblib"])
+    bundle = joblib.load(artifact_path("artifacts", "models", ptr["joblib"]))
     assert set(bundle.line_maps) >= {"2_5", "4_5", "6_5", "9_5"}
 
 
