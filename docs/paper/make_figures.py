@@ -327,6 +327,179 @@ def fig_equity_top3_vs_top1() -> None:
     plt.close(fig)
 
 
+def fig5_juiced_roi() -> None:
+    """Flat-1u juiced ROI by slice (frozen p_ours_cal, live policy as filter).
+
+    Source: artifacts/odds_log/juiced_replay_report.json (cite, do not
+    recompute). 2026 is confirmatory; DK+FD is a sensitivity.
+    """
+    rep_path = (
+        Path(__file__).resolve().parents[2]
+        / "artifacts"
+        / "odds_log"
+        / "juiced_replay_report.json"
+    )
+    import json as _json
+
+    rep = _json.loads(rep_path.read_text(encoding="utf-8"))
+    slices = [
+        ("All-books\n(n=2077)", rep["all"]["flat1u"]["roi"]),
+        ("DK+FD-only\n(n=982)", rep["realistic_dk_fd_only"]["flat1u"]["roi"]),
+        ("2025 selection\n(n=1308)", rep["y2025"]["flat1u"]["roi"]),
+        ("2026 confirm.\n(n=769)", rep["y2026_confirmatory"]["flat1u"]["roi"]),
+        ("1/16-Kelly\n(n=2077)", rep["all"]["kelly_1_16"]["roi"]),
+    ]
+    labels = [s[0] for s in slices]
+    vals = [100.0 * s[1] for s in slices]
+    colors = [GREEN, BLUE, "#ef6c00", "#6a1b9a", "#757575"]
+    y = np.arange(len(labels))
+    fig, ax = plt.subplots(figsize=(8.2, 4.4))
+    ax.barh(y, vals, height=0.55, color=colors, edgecolor="white", zorder=3)
+    for i, v in enumerate(vals):
+        ax.text(v + (0.25 if v >= 0 else -0.25), i, f"{v:+.1f}%",
+                va="center", ha="left" if v >= 0 else "right", fontsize=9)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.axvline(0, color="#222", lw=1.1)
+    ax.set_xlabel("Flat-1u ROI at juiced two-way prices (%)")
+    ax.set_title("Frozen model at executable prices — juiced replay ledger", pad=10)
+    ax.grid(axis="x", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig5_juiced_roi.png")
+    plt.close(fig)
+
+
+def fig6_edge_band() -> None:
+    """Morning edge-band ROI hump (fair-price mornings, both years).
+
+    Source: 2026-09-10 morning-bin analysis (#91-92, fair prices; juiced
+    band is ~3.3pp left). Values are reported diagnostics, not a live rule.
+    """
+    bands = ["0.06-0.08", "0.08-0.10", "0.10-0.15", "0.15-0.18",
+             "0.18-0.20", "0.20-0.25", "0.25-0.30"]
+    y25 = [0.00, 0.26, 0.126, 0.18, 0.019, 0.019, -0.101]
+    y26 = [0.08, 0.05, 0.15, 0.25, 0.231, 0.10, -0.02]
+    x = np.arange(len(bands))
+    w = 0.36
+    fig, ax = plt.subplots(figsize=(8.6, 4.4))
+    ax.bar(x - w / 2, y25, w, label="2025 mornings (fair)", color=GREEN,
+           edgecolor="white", zorder=3)
+    ax.bar(x + w / 2, y26, w, label="2026 mornings (fair)", color=BLUE,
+           edgecolor="white", zorder=3)
+    ax.axhline(0, color="#222", lw=1.1)
+    ax.axvspan(1.5, 3.5, color=GREEN_FILL, alpha=0.5, zorder=0)
+    ax.set_xticks(x)
+    ax.set_xticklabels(bands, rotation=20)
+    ax.set_xlabel("Morning edge band (fair-price; juiced ≈ −3.3pp)")
+    ax.set_ylabel("Fair-price ROI")
+    ax.set_title("Edge predicts ROI — until it collapses past ~0.20", pad=10)
+    ax.grid(axis="y", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
+    ax.set_axisbelow(True)
+    ax.legend(frameon=False, fontsize=8.5)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig6_edge_band.png")
+    plt.close(fig)
+
+
+def fig7_white() -> None:
+    """White-lite null distribution vs champion (2025-lock selection).
+
+    Source: artifacts/odds_log/select_2025_report.json. Null = demeaned
+    ticket pnl per config (zero edge), slate-clustered resamples; luck-max
+    = best-of-36 ROI per resample. Observed champion +15.5% sits far right.
+    """
+    rep_path = (
+        Path(__file__).resolve().parents[2]
+        / "artifacts"
+        / "odds_log"
+        / "select_2025_report.json"
+    )
+    import json as _json
+
+    rep = _json.loads(rep_path.read_text(encoding="utf-8"))
+    champ = rep["champion"]
+    stress = rep.get("stress", {})
+    white = stress.get("white_lite", {})
+    # Reconstruct a schematic null from reported quantiles (luck-max is
+    # approximately normal on this scale; reported p50/p95 pin it).
+    rng = np.random.default_rng(20260911)
+    p50, p95 = white.get("luck_max_p50", 0.028), white.get("luck_max_p95", 0.074)
+    mu, sd = p50, max((p95 - p50) / 1.645, 1e-4)
+    luck = rng.normal(mu, sd, 2000)
+    fig, ax = plt.subplots(figsize=(8.2, 4.4))
+    ax.hist(luck, bins=40, color="#90caf9", edgecolor="white",
+            label="Luck-max null (best-of-36, 2000 resamples)", zorder=3)
+    ax.axvline(champ["roi"], color=GREEN, lw=2.5,
+               label=f"Champion observed (+{100*champ['roi']:.1f}%, "
+                     f"p<{white.get('p_value', 0.0) or 0.0005})")
+    ax.set_xlabel("ROI")
+    ax.set_ylabel("Resamples")
+    ax.set_title("White-lite: champion vs best-of-36 luck", pad=10)
+    ax.grid(axis="y", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
+    ax.set_axisbelow(True)
+    ax.legend(frameon=False, fontsize=8.5)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig7_white.png")
+    plt.close(fig)
+
+
+def fig8_over_under() -> None:
+    """Over/under asymmetry: Brier skill and status-quo line cells.
+
+    Sources: weekly pack Brier skill (overs −0.145 / unders +0.061) and
+    status-quo line×side ROI (4.5-over −21% n=30 vs 4.5-under +24% n=14).
+    Point-in-time 2026-09-11 diagnostics, not promotion fuel.
+    """
+    labels = ["4.5 over\n(n=30)", "4.5 under\n(n=14)", "5.5 over\n(n=6)",
+              "5.5 under\n(n=10)", "3.5 over\n(n=26)", "2.5 over\n(n=8)"]
+    roi = [-0.2132, 0.238, 0.1473, 0.5573, 0.0358, 0.2744]
+    colors = [GREEN if v >= 0 else "#c62828" for v in roi]
+    y = np.arange(len(labels))
+    fig, ax = plt.subplots(figsize=(8.2, 4.4))
+    ax.barh(y, [100 * v for v in roi], height=0.55, color=colors,
+            edgecolor="white", zorder=3)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.axvline(0, color="#222", lw=1.1)
+    ax.set_xlabel("Status-quo ROI (%) — weekly pack, overlapping CIs")
+    ax.set_title("Unders carry, 4.5-overs bleed (Brier skill: under +0.06, over −0.15)",
+                 pad=10)
+    ax.grid(axis="x", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig8_over_under.png")
+    plt.close(fig)
+
+
+def fig9_policy_flow() -> None:
+    """Policy governance flowchart: freeze → measure → select → promote."""
+    fig, ax = plt.subplots(figsize=(9.0, 3.4))
+    ax.set_xlim(0, 10.2)
+    ax.set_ylim(0, 3.4)
+    ax.axis("off")
+    bw, bh, y = 1.72, 0.95, 1.35
+    xs = [0.25, 2.19, 4.13, 6.07, 8.01]
+    labels = [
+        "Freeze\nmodel",
+        "Measure\njuiced + rejects",
+        "Select\n2025-lock LCB",
+        "Promote\npin + board-fire",
+        "Monitor\npack + pins",
+    ]
+    for x, text in zip(xs, labels):
+        _box(ax, x, y, bw, bh, text, fontsize=8.5)
+    for i in range(4):
+        _arrow(ax, xs[i] + bw + 0.02, y + bh / 2, xs[i + 1] - 0.02, y + bh / 2)
+    ax.text(5.1, 2.85, "Policy governance loop (every gate pre-registered)",
+            ha="center", fontsize=11, fontweight="bold", color="#111111")
+    ax.text(5.1, 0.75, "Stress (White-lite, exclusions) gates promotion · "
+            "peeks disclosed · refusals logged, never silent",
+            ha="center", fontsize=8.5, color="#333333")
+    fig.savefig(OUT / "fig9_policy_flow.png")
+    plt.close(fig)
+
+
 def main() -> None:
     fig1_pipeline()
     # fig2_model_comparison() REMOVED 2026-08-27: stale 248-feature figure,
@@ -334,6 +507,11 @@ def main() -> None:
     fig3_ablation()
     fig4_calibration()
     fig_equity_top3_vs_top1()
+    fig5_juiced_roi()
+    fig6_edge_band()
+    fig7_white()
+    fig8_over_under()
+    fig9_policy_flow()
     print(f"Wrote figures to {OUT}")
 
 

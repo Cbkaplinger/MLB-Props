@@ -7,20 +7,25 @@
 @page { margin: 0.7in; }
 body {
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 9.8pt;
-  line-height: 1.48;
+  font-size: 12pt;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  font-kerning: none;
+  font-variant-ligatures: none;
   color: #1a1a1a;
   max-width: 7.0in;
   margin: 0 auto;
 }
 h1 {
-  font-size: 17pt;
+  font-size: 20pt;
   line-height: 1.25;
   margin: 0 0 0.35em;
   font-weight: 700;
 }
 h2 {
-  font-size: 13pt;
+  font-size: 15pt;
   margin: 1.35em 0 0.5em;
   padding-bottom: 0.18em;
   border-bottom: 1px solid #bbb;
@@ -28,7 +33,7 @@ h2 {
   page-break-after: avoid;
 }
 h3 {
-  font-size: 11pt;
+  font-size: 13pt;
   margin: 1.05em 0 0.35em;
   font-weight: 700;
   color: #222;
@@ -46,18 +51,21 @@ table {
   border-collapse: collapse;
   width: 100%;
   margin: 0.35em 0 0.95em;
-  font-size: 9.1pt;
+  font-size: 10.5pt;
 }
 th, td {
   border: 1px solid #999;
   padding: 0.32em 0.45em;
   text-align: left;
   vertical-align: top;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 th { background: #efefef; font-weight: 700; }
 code {
   font-family: Consolas, "Courier New", monospace;
-  font-size: 8.7pt;
+  font-size: 10pt;
   background: #f4f4f4;
   padding: 0.04em 0.22em;
   border-radius: 2px;
@@ -89,21 +97,24 @@ figure img {
 }
 figcaption {
   margin-top: 0.4em;
-  font-size: 9pt;
+  font-size: 10.5pt;
   line-height: 1.35;
   text-align: left;
   color: #222;
 }
 p.table-caption {
   margin: 0.85em 0 0.25em;
-  font-size: 9.2pt;
+  font-size: 10.5pt;
   font-weight: 700;
 }
 </style>
 </head>
 <body>
 <h1>Pregame Pitcher Strikeout Projection - Resume Project Summary</h1>
-<p><strong>Cameron Kaplinger</strong> - AI Engineer (Data Science background) - Portfolio artifact (updated Aug 2026)</p>
+<p><strong>Cameron Kaplinger</strong> - Portfolio artifact (updated 2026-09-11)</p>
+<blockquote>
+<p><strong>Repo work queue (not this resume):</strong> live approvals / next steps live in <a href="../EXECUTION_BACKLOG.md"><code>docs/EXECUTION_BACKLOG.md</code></a>. This page is a portfolio summary only.</p>
+</blockquote>
 <p>Primary project link: <a href="https://github.com/Cbkaplinger/MLB-Props">GitHub repository</a><br>
 Secondary long-form write-up: <a href="https://github.com/Cbkaplinger/MLB-Props/blob/main/docs/paper/manuscript.md">Technical manuscript</a></p>
 <hr>
@@ -116,7 +127,7 @@ Secondary long-form write-up: <a href="https://github.com/Cbkaplinger/MLB-Props/
 <ul>
 <li><strong>AI/ML engineering:</strong> end-to-end feature pipelines, freeze discipline, and reproducible deployment artifacts.</li>
 <li><strong>Applied statistics:</strong> chronological validation, calibration diagnostics, and leakage-safe modeling controls.</li>
-<li><strong>Quant decisioning:</strong> market-skill ranking, policy-floor governance, and risk-aware deployment gates.</li>
+<li><strong>Quant decisioning:</strong> market-skill ranking vs book closes, policy-floor governance, and risk-aware deployment gates.</li>
 </ul>
 <hr>
 <h2>Models and headline metrics</h2>
@@ -141,12 +152,22 @@ Secondary long-form write-up: <a href="https://github.com/Cbkaplinger/MLB-Props/
 </tr>
 <tr>
 <td>Counts / lines</td>
-<td>Binomial / Poisson on projected TBF</td>
+<td><strong>Poisson</strong> on projected TBF (binomial one-line revert)</td>
 <td>Expected K and P(K ≥ L)</td>
+</tr>
+<tr>
+<td>Line maps (live)</td>
+<td>Per-line Platt (WS1c), shipped 2026-09-10</td>
+<td>Replaces August isotonic pointer</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Active deployment profile:</strong> blend <code>0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58</code>, edge floor <code>0.12</code>, ROI <strong>0.4363</strong>, PnL <strong>1208.55</strong>, Sharpe <strong>0.4438</strong>, Sortino <strong>0.4277</strong>, max drawdown <strong>0.1905</strong>, and market-skill deltas <strong>+0.2069</strong> (Brier) / <strong>+0.1551</strong> (LogLoss).</p>
+<p><strong>Live policy (promoted 2026-09-11 from a 2025-lock selection):</strong> line floors + 4.5-over veto + 2.5/3.5 probation + morning edge cap <code>0.24</code> + under-lean premium <code>+0.04</code> on overs + DK+FD-only universe + offset clip <code>±0.02</code> + 1/16-Kelly + postseason HOLD. A same-day robust-refusal arm was measured and reverted (2025 −0.2% vs base +4.2%).</p>
+<p><strong>Policy-search diagnostics (pre-freeze <code>n=26</code>, 2026-07-30–08-17; historical):</strong> ROI <code>0.4363</code>, Sharpe <code>0.4438</code>. Audit 2026-09-01: <strong>selection-window evidence</strong>, not validated deployment edge. Superseded by the replay era below.</p>
+<p><strong>Universe close skill (live Poisson + WS1c, <code>n=19,533</code>):</strong> Brier <code>0.2204</code> vs book <code>0.2162</code> (skill <strong><code>−0.0043</code></strong>); ECE <code>0.021</code> vs book <code>0.009</code>. Skill negative on all eight lines. Same starts <strong>beat friend opens</strong> (skill <code>+0.044</code> at ≈ −12h) and trail by morning.</p>
+<p><strong>Juiced replay (frozen probs at executable prices, rejects kept, <code>n=2,077</code>):</strong> flat-1u ROI <strong>+7.3%</strong> all-books / <strong>+12.3%</strong> DK+FD-only; 2025 +4.2% / 2026 +12.6% confirmatory. Fills unmodeled.</p>
+<p><strong>2025-lock champion (promoted with disclosed 2026 peek):</strong> 36-config family scored on 2025 only → floor <code>0.12</code> / cap <code>0.24</code> / under-lean / DK+FD: 2025 <code>n=558</code> ROI <strong>+15.5%</strong> WR <code>0.60</code> LCB <strong>+7.4%</strong>; White-lite p&lt;0.0005; exclusions ≥+12.9%; 2026 one-look repeat <code>n=485</code> ROI <strong>+15.6%</strong>.</p>
+<p><strong>Paper money track (deduped 36 days, <code>n=317</code>):</strong> PnL <code>+$611</code> (+2.7% ROI), mean CLV <code>+0.75</code>pp on <code>n_clv=195</code>; veto lane +6.5% (<code>n=258</code>) — paper prices, not fills. ≥50 real fills remain the money-truth gate.</p>
 <hr>
 <h2>Full-stack evaluation (production)</h2>
 <table>
@@ -163,7 +184,7 @@ Secondary long-form write-up: <a href="https://github.com/Cbkaplinger/MLB-Props/
 </tr>
 <tr>
 <td>Calibration + probability quality</td>
-<td>Production isotonic path; Brier <code>0.2090</code>, LogLoss <code>0.6087</code>, ECE <code>0.0639</code>, MCE <code>0.1353</code></td>
+<td>Live WS1c Platt + Poisson; universe ECE <code>0.021</code> / MCE <code>0.088</code> on <code>n=19,533</code> (book <code>0.009</code> / <code>0.019</code>). Search-lane ECE <code>0.0639</code> on <code>n=26</code> is labeled, not live.</td>
 </tr>
 <tr>
 <td>Population policy</td>
@@ -179,37 +200,44 @@ Secondary long-form write-up: <a href="https://github.com/Cbkaplinger/MLB-Props/
 <h2>Current governance winners</h2>
 <p>High-signal results from current artifacts:</p>
 <ul>
-<li>Open-universe deduped sweep winner (<code>ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv</code>):</li>
+<li>Universe close-matched panel (<code>rescore_cal_report.json</code>): live config skill <code>−0.0043</code> Brier vs book; ships closed ~27% of the frozen-config gap.</li>
+<li>Open-universe deduped sweep winner (<code>ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv</code>) — <strong>search lane, not live quality:</strong></li>
 <li>blend <code>0.05 sparse72 / 0.45 sparse72_monotone / 0.50 final58</code></li>
 <li>ROI <code>0.6612</code>, Sharpe <code>0.9468</code>, Sortino <code>0.6954</code>, bets <code>35</code></li>
 <li>Brier/LogLoss skill vs market: <code>+0.0825 / +0.0645</code></li>
 <li>Active deployment king (<code>open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json</code>):</li>
-<li>blend <code>0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58</code></li>
-<li>ROI <code>0.4363</code>, PnL <code>1208.55</code>, Sharpe <code>0.4438</code>, Sortino <code>0.4277</code>, max DD <code>0.1905</code></li>
-<li>Brier/LogLoss skill vs market: <code>+0.2069 / +0.1551</code></li>
+<li>blend <code>0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58</code> (frozen 2026-08-21)</li>
+<li><strong>policy-search</strong> ROI <code>0.4363</code>, PnL <code>1208.55</code>, Sharpe <code>0.4438</code>, Sortino <code>0.4277</code>, max DD <code>0.1905</code> on pre-freeze <code>n=26</code> (2026-07-30–08-17) — not post-freeze OOS</li>
 <li>Duplicate-ticket diagnostics explicitly tracked: <code>123</code> duplicate groups, <code>246</code> duplicate tickets in manual-set audits.</li>
 </ul>
 <hr>
 <h2>Resume-ready takeaway</h2>
-<p>Leakage-safe Statcast -&gt; rate x exposure stack with nested chronological
-selection, then scaled into a quant-governed production system with open-market
-replay, deduped fairness controls, transfer calibration, and live ensemble
-deployment. The stack shows positive market-skill deltas in current governance lanes, and runs under
-explicit CI/gate discipline without overstating unresolved live-edge evidence.</p>
-<p><strong>Portfolio claim:</strong> production-minded ML engineering under a strict information constraint, strengthened by statistical rigor and quant-style decision governance.</p>
+<p>Leakage-safe Statcast → rate × exposure stack with nested chronological
+selection, scaled into a quant-governed production system: frozen-model
+replay at executable prices, pre-registered 2025-lock policy selection
+(36 configs, White-checked, disclosed-peek judged), per-line Platt
+calibration, Poisson counts, and a live board governed by regression pins.
+Universe skill trails books on probabilities (−0.0043); the money comes
+from choice — clock, tickets, books — and the ledger proves each choice:
+veto, lean, cap, DK+FD-only. A same-day arm that didn't validate
+(robust-refusal, 2025 −0.2%) was reverted within hours with the evidence
+cited. No fills-gated money claim.</p>
+<p><strong>Portfolio claim:</strong> production-minded ML engineering under a strict information constraint, strengthened by statistical rigor and quant-style decision governance — including the discipline to revert your own morning shipment by afternoon.</p>
 <h2>Copy/Paste resume bullets</h2>
 <ul>
-<li>Built a leakage-safe MLB forecasting pipeline over pitch-level Statcast data (Polars + Python), enforcing chronological splits and pregame-only features, then wired it into a governed live decision system.</li>
-<li>Designed and deployed a two-stage prediction stack (<code>k-rate × projected TBF</code>) with isotonic-calibrated line probabilities and artifact-backed governance diagnostics in production.</li>
-<li>Productionized a governed decision engine with isotonic calibration, board-to-ledger parity locks, and execution freshness/coverage gates; hardened daily run reliability with explicit fail-fast controls.</li>
-<li>Led model-selection governance using open-universe counterfactual replay and deduped one-opportunity-one-bet evaluation; top transfer profile delivered <strong>0.436 ROI</strong>, <strong>1208.55 PnL</strong>, and positive market-skill deltas (<code>Brier +0.2069</code>, <code>LogLoss +0.1551</code>) in current artifact-backed replay lanes.</li>
+<li>Built a leakage-safe MLB forecasting pipeline over pitch-level Statcast data (Polars + Python, 340+ pytest guards), enforcing chronological splits and pregame-only features, then wired it into a governed live decision system that scores a daily board, logs a paper ledger, and pages on failure.</li>
+<li>Designed a two-stage prediction stack (<code>k-rate × projected TBF</code>) with Poisson line probabilities and per-line Platt calibration; measured it against book closes at universe scale (<code>n=19,533</code>: Brier <code>0.2204</code> vs <code>0.2162</code>) and at executable juiced prices with rejects retained (flat-1u <code>+7.3%</code> all-books / <code>+12.3%</code> DK+FD).</li>
+<li>Ran a pre-registered 36-config policy selection on 2025 data (slate-clustered LCB champion: floor <code>0.12</code> / cap <code>0.24</code> / under-lean / DK+FD-only, ROI <code>+15.5%</code>), stress-checked it (White-lite p&lt;0.0005, exclusions ≥+12.9%), confirmed on a disclosed 2026 peek (<code>+15.6%</code>), and promoted it to production behind regression pins — reverting a same-day arm the data rejected.</li>
+<li>Productionized execution hygiene: atomic ledger writes, settle hard-guards, shared API fetch, failure-banner alerting, and a reproducibility contract (raw JSON + frozen hashes + policy version reconstruct every ticket).</li>
 </ul>
 <h2>Interview framing (30 seconds)</h2>
 <p>I built a production-first sports forecasting system where the hard part was not
-just model accuracy, but controlling leakage, calibration drift, and execution
-quality. The final stack combines a frozen LightGBM ensemble with a projected
-exposure model, then governs decisions with chronological testing and explicit
-risk gates so we can operate daily without over-claiming edge.</p>
+model accuracy — books beat us on probabilities at every line — but turning a
+frozen model into executable edge: bet earlier (we beat the opener by +0.044),
+filter harder (a pre-registered 36-policy selection with White-checked
+significance picked floor/cap/lean/DK+FD-only for +15.5% on 2025, repeated
++15.6% on 2026), and report honestly (rejected tickets kept, peeks disclosed,
+a same-day shipment reverted when selection-year data rejected it).</p>
 <hr>
 <p><em>Code first:</em> <a href="https://github.com/Cbkaplinger/MLB-Props">GitHub repository</a> · <em>Paper:</em> <a href="https://github.com/Cbkaplinger/MLB-Props/blob/main/docs/paper/manuscript.pdf">manuscript PDF</a></p>
 </body>

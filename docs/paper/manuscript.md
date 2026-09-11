@@ -5,7 +5,7 @@
 Cameron Kaplinger  
 Independent Researcher
 
-*Technical manuscript · Updated 2026-09-10*
+*Technical manuscript · Updated 2026-09-11*
 
 **Code repository:** [https://github.com/Cbkaplinger/MLB-Props](https://github.com/Cbkaplinger/MLB-Props)
 
@@ -23,7 +23,11 @@ The active production lane uses a **two-model LightGBM blend** across frozen fea
 
 **Policy-freeze audit (2026-09-01): FAIL.** The `n=26` ROI `0.4363` / Sharpe `0.4438` / PnL `+24.17u` window spans `2026-07-30`–`2026-08-17`, entirely *before* `KING_PROFILE_AUG2026` (`2026-08-21T16:10:00Z`). Those metrics remain **pre-freeze policy-search evidence** and stay demoted (audit: `docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`).
 
-**What replaced that story (measured 2026-09-10, not a claimed edge).** Frozen-bundle inference on 2025–2026 regular-season starts, joined to Odds API consensus closes, gives a close-matched panel of **`n=19,533`** line-points. Live config (Poisson + WS1c) Brier `0.2204` vs book `0.2162` (skill **`−0.0043`**); ECE `0.021` vs book `0.009`; MCE `0.088` vs `0.019`. Skill is negative on all eight lines. The same starts **beat friend opens** (skill `+0.044` at ≈ −12h) and trail by morning (T−5h ≈ close). Deduped paper ledger through 2026-09-09: **`n=973`** props, PnL **`+$611`**, mean CLV `+0.59`pp on `n_clv=545` — paper, not fills; drawdown brake shadow CAUTION ×0.5 (max 25.8u / hole 11.1u). Live decision policy: 4.5-over hard veto, 2.5/3.5-over probation floor `0.18`, postseason HOLD after `2026-09-27`. Offset cap, stacker overlay, and morning edge-cap are researched and **not live**. No persistent betting-edge claim; ≥50 real fills remain the money-truth gate.
+**What replaced that story (measured 2026-09-11, disclosed peek).** Frozen-bundle inference on 2025–2026 regular-season starts, joined to Odds API consensus closes, gives a close-matched panel of **`n=19,533`** line-points. Live config (Poisson + WS1c) Brier `0.2204` vs book `0.2162` (skill **`−0.0043`**); ECE `0.021` vs book `0.009`; MCE `0.088` vs `0.019`. Skill is negative on all eight lines. The same starts **beat friend opens** (skill `+0.044` at ≈ −12h) and trail by morning (T−5h ≈ close). At executable juiced prices with live policy as a filter only and rejected candidates retained (`n=2,077` taken), flat-1u paper prints **+7.3%** all-books / **+12.3%** DK+FD-only (`juiced_replay_report.json`; fills unmodeled; 2026 confirmatory).
+
+**Policy selection at scale (2025-lock, §8.9).** A 36-config family (floors × edge caps × side rules × book universes) was scored on **2025 only**; champion (floor `0.12` / cap `0.24` / under-lean / DK+FD-only) maximizes lower-confidence-bound ROI under pre-registered constraints (CLV ≥ 0, cell concentration ≤ 0.40, DK+FD sign agreement): 2025 `n=558`, ROI **`+15.5%`**, WR `0.60`, LCB **`+7.4%`**. A White-lite reality check (demeaned null, slate-clustered, 2,000 resamples) gives **p < 0.0005** — best-of-36 luck prints +2.8% typically, +7.4% at its wildest. One disclosed-peek look at 2026 repeats it (`n=485`, ROI **`+15.6%`**, LCB `+7.3%`). The champion is **promoted to live** on that evidence with the peek disclosed in writing; ≥50 real fills remain the money-truth gate, and the remainder of September is its first truly unseen ball.
+
+Live decision policy: line floors + 4.5-over hard veto, 2.5/3.5-over probation, morning edge cap `0.24`, under-lean premium `+0.04` on overs, DK+FD-only universe, offset clip `±0.02`, 1/16-Kelly, postseason HOLD after `2026-09-27`. A same-day robust-refusal arm was measured and **reverted** (2025 −0.2% vs base +4.2% — longshot concentration). Stacker overlay stays shadow; drawdown brake stays parked.
 
 The main contribution is an end-to-end quant workflow that links leakage-safe modeling, chronological evaluation, and governed decision operations in a reproducible system.
 
@@ -270,29 +274,7 @@ Current decisions are made on compact frozen sets (`sparse72_monotone`, `final58
 
 ### 7.3 XGBoost monotone in the promotion workflow
 
-XGBoost monotonic constraints were evaluated in follow-up parity runs. The active promotion workflow remains centered on the currently deployed LightGBM monotone stack because it carries the complete production artifact and governance contract.
-
-1. the production monotone pathway (constraint mapping, validation, and artifact lineage) was already hardened around the LightGBM implementation,
-2. the sparse-set challenger sweep prioritized chrono-safe comparability and decision-lane governance checks over expanding multiple monotone implementations at once,
-3. adding XGBoost-monotone as a promoted lane would require its own constraint-sign audit and equal governance artifact contract before fair promotion.
-
-The evidence claim is: **multiple model families were tested** on shared sparse datasets and chronological splits, and monotone behavior was checked in both LightGBM and XGBoost challenger lanes.
-
-### 7.4 Aug 2026 follow-up parity checks (targeted reviewer questions)
-
-To reduce ambiguity, a focused parity sweep was added after the manuscript rewrite:
-
-1. enable XGBoost monotone constraints in the sparse-set family ablation runner,
-2. run base-budget and tuned-small-budget comparisons on the same sparse sets and chronological folds,
-3. bridge the MAE lane to decision-lane metrics in a separate governance replay comparison.
-
-Key findings from the added artifact runs:
-
-- **Ablation (base budget):** XGBoost unconstrained (`expected_K` MAE `1.8451`) and XGBoost monotone (`1.8511`) both trailed LightGBM and Ridge in this sparse-lane setup.
-- **Ablation (tuned-small):** best XGBoost variants remained behind (`~1.8242` unconstrained, `~1.8352` monotone), while Ridge remained the MAE leader and LightGBM stayed closer to the top cluster.
-- **Decision-lane bridge:** high MAE rank did not map one-to-one to best market/risk profile; best governance rows in the added replay comparisons were model-family dependent and changed with tuning budget, reinforcing lane separation.
-
-These checks convert prior process rationale into direct evidence: XGBoost monotone was tested as a challenger, but did not clear the sparse-lane promotion bar in this cycle.
+XGBoost monotonic constraints were evaluated in follow-up parity runs against the hardened LightGBM monotone path (constraint mapping, validation, artifact lineage). Promoting an XGBoost-monotone lane would require its own constraint-sign audit and equal governance contract. Verdict: **tested as a challenger, did not clear the sparse-lane bar** — unconstrained (`expected_K` MAE `1.8451`) and monotone (`1.8511`) both trailed LightGBM and Ridge at base budget, and tuned-small variants (`~1.8242` / `~1.8352`) stayed behind with Ridge the MAE leader. The decision-lane bridge confirmed MAE rank does not map one-to-one to market/risk profile. Detail: parity snapshots in Appendix A.5.
 
 
 ---
@@ -337,42 +319,7 @@ Each lane answers a different question; winners are not interchangeable across l
 
 ### 8.2 Backtest uncertainty and multiple-testing correction (pre-freeze 26-bet policy-search lane)
 
-The audited manual lane contains `n=26` graded recommendations (`top3`, floor `0.12`) with slate dates `2026-07-30`–`2026-08-17`. The declared production freeze `KING_PROFILE_AUG2026` is `2026-08-21T16:10:00Z`, and `production/ops/live_krate_ensemble.json` records selection rule `best_manual_roi_after_open_calibration_transfer_deduped`. **Policy-freeze audit 2026-09-01: FAIL** — every bet in this lane is pre-freeze, so ROI/Sharpe/PnL here are policy-search evidence, not post-freeze OOS evaluation (`docs/reference/reports/ssac27_policy_freeze_audit_2026-09-01.md`). Uncertainty and selection effects are still reported explicitly because the search window is small and was used to choose the blend.
-
-Point estimates below are the authoritative values from the replay artifact `artifacts/odds_log/open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`; the 95% CI bounds below are the pinned values in `artifacts/odds_log/quant_honesty_aug21_summary.json` (bootstrap `bootstrap_iid_ci` and `bootstrap_block_by_date_ci`) and are shown for transparency. Note that the *point estimates* in Table 3 / §8.2 are taken from the replay artifact, while `quant_honesty_aug21_summary.json` still carries the pre-correction Sharpe/max-DD/Calmar values for the same lane; the CI bounds themselves are carried by that artifact. All corrected point estimates sit within their stated intervals.
-
-Bootstrap percentile intervals (10,000 resamples):
-
-- ROI `0.4363` with 95% CI `[0.0337, 0.8072]`
-- Sharpe `0.4438` with 95% CI `[0.0431, 0.9997]`
-- Sortino `0.4277` with 95% CI `[0.0459, 0.7866]`
-- PnL `+24.17u` (`1u = 50 USD`) with 95% CI `[+1.85u, +45.45u]`
-
-Date-block bootstrap (resampling by slate date to reduce same-day dependence assumptions) yields similarly wide intervals:
-
-- ROI 95% CI `[0.0084, 0.7739]`
-- Sharpe 95% CI `[0.0885, 0.9296]`
-- Sortino 95% CI `[0.0946, 0.7457]`
-
-Multiple-testing-aware Sharpe diagnostics (Bailey/López de Prado style):
-
-- Probabilistic Sharpe Ratio (PSR, benchmark Sharpe `0`): `0.9701`
-- Deflated Sharpe Ratio (DSR, trial-adjusted using `N=5161` tested configurations): `0.0349`
-
-Interpretation: raw Sharpe is positive, but trial-adjusted significance remains weak at the current sample size and search breadth. Deployment claims are therefore framed as governed operational evidence rather than conclusive statistical dominance. **DSR here diagnoses selection breadth on the policy-search configuration space (blend×floor), not post-freeze OOS edge** (enumeration: `docs/reference/reports/ssac27_n5161_enumeration_2026-09-01.md`).
-
-> **DSR provenance (updated 2026-09-01).** `PSR`, `DSR`, `sigma_sr`, `sr_star`, the
-> `N=5161` trial count, and the §8.4 power targets come from
-> `artifacts/odds_log/quant_honesty_aug21_summary.json` (`n_trials=5161`;
-> `sr_star=0.8544`). Method: Bailey & López de Prado (2014), *The Deflated Sharpe
-> Ratio*, JPM [12]. **What 5161 is:** eligible **blend × edge-floor** configurations from
-> the Aug-21 deduped ensemble sweep — 3 feature-set lanes on a weight-0.05 simplex
-> (231 blends) × floors `0.005…0.12` step `0.005` (24) = 5544 grid rows, minus 383 with
-> `n_bets < 25` → **5161** (`ensemble_sweep_ranked_ensemble_full_aug21_deduped.csv`;
-> metadata `ensemble_sweep_ensemble_full_aug21_deduped.json`; producer
-> `production/ops/run_model_ensemble_sweep.py`). **What it is not:** Optuna HP trials or
-> model-family architecture search. Full write-up:
-> `docs/reference/reports/ssac27_n5161_enumeration_2026-09-01.md`.
+The audited manual lane contains `n=26` graded recommendations (`top3`, floor `0.12`) with slate dates `2026-07-30`–`2026-08-17` — entirely before the `2026-08-21` freeze. **Policy-freeze audit 2026-09-01: FAIL.** ROI `0.4363` (95% CI `[0.0337, 0.8072]`), Sharpe `0.4438` (`[0.0431, 0.9997]`), Sortino `0.4277`, PnL `+24.17u` are policy-search evidence, not OOS evaluation; trial-adjusted DSR is `0.0349` on `N=5161` blend×floor configs (PSR `0.9701` vs zero Sharpe). This lane diagnosed the search; §8.2.3 is its evidentiary replacement. Point estimates: `open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`; CIs: `quant_honesty_aug21_summary.json`; enumeration: `ssac27_n5161_enumeration_2026-09-01.md`; audit: `ssac27_policy_freeze_audit_2026-09-01.md`.
 
 ### 8.2.1 Post-freeze KING-floor lane (honest OOS replacement, through 2026-08-31)
 
@@ -399,62 +346,53 @@ Matched nulls vs the locked KING floor (`0.12`) on post-freeze settled opportuni
 
 Report: `docs/reference/reports/ssac27_null_decision_lane_2026-09-01.md`. Random/naive may impute stake on non-bet ledger candidates and are **null references**, not production policies. KING is less red than the matched nulls and posts a higher beat-close share than random/naive, but absolute ROI remains negative and margins are not DSR-grade — consistent with the demoted n=26 / weak DSR posture. **No decision-layer edge claim.** These nulls are **illustrative diagnostics only** (stake imputation + crude priors); they are not a validated placebo control for abstract claims.
 
-**Interim ops (2026-09-01; live veto promoted same day).** Post-freeze side×line bleed is first-order (esp. 4.5 overs). Shadow counterfactuals on real KING stakes (`production/ops/run_shadow_asymmetric_policy.py`) showed vetoing 4.5 overs moving the post-freeze floor set from ROI ≈ −1.55% (n=74) to ≈ +8.3% (n=56); raising the over floor to 0.16 (shadow) was also green on that window. Brier skill vs market is **negative on overs** and **positive on unders**. The **4.5-over hard veto** (plus soft probation on 2.5/3.5 overs) was **promoted to live** on 2026-09-01 (`docs/reference/reports/live_policy_promotion_2026-09-01.md`). This is **risk control**, not a claimed durable edge. Do not retune the veto from later 2026 paper windows — that sample already selected it.
+**Interim ops (2026-09-01; live veto promoted same day).** Post-freeze side×line bleed is first-order (esp. 4.5 overs). Shadow counterfactuals on real KING stakes (`production/ops/run_shadow_asymmetric_policy.py`) showed vetoing 4.5 overs moving the post-freeze floor set from ROI ≈ −1.55% (n=74) to ≈ +8.3% (n=56); raising the over floor to 0.16 (shadow) was also green on that window. Brier skill vs market is **negative on overs** and **positive on unders**. The **4.5-over hard veto** (plus soft probation on 2.5/3.5 overs) was **promoted to live** on 2026-09-01 (`docs/reference/reports/live_policy_promotion_2026-09-01.md`). This is **risk control**, not a claimed durable edge. Do not retune the veto from later 2026 paper windows — that sample already selected it. The asymmetry persists at every scale measured since (weekly Brier skill under `+0.06` vs over `−0.15`; Fig. 8).
 
-### 8.2.3 Current measurement (2026-09-10; not a claimed edge)
+**Figure 8.** Status-quo line×side ROI: unders carry, 4.5-overs bleed (point-in-time weekly pack; CIs overlap — risk control, not proof).
 
-The n=74 KING-floor table above is the honest *through-August-31* replacement for the demoted n=26 search lane. It is **not** current production quality.
+![Over under asymmetry](figures/fig8_over_under.png)
+
+### 8.2.3 Current measurement (2026-09-11; champion promoted with disclosure)
+
+The n=74 KING-floor table above is the honest *through-August-31* replacement for the demoted n=26 search lane. The replay era supersedes it at universe scale — same frozen probabilities, executable prices, rejected candidates retained.
 
 | Scope | n | What it measures | Result |
 | --- | ---: | --- | --- |
 | Universe close, live Poisson + WS1c | 19,533 | Skill vs Odds API consensus close | Brier 0.2204 vs book 0.2162 (skill −0.0043); ECE 0.021 vs 0.009; MCE 0.088 vs 0.019. Skill negative on all eight lines. |
 | Same starts vs friend open | 7,986 | Timing | Skill **+0.044** at ≈ −12h; ~0 by T−5h morning |
-| Deduped paper ledger through 2026-09-09 | 973 | Paper PnL / CLV, not fills | PnL +$611; mean CLV +0.59pp on 545 CLV rows |
-| Weekly veto pack (point-in-time) | 92 | Live 4.5-over veto on paper | ROI +12.6% / WR 0.54; CLV>0 share 0.43 — monitoring, not promotion fuel |
-| Harness 2026 confirmatory (fair prices) | 2,920 | Nested 2025-select / 2026-judge after a metric fix that peeked 2026 | Floor 0.08 / veto-off / snap-best; fair ROI +0.33; CLV −8.5pp. **Not a betting slip.** Live still runs juiced floor 0.12 + veto-on. |
+| Juiced replay, flat 1u (Fig. 5) | 2,077 | Frozen probs at juiced prices, live policy as filter | ROI **+7.3%**, WR 0.506, CLV +1.08pp; DK+FD-only +12.3% (n=982); 2025 +4.2% / 2026 +12.6% confirmatory; 1/16-Kelly +6.6%. Fills unmodeled. |
+| Morning edge bands (Fig. 6) | bins | Where edge predicts ROI | Green band 0.08–0.18 fair (≈ 0.05–0.15 juiced); collapse past ~0.20 both years — extreme disagreement means we are wrong, not bold |
+| 2025-lock selection (Fig. 7) | 558 | Pre-registered 36-config family, 2025 only | Champion (floor 0.12 / cap 0.24 / under-lean / DK+FD): ROI **+15.5%**, WR 0.60, LCB **+7.4%**, CLV +1.24pp; White-lite p<0.0005; exclusions ≥+12.9%; September slice +22.0% |
+| Disclosed-peek 2026 judge | 485 | Same champion, one look | ROI **+15.6%**, WR 0.60, LCB +7.3%, CLV +1.30 — repeats. Labeled peek, not clean. |
+| Slate correlation | 2,019 | Featured totals joined to taken tickets | 533 games carry 2+ tickets (1,633 correlated pairs); high-total (≥9.5) split +21.5% vs +4.2% rest — descriptive, caps unbuilt |
+| Deduped paper ledger (36 days, `paper_quant_report.json`) | 317 | Paper PnL / CLV, not fills | PnL +$611 (+2.7% ROI); mean CLV +0.75pp on 195 CLV rows; veto lane +6.5% (n=258) |
+| Weekly veto pack (point-in-time) | 95 | Live 4.5-over veto on paper | ROI +14.3% vs status-quo +7.2% (CIs overlap — risk control, not proven edge) |
 
-Sources: `artifacts/odds_log/rescore_cal_report.json`, `universe_panel_live.parquet`, weekly pack `docs/reference/reports/weekly_policy_settle_pack_latest.md`, `decision_grade_report.json`. Live work-state: `docs/EXECUTION_BACKLOG.md`.
+Sources: `artifacts/odds_log/rescore_cal_report.json`, `universe_panel_live.parquet`, `juiced_replay_report.json`, `select_2025_report.json`, `slate_shock_report.json`, weekly pack `docs/reference/reports/weekly_policy_settle_pack_latest.md`. Live work-state: `docs/EXECUTION_BACKLOG.md`.
 
-### 8.3 Slippage sensitivity (fixed 26-bet policy-search set)
+**Figure 5.** Flat-1u juiced ROI by slice (frozen probs, live policy as filter, rejected rows kept).
 
-To test execution fragility, adverse fill haircuts were applied to the same 26-bet audited set (no re-selection of bets).
+![Juiced replay ROI](figures/fig5_juiced_roi.png)
 
-| Probability haircut (pp) | ROI | PnL (u, `1u=50 USD`) | Sharpe | Sortino |
-| ---: | ---: | ---: | ---: | ---: |
-| 0.0 | 0.4363 | 24.17 | 0.4352 | 0.4277 |
-| 0.5 | 0.4313 | 23.89 | 0.4301 | 0.4206 |
-| 1.0 | 0.4263 | 23.62 | 0.4250 | 0.4135 |
-| 2.0 | 0.4163 | 23.06 | 0.4148 | 0.3997 |
+**Figure 6.** Morning edge-band ROI hump (fair-price mornings; juiced ≈ −3.3pp). The green band is the durable core; the cliff past ~0.20 is the edge-cap's evidence.
 
-The profile remains positive under this small haircut grid, but risk-adjusted metrics compress as expected.
+![Edge band hump](figures/fig6_edge_band.png)
 
-> **Source + freshness note (2026-08-27).** All five rows come verbatim from
-> `artifacts/odds_log/slippage_sensitivity_top3_floor12_aug21.csv`. A prior revision
-> of this table carried a Sharpe column extrapolated from the deployment profile's
-> `0.4438`; the authoritative slippage artifact instead reports a self-consistent
-> Sharpe series beginning at `0.4352`. That base-row value (`0.4352`) differs from the
-> deployment-profile Sharpe `0.4438` reported in Table 3 / §8.2 because the
-> `quant_honesty` and `slippage` artifacts were generated with the **pre-correction**
-> Sharpe/max-DD/Calmar point estimates, while the deployment-profile figure comes from
-> the re-audited `open_top3_transfer...replay` JSON. The adjudicated authoritative
-> deployment Sharpe is `0.4438`; the slippage series is the internally consistent
-> source for §8.3 and should be re-seeded/rebuilt alongside the quant-honesty artifact
-> when the deployment-profile point estimates are next refreshed.
+**Figure 7.** White-lite null (best-of-36 luck, demeaned, slate-clustered) vs observed champion +15.5%.
 
-### 8.4 Sample-size plan from DSR power targets
+![White reality check](figures/fig7_white.png)
 
-Holding observed return-shape moments and trial count fixed, the DSR power check implies approximate sample targets of:
+### 8.3 Slippage sensitivity (fixed 26-bet policy-search set, retired lane)
 
-- `n ≈ 98` bets to reach `DSR > 0.5`,
-- `n ≈ 147` bets to reach `DSR > 0.8`.
+Adverse fill haircuts (0–2.0pp) applied to the same 26-bet audited set, no re-selection: ROI compresses `0.4363 → 0.4163`, Sharpe `0.4352 → 0.4148` — positive throughout, compressing as expected. Full grid: `artifacts/odds_log/slippage_sensitivity_top3_floor12_aug21.csv` (self-consistent Sharpe series from `0.4352`; the `0.4438` deployment Sharpe comes from the re-audited replay JSON — lineage: `docs/reference/reports/ssac27_honesty_slippage_lineage_2026-09-01.md`). Retained as execution-fragility evidence on a retired lane, not a live claim.
 
-At the current recommendation density (about one recommendation per slate day), this corresponds to roughly `72` to `121` additional graded recommendations beyond the current audited set.
+### 8.4 Sample-size plan (superseded method, retained for lineage)
 
-For clarity of interpretation: Sharpe is mean excess return per unit total
-volatility, Sortino is mean excess return per unit downside volatility, and ROI
-is return over stake in the same evaluation lane.
+The DSR power targets below (`n ≈ 98` for DSR>0.5, `n ≈ 147` for DSR>0.8) belong to the retired n=26 blend-search lane and are **not** the current selection gate. The 2025-lock uses slate-clustered LCB with White-lite confirmation instead (§8.8). Retained so the DSR numbers cited in §8.2 stay interpretable:
 
-Metric-purpose rule used in this manuscript:
+- `n ≈ 98` bets to reach `DSR > 0.5`, `n ≈ 147` for `DSR > 0.8` (holding return-shape moments and trial count fixed; ~72–121 recommendations beyond the old audited set at then-density).
+
+Metric-purpose rule used in this manuscript (unchanged):
 
 - MAE/RMSE/R² claims come from chronological model-evaluation lanes (2023–2024 walk-forward/CV and 2025 holdout protocol).
 - Open 2025–2026 and manual replay lanes are used for market/decision metrics (Brier/LogLoss skill vs market, ROI, Sharpe, Sortino, drawdown, CLV), not MAE promotion claims.
@@ -478,7 +416,7 @@ These checks are confirmatory: they did not uncover large unused gains on the fr
 
 ---
 
-### 8.5 Production governance state (2026-09-10)
+### 8.5 Production governance state (2026-09-11)
 
 Current live operations use a compact three-lane governance model:
 
@@ -486,22 +424,29 @@ Current live operations use a compact three-lane governance model:
 2. **Decision lane (paper, deduped):** one-opportunity-one-bet fairness on the SharpAPI paper ledger; not fills.
 3. **Deployment lane:** frozen blend + shipped overlays, fail-closed on parity/quality gates.
 
-**Live as of 2026-09-10** (code, not notes):
+**Live as of 2026-09-11** (code, not notes — champion promoted, peek disclosed):
 
 - profile lock: `KING_PROFILE_AUG2026` (`frozen_utc=2026-08-21T16:10:00Z`),
-- edge floor: `0.12` juiced with line-aware side floors,
+- edge floor: `0.12` juiced with line-aware side floors (map in `line_floor_policy.json`),
+- morning edge cap `0.24` (`edge_cap` HOLD — refusals logged, not silently dropped),
+- under-lean premium `+0.04` on overs (`below_lean_floor` skip),
+- DK+FD-only fill universe (live SharpAPI carries only DK/FD; enforced as a guard),
 - **Poisson** count family (`COUNT_LAYER_FAMILY_DEFAULT`),
 - **WS1c per-line Platt** pointer `prob_calibration_ws1c_platt_20260910_012559` (isotonic-20260821 is the predecessor backup),
-- 4.5-over hard veto; 2.5/3.5-over probation floor `0.18`,
+- 4.5-over hard veto; 2.5/3.5-over probation floor `0.18` (2.5-over now de-facto banned where floor 0.20 meets cap — documented intentional on n=18, −4.9%),
+- segmented line/price/maturity correction overlays clipped at **±0.02** (shipped 2026-09-11; silent shaping visible via offset columns),
+- 1/16-Kelly sizing (`DEFAULT_KELLY_FRACTION = 0.0625`; flat 1u stays the research benchmark and beats Kelly on paper ROI everywhere),
 - postseason HOLD after `season.regular_end=2026-09-27`,
-- fractional Kelly sizing heuristic (reported here in `50 USD` units),
-- segmented line/price/maturity correction overlays (**uncapped**; a 0.02 cap is researched, not live),
-- deploy-matrix filter (last rated ~24d before 2026-09-10; 11/13 segments confirmed),
-- board-to-ledger parity reconciliation before governance status.
+- deploy-matrix filter (11/13 segments confirmed; full-universe re-gate scheduled with the next locked evaluation),
+- board-to-ledger parity reconciliation before governance status; regression pin fails on any unapproved drift (`tests/test_live_stack_pin.py`, 345+ green).
 
-**Researched, not live:** offset cap `0.02`, distill stacker overlay, morning edge cap ~`0.20`, drawdown-brake multiplier ×0.5. Each needs an explicit go; none of them is implied by this manuscript update.
+**Measured and reverted same day:** robust-refusal arm (2025 −0.2% vs base +4.2% — plus-price longshot concentration, refused set still +6.2%). Code retained fail-open for the October family dimension.
+
+**Researched, not live:** distill stacker overlay (shadow only; market-following compresses edge — ROI effect unmeasured), drawdown-brake multiplier ×0.5 (parked by owner order: follow the edge). Each needs an explicit go; none of them is implied by this manuscript update.
 
 Failure-mode behavior: if parity or quality gates fail, the promotion path is fail-closed (no automatic profile promotion) until reconciliation and gate re-clearance.
+
+**Deployment vignette (2026-09-11, one ticket through the whole stack).** Morning board: Blake Snell under 7.5, FanDuel −130, expected K 5.80, model edge 19.3%, sized 1.47u ($73.48) at 1/16-Kelly. The ticket clears every layer visibly: line floor 0.12 (7.5), no veto (under), no probation (not 2.5/3.5-over), edge under the 0.24 cap, no lean premium (under), DK/FD book, TBF gate, deploy segment on. The same morning it was first scored at 21.5% edge — held by the interim 0.20 cap at the midday rerun, then bet under the promoted 0.24 cap as the price moved to −130. One ticket, every gate legible, policy version reconstructible from raw JSON + frozen hashes.
 
 **Historical artifact-backed search winners (pre-freeze; not current production quality)**
 
@@ -567,7 +512,22 @@ The audited lane (`top3`, floor `0.12`) contains both high-edge confirmations an
 
 These cases illustrate the practical pattern seen across the lane: edge/CLV signal can be directionally useful while individual outcomes remain noisy at start level.
 
-### 8.8 Operational benchmark snapshot (local workstation)
+### 8.8 Policy selection at scale: the 2026-09-11 lock
+
+The fair-price harness (§8.2.3, since retired as folklore) searched 56 configs on fair probs and peeked 2026 twice. Its replacement is a juiced, pre-registered, once-only design:
+
+1. **Family** (locked before running): uniform floors {0.08, 0.10, 0.12} × edge caps {0.18, 0.20, 0.24} × side rules {both, under-lean +0.04} × book universes {next-book, DK+FD-only} = 36 configs. Veto and probation stand outside the search. Full spec: `docs/reference/reports/policy_reset_2025lock_prereg_2026-09-11.md`.
+2. **Selection on 2025 only** (`n=10,487` candidates): champion = max LCB_95(ROI) on slate-clustered block bootstrap subject to CLV ≥ 0, no line×side cell over 40% of PnL, DK+FD sign agreement, n ≥ 200. In-memory filtering is exact (rejected rows carry full pricing; acceptance is monotone) and economics route through the canonical money function — a hand-rolled payout caught overpaying short-price winners mid-build is documented in the selection log.
+3. **Stress before promotion:** White-lite p<0.0005 (demeaned null, slate-clustered, 2,000 resamples; White [13]); worst cell/month exclusions ≥+12.9%; September slice +22.0%.
+4. **One disclosed-peek judge on 2026**, then promotion with the peek in writing.
+
+Result: floor `0.12` / cap `0.24` / under-lean / DK+FD-only, 2025 ROI +15.5% → 2026 +15.6%, live since 2026-09-11. The largest lever is book choice, not probability — reported as a finding, not a footnote.
+
+**Figure 9.** Policy governance loop. Every gate is pre-registered; stress stands between selection and promotion.
+
+![Policy governance loop](figures/fig9_policy_flow.png)
+
+### 8.9 Operational benchmark snapshot (local workstation)
 
 To make the MLE-facing reliability claims auditable, this manuscript records concrete runtime slices from the parity and governance workflow used in the Aug 2026 checkpoint:
 
@@ -592,11 +552,13 @@ Operational controls remain fail-closed: if parity/quality gates fail, promotion
 
 **Exogenous signal coverage.** Some high-impact context channels (weather micro-effects, travel fatigue, umpire framing) remain outside the frozen production feature set.
 
-**Statistical confidence under small audited lane.** The active manual lane (`n=26`) yields wide intervals on ROI and risk ratios, and trial-adjusted Sharpe significance is limited at current sample size.
+**Statistical confidence.** The n=26 search lane that motivated the DSR analysis is retired as evidence; current inference rests on the juiced taken set (`n=2,077`), the 2025 selection slice (`n=558` champion), and the universe panel (`n=19,533`). Trial-adjusted significance on the *policy* family is now carried by the White-lite check (p<0.0005 on 2025) rather than the blend-search DSR — but the 2026 judge is a disclosed peek, not a pristine holdout, and regime change (September dilution, playoff-race lineups) is outside every test run.
 
 **Interpretability breadth.** This version includes artifact-backed family/parity evidence and start-level narratives, but it does not yet include a full SHAP/conditional-permutation atlas on every frozen deployment profile.
 
-**Operational stress breadth.** Runtime slices are now documented for the parity/governance checkpoint workflow, but continuous production SLO tracking (for example multi-month p95 refresh latency and rollback-time distribution) is still open.
+**Fills.** Every ROI number in §8 is paper at recorded prices. Execution frictions (limits, re-quotes, vanish, book-specific availability) are unmodeled; the ≥50-fill money-truth gate stands and no production claim survives first contact with it unmeasured.
+
+**Operational stress breadth.** Runtime slices are documented for the parity/governance checkpoint workflow, but continuous production SLO tracking (for example multi-month p95 refresh latency and rollback-time distribution) is still open.
 
 ---
 
@@ -604,11 +566,11 @@ Operational controls remain fail-closed: if parity/quality gates fail, promotion
 
 ## 10. Conclusion
 
-This work delivers a leakage-safe pregame strikeout system that now behaves like a quant production stack: compact frozen feature sets, ensemble rate scoring, TBF exposure modeling, calibrated count probabilities, and governed execution controls.
+This work delivers a leakage-safe pregame strikeout system that now behaves like a quant production stack: compact frozen feature sets, ensemble rate scoring, TBF exposure modeling, calibrated count probabilities, and governed execution controls — plus a policy-selection layer that is held to the same chronological discipline as the models.
 
-The core engineering result is not just lower error versus simple baselines; it is a reproducible operating workflow where model selection, policy thresholds, and daily execution are linked through auditable artifacts and chronological validation.
+The core engineering result is not just lower error versus simple baselines; it is a reproducible operating workflow where model selection, policy thresholds, and daily execution are linked through auditable artifacts and chronological validation. The 2025-lock (36 configs, one champion, White p<0.0005, disclosed-peek repeat +15.5% → +15.6%) is the template: pre-register the family, select once, stress before promoting, disclose every peek.
 
-Quant-honesty checks in this version show positive raw performance, but deflated-Sharpe evidence remains low (`DSR=0.0349`), so additional live sample accumulation is required before claiming durable statistical edge.
+The honest boundary of the edge claim: probabilities trail books on every line (skill −0.0043); the money comes from choice — clock, tickets, books — measured at executable prices with rejects retained, and every ROI number stays paper until fills exist. That is not a weaker story than a model that "beats the market." For hiring purposes it is the stronger one: most candidates can train a regressor; few can show you the ledger where their filter earned its keep, the test that would have caught it lying, and the commit where they reverted the half that didn't validate.
 
 ---
 
@@ -731,6 +693,27 @@ and
 Deployment-king tables come from deduped replay/transfer artifacts and are
 ranked on decision metrics, not `k_rate` MAE.
 
+### A.6 Decision-track column contract (data dictionary)
+
+Every table in §8 is built from these columns. Feature columns live in the
+pipeline registry (`src/Python/features.py` allow-list); these are the
+decision columns a reader needs to reproduce the money claims.
+
+| Column | Meaning | Source |
+| --- | --- | --- |
+| `game_date` / `gd` | Slate date (regular season only) | board / ledger / lake |
+| `player_name`, `line`, `side` | Ticket identity (side ∈ over/under) | board quote |
+| `p_model` / `p_ours_cal` | Frozen-model taken-side probability | universe panel (Poisson + WS1c) |
+| `p_market` | Devigged market probability, taken side | two-way de-vig at decision clock |
+| `edge` | `p_model − p_market` (probability points) | `src/Python/market.py` |
+| `floor` / `edge_floor_effective` | Enforced edge floor after probation/lean | `line_floor_policy.json` + `kpi_policy.json` |
+| `book`, `snap` | Fill book; decision clock (open/morning) | DK else FD else next US book |
+| `price` / `best_price` | Juiced American on the taken side | executable quote |
+| `stake`, `units` | 1/16-Kelly dollars and units ($50 unit) | `size_in_units` |
+| `won`, `pnl` | Settlement (Statcast K) and flat/Kelly PnL | `grade_odds_ledger.py` |
+| `clv_pp` | Devigged close-minus-bet, pp (evaluation only) | paid close, vendor ts ≤ first pitch |
+| `policy_reason` / `reason` | Veto / floor / cap / lean / book verdict, or taken | board + replay (rejects retained) |
+
 ---
 
 
@@ -749,4 +732,5 @@ ranked on decision metrics, not `k_rate` MAE.
 10. Silver, N. Introducing PECOTA. In Huckabay, G., Kahrl, C., Pease, D., et al. (Eds.), *Baseball Prospectus 2003*. Brassey’s, 2003, pp. 507–514.
 11. Bergmeir, C., Hyndman, R. J., and Koo, B. A note on the validity of cross-validation for evaluating autoregressive time series prediction. *Computational Statistics & Data Analysis*, 120:70–83, 2018.
 12. Bailey, D. H., and López de Prado, M. The Deflated Sharpe Ratio: correcting for selection bias, backtest overfitting and non-normality. *The Journal of Portfolio Management*, 40(5):94–107, 2014.
+13. White, H. A reality check for data snooping. *Econometrica*, 68(5):1097–1126, 2000.
 
