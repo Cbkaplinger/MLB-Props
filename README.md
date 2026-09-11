@@ -1,5 +1,7 @@
 # MLB Props
 
+[![ci](https://github.com/Cbkaplinger/MLB-Props/actions/workflows/ci.yml/badge.svg)](https://github.com/Cbkaplinger/MLB-Props/actions/workflows/ci.yml) ![python](https://img.shields.io/badge/python-%3E%3D3.11-blue)
+
 Production-first MLB pitcher strikeout props stack: frozen model (k-rate
 ensemble × TBF ridge → Poisson + WS1c), a policy layer promoted by
 pre-registered selection (2025-lock champion: floor `0.12` / cap `0.24` /
