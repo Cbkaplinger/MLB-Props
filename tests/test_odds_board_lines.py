@@ -10,6 +10,7 @@ from Python.count_layer import (
 import polars as pl
 
 from Python.odds_board import (
+    _apply_game_cap,
     _attach_slate_exposure,
     _clip_offset,
     _edge_cap_reason,
@@ -467,3 +468,35 @@ def test_attach_slate_exposure_empty_or_missing_columns() -> None:
     assert _attach_slate_exposure(pl.DataFrame()).is_empty()
     no_cols = pl.DataFrame({"a": [1]})
     assert _attach_slate_exposure(no_cols).to_dicts() == [{"a": 1}]
+
+
+def test_game_cap_absent_is_byte_identical() -> None:
+    frame = pl.DataFrame(
+        [
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15, "policy_reason": ""},
+            {"game_pk": 1, "recommendation": "BET", "stake": 30.0, "edge": 0.20, "policy_reason": ""},
+        ]
+    )
+    assert _apply_game_cap(frame, {}).to_dicts() == frame.to_dicts()
+    assert _apply_game_cap(frame, {"game_cap_max_bets": None}).to_dicts() == frame.to_dicts()
+
+
+def test_game_cap_keeps_top_edge_per_game() -> None:
+    frame = pl.DataFrame(
+        [
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15, "policy_reason": ""},
+            {"game_pk": 1, "recommendation": "BET", "stake": 30.0, "edge": 0.20, "policy_reason": ""},
+            {"game_pk": 1, "recommendation": "skip", "stake": 0.0, "edge": 0.05, "policy_reason": ""},
+            {"game_pk": 2, "recommendation": "BET", "stake": 40.0, "edge": 0.12, "policy_reason": ""},
+        ]
+    )
+    out = _apply_game_cap(frame, {"game_cap_max_bets": 1}).to_dicts()
+    by_key = {(r["game_pk"], r["edge"]): r for r in out}
+    assert by_key[(1, 0.20)]["recommendation"] == "BET"  # top edge survives
+    assert by_key[(1, 0.20)]["stake"] == 30.0
+    demoted = by_key[(1, 0.15)]
+    assert demoted["recommendation"] == "HOLD"
+    assert demoted["policy_reason"] == "game_cap_hold"
+    assert demoted["stake"] == 0.0
+    assert by_key[(1, 0.05)]["recommendation"] == "skip"  # non-BET untouched
+    assert by_key[(2, 0.12)]["recommendation"] == "BET"

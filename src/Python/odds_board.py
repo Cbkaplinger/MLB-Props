@@ -528,6 +528,45 @@ def _attach_slate_exposure(frame: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def _apply_game_cap(frame: pl.DataFrame, rules: dict) -> pl.DataFrame:
+    """Keep only the top-edge BETs per game (fail-open when unset).
+
+    ``rules["game_cap_max_bets"]`` (int) caps BET rows per game_pk, keeping
+    highest edge; demoted rows become HOLD with reason ``game_cap_hold``.
+    Absent/null key = today's behavior, byte-identical. Stakes of survivors
+    are untouched.
+    """
+    try:
+        cap = rules.get("game_cap_max_bets", None) if isinstance(rules, dict) else None
+    except AttributeError:
+        return frame
+    if cap is None:
+        return frame
+    try:
+        cap_n = int(cap)
+    except (TypeError, ValueError):
+        return frame
+    if cap_n < 1 or frame.is_empty() or not {"game_pk", "recommendation", "edge"} <= set(frame.columns):
+        return frame
+    order = (frame.with_row_index("_i")
+             .sort(["game_pk", "edge", "_i"], descending=[False, True, False]))
+    keep_idx: set = set()
+    for _game, grp in order.group_by("game_pk", maintain_order=True):
+        bets = [r for r in grp.to_dicts() if r.get("recommendation") == "BET"]
+        keep_idx.update(r["_i"] for r in bets[:cap_n])
+    return frame.with_row_index("_i").with_columns(
+        pl.when((pl.col("recommendation") == "BET") & (~pl.col("_i").is_in(keep_idx)))
+        .then(pl.lit("HOLD")).otherwise(pl.col("recommendation")).alias("recommendation"),
+        pl.when((pl.col("recommendation") == "BET") & (~pl.col("_i").is_in(keep_idx)))
+        .then(pl.lit("game_cap_hold"))
+        .otherwise(pl.col("policy_reason") if "policy_reason" in frame.columns else pl.lit(""))
+        .alias("policy_reason"),
+        pl.when((pl.col("recommendation") == "BET") & (~pl.col("_i").is_in(keep_idx)))
+        .then(0.0).otherwise(pl.col("stake") if "stake" in frame.columns else pl.lit(0.0))
+        .alias("stake"),
+    ).drop("_i")
+
+
 def latest_scorecard_warns() -> int | None:
     """Read latest model-health warning count if available."""
     if not SCORECARD_DAILY.exists():
@@ -1079,6 +1118,10 @@ def build_recommendations(
         # correlation-cap design. Columns only — BET logic byte-identical.
         # Revert = delete the call + helper.
         frame = _attach_slate_exposure(frame)
+        # Per-game count cap (measured 2026-09-14: keep-max-edge-per-event
+        # +3.55pp ROI on the juiced taken set, 48% less volume). OFF unless
+        # kpi rules set game_cap_max_bets (fail-open when absent).
+        frame = _apply_game_cap(frame, _pre_rules)
     else:
         gate_meta = {
             "quality_gate_enabled": quality_gate,
