@@ -501,6 +501,49 @@ def fig9_policy_flow() -> None:
     plt.close(fig)
 
 
+def fig10_monthly() -> None:
+    """Monthly PnL bars with ROI markers (frozen probs, juiced replay).
+
+    Source: artifacts/odds_log/monthly_report.json (cite, do not recompute).
+    Thin months (n<100) greyed — never cited alone. CLV stays non-negative
+    almost everywhere, including red months: execution holds, selection varies.
+    """
+    import json as _json
+
+    rep_path = (
+        Path(__file__).resolve().parents[2]
+        / "artifacts"
+        / "odds_log"
+        / "monthly_report.json"
+    )
+    rep = _json.loads(rep_path.read_text(encoding="utf-8"))
+    months = sorted(rep["months"])
+    labels = [m[2:] for m in months]
+    pnl = [rep["months"][m]["pnl"] for m in months]
+    roi = [100.0 * rep["months"][m]["roi"] for m in months]
+    thin = [rep["months"][m]["thin"] for m in months]
+    colors = [
+        "#9e9e9e" if t else (GREEN if v >= 0 else "#c62828")
+        for v, t in zip(pnl, thin)
+    ]
+    x = np.arange(len(months))
+    fig, ax = plt.subplots(figsize=(7.0, 4.0))
+    ax.bar(x, pnl, width=0.6, color=colors, edgecolor="white", zorder=3)
+    ax2 = ax.twinx()
+    ax2.plot(x, roi, color=BLUE, marker="o", markersize=4, lw=1.4, zorder=4)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=8)
+    ax.axhline(0, color="#222", lw=1.1)
+    ax.set_ylabel("PnL at flat $50 ($)")
+    ax2.set_ylabel("ROI (%)", color=BLUE)
+    ax.set_title("Monthly PnL (bars) and ROI (line) — grey months n<100", pad=10)
+    ax.grid(axis="y", linestyle=":", linewidth=0.7, color="#bbbbbb", zorder=0)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig10_monthly.png")
+    plt.close(fig)
+
+
 def main() -> None:
     fig1_pipeline()
     # fig2_model_comparison() REMOVED 2026-08-27: stale 248-feature figure,
@@ -513,6 +556,7 @@ def main() -> None:
     fig7_white()
     fig8_over_under()
     fig9_policy_flow()
+    fig10_monthly()
     print(f"Wrote figures to {OUT}")
 
 

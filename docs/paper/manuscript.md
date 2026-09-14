@@ -51,7 +51,7 @@ Terminology. A lane is an evaluation track (model, decision, deployment). Policy
 
 **Count models for rate × exposure.** Once a mean rate and an exposure (here, projected batters faced) are specified, Poisson or binomial probabilities are standard for count outcomes [3, 4]. Line probabilities use those trials on *projected* exposure only. A beta-binomial dispersion check collapses to the binomial limit under the frozen mean, consistent with a well-specified mean model absorbing extra-binomial variance [4].
 
-**Governed decisioning and performance evaluation.** Reporting strategies built on small, post-selection samples are vulnerable to overstatement. The Bailey–López de Prado performance-evaluation framework—Deflated and Probabilistic Sharpe Ratios with trial-count adjustment—provides a principled way to deflate observed risk-adjusted returns for the number of configurations searched [12]. This manuscript adopts that framework (§8.2–§8.4) and complements it with market-relative skill diagnostics (Brier/LogLoss skill vs market) and closing-line-value (CLV) as decision-level evidence, consistent with practice standards that separate model accuracy from market edge.
+**Governed decisioning and performance evaluation.** Reporting strategies built on small, post-selection samples are vulnerable to overstatement. The Bailey–López de Prado performance-evaluation framework—Deflated and Probabilistic Sharpe Ratios with trial-count adjustment—provides a principled way to deflate observed risk-adjusted returns for the number of configurations searched [12]. This manuscript adopts that framework (§8) and complements it with market-relative skill diagnostics (Brier/LogLoss skill vs market) and closing-line-value (CLV) as decision-level evidence, consistent with practice standards that separate model accuracy from market edge.
 
 ---
 
@@ -317,6 +317,22 @@ The 2026 readout is green on every axis at a third of the selection-year drawdow
 
 **How to read these numbers.** ROI is a rate (profit per dollar staked); PnL is dollars (rate × volume — a high ROI on few tickets can pay less than a lower ROI on many). LCB is the worst-plausible ROI at 95% confidence: the return floor if luck runs against us, and the quantity the champion maximizes. The White check asks whether the best of 36 configs could be luck alone (p < 0.0005: no). Brier skill measures probability accuracy against books (negative: our probabilities trail closes); ECE/MCE measure calibration average and worst-bin. CLV measures whether the market moved our way after the bet (execution quality, not profit). Sharpe/Sortino scale return by volatility (downside-only for Sortino); drawdown/Calmar measure the hole we'd sit in. xROI (mean taken edge) is what the model *expects*; ROI is what happened — the gap between them is selection and vig. No single metric promotes anything; the contract requires LCB > 0 with CLV ≥ 0, concentration caps, and book-sign agreement jointly.
 
+**Figure 9.** Monthly PnL (bars) and ROI (line) on the juiced taken set. Grey months have n < 100 and are never cited alone. CLV stays non-negative almost everywhere, including red months: execution holds while selection varies.
+
+![Monthly PnL and ROI](figures/fig10_monthly.png)
+
+**Table 5.** Taken-side probability curve: model probability deciles by side (`probcurve_report.json`).
+
+| Band | n | ROI | WR | Read |
+|---|---:|---:|---:|---|
+| Over p30–50 | 199 | +14.4% | 0.34 | Longshot overs lose often, pay plus-money |
+| Over p50+ | 232 | +6.1% | 0.48 | Mid-chalk overs hold |
+| Under p0–30 | 597 | +6.7% | 0.67 | Longshot unders win often *and* pay |
+| Under p30–50 | 836 | +7.7% | 0.49 | Core under volume, green |
+| Under p50+ | 213 | +1.8% | 0.30 | Chalk unders: wins dry up, edge thins — humility zone |
+
+Edge concentrates away from high-probability chalk: longshot bands on both sides carry the return while under p50+ barely clears costs. This is the probability-scale mirror of the price-band cut (69% of PnL in plus-money): the book prices favorites efficiently and longshots poorly.
+
 **Figure 6.** White-lite null distribution against the observed champion. Best-of-36 luck prints +2.8% typically and +7.4% at its wildest; the observed +15.5% clears it (p < 0.0005, demeaned null, 2,000 slate-clustered resamples).
 
 ![White reality check](figures/fig6_white.png)
@@ -539,12 +555,14 @@ Every headline number in the body maps to exactly one artifact. No body claim re
 | MAE lanes, baselines (§5) | `artifacts/model_quality/sparse72_model_family_ablation/` parity snapshots; `models/Strikeout-Model/research/marcel_baseline.py` |
 | Universe skill, ECE/MCE (§6, Table 4) | `artifacts/odds_log/rescore_cal_report.json` |
 | Juiced replay slices (§6, Table 3, Fig. 4) | `artifacts/odds_log/juiced_replay_report.json` + `juiced_replay_candidates.parquet` |
-| Edge bands (§6, Fig. 5) | morning-bin analysis log, 2026-09-10 (fair-price mornings) |
+| Edge bands (§6, Fig. 5) | morning-bin analysis, 2026-09-10 session log (fair-price mornings; no standalone artifact — juiced replication: `pnl_sensitivity_report.json` edge_band_dollars) |
 | 2025-lock champion, White, judge (§6, Table 3, Fig. 6) | `artifacts/odds_log/select_2025_report.json`; prereg `docs/reference/reports/policy_reset_2025lock_prereg_2026-09-11.md` |
 | Slate correlation (§6) | `artifacts/odds_log/slate_shock_report.json` |
 | Paper ledger, veto pack (§6, Table 3) | `artifacts/odds_log/paper_quant_report.json`; `docs/reference/reports/weekly_policy_settle_pack_latest.md` |
 | Live policy values (§7) | `production/ops/kpi_policy.json`, `line_floor_policy.json`; pin `tests/test_live_stack_pin.py` |
-| Over/under asymmetry (§6, Fig. 3) | weekly pack report + ledger gate lanes |
+| Over/under asymmetry (§6, Fig. 3) | `docs/reference/reports/weekly_policy_settle_pack_latest.md` + `artifacts/odds_log/confounder_strata_report.json` (side-within-line) |
+| Monthly series (§6, Fig. 9) | `artifacts/odds_log/monthly_report.json` |
+| Probability curve (§6, Table 5) | `artifacts/odds_log/probcurve_report.json` |
 
 ---
 
