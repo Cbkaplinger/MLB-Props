@@ -13,7 +13,7 @@ flowchart LR
         CRON1[08:30 morning chain]
         CRON2[03:00 settle]
         CRON3[05:30 drift]
-        CRON4[q15min close sweeps\nin game windows]
+        CRON4[q15min close sweeps\nin game windows\n(script unbuilt)]
         SEC[(Secrets:\nSHARPAPI/OddsAPI/NTFY)]
     end
     subgraph VENDORS["Vendors (network)"]
@@ -108,8 +108,12 @@ October compute (full-season judge, stacker verdict) runs ad-hoc, not on
 cron — spin up, run, spin down. No standing spend at any point.
 
 ## Go-live checklist (owner gates)
-1. `pip install modal` → `modal token new` (OAuth, no card).
+
+1. `pip install modal` → `modal token new` (browser OAuth, no card).
+   The token lands in `~/.modal.toml` on YOUR machine — never in the repo,
+   never committed. Verify with `modal profile current`.
 2. `modal secret create mlb-props-keys SHARPAPI_KEY=... THEODDSAPI_KEY=... NTFY_TOPIC=...`
+   (values live in Modal's secret store + your password manager only).
 3. `modal volume put mlb-props-state data/ data` + `artifacts/ artifacts`
    (hot state only; Savant raw + Odds-Historical lake stay on the laptop).
 4. `modal deploy production/cloud/modal_app.py` (3 crons: morning/settle/drift).

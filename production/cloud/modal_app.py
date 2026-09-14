@@ -23,6 +23,9 @@ config's MLB_PROPS_DATA_DIR / MLB_PROPS_OUTPUT_DIR overrides point at it.
 One-time upload: modal volume put mlb-props-state data/ data + artifacts/
 artifacts (hot state ~350 MB; Savant raw + Odds-Historical lake stay local).
 Deploy: modal deploy production/cloud/modal_app.py (after token + upload).
+Close-sweep cron (watcher replacement) is NOT yet a function here — it needs
+a small sweep script first (fetch latest quotes in game windows, write close
+rows, exit); port it at cutover, not before.
 """
 
 from __future__ import annotations
