@@ -254,7 +254,7 @@ Current decisions are made on compact frozen sets (`sparse72_monotone`, `final58
 
 ### 5.3 XGBoost monotone in the promotion workflow
 
-XGBoost monotonic constraints were evaluated in follow-up parity runs against the hardened LightGBM monotone path (constraint mapping, validation, artifact lineage). Promoting an XGBoost-monotone lane would require its own constraint-sign audit and equal governance contract. Verdict: **tested as a challenger, did not clear the sparse-lane bar** — unconstrained (`expected_K` MAE `1.8451`) and monotone (`1.8511`) both trailed LightGBM and Ridge at base budget, and tuned-small variants (`~1.8242` / `~1.8352`) stayed behind with Ridge the MAE leader. The decision-lane bridge confirmed MAE rank does not map one-to-one to market/risk profile. Detail: parity snapshots in Appendix A.5.
+XGBoost monotonic constraints were evaluated in follow-up parity runs against the hardened LightGBM monotone path (constraint mapping, validation, artifact lineage). Promoting an XGBoost-monotone lane would require its own constraint-sign audit and equal governance contract. Verdict: **tested as a challenger, did not clear the sparse-lane bar** — unconstrained (`expected_K` MAE `1.8451`) and monotone (`1.8511`) both trailed LightGBM and Ridge at base budget, and tuned-small variants (`~1.8242` / `~1.8352`) stayed behind with Ridge the MAE leader. The decision-lane bridge confirmed MAE rank does not map one-to-one to market/risk profile. Detail: parity snapshots (consistency note below).
 
 
 ---
@@ -276,7 +276,7 @@ Component metrics are necessary but incomplete. Once rate and TBF are frozen, th
 | Universe close skill (live config) | 19,533 | Brier 0.2204 vs book 0.2162 (skill −0.0043); ECE 0.021 vs 0.009 — negative on all eight lines |
 | Timing vs overnight quotes (≈T−12h) | 7,986 | Skill +0.044 at open, decaying to ~0 by T−5h morning |
 
-Provenance for every row: Appendix A.7. Retired search-lane figures (n=26 policy search, fair-price harness) live only in Appendix A.5.
+Provenance for every row: Appendix A.7.
 
 ### 6.1 Over/under asymmetry
 
@@ -314,6 +314,8 @@ Result: floor 0.12, cap 0.24, under-lean, DK+FD-only — 2025 ROI +15.5% (n=558,
 | 2026 (confirmatory) | 769 | +12.6% / +$4,841 / 0.54 | 2.79 / 5.28 | 10.8u / 8.94 | +1.30pp / 63% | 0.184 / 0.25 |
 
 The 2026 readout is green on every axis at a third of the selection-year drawdown, with concentration flat (0.25 vs 0.23 — no single cell carries the result). It is a readout, not a promotion input: the judge was peeked, and remaining September grades the locked champion on unseen data.
+
+**How to read these numbers.** ROI is a rate (profit per dollar staked); PnL is dollars (rate × volume — a high ROI on few tickets can pay less than a lower ROI on many). LCB is the worst-plausible ROI at 95% confidence: the return floor if luck runs against us, and the quantity the champion maximizes. The White check asks whether the best of 36 configs could be luck alone (p < 0.0005: no). Brier skill measures probability accuracy against books (negative: our probabilities trail closes); ECE/MCE measure calibration average and worst-bin. CLV measures whether the market moved our way after the bet (execution quality, not profit). Sharpe/Sortino scale return by volatility (downside-only for Sortino); drawdown/Calmar measure the hole we'd sit in. xROI (mean taken edge) is what the model *expects*; ROI is what happened — the gap between them is selection and vig. No single metric promotes anything; the contract requires LCB > 0 with CLV ≥ 0, concentration caps, and book-sign agreement jointly.
 
 **Figure 6.** White-lite null distribution against the observed champion. Best-of-36 luck prints +2.8% typically and +7.4% at its wildest; the observed +15.5% clears it (p < 0.0005, demeaned null, 2,000 slate-clustered resamples).
 
@@ -388,7 +390,7 @@ Parity-plus-governance refresh runs about 23 minutes wall-clock on the local wor
 
 **Fills.** Every ROI number in §6 is paper at recorded prices. Execution frictions (limits, re-quotes, vanish, book-specific availability) are unmodeled; the ≥50-fill money-truth gate stands and no production claim survives first contact with it unmeasured.
 
-**Retired lane.** An earlier unaudited 26-ticket policy search failed a freeze audit; it motivated the frozen-measurement regime above and appears only as lineage in Appendix A.5.
+**Retired lane.** An earlier unaudited policy search failed a freeze audit; it motivated the frozen-measurement regime above and is retired from this report.
 
 **Ongoing evaluation.** The live board continues to log paper tickets under the promoted champion; the next locked evaluation re-judges the full season with slate-correlation exposure caps. No policy change is claimed or implied beyond what §6–§7 measure.
 
@@ -494,32 +496,9 @@ Raw governance artifact filenames are maintained in the repository documentation
 2. **Decision lane (manual, deduped):** enforce one-opportunity-one-bet fairness and evaluate realized quant path metrics.
 3. **Deployment lane (transfer + runtime):** transfer calibration from open panel to manual lane, then deploy via config-driven live scorer.
 
-### A.5 Historical search-lane profile snapshot (not live quality)
+### A.5 Retired search-lane profile (removed)
 
-**Table A5.** Pre-freeze policy-search profile (retired, diagnostic only — the single permitted home of these numbers).
-Live production uses the same blend weights and floor, plus Poisson + WS1c + 4.5-over veto (§7). Do not cite ECE 0.0639 as production calibration.
-
-| Metric | Value |
-| --- | --- |
-| Blend weights | `0.60 sparse72_monotone / 0.40 final58` |
-| Edge floor | `0.12` |
-| Bets | `26` |
-| Stake | `55.40u` (`1u = 50 USD`) |
-| PnL | `+24.17u` (`1u = 50 USD`) |
-| ROI | `0.4363` |
-| Sharpe / Sortino / Calmar | `0.4438` / `0.4277` / `2.2903` |
-| Max drawdown | `0.1905` |
-| CLV mean (pp) | `0.0252` |
-| Positive CLV share | `0.70` |
-| Brier / LogLoss | `0.2090` / `0.6087` — *search lane* post-isotonic-transfer, `n=26` |
-| ECE / MCE | `0.0639` / `0.1353` — *search lane* post-isotonic-transfer, `n=26` (live universe ECE/MCE: `0.021` / `0.088` on `n=19,533`) |
-| Market skill deltas | `+0.2069` Brier / `+0.1551` LogLoss |
-
-*Bootstrap 95% CIs: ROI `[0.0337, 0.8072]`, Sharpe `[0.0431, 0.9997]`, Sortino `[0.0459, 0.7866]`, PnL `[+1.85u, +45.45u]` (10,000-resample percentile). Trial-adjusted significance on this lane was negligible (DSR 0.0349 on 5,161 blend-by-floor configs, PSR 0.9701); the open-universe sweep top (0.05/0.45/0.50, ROI 0.66, Sharpe 0.95, n=35) diagnosed the same search breadth. Slippage haircuts 0–2.0pp compress ROI 0.4363 → 0.4163 without flipping its sign.*
-
-**Figure A1.** Retired-lane equity overlay (top3 vs top1, Aug-21 transfer picks, n=26/27 — diagnostic only, not evidence).
-
-![Equity curve overlay](figures/equity_curve_top3_vs_top1_aug21.png)
+The pre-freeze policy-search profile table and equity figure lived here through v2026-09-11. With current-measurement numbers available throughout the body, the retired lane was removed from this report on 2026-09-14 — no deprecated numbers are cited anywhere in the body or appendix. Lineage survives in repository history, not in this document.
 
 **Consistency note on ablation tables.**  
 `k_rate` MAE contender comparisons come from sparse-set ablation artifacts,
@@ -566,7 +545,6 @@ Every headline number in the body maps to exactly one artifact. No body claim re
 | Paper ledger, veto pack (§6, Table 3) | `artifacts/odds_log/paper_quant_report.json`; `docs/reference/reports/weekly_policy_settle_pack_latest.md` |
 | Live policy values (§7) | `production/ops/kpi_policy.json`, `line_floor_policy.json`; pin `tests/test_live_stack_pin.py` |
 | Over/under asymmetry (§6, Fig. 3) | weekly pack report + ledger gate lanes |
-| Retired-lane lineage (App. A.5, Fig. A1) | `open_top3_transfer_manual_replay_aug21_deduped_top3_from_dedupedsweep.json`; `quant_honesty_aug21_summary.json`; `slippage_sensitivity_top3_floor12_aug21.csv` |
 
 ---
 
