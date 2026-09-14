@@ -33,7 +33,8 @@ from __future__ import annotations
 APP_NAME = "mlb-props"
 VOLUME_NAME = "mlb-props-state"
 SECRET_NAME = "mlb-props-keys"
-CRON_MORNING = "30 12 * * *"  # 08:30 ET (EDT) daily
+CRON_MORNING = "0 12 * * *"  # 08:00 ET (EDT) daily
+CRON_HOURLY = "0 12-23,0-1 * * *"  # hourly board+alert 08:00-22:00 ET (EDT)
 CRON_SETTLE = "0 7 * * *"  # 03:00 ET daily
 CRON_DRIFT = "30 9 * * *"  # 05:30 ET daily
 
@@ -70,6 +71,29 @@ try:
              "--roi-mode", "conservative"],
             ["python", "-u", "production/odds/poll_odds.py", "--snapshot", "open",
              "--unit", "50", "--roi-mode", "conservative", "--from-recommendations"],
+            ["python", "-u", "production/ops/send_morning_alert.py"],
+        ):
+            subprocess.run(step, cwd="/root/mlb-props", check=False)
+
+    @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
+                  schedule=modal.Cron(CRON_HOURLY), timeout=1800)
+    def hourly_refresh() -> None:
+        """Hourly board + poll + edge-watch + alert, 08:00-22:00 ET.
+
+        Mirrors run_market_refresh.ps1 (intraday harvest on frozen probs).
+        ~15 runs/day x ~2 min: still inside free-tier margin.
+        """
+        import os
+        import subprocess
+        os.environ.update(ENV)
+        for step in (
+            ["python", "-u", "production/odds/odds_board.py", "--unit", "50",
+             "--roi-mode", "conservative", "--write-quotes",
+             "artifacts/odds_log/sharp_quotes_latest.parquet"],
+            ["python", "-u", "production/odds/poll_odds.py", "--snapshot", "open",
+             "--unit", "50", "--roi-mode", "conservative", "--from-recommendations",
+             "--quotes-file", "artifacts/odds_log/sharp_quotes_latest.parquet"],
+            ["python", "-u", "production/ops/frozen_edge_watch.py"],
             ["python", "-u", "production/ops/send_morning_alert.py"],
         ):
             subprocess.run(step, cwd="/root/mlb-props", check=False)

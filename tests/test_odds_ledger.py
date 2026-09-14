@@ -101,6 +101,28 @@ def test_open_dedupe_key_ignores_side() -> None:
     assert k1 == k2
 
 
+def test_replace_open_slate_carries_prior_stake(tmp_path: Path) -> None:
+    # Doctrine: intraday decay never un-takes a logged ticket. A midday
+    # re-poll must not zero the morning's paper stake on the same ticket.
+    path = tmp_path / "ledger.parquet"
+    old = _row(book="draftkings")
+    old["stake"] = 39.80
+    append_open_rows([old], path=path)
+    fresh = _row(
+        book="draftkings",
+        logged_at=datetime(2026, 7, 30, 15, 0, tzinfo=timezone.utc),
+    )
+    fresh["stake"] = 0.0
+    frame, n_written, n_removed = replace_open_slate(
+        [fresh], slate="2026-07-30", path=path
+    )
+    assert n_removed == 1
+    assert n_written == 1
+    row = frame.to_dicts()[0]
+    assert row["stake"] == 39.80
+    assert "stake_carried_from_earlier_poll" in str(row.get("note") or "")
+
+
 def test_replace_open_slate_drops_unclosed_same_day(tmp_path: Path) -> None:
     path = tmp_path / "ledger.parquet"
     old = _row(book="fanduel")

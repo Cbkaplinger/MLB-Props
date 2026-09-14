@@ -1,5 +1,5 @@
 param(
-    [string]$MorningTime = "08:30",
+    [string]$MorningTime = "08:00",
     [string]$MiddayRefreshTime = "11:00",
     [string]$SecondRefreshTime = "13:45",
     [string]$WatcherStartTime = "11:30",
@@ -207,6 +207,9 @@ function Enable-MLBPropsReliableRun {
 # Standard short-command tasks keep the proven schtasks helpers.
 New-Or-UpdateTask -TaskName "MLBProps_MiddayRefresh" -StartTime $MiddayRefreshTime -ScriptPath $middayScript
 New-Or-UpdateTask -TaskName "MLBProps_SecondRefresh" -StartTime $SecondRefreshTime -ScriptPath $middayScript
+# Hourly board+alert 08:00-22:00 (owner 2026-09-14): same refresh chain as
+# midday/second, every 60min for 14h. Coexists with the fixed tasks above.
+New-Or-UpdateRepeatingTask -TaskName "MLBProps_HourlyRefresh" -StartTime "08:00" -ScriptPath $middayScript -RepeatMinutes 60 -Duration "14:00"
 New-Or-UpdateTask -TaskName "MLBProps_CloseWatcherStart" -StartTime $WatcherStartTime -ScriptPath $watcherScript
 New-Or-UpdateRepeatingTask -TaskName "MLBProps_CloseWatcherWatchdog" -StartTime $WatcherWatchdogTime -ScriptPath (Join-Path $repoRoot "production\ops\watch_close_watcher_health.ps1") -RepeatMinutes 60 -Duration "12:00"
 New-Or-UpdateTask -TaskName "MLBProps_EndOfDaySettle" -StartTime $SettleTime -ScriptPath $settleScript
@@ -241,6 +244,7 @@ Enable-MLBPropsReliableRun
 Write-Host ""
 Write-Host "Scheduled tasks created/updated:"
 Write-Host " - MLBProps_MorningWorkflow @ $MorningTime (captured log)"
+Write-Host " - MLBProps_HourlyRefresh @ 08:00, every 60m for 14:00 (board+alert hourly to 22:00)"
 Write-Host " - MLBProps_MiddayRefresh @ $MiddayRefreshTime"
 Write-Host " - MLBProps_SecondRefresh @ $SecondRefreshTime"
 Write-Host " - MLBProps_CloseWatcherStart @ $WatcherStartTime"

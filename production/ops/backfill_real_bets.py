@@ -81,10 +81,8 @@ REAL_TICKETS: list[dict[str, object]] = [
     {"game_date": "2026-09-14", "player_name": "Mathews", "line": 4.5,
      "book": "novig", "side": "under", "result": "pending", "result_source": "user_confirmed",
      "bet_price": 117.0, "stake": 40.0, "pnl": 0.0, "placed_utc": "2026-09-14T00:00:00Z"},
-    # 2026-09-14 Jonah Tong O5.5: OPEN (owner sheet: 35% whiff / BAL matchup).
-    {"game_date": "2026-09-14", "player_name": "Tong", "line": 5.5,
-     "book": "mgm", "side": "over", "result": "pending", "result_source": "user_confirmed",
-     "bet_price": -120.0, "stake": 50.0, "pnl": 0.0, "placed_utc": "2026-09-14T00:00:00Z"},
+    # NOTE 2026-09-14: Jonah Tong O5.5 was discussed, never fired — NOT a real
+    # bet (owner correction). No Tong row may be added here.
 ]
 
 # 9th real ticket (to reach 6W-3L): identity + decision-time price needed from

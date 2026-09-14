@@ -324,6 +324,22 @@ def replace_open_slate(
         )
         drop = is_slate & is_open & no_clv
         removed = int(ledger.filter(drop).height)
+        # Doctrine: intraday decay never un-takes a logged ticket. Carry
+        # prior nonzero stakes forward onto the same ticket in the fresh
+        # batch (midday re-polls otherwise zero the morning's paper stake).
+        carried: dict[str, float] = {}
+        for r in ledger.filter(drop).to_dicts():
+            try:
+                st = float(r.get("stake") or 0.0)
+            except (TypeError, ValueError):
+                continue
+            if st > 0:
+                carried[open_dedupe_key(
+                    game_date=str(r.get("game_date") or slate_s),
+                    player_name=str(r.get("player_name") or ""),
+                    book=str(r.get("book") or ""),
+                    line=float(r.get("line") or 0.0),
+                )] = st
         ledger = ledger.filter(~drop)
 
     # Dedupe incoming batch (SharpAPI / double books).
@@ -339,6 +355,12 @@ def replace_open_slate(
         if key in seen:
             continue
         seen.add(key)
+        if key in carried and not float(row.get("stake") or 0.0) > 0:
+            row["stake"] = carried[key]
+            note = str(row.get("note") or "")
+            tag = "stake_carried_from_earlier_poll"
+            if tag not in note:
+                row["note"] = f"{note} | {tag}".strip(" |")
         fresh.append(row)
 
     if ledger.is_empty() and not fresh:
