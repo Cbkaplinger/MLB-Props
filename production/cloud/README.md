@@ -73,8 +73,41 @@ New code is Python (Modal SDK is Python-native). No second language, no
 port, no translation risk — parallel-run diffs verify byte-behavior, not
 rewrites.
 
-## Go-live checklist (owner gates)
+## Credit guards (four layers — nothing can run away)
 
+1. **No payment method on file.** Modal Starter requires none; without one,
+   workloads STOP at $30 instead of billing. This is the hard ceiling —
+   overspend is structurally impossible, not just unlikely.
+2. **Client-side caps in code** (work on laptop AND cloud identically):
+   OddsAPI pulls carry `--max-credits` + a 100k quota floor; closeout caps
+   5,000/day and refuses today/future/past-9/28; SharpAPI self-throttles
+   (1 req/6s) under its per-key rate limits; ntfy is a few alerts/day.
+3. **Cron-shaped load.**Batch jobs that release containers cost ~$3–5/mo.
+   Nothing idles, nothing warms, no `min_containers`. The one anti-pattern
+   (keep-warm) is absent by inspection — `grep keep_warm production/cloud/`
+   must return nothing, and CI could pin that.
+4. **Dashboard check.** Modal metrics show spend per app; a 2-minute look
+   weekly in September is the whole monitoring program. Starter logs keep
+   1 day — the ledger, not Modal logs, is the durable record.
+
+## Teardown (regular season ends 2026-09-27 — no postseason predictions)
+
+The live product already stops itself: postseason HOLD fires 9/27
+(`season.regular_end`, board-level, tested). Cloud teardown after the
+October judge program finishes (judge needs compute; predictions don't run):
+
+1. `modal app delete mlb-props` (crons stop same minute).
+2. Optional: `modal volume get mlb-props-state` snapshot of final ledger,
+   then `modal volume delete mlb-props-state`.
+3. `modal secret delete mlb-props-keys` (keys stay in your password manager).
+4. OddsAPI: verify auto-renew is OFF in the dashboard (was calendar-noted at
+   the $119 buy — confirm once, key stays free tier).
+5. Laptop resumes as the archive + research box (lake never left it).
+
+October compute (full-season judge, stacker verdict) runs ad-hoc, not on
+cron — spin up, run, spin down. No standing spend at any point.
+
+## Go-live checklist (owner gates)
 1. `pip install modal` → `modal token new` (OAuth, no card).
 2. `modal secret create mlb-props-keys SHARPAPI_KEY=... THEODDSAPI_KEY=... NTFY_TOPIC=...`
 3. `modal volume put mlb-props-state data/ data` + `artifacts/ artifacts`
