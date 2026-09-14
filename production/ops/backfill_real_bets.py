@@ -65,6 +65,22 @@ REAL_TICKETS: list[dict[str, object]] = [
     {"game_date": "2026-08-26", "player_name": "Sasaki", "line": 4.5,
      "book": "draftkings", "side": "over", "result": "loss", "result_source": "user_confirmed",
      "bet_price": 0.0, "stake": 0.0, "pnl": 0.0, "placed_utc": "2026-08-26T00:00:00Z"},
+    # 2026-09-09 Hunter Brown U4.5: 7 Ks (HOU vs PHI, verified boxscore) = LOSS.
+    {"game_date": "2026-09-09", "player_name": "Brown", "line": 4.5,
+     "book": "novig", "side": "under", "result": "loss", "result_source": "user_confirmed+boxscore",
+     "bet_price": 117.0, "stake": 35.0, "pnl": -35.0, "placed_utc": "2026-09-09T00:00:00Z"},
+    # 2026-09-09 Blade Tidwell U4.5: DNP (absent from NYM@MIA boxscore) = PUSH.
+    {"game_date": "2026-09-09", "player_name": "Tidwell", "line": 4.5,
+     "book": "novig", "side": "under", "result": "push", "result_source": "user_confirmed+boxscore-DNP",
+     "bet_price": -108.0, "stake": 50.0, "pnl": 0.0, "placed_utc": "2026-09-09T00:00:00Z"},
+    # 2026-09-11 Blake Snell U7.5: 8 Ks = LOSS by the hook.
+    {"game_date": "2026-09-11", "player_name": "Snell", "line": 7.5,
+     "book": "novig", "side": "under", "result": "loss", "result_source": "user_confirmed+ledger-settle-8",
+     "bet_price": -125.0, "stake": 75.0, "pnl": -75.0, "placed_utc": "2026-09-11T00:00:00Z"},
+    # 2026-09-14 Quinn Mathews U4.5: OPEN (game pending).
+    {"game_date": "2026-09-14", "player_name": "Mathews", "line": 4.5,
+     "book": "novig", "side": "under", "result": "pending", "result_source": "user_confirmed",
+     "bet_price": 117.0, "stake": 40.0, "pnl": 0.0, "placed_utc": "2026-09-14T00:00:00Z"},
 ]
 
 # 9th real ticket (to reach 6W-3L): identity + decision-time price needed from

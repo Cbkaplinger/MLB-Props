@@ -272,7 +272,7 @@ Component metrics are necessary but incomplete. Once rate and TBF are frozen, th
 | 2025-lock champion (pre-registered family, 2025 only) | 558 | ROI +15.5%, WR 0.60, LCB +8.0%, CLV +1.24pp; floor 0.12 / cap 0.24 / under-lean / DK+FD-only |
 | Disclosed-peek 2026 judge (one look) | 485 | ROI +15.6%, WR 0.60, LCB +7.7%, CLV +1.30 — repeats; labeled peek, not clean |
 | Juiced replay, flat 1u | 2,077 | ROI +7.3%, WR 0.506, CLV +1.08pp; DK+FD-only +12.3% (n=982); 2025 +4.2% / 2026 +12.6% confirmatory; 1/16-Kelly +6.6% |
-| Deduped paper ledger (36 days) | 317 | PnL +$611 (+2.7% ROI); mean CLV +0.75pp on 195 CLV rows; veto lane +6.5% (n=258) |
+| Deduped paper ledger (38 days) | 323 | PnL +$576 (+2.0% ROI); mean CLV +0.70pp on 195 CLV rows; veto lane +6.0% (n=263) |
 | Universe close skill (live config) | 19,533 | Brier 0.2204 vs book 0.2162 (skill −0.0043); ECE 0.021 vs 0.009 — negative on all eight lines |
 | Timing vs overnight quotes (≈T−12h) | 7,986 | Skill +0.044 at open, decaying to ~0 by T−5h morning |
 

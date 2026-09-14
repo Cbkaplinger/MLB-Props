@@ -20,12 +20,12 @@ alerts). Updated 2026-09-11. y = actual outcome (1{K>line} or settled PnL).
 
 | Metric | Definition | Source | Current full / veto |
 |---|---|---|---|
-| ROI / WR | pnl/stake, win fraction, flat $50 paper | `paper_quant_report.json` | +2.7%/0.498 → +6.5%/0.512 |
-| Sharpe | daily-pnl mean/std × √162 | same | 1.00 → 1.92 |
+| ROI / WR | pnl/stake, win fraction, flat $50 paper | `paper_quant_report.json` | +2.0%/0.500 → +6.0%/0.510 |
+| Sharpe | daily-pnl mean/std × √162 | same | 0.91 → 1.86 |
 | Sharpe decay | trailing-30d Sharpe minus full-sample (SPEC — not yet computed) | TODO `paper_quant_track.py` | — |
-| Sortino | downside-dev version | same | 2.08 → 4.54 |
-| maxDD / currentDD | units, peak-to-trough | same + brake report | 25.8/11.1 → 20.5/1.9 |
-| Calmar_u | profit_u / max_dd_u | same | 0.47 → 1.25 |
+| Sortino | downside-dev version | same | 1.90 → 4.41 |
+| maxDD / currentDD | units, peak-to-trough | same + brake report | 25.8/11.8 → 20.5/3.1 |
+| Calmar_u | profit_u / max_dd_u | same | 0.45 → 1.25 |
 
 ## C. Betting metrics (decision vs market)
 

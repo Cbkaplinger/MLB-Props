@@ -44,7 +44,7 @@ This project demonstrates a blended profile across:
 
 **2025-lock champion (promoted with disclosed 2026 peek):** 36-config family scored on 2025 only → floor `0.12` / cap `0.24` / under-lean / DK+FD: 2025 `n=558` ROI **+15.5%** WR `0.60` LCB **+8.0%**; White-lite p<0.0005; exclusions ≥+12.9%; 2026 one-look repeat `n=485` ROI **+15.6%**.
 
-**Paper money track (deduped 36 days, `n=317`):** PnL `+$611` (+2.7% ROI), mean CLV `+0.75`pp on `n_clv=195`; veto lane +6.5% (`n=258`) — paper prices, not fills. ≥50 real fills remain the money-truth gate.
+**Paper money track (deduped 38 days, `n=323`):** PnL `+$576` (+2.0% ROI), mean CLV `+0.70`pp on `n_clv=195`; veto lane +6.0% (`n=263`) — paper prices, not fills. ≥50 real fills remain the money-truth gate.
 
 ---
 
