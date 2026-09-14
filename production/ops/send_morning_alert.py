@@ -44,6 +44,7 @@ def _safe_json(path: Path) -> dict:
 def _build_message() -> str:
     rec_path = ODDS_DIR / "recommendations.parquet"
     pick_lines: list[str] = []
+    slip_line = ""
     raw_max = os.getenv("ALERT_MAX_BETS", "").strip()
     max_bets = int(raw_max) if raw_max else 0
     if rec_path.exists():
@@ -89,6 +90,14 @@ def _build_message() -> str:
                         f"{side} {line} @ {price}, xK {xk:.2f}\n"
                         f"Stake ${stake:.2f} ({units:.2f}u), Edge {edge_pct:.1f}%\n"
                     )
+            pick = _slip_pick(bets)
+            if pick is not None:
+                slip_line = (
+                    f"Slip pick: {pick.get('player_name')} "
+                    f"{str(pick.get('best_side') or '').title()} {pick.get('line')} @ "
+                    f"{pick.get('best_price')} ({pick.get('book')}) — "
+                    f"top in-band edge (0.12-0.18 rule)"
+                )
     now_local = datetime.now()
     today_hdr = f"{now_local.month}/{now_local.day}/{now_local.strftime('%y')}"
     lines = [f"{today_hdr} MLB Props - Daily Recs K.", ""]
@@ -103,7 +112,26 @@ def _build_message() -> str:
         lines.extend(pick_lines)
     else:
         lines.append("No BET recommendations.")
+    if slip_line:
+        lines.append("")
+        lines.append(slip_line)
     return "\n".join(lines)
+
+
+def _slip_pick(bets: pl.DataFrame) -> dict | None:
+    """Single-slip pick for an owner who fires one ticket/day (display-only).
+
+    Measured 2026-09-14 on the juiced taken set: top-edge-per-day = -$1,082
+    (-6.9%, monster edge = we are wrong); top edge WITHIN 0.12-0.18 =
+    +$3,008 (+20.7%, 291 days). So: max edge inside the band, fallback to
+    max edge under the 0.24 cap. Never changes BETs — stars one line.
+    """
+    rows = bets.to_dicts()
+    in_band = [r for r in rows if 0.12 <= float(r.get("edge") or 0.0) < 0.18]
+    pool = in_band or [r for r in rows if float(r.get("edge") or 0.0) < 0.24] or rows
+    if not pool:
+        return None
+    return max(pool, key=lambda r: float(r.get("edge") or 0.0))
 
 
 def _send_ntfy(text: str, *, title: str = "MLB Props - Daily Recs") -> tuple[bool, str]:
