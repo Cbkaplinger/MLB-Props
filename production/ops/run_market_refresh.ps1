@@ -32,6 +32,18 @@ if ($QuietBoard) {
 Run-Step "1 odds_board" $boardArgs
 Run-Step "2 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--roi-mode", "conservative", "--from-recommendations", "--quotes-file", "artifacts/odds_log/sharp_quotes_latest.parquet")
 Run-Step "2b frozen_edge_watch" @("production/ops/frozen_edge_watch.py")
+# Flips-only alerting (owner 2026-09-14): the watch above already pages
+# skip/HOLD->BET flips itself. The full board alert fires on failure or on
+# flips; quiet hours stay silent (no 15-pings-a-day). Morning workflow keeps
+# its own always-fire alert — this gate is refresh-only.
+$hasFlips = $false
+try {
+    $watchState = Join-Path $repoRoot ("artifacts\odds_log\edge_watch_state_" + (Get-Date -Format "yyyy-MM-dd") + ".json")
+    if (Test-Path $watchState) {
+        $flips = (Get-Content $watchState -Raw | ConvertFrom-Json).flips
+        $hasFlips = ($null -ne $flips) -and (@($flips).Count -gt 0)
+    }
+} catch { Write-Warning "Flip-gate read failed (alerting as if flips): $_"; $hasFlips = $true }
 Run-Step "3 ledger_status" @("production/odds/grade_odds_ledger.py", "--status")
 Run-Step "4 reconcile_board_vs_ledger" @("production/ops/build_board_ledger_reconciliation.py")
 Run-Step "5 compact_aux_quote_history" @("production/ops/compact_aux_quote_history.py", "--retention-days", "120")
@@ -43,8 +55,10 @@ Run-Step "7c automation_self_check" @("production/ops/build_automation_self_chec
 try {
     if ($failure) {
         Run-Step "8 morning_alert (FAILURE banner)" @("production/ops/send_morning_alert.py", "--failure-message", $failure)
+    } elseif ($hasFlips) {
+        Run-Step "8 morning_alert (flips)" @("production/ops/send_morning_alert.py")
     } else {
-        Run-Step "8 morning_alert" @("production/ops/send_morning_alert.py")
+        Write-Host "No flips this run — alert stays silent (board + ledger still updated)."
     }
 } catch {
     Write-Warning "Alert step failed: $_"

@@ -100,10 +100,10 @@ def test_open_dedupe_key_ignores_side() -> None:
     )
     assert k1 == k2
 
-
 def test_replace_open_slate_carries_prior_stake(tmp_path: Path) -> None:
-    # Doctrine: intraday decay never un-takes a logged ticket. A midday
-    # re-poll must not zero the morning's paper stake on the same ticket.
+    # Doctrine: intraday decay never un-takes a logged ticket. A staked
+    # same-day row is kept and the fresh same-key row is skipped as a dupe
+    # (no double-count, no stake loss on midday re-polls).
     path = tmp_path / "ledger.parquet"
     old = _row(book="draftkings")
     old["stake"] = 39.80
@@ -116,11 +116,11 @@ def test_replace_open_slate_carries_prior_stake(tmp_path: Path) -> None:
     frame, n_written, n_removed = replace_open_slate(
         [fresh], slate="2026-07-30", path=path
     )
-    assert n_removed == 1
-    assert n_written == 1
+    assert n_removed == 0
+    assert n_written == 0
+    assert frame.height == 1
     row = frame.to_dicts()[0]
     assert row["stake"] == 39.80
-    assert "stake_carried_from_earlier_poll" in str(row.get("note") or "")
 
 
 def test_replace_open_slate_drops_unclosed_same_day(tmp_path: Path) -> None:
@@ -289,6 +289,26 @@ def test_atomic_write_parquet_failure_keeps_old_file(tmp_path: Path) -> None:
     # Old file intact and readable; staging file cleaned up.
     assert pl.read_parquet(target).height == 1
     assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_replace_open_slate_keeps_logged_bets(tmp_path: Path) -> None:
+    # A logged BET (nonzero stake) persists even if its quote vanishes from
+    # the fresh batch (11am snipe still counts at 1pm). Unstaked rows replace.
+    path = tmp_path / "ledger.parquet"
+    old = _row(book="draftkings")
+    old["stake"] = 39.80
+    append_open_rows([old], path=path)
+    fresh = _row(
+        book="fanduel",
+        logged_at=datetime(2026, 7, 30, 15, 0, tzinfo=timezone.utc),
+    )
+    frame, n_written, n_removed = replace_open_slate(
+        [fresh], slate="2026-07-30", path=path
+    )
+    assert n_removed == 0
+    assert frame.height == 2
+    kept = [r for r in frame.to_dicts() if r["book"] == "draftkings"][0]
+    assert kept["stake"] == 39.80
 
 
 
