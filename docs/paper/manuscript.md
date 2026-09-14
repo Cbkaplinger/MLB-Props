@@ -272,7 +272,7 @@ Component metrics are necessary but incomplete. Once rate and TBF are frozen, th
 | 2025-lock champion (pre-registered family, 2025 only) | 558 | ROI +15.5%, WR 0.60, LCB +8.0%, CLV +1.24pp; floor 0.12 / cap 0.24 / under-lean / DK+FD-only |
 | Disclosed-peek 2026 judge (one look) | 485 | ROI +15.6%, WR 0.60, LCB +7.7%, CLV +1.30 — repeats; labeled peek, not clean |
 | Juiced replay, flat 1u | 2,077 | ROI +7.3%, WR 0.506, CLV +1.08pp; DK+FD-only +12.3% (n=982); 2025 +4.2% / 2026 +12.6% confirmatory; 1/16-Kelly +6.6% |
-| Deduped paper ledger (38 days) | 323 | PnL +$576 (+2.0% ROI); mean CLV +0.70pp on 195 CLV rows; veto lane +6.0% (n=263) |
+| Deduped paper ledger (38 days) | 324 | PnL +$619 (+3.0% ROI); mean CLV +0.70pp on 195 CLV rows; veto lane +7.0% (n=264) |
 | Universe close skill (live config) | 19,533 | Brier 0.2204 vs book 0.2162 (skill −0.0043); ECE 0.021 vs 0.009 — negative on all eight lines |
 | Timing vs overnight quotes (≈T−12h) | 7,986 | Skill +0.044 at open, decaying to ~0 by T−5h morning |
 
@@ -328,7 +328,7 @@ Live operations run a compact three-lane model: open-universe skill ranking, ded
 
 Live configuration as of the 2026-09-11 freeze: 0.60/0.40 blend, Poisson counts, WS1c maps, line floors with 4.5-over veto and 2.5/3.5 probation, edge cap 0.24, under-lean premium 0.04 on overs, DK+FD-only books, offsets clipped at ±0.02, 1/16-Kelly sizing, postseason hold. A same-day robust-refusal arm was reverted on selection-year evidence; stacker and brake remain unshipped. Full key list: Appendix A.7.
 
-**Deployment vignette (one ticket through the whole stack).** Morning board: Blake Snell under 7.5, FanDuel −130, expected K 5.80, model edge 19.3%, sized 1.47u ($73.48) at 1/16-Kelly. The ticket clears every layer visibly: line floor 0.12 (7.5), no veto (under), no probation (not 2.5/3.5-over), edge under the 0.24 cap, no lean premium (under), DK/FD book, TBF gate, deploy segment on. One ticket, every gate legible, policy version reconstructible from raw JSON and frozen hashes.
+**Deployment vignette (one ticket through the whole stack — illustrative mechanics only, never a recommendation or target).** Morning board: Blake Snell under 7.5, FanDuel −130, expected K 5.80, model edge 19.3%, sized 1.47u ($73.48) at 1/16-Kelly. The ticket clears every layer visibly: line floor 0.12 (7.5), no veto (under), no probation (not 2.5/3.5-over), edge under the 0.24 cap, no lean premium (under), DK/FD book, TBF gate, deploy segment on. One ticket, every gate legible, policy version reconstructible from raw JSON and frozen hashes. Realized outcome: loss (8 Ks) — the vignette demonstrates legibility, not edge; §6 governs inference, never anecdotes.
 
 ## 8. Related Diagnostics
 

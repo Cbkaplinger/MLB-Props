@@ -69,10 +69,10 @@ REAL_TICKETS: list[dict[str, object]] = [
     {"game_date": "2026-09-09", "player_name": "Brown", "line": 4.5,
      "book": "novig", "side": "under", "result": "loss", "result_source": "user_confirmed+boxscore",
      "bet_price": 117.0, "stake": 35.0, "pnl": -35.0, "placed_utc": "2026-09-09T00:00:00Z"},
-    # 2026-09-09 Blade Tidwell U4.5: DNP (absent from NYM@MIA boxscore) = PUSH.
+    # 2026-09-09 Blade Tidwell U4.5: started for SF (4IP, 2K) = WIN.
     {"game_date": "2026-09-09", "player_name": "Tidwell", "line": 4.5,
-     "book": "novig", "side": "under", "result": "push", "result_source": "user_confirmed+boxscore-DNP",
-     "bet_price": -108.0, "stake": 50.0, "pnl": 0.0, "placed_utc": "2026-09-09T00:00:00Z"},
+     "book": "novig", "side": "under", "result": "win", "result_source": "user_confirmed+SF-boxscore-2K",
+     "bet_price": -108.0, "stake": 50.0, "pnl": 46.3, "placed_utc": "2026-09-09T00:00:00Z"},
     # 2026-09-11 Blake Snell U7.5: 8 Ks = LOSS by the hook.
     {"game_date": "2026-09-11", "player_name": "Snell", "line": 7.5,
      "book": "novig", "side": "under", "result": "loss", "result_source": "user_confirmed+ledger-settle-8",
