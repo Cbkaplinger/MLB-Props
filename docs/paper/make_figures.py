@@ -550,7 +550,8 @@ def main() -> None:
     # not referenced by the manuscript, contradicted sparse-lane body numbers.
     fig3_ablation()
     fig4_calibration()
-    fig_equity_top3_vs_top1()
+    # fig_equity_top3_vs_top1() REMOVED 2026-09-14: retired-lane figure,
+    # unreferenced after the A.5 purge (was n=26 diagnostic only).
     fig5_juiced_roi()
     fig6_edge_band()
     fig7_white()
