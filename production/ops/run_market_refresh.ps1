@@ -23,7 +23,14 @@ function Run-Step {
 
 Write-Host "Starting market refresh in $repoRoot"
 
+# Dynamic lineups (owner 2026-09-14): lineups finalize hours before first
+# pitch, so every board run re-logs projections first. Doctrine change:
+# projections are no longer frozen-AM; quotes AND projections refresh, and
+# the edge-watch diffs the combined result (flips still page, losses silent).
 $failure = ""
+try {
+Run-Step "0 refresh_projections" @("production/projections/log_projections.py", "--allow-stale")
+} catch { $failure += "projections FAILED: $_`n" }
 try {
 $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative", "--write-quotes", "artifacts/odds_log/sharp_quotes_latest.parquet")
 if ($QuietBoard) {
@@ -35,7 +42,7 @@ Run-Step "2b frozen_edge_watch" @("production/ops/frozen_edge_watch.py")
 # Flips-only alerting (owner 2026-09-14): the watch above already pages
 # skip/HOLD->BET flips itself. The full board alert fires on failure or on
 # flips; quiet hours stay silent (no 15-pings-a-day). Morning workflow keeps
-# its own always-fire alert — this gate is refresh-only.
+# its own always-fire alert -- this gate is refresh-only.
 $hasFlips = $false
 try {
     $watchState = Join-Path $repoRoot ("artifacts\odds_log\edge_watch_state_" + (Get-Date -Format "yyyy-MM-dd") + ".json")
@@ -58,7 +65,7 @@ try {
     } elseif ($hasFlips) {
         Run-Step "8 morning_alert (flips)" @("production/ops/send_morning_alert.py")
     } else {
-        Write-Host "No flips this run — alert stays silent (board + ledger still updated)."
+        Write-Host "No flips this run -- alert stays silent (board + ledger still updated)."
     }
 } catch {
     Write-Warning "Alert step failed: $_"

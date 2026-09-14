@@ -35,6 +35,7 @@ VOLUME_NAME = "mlb-props-state"
 SECRET_NAME = "mlb-props-keys"
 CRON_MORNING = "0 12 * * *"  # 08:00 ET (EDT) daily
 CRON_HOURLY = "0 12-23,0-1 * * *"  # hourly board+alert 08:00-22:00 ET (EDT)
+CRON_SWEEP = "*/20 17-23,0-2 * * *"  # close sweeps q20min in game windows ET
 CRON_SETTLE = "0 7 * * *"  # 03:00 ET daily
 CRON_DRIFT = "30 9 * * *"  # 05:30 ET daily
 
@@ -80,13 +81,15 @@ try:
     def hourly_refresh() -> None:
         """Hourly board + poll + edge-watch + alert, 08:00-22:00 ET.
 
-        Mirrors run_market_refresh.ps1 (intraday harvest on frozen probs).
-        ~15 runs/day x ~2 min: still inside free-tier margin.
+        Mirrors run_market_refresh.ps1: projections re-log (dynamic lineups),
+        then board/poll/watch/alert on fresh numbers. ~15 runs/day x ~2 min:
+        still inside free-tier margin.
         """
         import os
         import subprocess
         os.environ.update(ENV)
         for step in (
+            ["python", "-u", "production/projections/log_projections.py", "--allow-stale"],
             ["python", "-u", "production/odds/odds_board.py", "--unit", "50",
              "--roi-mode", "conservative", "--write-quotes",
              "artifacts/odds_log/sharp_quotes_latest.parquet"],
@@ -97,6 +100,20 @@ try:
             ["python", "-u", "production/ops/send_morning_alert.py"],
         ):
             subprocess.run(step, cwd="/root/mlb-props", check=False)
+
+    @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
+                  schedule=modal.Cron(CRON_SWEEP), timeout=900)
+    def close_sweep() -> None:
+        """Close fills q20min in game windows (watcher-daemon replacement).
+
+        Mirrors run_close_sweep.py: ET-window-gated, idempotent, exits clean
+        outside windows. ~25 runs/day x ~1 min: pennies.
+        """
+        import os
+        import subprocess
+        os.environ.update(ENV)
+        subprocess.run(["python", "-u", "production/ops/run_close_sweep.py"],
+                       cwd="/root/mlb-props", check=False)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
                   schedule=modal.Cron(CRON_SETTLE), timeout=1800)
