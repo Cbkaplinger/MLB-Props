@@ -42,7 +42,7 @@ This project demonstrates a blended profile across:
 
 **Juiced replay (frozen probs at executable prices, rejects kept, `n=2,077`):** flat-1u ROI **+7.3%** all-books / **+12.3%** DK+FD-only; 2025 +4.2% / 2026 +12.6% confirmatory. Fills unmodeled.
 
-**2025-lock champion (promoted with disclosed 2026 peek):** 36-config family scored on 2025 only → floor `0.12` / cap `0.24` / under-lean / DK+FD: 2025 `n=558` ROI **+15.5%** WR `0.60` LCB **+7.4%**; White-lite p<0.0005; exclusions ≥+12.9%; 2026 one-look repeat `n=485` ROI **+15.6%**.
+**2025-lock champion (promoted with disclosed 2026 peek):** 36-config family scored on 2025 only → floor `0.12` / cap `0.24` / under-lean / DK+FD: 2025 `n=558` ROI **+15.5%** WR `0.60` LCB **+8.0%**; White-lite p<0.0005; exclusions ≥+12.9%; 2026 one-look repeat `n=485` ROI **+15.6%**.
 
 **Paper money track (deduped 36 days, `n=317`):** PnL `+$611` (+2.7% ROI), mean CLV `+0.75`pp on `n_clv=195`; veto lane +6.5% (`n=258`) — paper prices, not fills. ≥50 real fills remain the money-truth gate.
 

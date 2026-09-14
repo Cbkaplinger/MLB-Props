@@ -52,6 +52,9 @@ ledger #123 is measured. Totals #124 are pulled **and joined**
 (`slate_shock_join.py` → 1,633 correlated pairs quantified). Live changes
 since polish-then-stop: morning `edge_cap = 0.20` + `robust_refusal` +
 `offset_cap = 0.02` — all named, tested (336 green), pinned same commit.
+**Superseded same day:** refusal reverted (poison: refusal-only −0.2%),
+cap promoted 0.20→0.24 with under-lean + DK+FD-only (2025-lock champion,
+2026-09-11). Current live = champion (Snapshot wins over this file).
 Ops habits (settle, weekly pack, closeout) are always allowed. Further live
 BET-set changes still need a named order. Snapshot wins over this file.
 
@@ -259,14 +262,17 @@ Do not treat as a strikeout predictor.
 
 ### What is live vs not
 
-**Live today:** 4.5-over hard veto, 2.5/3.5 probation floors 0.20/0.18,
-line floors in `line_floor_policy.json`, TBF≥15, deploy-matrix filter,
+**Live today:** 4.5-over hard veto, 2.5/3.5 probation, line floors in
+`line_floor_policy.json`, TBF≥15, deploy-matrix filter,
 quality-gate dynamic floor, WS1c, Poisson, 1/16-Kelly, postseason HOLD
-2026-09-27, pack #113 observability.
+2026-09-27, pack #113 observability, **2025-lock champion
+(edge_cap 0.24, under-lean +0.04, DK+FD-only)**.
 
 **Shipped live 2026-09-11 (owner order):** offset cap 0.02 (silent clip,
-visible via offset columns); morning edge cap 0.20 (`edge_cap` HOLD);
-robust refusal (`robust_refusal` HOLD). Sizing of survivors unchanged.
+visible via offset columns); champion promotion (cap 0.24, lean, DK+FD).
+Refusal (`robust_refusal`) was reverted same day — poison, do not revive
+without a new gate. Probation floors live in the champion (2.5/3.5 over
+held to higher bars). Sizing of survivors unchanged.
 **Still needs a one-liner go:** stacker stage 2 (**shadow `p_stacker`
 only** — HOLD/BET untouched); drawdown brake ×0.5 as live staking
 (owner parked 2026-09-11: stay confident, follow the edge).

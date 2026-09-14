@@ -15,7 +15,7 @@ Independent Researcher
 
 ## Abstract
 
-We study pregame strikeout forecasting for MLB starting pitchers under a strict pregame information constraint: a leakage-safe strikeout-rate model multiplied by a projected-batters-faced model yields expected strikeouts and P(K >= L) line probabilities without same-game inputs. The frozen LightGBM-plus-Ridge stack beats a Marcel baseline by about 0.004 k-rate MAE on chronological splits, then converts through a Poisson count layer with per-line calibration. For decisions, a pre-registered 36-configuration policy family scored on 2025 data selects floor 0.12, edge cap 0.24, under-lean, and DK+FD-only books: 558 tickets at +15.5% ROI with a slate-clustered lower confidence bound of +7.4%, confirmed by a White-style reality check (p < 0.0005) and repeated once on 2026 at +15.6% (disclosed peek, not a pristine holdout). Probabilities do not beat book closes on skill (−0.0043 Brier skill); the measured value comes from clock, ticket, and book selection, and every return figure is paper at recorded prices with fills unmodeled.
+We study pregame strikeout forecasting for MLB starting pitchers under a strict pregame information constraint: a leakage-safe strikeout-rate model multiplied by a projected-batters-faced model yields expected strikeouts and P(K >= L) line probabilities without same-game inputs. The frozen LightGBM-plus-Ridge stack beats a Marcel baseline by about 0.004 k-rate MAE on chronological splits, then converts through a Poisson count layer with per-line calibration. For decisions, a pre-registered 36-configuration policy family scored on 2025 data selects floor 0.12, edge cap 0.24, under-lean, and DK+FD-only books: 558 tickets at +15.5% ROI with a slate-clustered lower confidence bound of +8.0%, confirmed by a White-style reality check (p < 0.0005) and repeated once on 2026 at +15.6% (disclosed peek, not a pristine holdout). Probabilities do not beat book closes on skill (−0.0043 Brier skill); the measured value comes from clock, ticket, and book selection, and every return figure is paper at recorded prices with fills unmodeled.
 
 ---
 
@@ -269,8 +269,8 @@ Component metrics are necessary but incomplete. Once rate and TBF are frozen, th
 
 | Scope | n | Result |
 | --- | ---: | --- |
-| 2025-lock champion (pre-registered family, 2025 only) | 558 | ROI +15.5%, WR 0.60, LCB +7.4%, CLV +1.24pp; floor 0.12 / cap 0.24 / under-lean / DK+FD-only |
-| Disclosed-peek 2026 judge (one look) | 485 | ROI +15.6%, WR 0.60, LCB +7.3%, CLV +1.30 — repeats; labeled peek, not clean |
+| 2025-lock champion (pre-registered family, 2025 only) | 558 | ROI +15.5%, WR 0.60, LCB +8.0%, CLV +1.24pp; floor 0.12 / cap 0.24 / under-lean / DK+FD-only |
+| Disclosed-peek 2026 judge (one look) | 485 | ROI +15.6%, WR 0.60, LCB +7.7%, CLV +1.30 — repeats; labeled peek, not clean |
 | Juiced replay, flat 1u | 2,077 | ROI +7.3%, WR 0.506, CLV +1.08pp; DK+FD-only +12.3% (n=982); 2025 +4.2% / 2026 +12.6% confirmatory; 1/16-Kelly +6.6% |
 | Deduped paper ledger (36 days) | 317 | PnL +$611 (+2.7% ROI); mean CLV +0.75pp on 195 CLV rows; veto lane +6.5% (n=258) |
 | Universe close skill (live config) | 19,533 | Brier 0.2204 vs book 0.2162 (skill −0.0043); ECE 0.021 vs 0.009 — negative on all eight lines |
@@ -304,7 +304,7 @@ Morning edge bands humps then collapses past ~0.20 in both years (fair-price mor
 
 The retired fair-price harness searched 56 configs on fair probabilities and peeked 2026 twice. Its replacement is a juiced, pre-registered, once-only design: a locked 36-config family (uniform floors {0.08, 0.10, 0.12} × edge caps {0.18, 0.20, 0.24} × side rules {both, under-lean} × book universes {next-book, DK+FD-only}; veto and probation stand outside the search), scored on 2025 only, championed by max lower-confidence-bound ROI on slate-clustered block bootstrap subject to CLV ≥ 0, no line-by-side cell over 40% of PnL, DK+FD sign agreement, and n ≥ 200.
 
-Result: floor 0.12, cap 0.24, under-lean, DK+FD-only — 2025 ROI +15.5% (n=558, WR 0.60, LCB +7.4%, CLV +1.24pp), repeated once on 2026 at +15.6% (n=485, disclosed peek, not clean). The largest lever is book choice, not probability.
+Result: floor 0.12, cap 0.24, under-lean, DK+FD-only — 2025 ROI +15.5% (n=558, WR 0.60, LCB +8.0%, CLV +1.24pp), repeated once on 2026 at +15.6% (n=485, disclosed peek, not clean). The largest lever is book choice, not probability.
 
 **Figure 6.** White-lite null distribution against the observed champion. Best-of-36 luck prints +2.8% typically and +7.4% at its wildest; the observed +15.5% clears it (p < 0.0005, demeaned null, 2,000 slate-clustered resamples).
 
