@@ -1,0 +1,106 @@
+"""Modal cloud scaffold (STAGED — not deployed; needs owner `modal token new`).
+
+Hosts the daily chain on Modal Starter ($0): image carries code + deps,
+a Volume carries state, Secrets carry keys. No policy logic lives here —
+each job shells to the same scripts the laptop runs, so laptop and cloud
+execute identical code during the >=7 parallel days.
+
+State on the volume (one-time upload, then incremental):
+  hot state (~350 MB): data/processed/*.parquet (L3/rolling, biggest),
+    artifacts/live_scores, artifacts/odds_log, artifacts/projection_log,
+    artifacts/models, data/dimensions, production/ops/*.json policies.
+  NOT shipped: Savant raw (GBs, re-pulled incrementally from network),
+    Odds-Historical lake (research-only, stays on laptop),
+    data/Open-Command (research-only).
+Daily refresh (same as wake-recovery): statcast incremental pull over the
+network -> L2/L3 rebuild on volume -> projections append -> board -> poll
+-> ntfy alert. Single-writer parquet appends; no DB needed (see README:
+SQL buys nothing at 18k rows with one writer).
+
+Secrets (modal secret create): SHARPAPI_KEY, THEODDSAPI_KEY, NTFY_TOPIC.
+State layout on the volume mirrors the repo tree (data/, artifacts/) so
+config's MLB_PROPS_DATA_DIR / MLB_PROPS_OUTPUT_DIR overrides point at it.
+One-time upload: modal volume put mlb-props-state data/ data + artifacts/
+artifacts (hot state ~350 MB; Savant raw + Odds-Historical lake stay local).
+Deploy: modal deploy production/cloud/modal_app.py (after token + upload).
+"""
+
+from __future__ import annotations
+
+APP_NAME = "mlb-props"
+VOLUME_NAME = "mlb-props-state"
+SECRET_NAME = "mlb-props-keys"
+CRON_MORNING = "30 12 * * *"  # 08:30 ET (EDT) daily
+CRON_SETTLE = "0 7 * * *"  # 03:00 ET daily
+CRON_DRIFT = "30 9 * * *"  # 05:30 ET daily
+
+ENV = {"PYTHONIOENCODING": "utf-8",
+       "MLB_PROPS_DATA_DIR": "/state/data",
+       "MLB_PROPS_OUTPUT_DIR": "/state/artifacts",
+       "MLB_PROPS_SAVANT_DATA_DIR": "/state/data/Savant-Data/regular"}
+
+try:
+    import modal
+
+    app = modal.App(APP_NAME)
+    image = (
+        modal.Image.debian_slim(python_version="3.11")
+        .pip_install("polars", "lightgbm", "numpy", "scipy",
+                     "scikit-learn", "pybaseball", "joblib", "requests")
+        .add_local_dir("src", "/root/mlb-props/src")
+        .add_local_dir("production", "/root/mlb-props/production")
+    )
+    volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
+    secrets = modal.Secret.from_name(SECRET_NAME)
+
+    @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
+                  schedule=modal.Cron(CRON_MORNING), timeout=3600)
+    def morning_workflow() -> None:
+        import os
+        import subprocess
+        os.environ.update(ENV)
+        for step in (
+            ["python", "-u", "production/ops/refresh_statcast.py", "--retries", "3"],
+            ["python", "-u", "production/ops/refresh_features.py", "--skip-training"],
+            ["python", "-u", "production/projections/log_projections.py", "--allow-stale"],
+            ["python", "-u", "production/odds/odds_board.py", "--unit", "50",
+             "--roi-mode", "conservative"],
+            ["python", "-u", "production/odds/poll_odds.py", "--snapshot", "open",
+             "--unit", "50", "--roi-mode", "conservative", "--from-recommendations"],
+            ["python", "-u", "production/ops/send_morning_alert.py"],
+        ):
+            subprocess.run(step, cwd="/root/mlb-props", check=False)
+
+    @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
+                  schedule=modal.Cron(CRON_SETTLE), timeout=1800)
+    def end_of_day_settle() -> None:
+        import os
+        import subprocess
+        os.environ.update(ENV)
+        for step in (
+            ["python", "-u", "production/odds/grade_odds_ledger.py",
+             "--auto-settle-api", "--void-scratches", "--status", "--curve"],
+            ["python", "-u", "production/ops/build_validation_ops_report.py"],
+            ["python", "-u", "production/ops/build_daily_operator_summary.py"],
+            ["python", "-u", "production/ops/build_policy_governance_report.py"],
+        ):
+            subprocess.run(step, cwd="/root/mlb-props", check=False)
+
+    @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
+                  schedule=modal.Cron(CRON_DRIFT), timeout=1800)
+    def nightly_drift() -> None:
+        import os
+        import subprocess
+        os.environ.update(ENV)
+        for step in (
+            ["python", "-u", "production/odds/grade_odds_ledger.py",
+             "--auto-settle-api", "--void-scratches", "--status", "--curve"],
+            ["python", "-u", "production/projections/grade_projections.py",
+             "--all-logged", "--preferred-only"],
+            ["python", "-u", "production/ops/check_nightly_drift.py"],
+            ["python", "-u", "production/ops/build_automation_self_check.py", "--notify-on-red"],
+        ):
+            subprocess.run(step, cwd="/root/mlb-props", check=False)
+
+except ImportError:  # modal not installed locally: file still parses, deploy needs it
+    app = None  # noqa: F841
