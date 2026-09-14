@@ -5,7 +5,7 @@
 Cameron Kaplinger
 Independent Researcher
 
-*Technical report · v2026-09-11 · All measurements as of 2026-09-11*
+*Technical report · v2026-09-14 · All measurements as of 2026-09-14*
 
 **Code repository:** [https://github.com/Cbkaplinger/MLB-Props](https://github.com/Cbkaplinger/MLB-Props)
 
@@ -23,7 +23,7 @@ We study pregame strikeout forecasting for MLB starting pitchers under a strict 
 
 ## 1. Introduction
 
-Strikeout props are a natural target for pregame modeling: the outcome is well-defined, Statcast supplies rich pitch- and PA-level detail, and the quantity of interest separates into a rate component and an exposure component. Many published baseball analytics workflows emphasize descriptive leaderboards or postgame attribution. Betting-oriented systems often blur the pregame information set. This work treats the problem as supervised prediction under a strict pregame constraint: estimate a starter's strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K >= L) for common prop lines L, for starters who face at least nine batters.
+Strikeout props are a natural target for pregame modeling: the outcome is well-defined, Statcast supplies rich pitch- and PA-level detail, and the quantity of interest separates into a rate component and an exposure component. Many published baseball analytics workflows emphasize descriptive leaderboards or postgame attribution. Betting-oriented systems often blur the pregame information set. This work treats the problem as supervised prediction under a strict pregame constraint: estimate a starter's strikeout rate before first pitch, project how many batters that starter will face, and convert the pair into expected strikeouts and P(K >= L) for common prop lines L, subject to a projected-workload gate (TBF ≥ 15) and opener exclusion.
 
 The modeling claim is compositional. A leakage-safe estimate of strikeout rate, multiplied by a leakage-safe projection of batters faced, yields expected strikeouts and line probabilities without ever using same-game outcomes as inputs: k_rate × TBF → E[K] → P(K >= L) (§3–§4).
 
@@ -305,6 +305,15 @@ Morning edge bands humps then collapses past ~0.20 in both years (fair-price mor
 The retired fair-price harness searched 56 configs on fair probabilities and peeked 2026 twice. Its replacement is a juiced, pre-registered, once-only design: a locked 36-config family (uniform floors {0.08, 0.10, 0.12} × edge caps {0.18, 0.20, 0.24} × side rules {both, under-lean} × book universes {next-book, DK+FD-only}; veto and probation stand outside the search), scored on 2025 only, championed by max lower-confidence-bound ROI on slate-clustered block bootstrap subject to CLV ≥ 0, no line-by-side cell over 40% of PnL, DK+FD sign agreement, and n ≥ 200.
 
 Result: floor 0.12, cap 0.24, under-lean, DK+FD-only — 2025 ROI +15.5% (n=558, WR 0.60, LCB +8.0%, CLV +1.24pp), repeated once on 2026 at +15.6% (n=485, disclosed peek, not clean). The largest lever is book choice, not probability.
+
+**Table 3b.** Full risk surface on the juiced taken set, 2025 vs 2026 (`season_report.json`; 2026 confirmatory).
+
+| Season | n | ROI / PnL / WR | Sharpe / Sortino | MaxDD / Calmar | CLV / beat | xROI-edge / conc |
+|---|---:|---|---|---|---|---|
+| 2025 (selection) | 1,308 | +4.2% / +$2,717 / 0.49 | 0.95 / 1.38 | 35.9u / 1.51 | +0.95pp / 60% | 0.187 / 0.23 |
+| 2026 (confirmatory) | 769 | +12.6% / +$4,841 / 0.54 | 2.79 / 5.28 | 10.8u / 8.94 | +1.30pp / 63% | 0.184 / 0.25 |
+
+The 2026 readout is green on every axis at a third of the selection-year drawdown, with concentration flat (0.25 vs 0.23 — no single cell carries the result). It is a readout, not a promotion input: the judge was peeked, and remaining September grades the locked champion on unseen data.
 
 **Figure 6.** White-lite null distribution against the observed champion. Best-of-36 luck prints +2.8% typically and +7.4% at its wildest; the observed +15.5% clears it (p < 0.0005, demeaned null, 2,000 slate-clustered resamples).
 
