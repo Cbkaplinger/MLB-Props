@@ -109,16 +109,25 @@ cron — spin up, run, spin down. No standing spend at any point.
 
 ## Go-live checklist (owner gates)
 
-1. `pip install modal` → `modal token new` (browser OAuth, no card).
-   The token lands in `~/.modal.toml` on YOUR machine — never in the repo,
-   never committed. Verify with `modal profile current`.
-2. `modal secret create mlb-props-keys SHARPAPI_KEY=... THEODDSAPI_KEY=... NTFY_TOPIC=...`
-   (values live in Modal's secret store + your password manager only).
-3. `modal volume put mlb-props-state data/ data` + `artifacts/ artifacts`
-   (hot state only; Savant raw + Odds-Historical lake stay on the laptop).
-4. `modal deploy production/cloud/modal_app.py` (3 crons: morning/settle/drift).
+1. ~~`pip install modal` → `modal token new`~~ DONE 2026-09-14 (token verified, cameron-kaplinger workspace).
+2. ~~Secret `mlb-props-keys`~~ DONE 2026-09-14 (SHARPAPI/OddsAPI/NTFY, values never displayed).
+3. ~~Volume `mlb-props-state`~~ DONE 2026-09-14 (data/processed, odds_log, models, live_scores, projection_log, dimensions, kpi_policy).
+4. ~~`modal deploy`~~ DONE 2026-09-14 (app `mlb-props`, 3 crons: 08:30 / 03:00 / 05:30 ET). First live fire: tomorrow 8:30 ET.
 5. ≥7 parallel days: diff cloud vs laptop boards/ledgers; laptop primary.
 6. Cutover: laptop to backup. Kill-switch (ntfy + postseason HOLD) travels as config.
+
+CAVEATS (read before trusting it):
+- Code mounts snapshot at deploy: future `src/`/`production/` edits need a
+  redeploy to reach the cloud. State (volume) is live-shared, code is not.
+- Schedules verified from decorators, not yet observed firing — tomorrow
+  8:30 ET is the first proof (cloud board + ntfy should mirror laptop).
+- Close-sweep cron unbuilt (watcher replacement); closeout stays manual.
+- `modal volume put` progress bars crash Windows console decoding (cosmetic;
+  verify with `volume ls`).
+
+(Original step-by-step, kept for re-runs: token → secret create →
+volume put (hot state only) → deploy → parallel days → cutover. All DONE
+2026-09-14 unless rebuilding.)
 
 ## Path notes (verified 2026-09-14)
 
