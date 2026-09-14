@@ -73,22 +73,28 @@ New code is Python (Modal SDK is Python-native). No second language, no
 port, no translation risk — parallel-run diffs verify byte-behavior, not
 rewrites.
 
-## Credit guards (four layers — nothing can run away)
+## Credit guards (card on file — read this)
 
-1. **No payment method on file.** Modal Starter requires none; without one,
-   workloads STOP at $30 instead of billing. This is the hard ceiling —
-   overspend is structurally impossible, not just unlikely.
+Owner keeps a card on file for the free credits, so the no-card hard stop
+does NOT apply: overages beyond $30 CAN bill. The load is still ~$3–5/mo
+(6–10× headroom), and these layers keep it there:
+
+1. **Dashboard glance weekly.** Modal metrics show spend per app; a $10
+   mental tripwire — if the number ever leaves single digits mid-month,
+   halt and investigate before the next cron fires.
 2. **Client-side caps in code** (work on laptop AND cloud identically):
    OddsAPI pulls carry `--max-credits` + a 100k quota floor; closeout caps
    5,000/day and refuses today/future/past-9/28; SharpAPI self-throttles
    (1 req/6s) under its per-key rate limits; ntfy is a few alerts/day.
-3. **Cron-shaped load.**Batch jobs that release containers cost ~$3–5/mo.
+3. **Cron-shaped load.** Batch jobs that release containers cost ~$3–5/mo.
    Nothing idles, nothing warms, no `min_containers`. The one anti-pattern
    (keep-warm) is absent by inspection — `grep keep_warm production/cloud/`
-   must return nothing, and CI could pin that.
-4. **Dashboard check.** Modal metrics show spend per app; a 2-minute look
-   weekly in September is the whole monitoring program. Starter logs keep
-   1 day — the ledger, not Modal logs, is the durable record.
+   must return nothing.
+4. **SharpAPI is rate-limited, not metered.** Free = 12 req/min, 2 books
+   (DK+FD — exactly our universe), 60s delay. There is no per-request
+   quota to burn; polling every 10 min (≈1,440 req/day vs 17k/day capacity)
+   is feasible and free. OddsAPI is the metered one (credits) — and it is
+   capped per above.
 
 ## Teardown (regular season ends 2026-09-27 — no postseason predictions)
 
