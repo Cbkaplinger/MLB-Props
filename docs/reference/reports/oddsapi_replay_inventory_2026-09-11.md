@@ -119,7 +119,8 @@ If a policy is green only under optimistic, it is not ready.
   +0.26 pp (n≈1,100 undeduped) — right at the “maybe skill” line, which
   is why fills still block money claims.
 - Calibration-selected models beat accuracy-selected models on betting
-  ROI (Wagerproof / *Machine Learning with Applications* 2024 NBA study).
+  ROI (Walsh & Joshi 2024, *Machine Learning with Applications* — NBA,
+  calibration-optimized +69.86% returns vs accuracy-optimized).
   That is the WS1c philosophy. It does **not** license Kelly on
   uncalibrated tails (morning ECE 0.10).
 - White Reality Check / PBO / DSR belong on **policy configs**, not on

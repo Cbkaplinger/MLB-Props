@@ -10,6 +10,7 @@ from Python.count_layer import (
 import polars as pl
 
 from Python.odds_board import (
+    _attach_slate_exposure,
     _clip_offset,
     _edge_cap_reason,
     _fill_books,
@@ -439,3 +440,30 @@ def test_quality_gate_lean_mirror() -> None:
     assert over["recommendation"][0] == "HOLD"
     assert "below_lean_floor" in over["quality_gate_reason"][0]
     assert under["recommendation"][0] == "BET"
+
+
+def test_attach_slate_exposure_counts_bets_per_game() -> None:
+    frame = pl.DataFrame(
+        [
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0},
+            {"game_pk": 1, "recommendation": "BET", "stake": 30.0},
+            {"game_pk": 1, "recommendation": "skip", "stake": 0.0},
+            {"game_pk": 2, "recommendation": "HOLD", "stake": 0.0},
+        ]
+    )
+    before = frame.to_dicts()
+    out = _attach_slate_exposure(frame)
+    # BET logic untouched: same rows, same recommendations and stakes.
+    assert out.select(["game_pk", "recommendation", "stake"]).to_dicts() == before
+    g1 = out.filter(pl.col("game_pk") == 1).to_dicts()
+    assert all(r["n_game_bets"] == 2 for r in g1)
+    assert all(r["game_bet_stake"] == 80.0 for r in g1)
+    g2 = out.filter(pl.col("game_pk") == 2).to_dicts()
+    assert g2[0]["n_game_bets"] == 0
+    assert g2[0]["game_bet_stake"] == 0.0
+
+
+def test_attach_slate_exposure_empty_or_missing_columns() -> None:
+    assert _attach_slate_exposure(pl.DataFrame()).is_empty()
+    no_cols = pl.DataFrame({"a": [1]})
+    assert _attach_slate_exposure(no_cols).to_dicts() == [{"a": 1}]

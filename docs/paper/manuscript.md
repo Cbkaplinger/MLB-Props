@@ -203,7 +203,7 @@ Why Ridge can rank first in Table 2a and not be the deployment champion:
 
 1. Table 2a is a **single-model `k_rate` error lane**.
 2. Deployment championing is a **full decision lane** (`k_rate × TBF → P(K >= L)` with market-skill and risk metrics).
-3. A tiny `k_rate` MAE edge does not guarantee better calibrated line probabilities or better realized risk-adjusted return after exposure, pricing, and bet-selection gates.
+3. A tiny `k_rate` MAE edge does not guarantee better calibrated line probabilities or better realized risk-adjusted return after exposure, pricing, and bet-selection gates. This prioritization is independently supported: Walsh and Joshi [14] show calibration-optimized models earning ~70% higher betting returns than accuracy-optimized ones, which is why this stack calibrates (WS1c) and governs on decision metrics rather than chasing MAE rank.
 
 **Note: Why ensemble over single model (paper/interview short form)**
 
@@ -578,4 +578,5 @@ Every headline number in the body maps to exactly one artifact. No body claim re
 11. Bergmeir, C., Hyndman, R. J., and Koo, B. A note on the validity of cross-validation for evaluating autoregressive time series prediction. *Computational Statistics & Data Analysis*, 120:70–83, 2018.
 12. Bailey, D. H., and López de Prado, M. The Deflated Sharpe Ratio: correcting for selection bias, backtest overfitting and non-normality. *The Journal of Portfolio Management*, 40(5):94–107, 2014.
 13. White, H. A reality check for data snooping. *Econometrica*, 68(5):1097–1126, 2000.
+14. Walsh, C., and Joshi, A. Machine learning for sports betting: Should model selection be based on accuracy or calibration? *Machine Learning with Applications*, 2024, 100539.
 

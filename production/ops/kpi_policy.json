@@ -100,6 +100,16 @@
     "max_stake_per_line": 150.0,
     "max_stake_per_game": 200.0
   },
+  "bankroll": {
+    "bankroll_dollars": 5000.0,
+    "unit_dollars": 50.0,
+    "unit_pct_of_bankroll": 0.01,
+    "single_bet_cap_pct": [0.05, 0.1],
+    "single_bet_cap_dollars": [250.0, 500.0],
+    "enforced_via": "max_stake_per_line=150 (3%) + max_stake_per_game=200 (4%) — tighter than the 5-10% band by design; max_daily_total_stake=500 (10%)",
+    "policy_card": "Bankroll $5,000 | unit $50 (1.0%, ~= 1/16-Kelly anchor) | single ticket capped $250-$500 (5-10%) | 2026-09-14 owner-declared",
+    "declared_utc": "2026-09-14"
+  },
   "data_quality": {
     "max_missing_closes": 0,
     "max_stale_open_rows": 0,

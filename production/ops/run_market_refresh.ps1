@@ -39,7 +39,7 @@ Run-Step "6 aux_market_shadow_score" @("production/ops/build_aux_market_shadow_s
 Run-Step "7 runtime_monitoring_snapshot" @("production/ops/build_runtime_monitoring_snapshot.py")
 Run-Step "7b weekly_policy_digest" @("production/ops/build_weekly_policy_digest.py")
 Run-Step "7c automation_self_check" @("production/ops/build_automation_self_check.py", "--notify-on-red")
-} catch { $failure += "market refresh chain FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "market refresh chain FAILED: $_`n" }
 try {
     if ($failure) {
         Run-Step "8 morning_alert (FAILURE banner)" @("production/ops/send_morning_alert.py", "--failure-message", $failure)
@@ -47,8 +47,8 @@ try {
         Run-Step "8 morning_alert" @("production/ops/send_morning_alert.py")
     }
 } catch {
-    Write-Warning "Alert step failed: $($_.Exception.Message)"
-    if (-not $failure) { $failure = "alert FAILED: $($_.Exception.Message)`n" }
+    Write-Warning "Alert step failed: $_"
+    if (-not $failure) { $failure = "alert FAILED: $_`n" }
 }
 
 if ($failure) {

@@ -36,7 +36,7 @@ public static extern int SetThreadExecutionState(int esFlags);
     [void][MLBProps.PowerKeepAliveNightly]::SetThreadExecutionState(-2147483583) # 0x80000041
     Write-Host "nightly_drift: keep-awake held (log => $logFile)"
 } catch {
-    Write-Warning "nightly_drift: keep-awake unavailable: $($_.Exception.Message)"
+    Write-Warning "nightly_drift: keep-awake unavailable: $_"
 }
 
 $python = Join-Path $repoRoot ".venv\Scripts\python.exe"
@@ -53,9 +53,9 @@ function Run-Step {
 
 $failure = ""
 try { Run-Step "1 settle" "production/odds/grade_odds_ledger.py" @("--auto-settle-api", "--void-scratches", "--status", "--curve") }
-catch { $failure += "settle FAILED: $($_.Exception.Message)`n" }
+catch { $failure += "settle FAILED: $_`n" }
 try { Run-Step "2 grade_all_logged" "production/projections/grade_projections.py" @("--all-logged", "--preferred-only") }
-catch { $failure += "grade FAILED: $($_.Exception.Message)`n" }
+catch { $failure += "grade FAILED: $_`n" }
 $driftRed = $false
 # Drift check has its own exit contract (0 GREEN / 1 YELLOW / 2 RED / 3 crash):
 # a YELLOW night is filed quietly, never thrown — only RED (or a crash)
@@ -68,13 +68,13 @@ if ($null -eq $driftCode) { $driftCode = if ($?) { 0 } else { 3 } }
 if ($driftCode -eq 2) { $driftRed = $true }
 elseif ($driftCode -ne 0 -and $driftCode -ne 1) { $failure += "drift_check FAILED: exit $driftCode`n" }
 try { Run-Step "4 automation_self_check" "production/ops/build_automation_self_check.py" @("--notify-on-red") }
-catch { $failure += "self_check FAILED: $($_.Exception.Message)`n" }
+catch { $failure += "self_check FAILED: $_`n" }
 # Shadow evidence (never pages: warn-only by design — research scripts must
 # not degrade a night or wake the owner).
 try { Run-Step "4b policy_freshness" "production/ops/policy_freshness_audit.py" @() }
-catch { Write-Warning "policy_freshness warn-only: $($_.Exception.Message)" }
+catch { Write-Warning "policy_freshness warn-only: $_" }
 try { Run-Step "4c stacker_gate" "production/ops/market_research/ledger_gate_stacker.py" @() }
-catch { Write-Warning "stacker_gate warn-only: $($_.Exception.Message)" }
+catch { Write-Warning "stacker_gate warn-only: $_" }
 
 # Alert only on degradation: step failures or a RED drift verdict.
 # A YELLOW drift (warnings / thin-n) stays quiet by design — it is filed in
@@ -88,8 +88,8 @@ try {
         Write-Host "`n[5 alert] skipped (no degradation; see nightly_drift_latest.json)"
     }
 } catch {
-    Write-Warning "Alert step failed: $($_.Exception.Message)"
-    if (-not $failure) { $failure = "alert FAILED: $($_.Exception.Message)`n" }
+    Write-Warning "Alert step failed: $_"
+    if (-not $failure) { $failure = "alert FAILED: $_`n" }
 }
 
 try { [void][MLBProps.PowerKeepAliveNightly]::SetThreadExecutionState(-2147483648) } catch { } # ES_CONTINUOUS: clear

@@ -358,7 +358,7 @@ screens rather than a perfectly equal hyperparameter-budget bakeoff.</p>
 <ol>
 <li>Table 2a is a <strong>single-model <code>k_rate</code> error lane</strong>.</li>
 <li>Deployment championing is a <strong>full decision lane</strong> (<code>k_rate × TBF → P(K &gt;= L)</code> with market-skill and risk metrics).</li>
-<li>A tiny <code>k_rate</code> MAE edge does not guarantee better calibrated line probabilities or better realized risk-adjusted return after exposure, pricing, and bet-selection gates.</li>
+<li>A tiny <code>k_rate</code> MAE edge does not guarantee better calibrated line probabilities or better realized risk-adjusted return after exposure, pricing, and bet-selection gates. This prioritization is independently supported: Walsh and Joshi [14] show calibration-optimized models earning ~70% higher betting returns than accuracy-optimized ones, which is why this stack calibrates (WS1c) and governs on decision metrics rather than chasing MAE rank.</li>
 </ol>
 <p><strong>Note: Why ensemble over single model (paper/interview short form)</strong></p>
 <ul>
@@ -906,6 +906,7 @@ decision columns a reader needs to reproduce the money claims.</p>
 <li>Bergmeir, C., Hyndman, R. J., and Koo, B. A note on the validity of cross-validation for evaluating autoregressive time series prediction. <em>Computational Statistics &amp; Data Analysis</em>, 120:70–83, 2018.</li>
 <li>Bailey, D. H., and López de Prado, M. The Deflated Sharpe Ratio: correcting for selection bias, backtest overfitting and non-normality. <em>The Journal of Portfolio Management</em>, 40(5):94–107, 2014.</li>
 <li>White, H. A reality check for data snooping. <em>Econometrica</em>, 68(5):1097–1126, 2000.</li>
+<li>Walsh, C., and Joshi, A. Machine learning for sports betting: Should model selection be based on accuracy or calibration? <em>Machine Learning with Applications</em>, 2024, 100539.</li>
 </ol>
 </body>
 </html>

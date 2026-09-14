@@ -505,6 +505,29 @@ def score_quote_against_board(
 
 
 
+def _attach_slate_exposure(frame: pl.DataFrame) -> pl.DataFrame:
+    """Attach per-game BET counts + staked totals (display-only).
+
+    Counts only rows already marked BET; never flips a recommendation.
+    """
+    if frame.is_empty() or not {"game_pk", "recommendation", "stake"} <= set(frame.columns):
+        return frame
+    _bet = frame.filter(pl.col("recommendation") == "BET")
+    if _bet.is_empty():
+        return frame.with_columns(
+            pl.lit(0).alias("n_game_bets"),
+            pl.lit(0.0).alias("game_bet_stake"),
+        )
+    _gexp = _bet.group_by("game_pk").agg(
+        pl.len().alias("n_game_bets"),
+        pl.col("stake").sum().alias("game_bet_stake"),
+    )
+    return frame.join(_gexp, on="game_pk", how="left").with_columns(
+        pl.col("n_game_bets").fill_null(0),
+        pl.col("game_bet_stake").fill_null(0.0),
+    )
+
+
 def latest_scorecard_warns() -> int | None:
     """Read latest model-health warning count if available."""
     if not SCORECARD_DAILY.exists():
@@ -1051,6 +1074,11 @@ def build_recommendations(
             enabled=quality_gate,
             kpi_policy_path=kpi_policy_path,
         )
+        # Slate exposure observability (display-first, 2026-09-14).
+        # Per-game BET counts + staked totals ride along for the October
+        # correlation-cap design. Columns only — BET logic byte-identical.
+        # Revert = delete the call + helper.
+        frame = _attach_slate_exposure(frame)
     else:
         gate_meta = {
             "quality_gate_enabled": quality_gate,
@@ -1122,6 +1150,17 @@ def build_recommendations(
             if not frame.is_empty() and "segment_allowed" in frame.columns
             else 0
         ),
+        "max_game_bet_stake": float(frame["game_bet_stake"].max())
+        if not frame.is_empty() and "game_bet_stake" in frame.columns
+        else 0.0,
+        "n_games_with_2plus_bets": int(
+            frame.filter(pl.col("n_game_bets") >= 2)
+            .select("game_pk")
+            .unique()
+            .height
+        )
+        if not frame.is_empty() and "n_game_bets" in frame.columns
+        else 0,
         **gate_meta,
     }
     return frame, meta

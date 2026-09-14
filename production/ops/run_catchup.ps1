@@ -33,16 +33,16 @@ Write-Host "Starting catch-up in $repoRoot"
 $failure = ""
 try {
     Run-Step "1 ledger_status" @("production/odds/grade_odds_ledger.py", "--status", "--curve")
-} catch { $failure += "settle FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "settle FAILED: $_`n" }
 try {
     Run-Step "2 grade_all_logged" @("production/projections/grade_projections.py", "--all-logged", "--preferred-only")
-} catch { $failure += "grade FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "grade FAILED: $_`n" }
 try {
     Run-Step "3 ledger_status" @("production/odds/grade_odds_ledger.py", "--status")
-} catch { $failure += "ledger_status FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "ledger_status FAILED: $_`n" }
 try {
     Run-Step "4 automation_self_check" @("production/ops/build_automation_self_check.py", "--notify-on-red")
-} catch { $failure += "self_check FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "self_check FAILED: $_`n" }
 try {
     if ($failure) {
         Run-Step "5 alert (FAILURE banner)" @("production/ops/send_morning_alert.py", "--failure-message", "Catch-up run issues:`n$failure")
@@ -50,8 +50,8 @@ try {
         Run-Step "5 alert" @("production/ops/send_morning_alert.py")
     }
 } catch {
-    Write-Warning "Alert step failed: $($_.Exception.Message)"
-    if (-not $failure) { $failure = "alert FAILED: $($_.Exception.Message)`n" }
+    Write-Warning "Alert step failed: $_"
+    if (-not $failure) { $failure = "alert FAILED: $_`n" }
 }
 
 if ($failure) {

@@ -41,12 +41,12 @@ try {
 if (-not $SkipStatcast) {
     Run-Step "1a refresh_statcast" @("production/ops/refresh_statcast.py", "--retries", "3")
 }
-} catch { $failure += "statcast FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "statcast FAILED: $_`n" }
 try {
 if (-not $SkipFeatures) {
     Run-Step "1b refresh_features" @("production/ops/refresh_features.py", "--skip-training")
 }
-} catch { $failure += "features FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "features FAILED: $_`n" }
 try {
 if (-not $SkipProjectionLog) {
     # --allow-stale matches the RUNBOOK canonical loop: a 2-day Statcast lag
@@ -54,12 +54,12 @@ if (-not $SkipProjectionLog) {
     # the whole morning (this abort mode caused the 2026-09-04 zero-bet day).
     Run-Step "1c log_projections" @("production/projections/log_projections.py", "--allow-stale")
 }
-} catch { $failure += "log_projections FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "log_projections FAILED: $_`n" }
 try {
 if (-not $SkipGradeAllLogged) {
     Run-Step "2 grade_all_logged" @("production/projections/grade_projections.py", "--all-logged", "--preferred-only")
 }
-} catch { $failure += "grade FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "grade FAILED: $_`n" }
 try {
 if (-not $SkipOddsBoard) {
     $boardArgs = @("production/odds/odds_board.py", "--unit", "50", "--roi-mode", "conservative", "--write-quotes", "artifacts/odds_log/sharp_quotes_latest.parquet")
@@ -79,7 +79,7 @@ Run-Step "7c aux_market_shadow_score" @("production/ops/build_aux_market_shadow_
 Run-Step "8 runtime_monitoring_snapshot" @("production/ops/build_runtime_monitoring_snapshot.py")
 Run-Step "8b weekly_policy_digest" @("production/ops/build_weekly_policy_digest.py")
 Run-Step "8c automation_self_check" @("production/ops/build_automation_self_check.py", "--notify-on-red")
-} catch { $failure += "board/ledger chain FAILED: $($_.Exception.Message)`n" }
+} catch { $failure += "board/ledger chain FAILED: $_`n" }
 try {
     if ($failure) {
         Run-Step "9 morning_alert (FAILURE banner)" @("production/ops/send_morning_alert.py", "--failure-message", $failure)
@@ -87,8 +87,8 @@ try {
         Run-Step "9 morning_alert" @("production/ops/send_morning_alert.py")
     }
 } catch {
-    Write-Warning "Morning alert step failed: $($_.Exception.Message)"
-    if (-not $failure) { $failure = "alert FAILED: $($_.Exception.Message)`n" }
+    Write-Warning "Morning alert step failed: $_"
+    if (-not $failure) { $failure = "alert FAILED: $_`n" }
 }
 
 if ($failure) {
