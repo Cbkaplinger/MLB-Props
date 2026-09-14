@@ -130,6 +130,22 @@ function New-Or-UpdateTask {
     schtasks @baseArgs | Out-Null
 }
 
+# Logon trigger for wake-recovery: after the box was off/asleep for days, the
+# first logon rebuilds the chain (statcast->features->projections->board->
+# poll->alert) instead of leaving a silent gap. Best-effort by design and
+# deliberately NOT in the self-check TASKS list (a never-run logon task has
+# no Last Result and would page RISK incorrectly — it IS the recovery).
+function New-Or-UpdateLogonTask {
+    param(
+        [string]$TaskName,
+        [string]$ScriptPath,
+        [string]$Delay = "0005:00"
+    )
+    $runCmd = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""
+    Write-Host "Scheduling $TaskName at logon (delay $Delay)"
+    schtasks /Create /TN $TaskName /TR $runCmd /SC ONLOGON /DELAY $Delay /F | Out-Null
+}
+
 function New-Or-UpdateRepeatingTask {
     param(
         [string]$TaskName,
@@ -212,6 +228,12 @@ New-Or-UpdateTaskActionModule -TaskName "MLBProps_MorningWorkflow" -StartTime $M
 $selfCheckCmd = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$selfCheckEntry`""
 New-Or-UpdateTaskActionModule -TaskName "MLBProps_AutomationSelfCheck" -StartTime $AutomationSelfCheckTime -Command $selfCheckCmd
 
+# Wake-recovery at logon (2026-09-14): first logon after a gap rebuilds the
+# chain. Takes effect when you re-run this setup script (owner minutes).
+$wakeScript = Join-Path $repoRoot "production\ops\run_wake_recovery.ps1"
+if (-not (Test-Path $wakeScript)) { throw "Missing script: $wakeScript" }
+New-Or-UpdateLogonTask -TaskName "MLBProps_WakeRecovery" -ScriptPath $wakeScript -Delay "0005:00"
+
 # Apply reliable-run settings now that the tasks exist (so the running/scheduled
 # copies and any future re-run all get wake-from-sleep + battery allowance).
 Enable-MLBPropsReliableRun
@@ -227,6 +249,7 @@ Write-Host " - MLBProps_EndOfDaySettle @ $SettleTime"
 Write-Host " - MLBProps_EndOfDaySettleBackfill @ $SettleBackfillStartTime (every ${SettleBackfillRepeatMinutes}m for $SettleBackfillDuration)"
 Write-Host " - MLBProps_NightlyDrift @ $NightlyDriftTime (settle+grade+drift+self-check; pages on RED only)"
 Write-Host " - MLBProps_AutomationSelfCheck @ $AutomationSelfCheckTime (captured log + --notify-on-red)"
+Write-Host " - MLBProps_WakeRecovery @ logon +5min (full chain rebuild after a gap; best-effort, unwatched by self-check)"
 Write-Host ""
 Write-Host "Run-no-matter-what configured: wake-from-sleep + allow-on-battery + don't-stop-on-battery."
 Write-Host "These run regardless of sleep state or AC power."
