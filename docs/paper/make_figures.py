@@ -517,7 +517,7 @@ def fig10_monthly() -> None:
         / "monthly_report.json"
     )
     rep = _json.loads(rep_path.read_text(encoding="utf-8"))
-    months = sorted(rep["months"])
+    months = sorted(m for m in rep["months"] if m != "2026-09")  # incomplete month excluded
     labels = [m[2:] for m in months]
     pnl = [rep["months"][m]["pnl"] for m in months]
     roi = [100.0 * rep["months"][m]["roi"] for m in months]

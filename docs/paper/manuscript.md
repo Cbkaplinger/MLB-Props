@@ -317,7 +317,7 @@ The 2026 readout is green on every axis at a third of the selection-year drawdow
 
 **How to read these numbers.** ROI is a rate (profit per dollar staked); PnL is dollars (rate × volume — a high ROI on few tickets can pay less than a lower ROI on many). LCB is the worst-plausible ROI at 95% confidence: the return floor if luck runs against us, and the quantity the champion maximizes. The White check asks whether the best of 36 configs could be luck alone (p < 0.0005: no). Brier skill measures probability accuracy against books (negative: our probabilities trail closes); ECE/MCE measure calibration average and worst-bin. CLV measures whether the market moved our way after the bet (execution quality, not profit). Sharpe/Sortino scale return by volatility (downside-only for Sortino); drawdown/Calmar measure the hole we'd sit in. xROI (mean taken edge) is what the model *expects*; ROI is what happened — the gap between them is selection and vig. No single metric promotes anything; the contract requires LCB > 0 with CLV ≥ 0, concentration caps, and book-sign agreement jointly.
 
-**Figure 9.** Monthly PnL (bars) and ROI (line) on the juiced taken set. Grey months have n < 100 and are never cited alone. CLV stays non-negative almost everywhere, including red months: execution holds while selection varies.
+**Figure 9.** Monthly PnL (bars) and ROI (line) on the juiced taken set. Grey months have n < 100 and are never cited alone; September 2026 excluded (month incomplete). CLV stays non-negative almost everywhere, including red months: execution holds while selection varies.
 
 ![Monthly PnL and ROI](figures/fig10_monthly.png)
 
