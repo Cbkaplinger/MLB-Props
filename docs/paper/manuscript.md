@@ -319,6 +319,8 @@ The 2026 readout is green on every axis at a third of the selection-year drawdow
 
 **Optionality: the bettor's edge the books cannot have.** A sportsbook must post prices on every line and profit by balancing action plus vig; it cannot pass. The bettor holds an option: bet or hold, ticket by ticket, with no obligation to act. Every policy in §6 is an exercise rule for that option — floors refuse thin edges, the veto refuses a toxic cell, the cap refuses monster edges, DK+FD-only refuses bad books. Measured calibration must be read through this lens: universe ECE (0.021) averages over lines we would never touch, while deciles on taken tickets print ECE 0.084 (4×). The book's calibration is a property of its obligation to deal; ours need only hold where we swing. Comparing against books therefore takes three numbers on the same subset, never one: Brier skill (can we out-predict — no, −0.0043), CLV (does the market move our way — yes, +1.1pp), ROI (do we get paid — yes, on selection). Any one alone misleads; jointly they say timing plus selection, not prediction.
 
+**Simulated vs realized CLV.** xCLV (model edge versus close: what the model *expected* to beat the close by) prints +8.5pp on the fair-price judge with xROI 0.17 — while realized juiced CLV prints +1.1pp with ROI +7.3%. The gap is the honesty margin: fair prices, open-soft quotes, and vig inflate expectations; executable prices deflate them. Selection uses realized (juiced) CLV only; xCLV is reported so the reader sees the full distance between model belief and market reality rather than discovering it later.
+
 **Figure 9.** Monthly PnL (bars) and ROI (line) on the juiced taken set. Grey months have n < 100 and are never cited alone; September 2026 excluded (month incomplete). CLV stays non-negative almost everywhere, including red months: execution holds while selection varies.
 
 ![Monthly PnL and ROI](figures/fig10_monthly.png)
@@ -487,7 +489,9 @@ Generated research outputs under `artifacts/` are local/reproducible and typical
 | -------------------------------------------- | ------------------------------------------------------------------ |
 | Governance metric lanes                      | `docs/reference/governance_metric_stack.md`                        |
 | Model card                                   | `docs/reference/model-card.md`                                     |
-| Canonical production runbook                 | `production/README.md`, `production/RUNBOOK.md`                    |
+| Canonical production runbook                 | `production/README.md`,
+`production/RUNBOOK.md`                    |
+| Measurement operations (replicable commands) | `docs/reference/measurement_operations.md` |
 | Feature/pipeline implementation notes        | `docs/reference/dev-notes.md`, `src/Python/`                       |
 | Rate training                                | `models/Strikeout-Model/train.py`                                  |
 | TBF training                                 | `models/TBF-Model/train.py`                                        |
