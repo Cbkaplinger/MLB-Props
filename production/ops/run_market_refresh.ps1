@@ -40,7 +40,7 @@ Run-Step "1 odds_board" $boardArgs
 Run-Step "2 poll_open" @("production/odds/poll_odds.py", "--snapshot", "open", "--unit", "50", "--roi-mode", "conservative", "--from-recommendations", "--quotes-file", "artifacts/odds_log/sharp_quotes_latest.parquet")
 Run-Step "2b frozen_edge_watch" @("production/ops/frozen_edge_watch.py")
 # Alert routing (owner 2026-09-14): the watch above OWNS flip pages
-# (skip/HOLD->BET, direct ntfy). This step sends ONLY failure banners —
+# (skip/HOLD->BET, direct ntfy). This step sends ONLY failure banners --
 # a second full-board ping per flip was double-sending. Morning workflow
 # keeps its own always-fire board alert; slate-final gate lives in the
 # sender (--skip-if-slate-final).
@@ -56,7 +56,7 @@ try {
     if ($failure) {
         Run-Step "8 morning_alert (FAILURE banner)" @("production/ops/send_morning_alert.py", "--failure-message", $failure)
     } else {
-        Write-Host "Chain green — flips page via edge-watch; no board ping (slate-final gate inside sender)."
+        Write-Host "Chain green -- flips page via edge-watch; no board ping (slate-final gate inside sender)."
     }
 } catch {
     Write-Warning "Alert step failed: $_"

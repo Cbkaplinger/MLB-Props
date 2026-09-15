@@ -11,6 +11,7 @@ import polars as pl
 
 from Python.odds_board import (
     _apply_game_cap,
+    _apply_slate_final,
     _attach_slate_exposure,
     _clip_offset,
     _edge_cap_reason,
@@ -468,6 +469,37 @@ def test_attach_slate_exposure_empty_or_missing_columns() -> None:
     assert _attach_slate_exposure(pl.DataFrame()).is_empty()
     no_cols = pl.DataFrame({"a": [1]})
     assert _attach_slate_exposure(no_cols).to_dicts() == [{"a": 1}]
+
+
+def test_slate_final_demotes_bets_after_last_first_pitch() -> None:
+    past = "2026-09-14T18:00:00Z"
+    frame = pl.DataFrame(
+        [
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15,
+             "policy_reason": "", "event_start_time": past},
+            {"game_pk": 2, "recommendation": "skip", "stake": 0.0, "edge": 0.05,
+             "policy_reason": "", "event_start_time": past},
+        ]
+    )
+    out = _apply_slate_final(frame).to_dicts()
+    assert out[0]["recommendation"] == "HOLD"
+    assert "slate_final" in out[0]["policy_reason"]
+    assert out[0]["stake"] == 50.0  # math untouched, only the flag flips
+    assert out[1]["recommendation"] == "skip"
+
+
+def test_slate_final_open_game_untouched_and_missing_clock_fail_open() -> None:
+    future = "2099-01-01T00:00:00Z"
+    frame = pl.DataFrame(
+        [{"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15,
+          "policy_reason": "", "event_start_time": future}]
+    )
+    assert _apply_slate_final(frame).to_dicts()[0]["recommendation"] == "BET"
+    no_clock = pl.DataFrame(
+        [{"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15,
+          "policy_reason": ""}]
+    )
+    assert _apply_slate_final(no_clock).to_dicts()[0]["recommendation"] == "BET"
 
 
 def test_game_cap_absent_is_byte_identical() -> None:

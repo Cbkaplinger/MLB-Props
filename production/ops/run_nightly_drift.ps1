@@ -10,7 +10,7 @@
 #   3. nightly drift check (exit 0 GREEN / 1 YELLOW / 2 RED)
 #   4. automation self-check --notify-on-red (task health still pages there)
 #   5. alert ONLY on degradation (RED, or any step failure) via ntfy banner;
-#      GREEN/YELLOW nights stay quiet — the morning board covers them.
+#      GREEN/YELLOW nights stay quiet -- the morning board covers them.
 #
 # Register with:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File "<repo>\production\ops\run_nightly_drift.ps1"
@@ -58,7 +58,7 @@ try { Run-Step "2 grade_all_logged" "production/projections/grade_projections.py
 catch { $failure += "grade FAILED: $_`n" }
 $driftRed = $false
 # Drift check has its own exit contract (0 GREEN / 1 YELLOW / 2 RED / 3 crash):
-# a YELLOW night is filed quietly, never thrown — only RED (or a crash)
+# a YELLOW night is filed quietly, never thrown -- only RED (or a crash)
 # degrades. Exit 3 exists so a crash can never masquerade as a quiet night.
 Write-Host "`n[3 drift_check] production/ops/check_nightly_drift.py"
 $out = & $python -u "production/ops/check_nightly_drift.py" *>&1 | Tee-Object -FilePath $logFile -Append
@@ -69,7 +69,7 @@ if ($driftCode -eq 2) { $driftRed = $true }
 elseif ($driftCode -ne 0 -and $driftCode -ne 1) { $failure += "drift_check FAILED: exit $driftCode`n" }
 try { Run-Step "4 automation_self_check" "production/ops/build_automation_self_check.py" @("--notify-on-red") }
 catch { $failure += "self_check FAILED: $_`n" }
-# Shadow evidence (never pages: warn-only by design — research scripts must
+# Shadow evidence (never pages: warn-only by design -- research scripts must
 # not degrade a night or wake the owner).
 try { Run-Step "4b policy_freshness" "production/ops/policy_freshness_audit.py" @() }
 catch { Write-Warning "policy_freshness warn-only: $_" }
@@ -77,7 +77,7 @@ try { Run-Step "4c stacker_gate" "production/ops/market_research/ledger_gate_sta
 catch { Write-Warning "stacker_gate warn-only: $_" }
 
 # Alert only on degradation: step failures or a RED drift verdict.
-# A YELLOW drift (warnings / thin-n) stays quiet by design — it is filed in
+# A YELLOW drift (warnings / thin-n) stays quiet by design -- it is filed in
 # nightly_drift_latest.json and reviewed with the morning board, not paged.
 try {
     if ($failure -or $driftRed) {

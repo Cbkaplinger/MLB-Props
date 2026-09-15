@@ -28,7 +28,7 @@ $selfCheckScript = Join-Path $repoRoot "production\ops\build_automation_self_che
 # NOTE: the self-check goes through run_self_check_task.ps1 (a no-arg wrapper),
 # NOT Invoke-Captured with -TargetArgs. Passing `--notify-on-red` through a
 # scheduler command line breaks under powershell.exe 5.1 -File parsing
-# (NamedParameterNotFound, exit 1, no log — reproduced 2026-09-08), and the
+# (NamedParameterNotFound, exit 1, no log -- reproduced 2026-09-08), and the
 # Scheduler CIM layer strips the double quotes that fix it interactively.
 # See production/ops/run_self_check_task.ps1 for the full story.
 $selfCheckEntry = Join-Path $repoRoot "production\ops\run_self_check_task.ps1"
@@ -134,7 +134,7 @@ function New-Or-UpdateTask {
 # first logon rebuilds the chain (statcast->features->projections->board->
 # poll->alert) instead of leaving a silent gap. Best-effort by design and
 # deliberately NOT in the self-check TASKS list (a never-run logon task has
-# no Last Result and would page RISK incorrectly — it IS the recovery).
+# no Last Result and would page RISK incorrectly -- it IS the recovery).
 function New-Or-UpdateLogonTask {
     param(
         [string]$TaskName,
@@ -204,11 +204,11 @@ function Enable-MLBPropsReliableRun {
 }
 
 # --- Register all tasks -------------------------------------------------------
-# Standard short-command tasks keep the proven schtasks helpers.
-New-Or-UpdateTask -TaskName "MLBProps_MiddayRefresh" -StartTime $MiddayRefreshTime -ScriptPath $middayScript
-New-Or-UpdateTask -TaskName "MLBProps_SecondRefresh" -StartTime $SecondRefreshTime -ScriptPath $middayScript
-# Hourly board+alert 08:00-22:00 (owner 2026-09-14): same refresh chain as
-# midday/second, every 60min for 14h. Coexists with the fixed tasks above.
+# NOTE (2026-09-14 consolidation): MiddayRefresh + SecondRefresh were deleted --
+# HourlyRefresh (below) runs the identical chain hourly 08:00-22:00. One script
+# per job: run_market_refresh.ps1 serves morning-refresh/hourly alike.
+# Hourly board+alert 08:00-22:00 (owner 2026-09-14): same refresh chain,
+# every 60min for 14h.
 New-Or-UpdateRepeatingTask -TaskName "MLBProps_HourlyRefresh" -StartTime "08:00" -ScriptPath $middayScript -RepeatMinutes 60 -Duration "14:00"
 New-Or-UpdateTask -TaskName "MLBProps_CloseWatcherStart" -StartTime $WatcherStartTime -ScriptPath $watcherScript
 New-Or-UpdateRepeatingTask -TaskName "MLBProps_CloseWatcherWatchdog" -StartTime $WatcherWatchdogTime -ScriptPath (Join-Path $repoRoot "production\ops\watch_close_watcher_health.ps1") -RepeatMinutes 60 -Duration "12:00"
@@ -245,8 +245,6 @@ Write-Host ""
 Write-Host "Scheduled tasks created/updated:"
 Write-Host " - MLBProps_MorningWorkflow @ $MorningTime (captured log)"
 Write-Host " - MLBProps_HourlyRefresh @ 08:00, every 60m for 14:00 (board+alert hourly to 22:00)"
-Write-Host " - MLBProps_MiddayRefresh @ $MiddayRefreshTime"
-Write-Host " - MLBProps_SecondRefresh @ $SecondRefreshTime"
 Write-Host " - MLBProps_CloseWatcherStart @ $WatcherStartTime"
 Write-Host " - MLBProps_CloseWatcherWatchdog @ $WatcherWatchdogTime"
 Write-Host " - MLBProps_EndOfDaySettle @ $SettleTime"

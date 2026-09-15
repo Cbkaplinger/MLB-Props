@@ -31,7 +31,7 @@ function Run-Step {
 Write-Host "Starting wake-recovery in $repoRoot"
 
 # NOTE: `throw` below raises plain strings, so catch blocks must read `$_`
-# (not `$_.Exception.Message`, which is blank for string throws — the
+# (not `$_.Exception.Message`, which is blank for string throws -- the
 # 2026-09-11 blank-banner root cause).
 $failure = ""
 try {

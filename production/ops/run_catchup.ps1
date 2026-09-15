@@ -4,7 +4,7 @@
 # self-checks and alerts. It does NOT settle (#113 step 1: only post-game
 # tasks pass --auto-settle-api; intraday settling fabricated K=0 finals in
 # #83) and does NOT fabricate paper slates for days with no morning run
-# (no projections were logged, no lines captured) — those stay a
+# (no projections were logged, no lines captured) -- those stay a
 # documented gap; this only closes out what actually exists.
 #
 # Usage:

@@ -115,6 +115,17 @@ cron — spin up, run, spin down. No standing spend at any point.
 
 ## Go-live checklist (owner gates)
 
+### Timing (all ET — laptop and cloud run the same clock)
+
+| Time | Job | Alert |
+|---|---|---|
+| 03:00 | Settle (post-game only) | silent unless failure |
+| 05:30 | Nightly drift (RED pages) | RED/failure only |
+| 08:00 | Morning board (full slate) | always (full board) |
+| 08:00–22:00 hourly | Refresh: projections + board + poll + edge-watch | flips/failure only |
+| q20min 12:00–22:07 | Close sweeps | silent (fills CLV) |
+| logon +5min | Wake recovery (laptop only) | failure banner if degraded |
+
 1. ~~`pip install modal` → `modal token new`~~ DONE 2026-09-14 (token verified, cameron-kaplinger workspace).
 2. ~~Secret `mlb-props-keys`~~ DONE 2026-09-14 (SHARPAPI/OddsAPI/NTFY, values never displayed).
 3. ~~Volume `mlb-props-state`~~ DONE 2026-09-14 (data/processed, odds_log, models, live_scores, projection_log, dimensions, kpi_policy).

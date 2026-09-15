@@ -567,6 +567,54 @@ def _apply_game_cap(frame: pl.DataFrame, rules: dict) -> pl.DataFrame:
     ).drop("_i")
 
 
+def _slate_final(frame: pl.DataFrame, now: datetime | None = None) -> bool:
+    """True when every scored game has started (day is over for betting).
+
+    Missing/unparseable times = not final (fail-open: never silence a board
+    for lack of a clock).
+    """
+    if frame.is_empty() or "event_start_time" not in frame.columns:
+        return False
+    times = [t for t in frame["event_start_time"].to_list() if t]
+    if not times:
+        return False
+    now = now or datetime.now(timezone.utc)
+    for t in times:
+        try:
+            ts = datetime.fromisoformat(str(t).replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts > now:
+                return False
+        except ValueError:
+            return False
+    return True
+
+
+def _apply_slate_final(frame: pl.DataFrame) -> pl.DataFrame:
+    """Demote BETs to HOLD once the final game has started (fail-closed).
+
+    Late flips into started games are never actionable. Rows keep their
+    edge/stake math; only the recommendation flips, tagged `slate_final`.
+    Revert = delete the call + helpers.
+    """
+    if frame.is_empty() or "recommendation" not in frame.columns:
+        return frame
+    if not _slate_final(frame):
+        return frame
+    has_reason = "policy_reason" in frame.columns
+    base_reason = pl.col("policy_reason") if has_reason else pl.lit("")
+    return frame.with_columns(
+        pl.when(pl.col("recommendation") == "BET")
+        .then(pl.lit("HOLD")).otherwise(pl.col("recommendation")).alias("recommendation"),
+        pl.when(pl.col("recommendation") == "BET")
+        .then(pl.when(base_reason == "").then(pl.lit("slate_final"))
+              .otherwise(base_reason + pl.lit("|slate_final")))
+        .otherwise(base_reason)
+        .alias("policy_reason"),
+    )
+
+
 def latest_scorecard_warns() -> int | None:
     """Read latest model-health warning count if available."""
     if not SCORECARD_DAILY.exists():
@@ -1122,6 +1170,11 @@ def build_recommendations(
         # +3.55pp ROI on the juiced taken set, 48% less volume). OFF unless
         # kpi rules set game_cap_max_bets (fail-open when absent).
         frame = _apply_game_cap(frame, _pre_rules)
+        # Slate-final guard (2026-09-14, owner order): once the last game
+        # has started the day is over for new bets — demote BETs to HOLD
+        # tagged slate_final. Staked ledger rows persist regardless.
+        # Revert = delete the call.
+        frame = _apply_slate_final(frame)
     else:
         gate_meta = {
             "quality_gate_enabled": quality_gate,
@@ -1203,6 +1256,14 @@ def build_recommendations(
             .height
         )
         if not frame.is_empty() and "n_game_bets" in frame.columns
+        else 0,
+        "n_slate_final_hold": int(
+            frame.filter(
+                pl.col("recommendation").eq("HOLD")
+                & pl.col("policy_reason").str.contains("slate_final")
+            ).height
+        )
+        if not frame.is_empty() and "policy_reason" in frame.columns
         else 0,
         **gate_meta,
     }
