@@ -31,7 +31,7 @@ alerts). Updated 2026-09-11. y = actual outcome (1{K>line} or settled PnL).
 
 | Metric | Definition | Source | Current |
 |---|---|---|---|
-| CLV | canonical close−bet, devigged pairs, pp (SOP §8 sign rule) | ledger `clv_pp`; paid `clv_paid_*_pp` | live +0.2pp-scale; paid close +0.26 / morning +0.21 |
+| CLV | canonical close−bet, devigged pairs, pp (SOP §8 sign rule) | ledger `clv_pp` (**fraction scale**: ×100 → pp); paid/juiced already percent | same-book +0.11pp/42% (headline, fillable) · consensus +0.26pp/56% (sharp ref) · cross-book +0.61pp/59% (soft-read, never headlined — `clv_flavors_report.json`) |
 | xCLV | model-minus-close ("model edge vs close"), pp | `decision_grade_report.json` | +8.5 judge |
 | xROI | mean taken edge at decision | same | 0.170 judge |
 | beat-close rate | P(CLV>0) | weekly pack | veto 0.432 (n=37) |
