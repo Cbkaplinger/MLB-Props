@@ -567,6 +567,55 @@ def _apply_game_cap(frame: pl.DataFrame, rules: dict) -> pl.DataFrame:
     ).drop("_i")
 
 
+def _stale_days(slate_date: date | None = None) -> int | None:
+    """Days between slate date and the rolling features' max date.
+
+    Reads the projection log sidecar (last_log.json -> build_meta). None =
+    unknown (fail-open: no gate without evidence).
+    """
+    try:
+        sidecar = config.OUTPUT_DIR / "projection_log" / "last_log.json"
+        meta = json.loads(sidecar.read_text(encoding="utf-8")).get("build_meta", {})
+        max_s = str(meta.get("rolling_max_date") or "")[:10]
+        if not max_s:
+            return None
+        anchor = slate_date or date.today()
+        return (anchor - date.fromisoformat(max_s)).days
+    except Exception:
+        return None
+
+
+def _apply_stale_data_hold(frame: pl.DataFrame, rules: dict,
+                           slate_date: date | None = None) -> pl.DataFrame:
+    """Fail closed on stale features: no BETs when data is older than cap.
+
+    Owner 2026-09-15: never recommend a board off stale data. Default cap 3
+    days (weekend lag tolerated); override via rules["max_stale_days"].
+    Unknown freshness = fail-open (gate needs evidence). Demoted rows become
+    HOLD tagged `stale_data`; math untouched. Revert = delete the call.
+    """
+    if frame.is_empty() or "recommendation" not in frame.columns:
+        return frame
+    try:
+        cap = int((rules or {}).get("max_stale_days", 3))
+    except (TypeError, ValueError, AttributeError):
+        return frame
+    stale = _stale_days(slate_date)
+    if stale is None or stale <= cap:
+        return frame
+    has_reason = "policy_reason" in frame.columns
+    base_reason = pl.col("policy_reason") if has_reason else pl.lit("")
+    return frame.with_columns(
+        pl.when(pl.col("recommendation") == "BET")
+        .then(pl.lit("HOLD")).otherwise(pl.col("recommendation")).alias("recommendation"),
+        pl.when(pl.col("recommendation") == "BET")
+        .then(pl.when(base_reason == "").then(pl.lit("stale_data"))
+              .otherwise(base_reason + pl.lit("|stale_data")))
+        .otherwise(base_reason)
+        .alias("policy_reason"),
+    )
+
+
 def _slate_final(frame: pl.DataFrame, now: datetime | None = None) -> bool:
     """True when every scored game has started (day is over for betting).
 
@@ -1170,6 +1219,14 @@ def build_recommendations(
         # +3.55pp ROI on the juiced taken set, 48% less volume). OFF unless
         # kpi rules set game_cap_max_bets (fail-open when absent).
         frame = _apply_game_cap(frame, _pre_rules)
+        # Stale-data fail-closed (2026-09-15, owner order): no board off
+        # stale features. Slate date from the frame; unknown = fail-open.
+        try:
+            _slate = frame["game_date"].cast(pl.Utf8).str.slice(0, 10).min()
+            _slate_d = date.fromisoformat(str(_slate)) if _slate else None
+        except Exception:
+            _slate_d = None
+        frame = _apply_stale_data_hold(frame, _pre_rules, _slate_d)
         # Slate-final guard (2026-09-14, owner order): once the last game
         # has started the day is over for new bets — demote BETs to HOLD
         # tagged slate_final. Staked ledger rows persist regardless.

@@ -12,6 +12,7 @@ import polars as pl
 from Python.odds_board import (
     _apply_game_cap,
     _apply_slate_final,
+    _apply_stale_data_hold,
     _attach_slate_exposure,
     _clip_offset,
     _edge_cap_reason,
@@ -532,3 +533,20 @@ def test_game_cap_keeps_top_edge_per_game() -> None:
     assert demoted["stake"] == 0.0
     assert by_key[(1, 0.05)]["recommendation"] == "skip"  # non-BET untouched
     assert by_key[(2, 0.12)]["recommendation"] == "BET"
+
+
+def test_stale_data_hold_demotes_only_when_stale(monkeypatch) -> None:
+    import Python.odds_board as ob
+
+    frame = pl.DataFrame(        [{"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15,
+          "policy_reason": ""}]
+    )
+    monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: 8)
+    out = _apply_stale_data_hold(frame, {}).to_dicts()
+    assert out[0]["recommendation"] == "HOLD"
+    assert out[0]["policy_reason"] == "stale_data"
+    assert out[0]["stake"] == 50.0
+    monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: 2)
+    assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"
+    monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: None)
+    assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"

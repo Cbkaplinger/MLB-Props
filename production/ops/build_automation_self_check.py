@@ -36,8 +36,7 @@ LEDGER_STALE_DAYS = 3
 
 TASKS = [
     "MLBProps_MorningWorkflow",
-    "MLBProps_MiddayRefresh",
-    "MLBProps_SecondRefresh",
+    "MLBProps_HourlyRefresh",
     "MLBProps_CloseWatcherStart",
     "MLBProps_CloseWatcherWatchdog",
     "MLBProps_EndOfDaySettle",
@@ -78,6 +77,8 @@ def _task_status(task_name: str) -> dict[str, str]:
             row["status"] = val
         elif key == "last result":
             row["last_result"] = val
+        elif key == "last run time":
+            row["last_run_time"] = val
         elif key == "next run time":
             row["next_run_time"] = val
     return row
@@ -248,13 +249,34 @@ def _describe_risk(
     missing_files: list[str],
     ledger_health: dict[str, object],
 ) -> list[str]:
-    """Human-readable risk lines for the notification body."""
+    """Human-readable risk lines for the notification body.
+
+    Every line says WHAT failed, WHEN it last ran, and WHAT to do — no bare
+    codes. Tasks that don't exist yet (NightlyDrift until registered) say so.
+    """
+    advice = {
+        "MLBProps_MorningWorkflow": "If the board still posted (check today's picks alert), this was a degraded-but-covered morning — verify, don't panic. If no board posted, run run_wake_recovery.ps1.",
+        "MLBProps_HourlyRefresh": "Intraday refresh failed; morning board still stands. Next hourly run retries automatically.",
+        "MLBProps_EndOfDaySettle": "Overnight settle missed (box was likely off). Run run_catchup.ps1 after wake, or wait for tonight's 03:00 run.",
+        "MLBProps_EndOfDaySettleBackfill": "Backfill sweep missed; covered by the next hourly cycle.",
+        "MLBProps_NightlyDrift": "Not registered yet — run setup_automation_tasks.ps1 from an elevated shell (owner minutes). Until then drift checks don't run.",
+        "MLBProps_CloseWatcherStart": "Close-watcher didn't start; closes may gap until the next sweep. Check watch_close_watcher_health output.",
+        "MLBProps_CloseWatcherWatchdog": "Watchdog missed; the watcher itself may still be alive — verify, don't assume.",
+        "MLBProps_AutomationSelfCheck": "The checker itself failed last run; other chains still page via --notify-on-red.",
+    }
     lines: list[str] = []
     for r in unhealthy:
+        task = str(r.get("task"))
+        if r.get("found") != "yes":
+            lines.append(
+                f"- {task}: not registered (no such scheduled task). "
+                + advice.get(task, "Register it via setup_automation_tasks.ps1.")
+            )
+            continue
         lines.append(
-            f"- task {r.get('task')} last_result={r.get('last_result', '?')} "
-            f"(status={r.get('status', '?')}, next={r.get('next_run_time', '?')}). "
-            "Non-zero last_result = that run failed; check its log in artifacts/ops_log/."
+            f"- {task}: last run {r.get('last_run_time', '?')} exited "
+            f"{r.get('last_result', '?')} (next: {r.get('next_run_time', '?')}). "
+            + advice.get(task, "Check its log in artifacts/ops_log/.")
         )
     for fp in missing_files:
         lines.append(f"- missing expected file: {fp}")
