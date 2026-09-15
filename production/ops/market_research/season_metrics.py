@@ -29,6 +29,9 @@ def season(rows: list[dict]) -> dict:
     n = len(rows)
     st = sum(float(r["stake_flat1u"] or 0.0) for r in rows)
     pn = sum(float(r["pnl_flat1u"] or 0.0) for r in rows)
+    gp = sum(float(r["pnl_flat1u"]) for r in rows if float(r["pnl_flat1u"] or 0.0) > 0)
+    gl = -sum(float(r["pnl_flat1u"]) for r in rows if float(r["pnl_flat1u"] or 0.0) < 0)
+    prices = [abs(float(r["price"])) for r in rows if r.get("price") is not None]
     by_day: dict[str, float] = {}
     for r in rows:
         by_day[str(r["gd"])] = by_day.get(str(r["gd"]), 0.0) + float(r["pnl_flat1u"] or 0.0)
@@ -61,6 +64,9 @@ def season(rows: list[dict]) -> dict:
         "clv_beat_rate": round(sum(1 for c in clvs if c > 0) / len(clvs), 3) if clvs else None,
         "mean_edge_xroi": round(sum(edges) / len(edges), 4) if edges else None,
         "top_cell_conc": round(top_cell, 3),
+        "profit_factor": round(gp / gl, 3) if gl else None,
+        "mean_abs_price": round(sum(prices) / len(prices), 1) if prices else None,
+        "turnover_stake": round(st, 2),
     }
 
 
