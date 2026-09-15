@@ -589,15 +589,15 @@ def _apply_stale_data_hold(frame: pl.DataFrame, rules: dict,
                            slate_date: date | None = None) -> pl.DataFrame:
     """Fail closed on stale features: no BETs when data is older than cap.
 
-    Owner 2026-09-15: never recommend a board off stale data. Default cap 3
-    days (weekend lag tolerated); override via rules["max_stale_days"].
+    Owner 2026-09-15: never recommend a board off stale data. Default cap 1
+    day (anything over a day old is stale); override via rules["max_stale_days"].
     Unknown freshness = fail-open (gate needs evidence). Demoted rows become
     HOLD tagged `stale_data`; math untouched. Revert = delete the call.
     """
     if frame.is_empty() or "recommendation" not in frame.columns:
         return frame
     try:
-        cap = int((rules or {}).get("max_stale_days", 3))
+        cap = int((rules or {}).get("max_stale_days", 1))
     except (TypeError, ValueError, AttributeError):
         return frame
     stale = _stale_days(slate_date)

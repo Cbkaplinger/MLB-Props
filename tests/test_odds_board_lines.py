@@ -547,6 +547,8 @@ def test_stale_data_hold_demotes_only_when_stale(monkeypatch) -> None:
     assert out[0]["policy_reason"] == "stale_data"
     assert out[0]["stake"] == 50.0
     monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: 2)
+    assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "HOLD"
+    monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: 1)
     assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"
     monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: None)
     assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"
