@@ -332,7 +332,22 @@ def replace_open_slate(
             if "stake" in ledger.columns
             else pl.lit(True)
         )
-        drop = is_slate & is_open & no_clv & no_stake
+        # Started games are never re-pollable: once first pitch has passed,
+        # the row is evidence for the settler, not fodder for the poller.
+        # (2026-09-14 hole: overnight re-polls dropped finished games' rows
+        # before settle filled closes.) Missing clock = fail-open (droppable).
+        if "event_start_time_utc" in ledger.columns:
+            try:
+                from datetime import datetime, timezone
+                now_s = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+                not_started = pl.col("event_start_time_utc").is_null() | (
+                    pl.col("event_start_time_utc").cast(pl.Utf8).str.slice(0, 19) > now_s
+                )
+            except Exception:
+                not_started = pl.lit(True)
+        else:
+            not_started = pl.lit(True)
+        drop = is_slate & is_open & no_clv & no_stake & not_started
         removed = int(ledger.filter(drop).height)
         for r in ledger.filter(is_slate & is_open & ~drop).to_dicts():
             kept_keys.add(open_dedupe_key(

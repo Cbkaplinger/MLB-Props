@@ -100,8 +100,7 @@ def test_open_dedupe_key_ignores_side() -> None:
     )
     assert k1 == k2
 
-def test_replace_open_slate_carries_prior_stake(tmp_path: Path) -> None:
-    # Doctrine: intraday decay never un-takes a logged ticket. A staked
+def test_replace_open_slate_carries_prior_stake(tmp_path: Path) -> None:    # Doctrine: intraday decay never un-takes a logged ticket. A staked
     # same-day row is kept and the fresh same-key row is skipped as a dupe
     # (no double-count, no stake loss on midday re-polls).
     path = tmp_path / "ledger.parquet"
@@ -126,6 +125,7 @@ def test_replace_open_slate_carries_prior_stake(tmp_path: Path) -> None:
 def test_replace_open_slate_drops_unclosed_same_day(tmp_path: Path) -> None:
     path = tmp_path / "ledger.parquet"
     old = _row(book="fanduel")
+    old["event_start_time_utc"] = "2099-07-30T23:10:00+00:00"
     append_open_rows([old], path=path)
     fresh = _row(
         book="draftkings",
@@ -309,6 +309,24 @@ def test_replace_open_slate_keeps_logged_bets(tmp_path: Path) -> None:
     assert frame.height == 2
     kept = [r for r in frame.to_dicts() if r["book"] == "draftkings"][0]
     assert kept["stake"] == 39.80
+
+
+def test_replace_open_slate_keeps_started_games(tmp_path: Path) -> None:
+    # A finished game's row is settler evidence, never poll fodder: even
+    # unstaked, it survives re-polls once its start time has passed.
+    path = tmp_path / "ledger.parquet"
+    old = _row(book="draftkings")
+    old["event_start_time_utc"] = "2026-07-29T23:10:00+00:00"
+    append_open_rows([old], path=path)
+    fresh = _row(
+        book="fanduel",
+        logged_at=datetime(2026, 7, 30, 15, 0, tzinfo=timezone.utc),
+    )
+    frame, _n_written, n_removed = replace_open_slate(
+        [fresh], slate="2026-07-30", path=path
+    )
+    assert n_removed == 0
+    assert frame.height == 2
 
 
 

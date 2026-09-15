@@ -114,8 +114,14 @@ def load_real_bets(path: Path = REAL_BETS_PATH) -> pl.DataFrame:
 def _write_meta(path: Path, n_rows: int = 0) -> None:
     from Python.odds_ledger import atomic_write_text
 
+    # Same #88 scoping as odds_ledger: tests use tmp paths but the old code
+    # always wrote the PRODUCTION sidecar (clobbering last_real_bets.json +
+    # racing background holders on Windows). Production path -> production
+    # meta; anything else -> alongside file.
+    path = Path(path)
+    meta = META_PATH if path == REAL_BETS_PATH else path.with_name(path.stem + "_meta.json")
     atomic_write_text(
-        META_PATH,
+        meta,
         json.dumps(
             {
                 "path": str(path),
