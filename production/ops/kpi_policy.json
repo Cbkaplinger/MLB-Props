@@ -44,6 +44,7 @@
       "block_edge_above_cap": true,
       "edge_cap": 0.24,
       "under_lean_premium": 0.04,
+      "flat_stakes": true,
       "fill_books": ["draftkings", "fanduel"],
       "offset_cap": 0.02,
       "season": {"regular_end": "2026-09-27", "postseason": "hold_all_no_bets", "backlog": "#103"}

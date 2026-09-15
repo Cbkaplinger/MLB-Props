@@ -394,6 +394,15 @@ def score_quote_against_board(
         edge_floor=lean_floor,
         unit_dollars=unit_dollars,
     )
+    # Flat stakes (owner 2026-09-15, nested bakeoff winner): every passing
+    # ticket stakes exactly 1u. Gate logic untouched — only dollars flatten.
+    # Absent/false key = legacy Kelly units (fail-open). Revert = key false.
+    try:
+        _flat = bool((policy_rules or {}).get("flat_stakes", False))
+    except AttributeError:
+        _flat = False
+    if _flat and bool(sizing.get("passes_floor")):
+        sizing = {**sizing, "units": 1.0, "stake": float(unit_dollars)}
     fair_key = col.replace("p_over_", "fair_amer_", 1)
     oos = row_oos_reason(board_row)
     in_support = oos is None

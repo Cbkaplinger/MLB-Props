@@ -87,14 +87,15 @@ def test_pin_edge_cap_and_robust_refusal() -> None:
 
 def test_pin_champion_promotion() -> None:
     # Promoted 2026-09-11 from the 2025-lock selection (floor 0.12 /
-    # cap 0.24 / under-lean / DK+FD-only; 2025 +15.5% LCB +7.4%,
-    # disclosed-peek 2026 judge +15.6%). Stakes/veto/probation/clip/Kelly
-    # unchanged.
+    # cap 0.24 / under-lean / DK+FD-only; 2025 +15.5% LCB +8.0%,
+    # disclosed-peek 2026 judge +15.6%). Flat $50 sizing promoted 2026-09-15
+    # (nested Sharpe bakeoff winner); veto/probation/clip unchanged.
     rules = load_kpi_policy().get("quality_gate", {}).get("rules", {})
     assert float(rules.get("edge_cap")) == 0.24
     assert float(rules.get("under_lean_premium")) == 0.04
     assert _lean_premium(rules) == 0.04
     assert _fill_books(rules) == ["draftkings", "fanduel"]
+    assert rules.get("flat_stakes") is True
 
 
 def test_pin_offset_cap() -> None:
