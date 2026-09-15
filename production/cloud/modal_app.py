@@ -35,7 +35,7 @@ VOLUME_NAME = "mlb-props-state"
 SECRET_NAME = "mlb-props-keys"
 CRON_MORNING = "0 12 * * *"  # 08:00 ET (EDT) daily
 CRON_HOURLY = "0 12-23,0-1 * * *"  # hourly board+alert 08:00-22:00 ET (EDT)
-CRON_SWEEP = "*/20 17-23,0-2 * * *"  # close sweeps q20min in game windows ET
+CRON_SWEEP = "*/20 16-23,0-2 * * *"  # close sweeps q20min 12:00-22:07 ET
 CRON_SETTLE = "0 7 * * *"  # 03:00 ET daily
 CRON_DRIFT = "30 9 * * *"  # 05:30 ET daily
 
@@ -43,6 +43,30 @@ ENV = {"PYTHONIOENCODING": "utf-8",
        "MLB_PROPS_DATA_DIR": "/state/data",
        "MLB_PROPS_OUTPUT_DIR": "/state/artifacts",
        "MLB_PROPS_SAVANT_DATA_DIR": "/state/data/Savant-Data/regular"}
+
+
+def _link_state() -> None:
+    """Point repo-tree state dirs at the volume (single place, robust).
+
+    Several scripts resolve artifact paths from the repo root instead of
+    config (edge-watch state, alert records). Symlinking makes BOTH styles
+    land on the volume: config-aware code uses /state directly, repo-root
+    code follows the link. Without this, records split-brain between volume
+    (ledger) and ephemeral container (alerts) — caught 2026-09-14.
+    """
+    import os
+    repo = "/root/mlb-props"
+    for name in ("artifacts", "data"):
+        link = os.path.join(repo, name)
+        target = os.path.join("/state", name)
+        os.makedirs(target, exist_ok=True)
+        if os.path.islink(link) or os.path.exists(link):
+            if os.path.islink(link):
+                os.unlink(link)
+            else:
+                import shutil
+                shutil.rmtree(link) if os.path.isdir(link) else os.unlink(link)
+        os.symlink(target, link)
 
 try:
     import modal
@@ -64,6 +88,7 @@ try:
         import os
         import subprocess
         os.environ.update(ENV)
+        _link_state()
         for step in (
             ["python", "-u", "production/ops/refresh_statcast.py", "--retries", "3"],
             ["python", "-u", "production/ops/refresh_features.py", "--skip-training"],
@@ -88,6 +113,7 @@ try:
         import os
         import subprocess
         os.environ.update(ENV)
+        _link_state()
         for step in (
             ["python", "-u", "production/projections/log_projections.py", "--allow-stale"],
             ["python", "-u", "production/odds/odds_board.py", "--unit", "50",
@@ -112,6 +138,7 @@ try:
         import os
         import subprocess
         os.environ.update(ENV)
+        _link_state()
         subprocess.run(["python", "-u", "production/ops/run_close_sweep.py"],
                        cwd="/root/mlb-props", check=False)
 
@@ -121,6 +148,7 @@ try:
         import os
         import subprocess
         os.environ.update(ENV)
+        _link_state()
         for step in (
             ["python", "-u", "production/odds/grade_odds_ledger.py",
              "--auto-settle-api", "--void-scratches", "--status", "--curve"],
@@ -136,6 +164,7 @@ try:
         import os
         import subprocess
         os.environ.update(ENV)
+        _link_state()
         for step in (
             ["python", "-u", "production/odds/grade_odds_ledger.py",
              "--auto-settle-api", "--void-scratches", "--status", "--curve"],

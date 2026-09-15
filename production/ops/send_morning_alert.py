@@ -174,8 +174,8 @@ def main() -> None:
         "--record-name",
         default="morning_alert_latest.json",
         help=(
-            "Send-record filename under artifacts/odds_log/ (basename only). "
-            "The nightly drift banner passes its own name so a 5am failure "
+            "Send-record filename under artifacts/odds_log/ "
+            "(basename only). The nightly drift banner passes its own name so a 5am failure "
             "record never overwrites the morning picks record."
         ),
     )

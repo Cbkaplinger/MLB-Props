@@ -21,8 +21,8 @@ from zoneinfo import ZoneInfo
 
 REPO = Path(__file__).resolve().parents[2]
 ET = ZoneInfo("America/New_York")
-WINDOW_START_H = 13
-WINDOW_END_H = 23.5
+WINDOW_START_H = 12
+WINDOW_END_H = 22.2  # last first-pitch ~22:07 ET
 
 
 def main() -> None:

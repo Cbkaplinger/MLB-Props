@@ -87,6 +87,18 @@ def send_ntfy(text: str, title: str) -> tuple[bool, str]:
         return False, f"ntfy_error={exc}"
 
 
+def _game_started(row: dict, now: datetime) -> bool:
+    """True if the row's game has started. Missing/unparseable time =
+    False (fail-open: never silence a flip for lack of a clock)."""
+    try:
+        ts = datetime.fromisoformat(str(row.get("event_start_time") or "").replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts <= now
+    except ValueError:
+        return False
+
+
 def fmt_flip(r: dict) -> str:
     price = r.get("best_price")
     try:
@@ -155,7 +167,7 @@ def main() -> None:
         apply_line_price_correction=True, apply_line_floors=True,
         apply_deploy_matrix_filter=True)
     cols = ["player_name", "line", "best_side", "recommendation", "edge",
-            "best_price", "units", "stake", "policy_reason"]
+            "best_price", "units", "stake", "policy_reason", "event_start_time"]
     cur = [dict(r) for r in frame.select([c for c in cols if c in frame.columns]).to_dicts()]
 
     if not state_path.exists():
@@ -172,6 +184,13 @@ def main() -> None:
 
     old = json.loads(state_path.read_text(encoding="utf-8"))["rows"]
     flips, lost = diff_frames(old, cur)
+    # Started games never page: a flip into a game already underway is not
+    # actionable (owner 2026-09-14). Missing clock = fail-open (still pages).
+    now = datetime.now(timezone.utc)
+    live_flips = [r for r in flips if not _game_started(r, now)]
+    if flips and not live_flips:
+        print(f"all {len(flips)} flip(s) on started games — silent.")
+    flips = live_flips
     paged: bool | str = False
     if flips:
         body = "MLB Props edge harvest (frozen AM probs vs fresh lines):\n" + "\n".join(
