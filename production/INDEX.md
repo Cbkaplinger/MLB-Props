@@ -52,7 +52,7 @@ Quick routing: "I need to do X -> run Y".
 - Start close watcher in background:
   - `powershell -ExecutionPolicy Bypass -File production/ops/start_close_watcher_background.ps1`
 - Create/update daily scheduled automation tasks:
-  - `powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:30 -WatcherStartTime 11:30 -SettleTime 03:00`
+  - `powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:00 -WatcherStartTime 11:30 -SettleTime 03:00`
 - Run one-shot automation health snapshot:
   - `python production/ops/build_automation_self_check.py --notify-on-red`
 

@@ -120,13 +120,13 @@ warn-only at the end of `pull_regular_season_closeout.py`.
 Create/update automated tasks:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:30 -WatcherStartTime 11:30 -SettleTime 03:00
+powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:00 -WatcherStartTime 11:30 -SettleTime 03:00
 ```
 
 Recommended schedule:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:30 -WatcherStartTime 11:30 -SettleTime 03:00
+powershell -ExecutionPolicy Bypass -File production/ops/setup_automation_tasks.ps1 -MorningTime 08:00 -WatcherStartTime 11:30 -SettleTime 03:00
 ```
 
 Creates:

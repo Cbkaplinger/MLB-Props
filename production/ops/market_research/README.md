@@ -48,6 +48,11 @@ Matchups: `ws9_famvuln_probe.py` (dead). Tails: `tail_recal.py` (healthy),
 Slots: `ws5b_poisson_binomial.py`, `ws5b_blend_fit.py` (dead, w=0).
 Retrain ablations: `models/Strikeout-Model/research/` (age/command/combined60/
 walkforward — path EXHAUSTED, spec section 7).
+Ratings: `glicko_pitcher_ratings.py` (YoY 0.938, gate PASS as description;
+overlay dead via `ledger_gate_glicko.py`, -0.0166). Hook table:
+`hook_pull_table.py` (353k PAs, 10% base pull — Monte Carlo pull lookup).
+September: `september_cohort.py` (FLAG: MAE +0.076, bias +0.04 — gate
+September separately in October).
 
 ## Live challengers (shadow → gate → sign-off)
 
@@ -61,6 +66,24 @@ walkforward — path EXHAUSTED, spec section 7).
 - `juiced_replay_ledger.py` (frozen `p_ours_cal`, juiced open/morning, rejected
   candidates, four sizing arms). Measurement only — do not retune live policy
   from 2026 confirmatory ROI. Report: `artifacts/odds_log/juiced_replay_report.json`.
+- `select_2025_champion.py` (36-config LCB selection on 2025 + White-lite +
+  disclosed 2026 judge — the live champion's birthplace).
+- Strata/confounder: `confounder_strata_audit.py` (edge/book/side within
+  strata + matched pairs + shuffle control). PnL: `pnl_sensitivity_audit.py`
+  (floor grid, single-slip rule, edge-band dollars, TBF tails) +
+  `season_metrics.py` (2025 vs 2026 full surface) + `monthly_prob_curves.py`
+  (monthly series + prob-curve cells) + `bettable_calibration.py` (taken-set
+  ECE 0.084 — the bettor's number, not universe 0.021).
+- Exposure: `slate_shock_join.py` (totals as slate environment) +
+  `game_cap_audit.py` (keep-best-per-game +3.55pp; enforcement staged).
+- Kalshi: disagreement filter (`kalshi_disagreement_audit.py`, KILL) →
+  signal probe (`disagreement_signal_probe.py`, r=-0.1375 SURVIVE) →
+  overlay gate (`kalshi_overlay_gate.py`, +0.0263 but 80% generic shrinkage
+  — display-only flag, not a scorer).
+- Alt curve: `alt_curve_measure.py` (0.5–14.5, no refuge — main-line game).
+- Fills: `fills_analytics.py` (paper-vs-fill drift; powers at n=20).
+- Sizing judgment: `sizing_judgment.py` (nested Sharpe bakeoff picks flat;
+  September premium KILLED; day/night both green).
 
 ## Policy inputs (live; freshness in `../policy_freshness_audit.py`)
 

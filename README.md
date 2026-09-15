@@ -294,7 +294,7 @@ follows the metric lanes above.
 
 - **Live champion (2025-lock selection, promoted 2026-09-11):**
   floor `0.12` / cap `0.24` / under-lean `+0.04` / DK+FD-only —
-  2025 `n=558` ROI `+15.5%` LCB `+7.4%`, White-lite p<0.0005,
+  2025 `n=558` ROI `+15.5%` LCB `+8.0%`, White-lite p<0.0005,
   disclosed-peek 2026 `n=485` ROI `+15.6%`.
   Prereg: `docs/reference/reports/policy_reset_2025lock_prereg_2026-09-11.md`.
 - **Single-model MAE lane winner:** `mean_expected_k_mae=1.7621`
