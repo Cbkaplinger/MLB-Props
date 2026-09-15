@@ -494,6 +494,7 @@ def score_quote_against_board(
         "offset_share_of_edge": round(float(_share), 4),
         "offset_gt_half_edge": bool(abs(_share) > 0.5),
         "opener_flag": _opener,
+        "cell_gate_2025": _cell_gate_verdict(best["side"], float(quote.line)),
         "event_start_time": quote.event_start_time,
         "oos_reason": oos,
         "recommendation": (
@@ -740,6 +741,32 @@ def _fill_books(rules: dict[str, Any]) -> list[str] | None:
         return [str(b).lower() for b in books]
     except TypeError:
         return None
+
+
+_CELL_GATE_PATH = Path(__file__).resolve().parents[2] / "production" / "ops" / "market_research" / "line_cell_gate_2025.json"
+
+
+def _cell_gate_verdict(side: str, line: float) -> str:
+    """2025-selected line x side cell verdict (display-only shadow).
+
+    Returns take/drop/unrated from the pre-registered 2025 gate
+    (line_side_policy.py: ROI>0 and n>=30 on 2025). NEVER flips a
+    recommendation — October judge + sign-off required for enforcement.
+    Missing file = unrated (fail-open).
+    """
+    try:
+        gate = json.loads(_CELL_GATE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return "unrated"
+    try:
+        key = f"{str(side).lower()}@{float(line):g}"
+    except (TypeError, ValueError):
+        return "unrated"
+    if key in set(gate.get("take", [])):
+        return "take"
+    if key in set(gate.get("drop", [])):
+        return "drop"
+    return "unrated"
 
 
 def _lean_premium(rules: dict[str, Any]) -> float:

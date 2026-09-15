@@ -552,3 +552,19 @@ def test_stale_data_hold_demotes_only_when_stale(monkeypatch) -> None:
     assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"
     monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: None)
     assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"
+
+
+def test_cell_gate_2025_marks_take_drop_unrated() -> None:
+    from Python.odds_board import _cell_gate_verdict
+
+    assert _cell_gate_verdict("under", 4.5) == "take"
+    assert _cell_gate_verdict("over", 2.5) == "drop"
+    assert _cell_gate_verdict("over", 9.5) == "unrated"
+
+
+def test_scored_row_carries_cell_gate_column() -> None:
+    s = score_quote_against_board(
+        _brow(0.70, 6.5), _quote("Test Arm", 6.5, -126, -104),
+        unit_dollars=50.0, edge_floor=0.12)
+    assert s is not None
+    assert s["cell_gate_2025"] in ("take", "drop", "unrated")

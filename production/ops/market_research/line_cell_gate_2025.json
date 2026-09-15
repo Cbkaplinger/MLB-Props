@@ -1,0 +1,20 @@
+{
+  "built_utc": "2026-09-15T20:02:57+00:00",
+  "rule": "take cell iff 2025 ROI>0 and n>=30 (pre-registered, no fit)",
+  "take": [
+    "over@5.5",
+    "over@6.5",
+    "under@4.5",
+    "under@5.5",
+    "under@6.5",
+    "under@7.5"
+  ],
+  "drop": [
+    "over@2.5",
+    "over@3.5",
+    "over@7.5",
+    "under@3.5",
+    "under@8.5"
+  ],
+  "label": "confirmatory (2026 peeked); October re-judge decides"
+}
