@@ -55,6 +55,22 @@ if (-not $SkipProjectionLog) {
     Run-Step "1c log_projections" @("production/projections/log_projections.py", "--allow-stale")
 }
 } catch { $failure += "log_projections FAILED: $_`n" }
+# Auto-heal (owner 2026-09-15): if the slate is still stale past the board
+# gate (>3d), try ONE deeper cycle (trailing re-pull + features + re-log)
+# before giving up to stale_data HOLDs. Single attempt, never loops.
+try {
+    $lastLog = Join-Path $repoRoot "artifacts\projection_log\last_log.json"
+    $staleDays = -1
+    if (Test-Path $lastLog) {
+        $staleDays = [int]((Get-Content $lastLog -Raw | ConvertFrom-Json).build_meta.stale_days)
+    }
+    if ($staleDays -gt 3) {
+        Write-Host "Stale slate (${staleDays}d) -- one auto-heal cycle."
+        Run-Step "1d heal_statcast" @("production/ops/refresh_statcast.py", "--retries", "3", "--refresh-trailing-days", "3")
+        Run-Step "1e heal_features" @("production/ops/refresh_features.py", "--skip-training")
+        Run-Step "1f heal_projections" @("production/projections/log_projections.py", "--allow-stale")
+    }
+} catch { $failure += "auto_heal FAILED: $_`n" }
 try {
 if (-not $SkipGradeAllLogged) {
     Run-Step "2 grade_all_logged" @("production/projections/grade_projections.py", "--all-logged", "--preferred-only")

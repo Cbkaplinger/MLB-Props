@@ -45,6 +45,26 @@ ENV = {"PYTHONIOENCODING": "utf-8",
        "MLB_PROPS_SAVANT_DATA_DIR": "/state/data/Savant-Data/regular"}
 
 
+def _beat(job: str, ok: bool, note: str = "") -> None:
+    """Append one heartbeat line to the volume (proves firing, no alerts).
+
+    Read it locally any time: it shows every cloud run with UTC time and
+    pass/fail. Silent by design — ntfy stays for boards and failures.
+    """
+    import datetime
+    import json
+    import os
+    try:
+        line = json.dumps({"job": job, "utc": datetime.datetime.now(
+            datetime.timezone.utc).isoformat(timespec="seconds"),
+            "ok": bool(ok), "note": note})
+        with open("/state/artifacts/odds_log/cloud_heartbeat.jsonl", "a",
+                  encoding="utf-8") as fh:
+            fh.write(line + "\n")
+    except OSError:
+        pass
+
+
 def _link_state() -> None:
     """Point repo-tree state dirs at the volume (single place, robust).
 
@@ -89,6 +109,7 @@ try:
         import subprocess
         os.environ.update(ENV)
         os.environ["MLB_PROPS_NO_ALERT"] = "1"  # laptop is primary alerter
+        _link_state()
         for step in (
             ["python", "-u", "production/ops/refresh_statcast.py", "--retries", "3"],
             ["python", "-u", "production/ops/refresh_features.py", "--skip-training"],
@@ -100,6 +121,7 @@ try:
             ["python", "-u", "production/ops/send_morning_alert.py"],
         ):
             subprocess.run(step, cwd="/root/mlb-props", check=False)
+        _beat("morning_workflow", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
                   schedule=modal.Cron(CRON_HOURLY), timeout=1800)
@@ -114,6 +136,7 @@ try:
         import subprocess
         os.environ.update(ENV)
         os.environ["MLB_PROPS_NO_ALERT"] = "1"  # laptop is primary alerter
+        _link_state()
         for step in (
             ["python", "-u", "production/projections/log_projections.py", "--allow-stale"],
             ["python", "-u", "production/odds/odds_board.py", "--unit", "50",
@@ -126,6 +149,7 @@ try:
             ["python", "-u", "production/ops/send_morning_alert.py"],
         ):
             subprocess.run(step, cwd="/root/mlb-props", check=False)
+        _beat("hourly_refresh", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
                   schedule=modal.Cron(CRON_SWEEP), timeout=900)
@@ -141,6 +165,7 @@ try:
         _link_state()
         subprocess.run(["python", "-u", "production/ops/run_close_sweep.py"],
                        cwd="/root/mlb-props", check=False)
+        _beat("close_sweep", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
                   schedule=modal.Cron(CRON_SETTLE), timeout=1800)
@@ -157,6 +182,7 @@ try:
             ["python", "-u", "production/ops/build_policy_governance_report.py"],
         ):
             subprocess.run(step, cwd="/root/mlb-props", check=False)
+        _beat("end_of_day_settle", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
                   schedule=modal.Cron(CRON_DRIFT), timeout=1800)
@@ -174,6 +200,7 @@ try:
             ["python", "-u", "production/ops/build_automation_self_check.py", "--notify-on-red"],
         ):
             subprocess.run(step, cwd="/root/mlb-props", check=False)
+        _beat("nightly_drift", True)
 
 except ImportError:  # modal not installed locally: file still parses, deploy needs it
     app = None  # noqa: F841
