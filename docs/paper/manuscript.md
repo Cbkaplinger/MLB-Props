@@ -392,6 +392,18 @@ Calibration ships with the probabilities: universe ECE 0.021 against book 0.009 
 
 Interpretability here is stable directional evidence, not one-off importance ranks: Ridge is the best single-model MAE challenger (expected_K ≈ 1.7621, k_rate ≈ 0.07668), LightGBM-monotone stays near-frontier (≈ 1.7689) while preserving the production path, and XGBoost trailed in both forms. MAE rank and deployment rank diverge by design. Full evidence list: Appendix A.7.
 
+**Verdict table: do we beat the books?**
+
+| Question | Answer (lane, n) | Verdict |
+|---|---|---|
+| Out-predict closes? | Brier skill -0.0043, universe n=19,533 | NO -- books win on probabilities |
+| Beat the close on taken tickets? | Same-book CLV +0.11pp/42%; consensus +0.26pp/56% | NARROW YES on execution |
+| Get paid on selections? | Juiced +7.3% (n=2,077); DK+FD +12.3%; champion +15.5% LCB +8.0% | YES on selection |
+| Calibrated where bet? | Bettor ECE 0.084 vs universe 0.021 | WEAK -- sized for it (1/16, caps) |
+| Timing edge? | Skill +0.044 at open, ~0 by morning | YES early, gone by T-5h |
+
+The honest summary: not a sharper model -- a sharper *process* around an ordinary model. The edge is clock, ticket, and book selection exercised through pre-registered gates, and every return figure is paper until fills attach.
+
 ### 8.9 Operational benchmark snapshot (local workstation)
 
 Parity-plus-governance refresh runs about 23 minutes wall-clock on the local workstation (sparse-lane parity ~234s/797s, governance bridge ~120s/235s). Fail-closed controls gate every promotion.
