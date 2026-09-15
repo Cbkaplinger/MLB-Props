@@ -121,8 +121,8 @@ cron — spin up, run, spin down. No standing spend at any point.
 |---|---|---|
 | 03:00 | Settle (post-game only) | silent unless failure |
 | 05:30 | Nightly drift (RED pages) | RED/failure only |
-| 08:00 | Morning board (full slate) | always (full board) |
-| 08:00–22:00 hourly | Refresh: projections + board + poll + edge-watch | flips/failure only |
+| 08:00 | Morning board (full slate) | always (full board, laptop primary) |
+| 09:00–22:00 hourly | Refresh: projections + board + poll + edge-watch | flips/failure only (laptop); cloud preview-only (`MLB_PROPS_NO_ALERT=1`) |
 | q20min 12:00–22:07 | Close sweeps | silent (fills CLV) |
 | logon +5min | Wake recovery (laptop only) | failure banner if degraded |
 

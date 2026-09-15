@@ -60,3 +60,7 @@ close_watcher.pre_split_backup.py
 # Session scratch: notebook PNG dumps (regenerate from production/notebooks)
 tmp_nb_figs/
 # docs/EXECUTION_BACKLOG.md is intentionally TRACKED (the ONE holy file) — do not re-ignore it
+# Superseded training snapshots (verified 2026-09-15: zero code references;
+# L3 pipeline is the live source). Kept on disk; never commit again.
+data/DailyPitcherModelTrainingData.csv
+data/Pitcher-Starts-2023-2025-Data/

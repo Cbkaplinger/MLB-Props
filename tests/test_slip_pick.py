@@ -11,7 +11,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "production" / "ops
 
 from send_morning_alert import _slip_pick
 
-
 def _bets(*edges: float) -> pl.DataFrame:
     return pl.DataFrame(
         [
@@ -38,3 +37,16 @@ def test_slip_pick_falls_back_under_cap() -> None:
 
 def test_slip_pick_empty_is_none() -> None:
     assert _slip_pick(pl.DataFrame({"edge": []})) is None
+
+
+def test_no_alert_env_suppresses_send(monkeypatch, tmp_path) -> None:
+    """MLB_PROPS_NO_ALERT=1 (cloud parallel) writes preview only, exit 0."""
+    import send_morning_alert as sma
+
+    monkeypatch.setenv("MLB_PROPS_NO_ALERT", "1")
+    monkeypatch.setattr(sma, "ODDS_DIR", tmp_path)
+    monkeypatch.setattr(sma, "OUT_PATH", tmp_path / "morning_alert_latest.json")
+    monkeypatch.setattr(sys, "argv", ["send_morning_alert.py"])
+    sma.main()
+    assert (tmp_path / "morning_alert_preview.json").exists()
+    assert not (tmp_path / "morning_alert_latest.json").exists()

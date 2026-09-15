@@ -34,7 +34,7 @@ APP_NAME = "mlb-props"
 VOLUME_NAME = "mlb-props-state"
 SECRET_NAME = "mlb-props-keys"
 CRON_MORNING = "0 12 * * *"  # 08:00 ET (EDT) daily
-CRON_HOURLY = "0 12-23,0-1 * * *"  # hourly board+alert 08:00-22:00 ET (EDT)
+CRON_HOURLY = "0 13-23,0-2 * * *"  # hourly board 09:00-22:00 ET (EDT); 08:00 is morning's
 CRON_SWEEP = "*/20 16-23,0-2 * * *"  # close sweeps q20min 12:00-22:07 ET
 CRON_SETTLE = "0 7 * * *"  # 03:00 ET daily
 CRON_DRIFT = "30 9 * * *"  # 05:30 ET daily
@@ -88,7 +88,7 @@ try:
         import os
         import subprocess
         os.environ.update(ENV)
-        _link_state()
+        os.environ["MLB_PROPS_NO_ALERT"] = "1"  # laptop is primary alerter
         for step in (
             ["python", "-u", "production/ops/refresh_statcast.py", "--retries", "3"],
             ["python", "-u", "production/ops/refresh_features.py", "--skip-training"],
@@ -113,7 +113,7 @@ try:
         import os
         import subprocess
         os.environ.update(ENV)
-        _link_state()
+        os.environ["MLB_PROPS_NO_ALERT"] = "1"  # laptop is primary alerter
         for step in (
             ["python", "-u", "production/projections/log_projections.py", "--allow-stale"],
             ["python", "-u", "production/odds/odds_board.py", "--unit", "50",

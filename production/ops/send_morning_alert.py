@@ -181,6 +181,23 @@ def main() -> None:
     )
     args = p.parse_args()
 
+    # Parallel-proofing (2026-09-15): the cloud runs the same chain while the
+    # laptop is primary. MLB_PROPS_NO_ALERT=1 turns this into a preview-only
+    # run (exit 0) so two machines never double-ping. Set in modal_app.py
+    # hourly_refresh; removed at cutover when the cloud becomes primary.
+    if os.getenv("MLB_PROPS_NO_ALERT", "").strip() == "1" and not args.dry_run:
+        msg = _build_message()
+        out_path = OUT_PATH.parent / "morning_alert_preview.json"
+        out_path.write_text(json.dumps({
+            "sent_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "message": msg,
+            "results": [{"channel": "preview", "ok": True, "detail": "MLB_PROPS_NO_ALERT=1"}],
+            "any_sent": False,
+        }, indent=2), encoding="utf-8")
+        print(f"NO_ALERT=1: wrote {out_path}")
+        print(msg)
+        return
+
     msg = _build_message()
     if args.failure_message.strip():
         msg = f"AUTOMATION FAILURE\n{args.failure_message.strip()}\n\n{msg}"
