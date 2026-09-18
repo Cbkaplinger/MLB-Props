@@ -175,8 +175,10 @@ Phase charts (keep separate; do not collapse into one mega-flowchart):
   are experimental for k-rate and do not enter the 184-feature freeze.
 - **Count layer legacy baseline lane:** older walk-forward/chrono metrics are
   retained as context. Current single-model MAE lane
-  leader is ≈ 1.7621 (see governance stack). **Post-hoc isotonic** maps
-  (current pointer: `prob_calibration_isotonic_20260821_160723`) apply in
+  leader is ≈ 1.7621 (see governance stack). **Live calibrator is WS1c
+  per-line Platt** (shipped 2026-09-10, 8 lines; isotonic-20260821 pointer
+  below retained for lineage only). **Post-hoc isotonic** maps
+  (pointer: `prob_calibration_isotonic_20260821_160723`) apply in
   `score_frame` when the production pointer is set; raw `p_over_*` retained,
   `p_over_*_cal` used for fair odds / edge
   (`docs/research/prob_calibration_findings.md`). Lines **2.5…9.5** (2.5/8.5/9.5

@@ -73,3 +73,10 @@ Fills unmodeled. 2026 is confirmatory — not a live-policy input.
 
 Sizing did not beat flat on ROI. BetRivers next-book soak (n=1,001, ROI +2.3%,
 WR 0.429) is why all-books < DK+FD. Do not promote from 2026.
+
+> 2026-09-17 pointer: full-season resim rebuilt-panel truth is 2,493 / 1,576 /
+> 917 (+5.3% / +2.9% / +9.5%; DK+FD-only n=1,136 +8.7%) — see manuscript Table 3
+> + Appendix A.7 and `monthly_summary_2026-09-17.md`. Table above is the 9/11
+> panel, retained for lineage; cite the resim for current work. Champion
+> selection/judge truth is 2025 n=505 +11.0% LCB +3.0% → 2026 n=460 +8.8%
+> LCB +0.2% (White p=0.0075); 9/11 n=558/n=485 +15.5%/+15.6% superseded.

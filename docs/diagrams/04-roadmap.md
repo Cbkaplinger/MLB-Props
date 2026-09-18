@@ -68,7 +68,7 @@ flowchart TB
 | Track | State |
 |---|---|
 | Frozen stack | **Poisson + WS1c live** (shipped 2026-09-10; ship-lift +0.0016) |
-| Live policy | **Champion** (cap 0.24 / lean +0.04 / DK+FD-only / clip ±0.02; 2025 +15.5% → 2026 +15.6% disclosed peek; pin green) |
+| Live policy | **Champion** (cap 0.24 / lean +0.04 / DK+FD-only / clip ±0.02; rebuilt-panel truth 2025 n=505 +11.0% → 2026 n=460 +8.8% disclosed peek, White p=0.0075; 9/11 pre-WS1c +15.5%→+15.6% superseded; pin green) |
 | Sizing | **1/16-Kelly live**, flat 1u research benchmark (flat wins paper ROI everywhere; "⅛ Kelly" in August rows below is stale) |
 | Replay lake | **On disk** (vendor envelopes, juiced ledger, slate totals joined) |
 | Retrain | **Closed** (walk-forward dead #66) |
@@ -83,7 +83,7 @@ flowchart TB
 | Live assembly | **Shipped** — `production/` refresh → log → grade (`docs/reference/live_assembly_plan.md`) |
 | Paper trading / CLV | **Shipped ops; sample building** — edge floor **12%** + ⅛ Kelly (frozen 2026-08-06) + tip closes (`docs/reference/market_clv_gates.md`) |
 | CLV skill suite (dashboard) | **Shipped 2026-08-06** — `production/notebooks/results_dashboard.ipynb` §11-20: reliability, residual decomposition, chrono recalibration test, and daily scorecard (`docs/research/notebook_change_log.md`) |
-| Focused monitor split | **Shipped 2026-08-11** — `results_kpi_monitor`, `results_calibration_lab`, `results_gate_policy`, `results_pnl_clv` |
+| Focused monitor split | **Shipped 2026-08-11** — `results_kpi_monitor`, `results_calibration_lab`, `results_pnl_clv`; `results_gate_policy` **retired 2026-09-17** into `results_bettable_cohort` |
 | Policy simulator CLI | **Shipped 2026-08-11** — `production/ops/policy_simulator.py` writing scenario artifacts |
 | Daily KPI + dynamic gate policy | **Shipped** — `production/ops/kpi_policy.json`, `production/ops/kpi_daily_action.py`, `docs/reference/daily_kpi_protocol.md` |
 | Quality gate in live odds flow | **Shipped** — `production/odds/odds_board.py` and `production/odds/poll_odds.py` (`--quality-gate`) |

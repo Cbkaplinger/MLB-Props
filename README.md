@@ -5,7 +5,8 @@
 Production-first MLB pitcher strikeout props stack: frozen model (k-rate
 ensemble × TBF ridge → Poisson + WS1c), a policy layer promoted by
 pre-registered selection (2025-lock champion: floor `0.12` / cap `0.24` /
-under-lean / DK+FD-only, 2025 ROI `+15.5%` → disclosed-peek 2026 `+15.6%`),
+under-lean / DK+FD-only, 2025 ROI `+11.0%` → disclosed-peek 2026 `+8.8%`
+rebuilt-panel truth; 9/11 pre-WS1c values `+15.5%`→`+15.6%` superseded),
 board-to-ledger parity lock, and a 345+ test suite with a regression pin
 on the live stack.
 
@@ -294,8 +295,10 @@ follows the metric lanes above.
 
 - **Live champion (2025-lock selection, promoted 2026-09-11):**
   floor `0.12` / cap `0.24` / under-lean `+0.04` / DK+FD-only —
-  2025 `n=558` ROI `+15.5%` LCB `+8.0%`, White-lite p<0.0005,
-  disclosed-peek 2026 `n=485` ROI `+15.6%`.
+  2025 `n=505` ROI `+11.0%` LCB `+3.0%`, White p=0.0075,
+  disclosed-peek 2026 `n=460` ROI `+8.8%` LCB `+0.2%`
+  (rebuilt-panel truth post-9/16 book-filter fix + September closeout;
+  9/11 pre-WS1c `n=558`/`n=485` `+15.5%`/`+15.6%` superseded, see manuscript §6 staleness disclosure).
   Prereg: `docs/reference/reports/policy_reset_2025lock_prereg_2026-09-11.md`.
 - **Single-model MAE lane winner:** `mean_expected_k_mae=1.7621`
   (Ridge on `production_sparse72`).
