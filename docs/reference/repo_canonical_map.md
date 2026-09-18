@@ -100,3 +100,56 @@ Delete only after all checks pass:
 - Frozen model docs under `docs/research/` that are cited by manuscript/reference docs.
 - Current `production/notebooks/*.ipynb` set.
 - Policy/config surfaces under `production/ops/` (including `kpi_policy.json` and anomaly overrides).
+
+## Pipeline catalog (Phase 10 census 2026-09-17 — design-only, no live changes)
+
+Machine-readable source of truth: `docs/reference/pipeline_registry.json`
+(`mlb-props-pipelines-v1`: 9 pipelines, 10 schedules, 6 datasets, 12 gaps,
+42 discovery answers). Work sequencing lives only in `docs/EXECUTION_BACKLOG.md`.
+
+| ID | Pipeline | Status | Trigger |
+|---|---|---|---|
+| P1-INGEST | Collection (baseball + odds arms) | Live (paid pull frozen) | Morning chain + tip windows + manual |
+| P2-FEATURES | Transform + L1–L3 | Live | `refresh_features` / live assembly |
+| P3-TRAIN | Training + calibration | Frozen-closed | Manual only |
+| P4-SERVE | Daily serving + selection | Live | Morning 08:00 + hourly 09–22 |
+| P5-CLOSE | Close capture | Live (daemon→cron migration in flight) | Tip windows + q20m sweep + manual |
+| P6-SETTLE | Settlement + grading + monitoring | Live | Settle 03:00 + drift 05:30 |
+| P7-REPLAY | Replay + policy simulation | Research-on-live-code | Manual |
+| P8-EVAL | Evaluation + promotion gates | Live-fragmented → unify (October) | Weekly / manual |
+| P9-PUBLISH | Notebooks + publication | Live (thin-client migration queued) | Manual |
+| OPS | Control plane (schedules, healers, probes, backfills) | Live | Cron / scheduler / manual |
+
+```mermaid
+flowchart LR
+    subgraph COLLECT [P1 collect]
+        BB[baseball: statcast/lineups] --> FEAT
+        ODDS[odds: Sharp live + OddsAPI lake] --> SERVE
+        ODDS --> REPLAY
+    end
+    subgraph BUILD [P2/P3 build]
+        FEAT[P2 L1-L3 features] --> TRAIN[P3 train+calib frozen]
+        TRAIN --> SERVE
+    end
+    subgraph DAILY [P4/P5/P6 daily]
+        SERVE[P4 projections-board-poll-alert] --> LEDGER[(ledger)]
+        LEDGER --> CLOSE[P5 watcher/sweep]
+        CLOSE --> LEDGER
+        LEDGER --> SETTLE[P6 settle-grade-drift]
+    end
+    subgraph LEARN [P7/P8/P9 learn]
+        LEDGER --> REPLAY[P7 juiced/select/ab]
+        LEDGER --> EVAL[P8 weekly/quant/gates]
+        REPLAY --> PUBLISH[P9 notebooks/paper]
+        EVAL --> PUBLISH
+    end
+    OPSCTRL([OPS control plane]) -. schedules/heals .-> DAILY
+```
+
+Shared-vs-prop rule: plumbing (`odds_ledger`, `market.py`, poll/grade/watcher mechanics,
+schedulers, ntfy) reuses unchanged; floors/books/closes/dedupe-keys configure;
+target/aliases/lines/settlement/domain-features/model/slices go through a prop
+adapter (outs before batter; extract only with a second prop proving the contract).
+Top gaps: Modal UTC-vs-EDT DST (G-OPS-1), no freshness gate on the board (G-OBS-1),
+5 unguarded test invariants (probation→lean order, double-settle, close denominator,
+training PIT, live poll book-universe).

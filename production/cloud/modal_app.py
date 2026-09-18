@@ -23,9 +23,9 @@ config's MLB_PROPS_DATA_DIR / MLB_PROPS_OUTPUT_DIR overrides point at it.
 One-time upload: modal volume put mlb-props-state data/ data + artifacts/
 artifacts (hot state ~350 MB; Savant raw + Odds-Historical lake stay local).
 Deploy: modal deploy production/cloud/modal_app.py (after token + upload).
-Close-sweep cron (watcher replacement) is NOT yet a function here — it needs
-a small sweep script first (fetch latest quotes in game windows, write close
-rows, exit); port it at cutover, not before.
+Close-sweep cron (watcher replacement) is the `close_sweep` function below:
+fetches latest quotes in game windows via run_close_sweep.py, writes close
+rows, exits (ET-window-gated, idempotent).
 """
 
 from __future__ import annotations
@@ -33,16 +33,21 @@ from __future__ import annotations
 APP_NAME = "mlb-props"
 VOLUME_NAME = "mlb-props-state"
 SECRET_NAME = "mlb-props-keys"
-CRON_MORNING = "0 12 * * *"  # 08:00 ET (EDT) daily
-CRON_HOURLY = "0 13-23,0-2 * * *"  # hourly board 09:00-22:00 ET (EDT); 08:00 is morning's
-CRON_SWEEP = "*/20 16-23,0-2 * * *"  # close sweeps q20min 12:00-22:07 ET
-CRON_SETTLE = "0 7 * * *"  # 03:00 ET daily
-CRON_DRIFT = "30 9 * * *"  # 05:30 ET daily
+# All wall-clock jobs run on New York local time (OPS-1A 2026-09-17: explicit
+# IANA timezone so EST no longer fires 1h early; expressions below are LOCAL,
+# not UTC.
+SCHEDULE_TZ = "America/New_York"
+CRON_MORNING = "0 8 * * *"  # 08:00 NY daily
+CRON_HOURLY = "0 9-22 * * *"  # hourly board 09:00-22:00 ET (EDT); 08:00 is morning's
+CRON_SWEEP = "*/20 12-22 * * *"  # close sweeps q20min 12:00-22:07 ET
+CRON_SETTLE = "0 3 * * *"  # 03:00 NY daily
+CRON_DRIFT = "30 5 * * *"  # 05:30 NY daily
 
 ENV = {"PYTHONIOENCODING": "utf-8",
        "MLB_PROPS_DATA_DIR": "/state/data",
        "MLB_PROPS_OUTPUT_DIR": "/state/artifacts",
-       "MLB_PROPS_SAVANT_DATA_DIR": "/state/data/Savant-Data/regular"}
+# OPS-1A 2026-09-17: image e ships the tz deploy (heartbeat marker).
+IMAGE_VERSION = "2026-09-17e"
 
 
 def _beat(job: str, ok: bool, note: str = "") -> None:
@@ -103,7 +108,7 @@ try:
     secrets = modal.Secret.from_name(SECRET_NAME)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_MORNING), timeout=3600)
+                  schedule=modal.Cron(CRON_MORNING, timezone=SCHEDULE_TZ), timeout=3600)
     def morning_workflow() -> None:
         import os
         import subprocess
@@ -124,7 +129,7 @@ try:
         _beat("morning_workflow", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_HOURLY), timeout=1800)
+                  schedule=modal.Cron(CRON_HOURLY, timezone=SCHEDULE_TZ), timeout=1800)
     def hourly_refresh() -> None:
         """Hourly board + poll + edge-watch + alert, 08:00-22:00 ET.
 
@@ -152,7 +157,7 @@ try:
         _beat("hourly_refresh", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_SWEEP), timeout=900)
+                  schedule=modal.Cron(CRON_SWEEP, timezone=SCHEDULE_TZ), timeout=900)
     def close_sweep() -> None:
         """Close fills q20min in game windows (watcher-daemon replacement).
 
@@ -168,7 +173,7 @@ try:
         _beat("close_sweep", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_SETTLE), timeout=1800)
+                  schedule=modal.Cron(CRON_SETTLE, timezone=SCHEDULE_TZ), timeout=1800)
     def end_of_day_settle() -> None:
         import os
         import subprocess
@@ -185,7 +190,7 @@ try:
         _beat("end_of_day_settle", True)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_DRIFT), timeout=1800)
+                  schedule=modal.Cron(CRON_DRIFT, timezone=SCHEDULE_TZ), timeout=1800)
     def nightly_drift() -> None:
         import os
         import subprocess
