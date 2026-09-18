@@ -232,6 +232,21 @@ def main() -> None:
     # the live record with a preview payload.)
     out_path = OUT_PATH.parent / "morning_alert_preview.json" if args.dry_run else OUT_PATH.parent / Path(args.record_name).name
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    # OBS-1 run manifest (provenance only — never gates paging, never raises).
+    # Slate identity lives with the board; the alerter records what it knows.
+    try:
+        from Python.run_manifest import (  # noqa: E402
+            emit_manifest_safely,
+            manifest_from_alert,
+            manifest_path,
+        )
+        _man = manifest_from_alert(
+            any_sent=bool(payload["any_sent"]),
+            failure_message=args.failure_message,
+        )
+        emit_manifest_safely(_man, manifest_path(OUT_PATH.parent, "P4-SERVE"))
+    except Exception:
+        pass
     print(f"wrote {out_path}")
     print(msg)
 

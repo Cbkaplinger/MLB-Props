@@ -261,6 +261,20 @@ def main() -> int:
     rep = {"generated_utc": datetime.now(timezone.utc).isoformat(),
            "verdict": verdict, "today": today.isoformat(), "checks": checks}
     atomic_write_text(OUT_JSON, json.dumps(rep, indent=2, default=str))
+    # OBS-1 run manifest (provenance only — never gates, never raises).
+    try:
+        from Python.run_manifest import (  # noqa: E402
+            emit_manifest_safely,
+            manifest_from_drift,
+            manifest_path,
+        )
+        _failing = [c["name"] for c in checks if c.get("verdict") != "GREEN"]
+        _man = manifest_from_drift(
+            verdict=verdict, today=today.isoformat(), failing_checks=_failing
+        )
+        emit_manifest_safely(_man, manifest_path(ODDS_DIR, "P6-SETTLE"))
+    except Exception:
+        pass
     try:
         with open(OUT_HIST, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rep, default=str) + "\n")
