@@ -66,3 +66,51 @@ def test_max_date_never_raises() -> None:
     assert drift._max_date(["garbage", "2026-09-08", None]) == datetime.date(2026, 9, 8)
     assert drift._max_date([]) is None
     assert drift._max_date(["garbage"]) is None
+
+
+def _write_last_log(path, rolling_max=None):
+    import json
+
+    meta = {"rolling_max_date": rolling_max} if rolling_max else {}
+    path.write_text(json.dumps({"build_meta": meta}), encoding="utf-8")
+
+
+def test_serving_freshness_fresh(monkeypatch, tmp_path) -> None:
+    import datetime
+
+    log = tmp_path / "last_log.json"
+    _write_last_log(log, "2026-09-17")
+    monkeypatch.setattr(drift, "LAST_LOG", log)
+    stale, note = drift.serving_freshness(datetime.date(2026, 9, 18))
+    assert stale == 1
+    assert "2026-09-17" in note
+
+
+def test_serving_freshness_stale(monkeypatch, tmp_path) -> None:
+    import datetime
+
+    log = tmp_path / "last_log.json"
+    _write_last_log(log, "2026-09-07")
+    monkeypatch.setattr(drift, "LAST_LOG", log)
+    stale, _ = drift.serving_freshness(datetime.date(2026, 9, 18))
+    assert stale == 11
+    assert drift.freshness_verdict(stale) == "RED"
+
+
+def test_serving_freshness_missing_is_unknown(monkeypatch, tmp_path) -> None:
+    import datetime
+
+    monkeypatch.setattr(drift, "LAST_LOG", tmp_path / "absent.json")
+    stale, note = drift.serving_freshness(datetime.date(2026, 9, 18))
+    assert stale is None
+    assert "no last_log" in note
+
+
+def test_serving_freshness_garbage_is_unknown(monkeypatch, tmp_path) -> None:
+    import datetime
+
+    log = tmp_path / "last_log.json"
+    log.write_text("{oops", encoding="utf-8")
+    monkeypatch.setattr(drift, "LAST_LOG", log)
+    stale, _ = drift.serving_freshness(datetime.date(2026, 9, 18))
+    assert stale is None

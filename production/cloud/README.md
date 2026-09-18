@@ -10,7 +10,7 @@ flowchart LR
     subgraph MODAL["Modal Starter ($0)"]
         IMG[Image: code + deps\n(versioned, rebuilt on deploy)]
         VOL[(Volume: hot state ~350MB\nL3/rolling, ledger, recs,\nscores, models, policies)]
-        CRON1[08:30 morning chain]
+        CRON1[08:00 morning chain]
         CRON2[03:00 settle]
         CRON3[05:30 drift]
         CRON4[q15min close sweeps\nin game windows\n(script unbuilt)]
@@ -115,16 +115,16 @@ cron — spin up, run, spin down. No standing spend at any point.
 
 ## Go-live checklist (owner gates)
 
-### Timing (all ET — laptop and cloud run the same clock)
+### Timing (all ET — laptop and cloud run the same clock; Modal crons carry explicit `America/New_York` since OPS-1A 2026-09-17, so EST no longer fires 1h early)
 
-| Time | Job | Alert |
-|---|---|---|
-| 03:00 | Settle (post-game only) | silent unless failure |
-| 05:30 | Nightly drift (RED pages) | RED/failure only |
-| 08:00 | Morning board (full slate) | always (full board, laptop primary) |
-| 09:00–22:00 hourly | Refresh: projections + board + poll + edge-watch | flips/failure only (laptop); cloud preview-only (`MLB_PROPS_NO_ALERT=1`) |
-| q20min 12:00–22:07 | Close sweeps | silent (fills CLV) |
-| logon +5min | Wake recovery (laptop only) | failure banner if degraded |
+| Time (NY) | Timezone | Job | Alert |
+|---|---|---|---|
+| 03:00 | America/New_York | Settle (post-game only) | silent unless failure |
+| 05:30 | America/New_York | Nightly drift (RED pages) | RED/failure only |
+| 08:00 | America/New_York | Morning board (full slate) | always (full board; cloud primary since 9/16 cutover) |
+| 09:00–22:00 hourly | America/New_York | Refresh: projections + board + poll + edge-watch | flips/failure only |
+| q20min 12:00–22:07 | America/New_York | Close sweeps | silent (fills CLV) |
+| logon +5min | host local | Wake recovery (laptop only) | failure banner if degraded |
 
 1. ~~`pip install modal` → `modal token new`~~ DONE 2026-09-14 (token verified, cameron-kaplinger workspace).
 2. ~~Secret `mlb-props-keys`~~ DONE 2026-09-14 (SHARPAPI/OddsAPI/NTFY, values never displayed).

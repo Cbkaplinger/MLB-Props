@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from Python.run_manifest import (  # noqa: E402
     NO_BET_REASONS,
     RUN_STATUSES,
+    artifact_version,
     emit_manifest_safely,
     finish_run,
     manifest_from_alert,
@@ -93,3 +94,38 @@ def test_alert_and_drift_mappings() -> None:
     red = manifest_from_drift(verdict="RED", today="2026-09-17",
                               failing_checks=["veto_leak"])
     assert red["status"] == "FAILED" and red["errors"] == ["veto_leak"]
+
+
+def test_artifact_version_ok_and_missing(tmp_path: Path) -> None:
+    path = tmp_path / "kpi_policy.json"
+    path.write_text('{"a": 1}', encoding="utf-8")
+    stamped = artifact_version(path, "kpi")
+    assert stamped is not None and stamped.startswith("kpi:")
+    assert len(stamped) == len("kpi:") + 12
+    assert artifact_version(tmp_path / "absent.json", "kpi") is None
+
+
+def test_builder_threads_rows_and_versions() -> None:
+    out = manifest_from_alert(
+        any_sent=True, slate_date="2026-09-18",
+        input_rows={"board": 30, "quotes": 47, "matched": 26},
+        output_rows={"bet": 1, "hold": 5},
+        as_of_utc="2026-09-18T14:00:30+00:00",
+        input_cutoff_utc="2026-09-18T14:00:30+00:00",
+        policy_version="kpi:abc123",
+        model_version="krate:def456",
+        calibration_version="ws1c:789aaa",
+    )
+    assert out["status"] == "SUCCESS_FRESH"
+    assert out["slate_date"] == "2026-09-18"
+    assert out["input_rows"] == {"board": 30, "quotes": 47, "matched": 26}
+    assert out["output_rows"] == {"bet": 1, "hold": 5}
+    assert out["policy_version"] == "kpi:abc123"
+    assert out["model_version"] == "krate:def456"
+    assert out["calibration_version"] == "ws1c:789aaa"
+    drift = manifest_from_drift(
+        verdict="GREEN", today="2026-09-18", n_settled=1895,
+        policy_version="kpi:abc123",
+    )
+    assert drift["input_rows"] == {"settled": 1895}
+    assert drift["policy_version"] == "kpi:abc123"

@@ -17,6 +17,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib import request
+from zoneinfo import ZoneInfo
 
 import polars as pl
 
@@ -30,6 +31,54 @@ load_project_dotenv()
 
 ODDS_DIR = ROOT / "artifacts" / "odds_log"
 OUT_PATH = ODDS_DIR / "morning_alert_latest.json"
+ET = ZoneInfo("America/New_York")
+
+
+def _load_edge_watch_today(path: Path | None = None) -> dict | None:
+    """Today's edge-watch report (newest existing candidate), or None.
+
+    The producer names files with system-local `date.today()` (UTC on Modal
+    containers, ET on the laptop), so a single ET-derived name misses across
+    the 00:00–04:00 UTC window. Candidates are ET-today then UTC-today; the
+    most recently modified parseable file wins. Unknown (nothing parseable)
+    means fail-OPEN: a flips-only caller must page rather than assume quiet.
+    """
+    if path is not None:
+        try:
+            payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return payload if isinstance(payload, dict) else None
+    utc_today = datetime.now(timezone.utc).date().isoformat()
+    et_today = datetime.now(ET).date().isoformat()
+    best: dict | None = None
+    best_mtime = -1.0
+    for day in (et_today, utc_today):
+        candidate = ODDS_DIR / f"edge_watch_report_{day}.json"
+        try:
+            mtime = candidate.stat().st_mtime
+            payload = json.loads(candidate.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(payload, dict) and mtime > best_mtime:
+            best, best_mtime = payload, mtime
+    return best
+
+
+def _flips_fire(state: dict | None, *, failure_message: str = "") -> tuple[bool, str]:
+    """Flips-only gate: page on failure, unknown state, or non-empty flips.
+
+    Returns (fire, reason). Quiet ONLY when the watch explicitly reports
+    zero flips for today.
+    """
+    if str(failure_message or "").strip():
+        return True, "failure-banner"
+    if state is None:
+        return True, "unknown-watch-state-fail-open"
+    flips = state.get("flips") or []
+    if len(flips) > 0:
+        return True, f"{len(flips)}-flips"
+    return False, "no-flips-quiet"
 
 
 def _safe_json(path: Path) -> dict:
@@ -198,6 +247,21 @@ def main() -> None:
         print(msg)
         return
 
+    if args.flips_only and not args.dry_run:
+        _fire, _why = _flips_fire(
+            _load_edge_watch_today(), failure_message=args.failure_message)
+        if not _fire:
+            out_path = OUT_PATH.parent / "morning_alert_preview.json"
+            out_path.write_text(json.dumps({
+                "sent_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "message": f"flips-only quiet ({_why}); no page sent.",
+                "results": [{"channel": "suppressed", "ok": True,
+                             "detail": f"flips-only:{_why}"}],
+                "any_sent": False,
+            }, indent=2), encoding="utf-8")
+            print(f"flips-only quiet ({_why}): wrote {out_path}")
+            return
+
     msg = _build_message()
     if args.failure_message.strip():
         msg = f"AUTOMATION FAILURE\n{args.failure_message.strip()}\n\n{msg}"
@@ -236,13 +300,33 @@ def main() -> None:
     # Slate identity lives with the board; the alerter records what it knows.
     try:
         from Python.run_manifest import (  # noqa: E402
+            artifact_version,
             emit_manifest_safely,
             manifest_from_alert,
             manifest_path,
         )
+        _meta = _safe_json(OUT_PATH.parent / "recommendations_meta.json")
         _man = manifest_from_alert(
             any_sent=bool(payload["any_sent"]),
             failure_message=args.failure_message,
+            slate_date=_meta.get("slate_date"),
+            input_rows={
+                k: int(_meta[k]) for k in ("n_board", "n_quotes", "n_matched")
+                if isinstance(_meta.get(k), (int, float))
+            } or None,
+            output_rows={
+                k: int(_meta[k]) for k in ("n_bet", "n_hold")
+                if isinstance(_meta.get(k), (int, float))
+            } or None,
+            as_of_utc=_meta.get("built_at_utc"),
+            input_cutoff_utc=_meta.get("built_at_utc"),
+            policy_version=artifact_version(
+                ROOT / "production" / "ops" / "kpi_policy.json", "kpi"),
+            model_version=artifact_version(
+                ROOT / "production" / "ops" / "live_krate_ensemble.json", "krate"),
+            calibration_version=artifact_version(
+                ROOT / "artifacts" / "models" / "prob_calibration_production.json",
+                "ws1c"),
         )
         emit_manifest_safely(_man, manifest_path(OUT_PATH.parent, "P4-SERVE"))
     except Exception:

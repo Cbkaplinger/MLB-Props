@@ -46,8 +46,10 @@ CRON_DRIFT = "30 5 * * *"  # 05:30 NY daily
 ENV = {"PYTHONIOENCODING": "utf-8",
        "MLB_PROPS_DATA_DIR": "/state/data",
        "MLB_PROPS_OUTPUT_DIR": "/state/artifacts",
+       "MLB_PROPS_SAVANT_DATA_DIR": "/state/data/Savant-Data/regular"}
+
 # OPS-1A 2026-09-17: image e ships the tz deploy (heartbeat marker).
-IMAGE_VERSION = "2026-09-17e"
+IMAGE_VERSION = "2026-09-17f"
 
 
 def _beat(job: str, ok: bool, note: str = "") -> None:
@@ -151,7 +153,7 @@ try:
              "--unit", "50", "--roi-mode", "conservative", "--from-recommendations",
              "--quotes-file", "artifacts/odds_log/sharp_quotes_latest.parquet"],
             ["python", "-u", "production/ops/frozen_edge_watch.py"],
-            ["python", "-u", "production/ops/send_morning_alert.py"],
+            ["python", "-u", "production/ops/send_morning_alert.py", "--flips-only"],
         ):
             subprocess.run(step, cwd="/root/mlb-props", check=False)
         _beat("hourly_refresh", True)

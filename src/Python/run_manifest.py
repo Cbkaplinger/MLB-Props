@@ -115,6 +115,10 @@ def finish_run(
     data_quality: dict[str, Any] | None = None,
     as_of_utc: str | None = None,
     input_cutoff_utc: str | None = None,
+    policy_version: str | None = None,
+    model_version: str | None = None,
+    calibration_version: str | None = None,
+    feature_version: str | None = None,
 ) -> dict[str, Any]:
     """Close a manifest with a terminal status. Validates status + reason."""
     if status not in RUN_STATUSES:
@@ -148,6 +152,10 @@ def finish_run(
         "data_quality": dict(data_quality or {}),
         "as_of_utc": as_of_utc,
         "input_cutoff_utc": input_cutoff_utc,
+        "policy_version": policy_version,
+        "model_version": model_version,
+        "calibration_version": calibration_version,
+        "feature_version": feature_version,
     })
     return manifest
 
@@ -204,24 +212,58 @@ def emit_manifest_safely(manifest: dict[str, Any], path: str | Path) -> bool:
         return False
 
 
+def artifact_version(path: str | Path, prefix: str) -> str | None:
+    """Content-hash version stamp (`prefix:sha12`) for a pin/policy file.
+
+    Versions are hashes, not semantic numbers: any byte change flips the
+    stamp, which is exactly what compatibility checks need. Missing file =
+    None (unknown, never fabricated).
+    """
+    try:
+        digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]
+    except OSError:
+        return None
+    return f"{prefix}:{digest}"
+
+
 def manifest_from_alert(
     *,
     any_sent: bool,
     failure_message: str = "",
     slate_date: str | None = None,
+    input_rows: dict[str, int] | None = None,
+    output_rows: dict[str, int] | None = None,
+    as_of_utc: str | None = None,
+    input_cutoff_utc: str | None = None,
+    policy_version: str | None = None,
+    model_version: str | None = None,
+    calibration_version: str | None = None,
+    feature_version: str | None = None,
 ) -> dict[str, Any]:
     """Build the serve-pipeline manifest for one alert run (pure)."""
     manifest = new_run("P4-SERVE", slate_date=slate_date)
+    extra = dict(
+        input_rows=input_rows,
+        output_rows=output_rows,
+        as_of_utc=as_of_utc,
+        input_cutoff_utc=input_cutoff_utc,
+        policy_version=policy_version,
+        model_version=model_version,
+        calibration_version=calibration_version,
+        feature_version=feature_version,
+    )
     if str(failure_message or "").strip():
         return finish_run(
-            manifest, "FAILED", errors=[str(failure_message).strip()[:300]]
+            manifest, "FAILED",
+            errors=[str(failure_message).strip()[:300]], **extra,
         )
     if bool(any_sent):
-        return finish_run(manifest, "SUCCESS_FRESH")
+        return finish_run(manifest, "SUCCESS_FRESH", **extra)
     return finish_run(
         manifest,
         "DEGRADED_NO_PAGE",
         warnings=["alert produced no send; board state unknown at this layer"],
+        **extra,
     )
 
 
@@ -230,6 +272,12 @@ def manifest_from_drift(
     verdict: str,
     today: str,
     failing_checks: list[str] | None = None,
+    n_settled: int | None = None,
+    policy_version: str | None = None,
+    model_version: str | None = None,
+    calibration_version: str | None = None,
+    feature_version: str | None = None,
+    as_of_utc: str | None = None,
 ) -> dict[str, Any]:
     """Build the settle/monitor-pipeline manifest for one drift run (pure).
 
@@ -237,8 +285,18 @@ def manifest_from_drift(
     """
     manifest = new_run("P6-SETTLE", slate_date=today)
     checks = list(failing_checks or [])
+    rows = {"settled": int(n_settled)} if n_settled is not None else None
+    extra = dict(
+        input_rows=rows,
+        policy_version=policy_version,
+        model_version=model_version,
+        calibration_version=calibration_version,
+        feature_version=feature_version,
+        as_of_utc=as_of_utc,
+    )
     if verdict == "GREEN":
-        return finish_run(manifest, "SUCCESS_FRESH")
+        return finish_run(manifest, "SUCCESS_FRESH", **extra)
     if verdict == "YELLOW":
-        return finish_run(manifest, "DEGRADED_NO_PAGE", warnings=checks)
-    return finish_run(manifest, "FAILED", errors=checks or [f"verdict={verdict}"])
+        return finish_run(manifest, "DEGRADED_NO_PAGE", warnings=checks, **extra)
+    return finish_run(manifest, "FAILED",
+                      errors=checks or [f"verdict={verdict}"], **extra)

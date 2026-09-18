@@ -34,6 +34,7 @@ LEDGER = ODDS_DIR / "ledger.parquet"
 GRADED = ROOT / "artifacts" / "projection_log" / "graded.parquet"
 L3 = ROOT / "data" / "processed" / "pitcher_training.parquet"
 POINTER = ROOT / "artifacts" / "models" / "prob_calibration_production.json"
+LAST_LOG = ROOT / "artifacts" / "projection_log" / "last_log.json"
 OUT_JSON = ODDS_DIR / "nightly_drift_latest.json"
 OUT_HIST = ODDS_DIR / "nightly_drift_history.jsonl"
 
@@ -72,6 +73,27 @@ def _max_date(strs) -> date | None:
     """Latest parseable date, None when nothing parses (never raises)."""
     ds = [d for d in (_to_date(s) for s in strs) if d is not None]
     return max(ds) if ds else None
+
+
+def serving_freshness(today: date) -> tuple[int | None, str]:
+    """Serving-truth staleness from the projection sidecar (never raises).
+
+    Returns (stale_days|None, note). Live scoring stops at L2 rolling
+    (``refresh_features --skip-training``), so the rarely-rebuilt L3
+    *training* parquet must NOT measure serving freshness — doing so
+    false-REDs on a healthy board (owner 2026-09-18: 11d RED vs 1d truth).
+    Missing/unparseable sidecar = unknown (YELLOW downstream, never RED:
+    unknown freshness is fail-open, matching the board tag rule).
+    """
+    try:
+        meta = json.loads(LAST_LOG.read_text(encoding="utf-8")).get("build_meta", {})
+        max_s = str(meta.get("rolling_max_date") or "")[:10]
+    except (OSError, ValueError):
+        return None, "no last_log sidecar"
+    latest = _max_date([max_s])
+    if latest is None:
+        return None, "unparseable rolling_max_date"
+    return (today - latest).days, f"rolling_max {max_s}"
 
 
 def freshness_verdict(stale_days: int | None) -> str:
