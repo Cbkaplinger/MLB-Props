@@ -2,9 +2,11 @@
 
 Grades one slate date on the LIVE ledger: settled + staked + deduped to one
 ticket per prop (canonical `settled_bets` + `dedupe_ledger_props` — DK+FD
-doubles never count). Surface: N, stake, ROI, xROI (mean edge), gap, CLV
+doubles never count). Surface: N, stake, ROI, CLV
 mean + beat_rate, WR, plus trailing context and sample-size honesty flags:
 THIN (n<5), CALIB (trailing-200 beat<0.50), EXEC (trailing CLV<0).
+xROI was removed from notifications 2026-09-21 (owner order); edge-belief
+diagnostics live in research (grade_champion xroi_edge), never in pages.
 
 Always writes artifacts/odds_log/daily_grading_YYYY-MM-DD.json. Sends via
 ntfy unless --dry-run or MLB_PROPS_NO_ALERT=1 (Modal preview path).
@@ -84,7 +86,6 @@ def summarize(frame: pl.DataFrame) -> dict:
         "roi": round(float(pnl / stake), 4) if stake else None,
         "wr": round(float(frame["result"].eq("win").mean()), 4)
         if "result" in frame.columns else None,
-        "xroi": round(float(edge.mean()), 4),
         "ev_dollars": round(float(
             (edge * frame["stake"].cast(pl.Float64).fill_null(0.0)).sum()), 2),
     }
@@ -113,8 +114,6 @@ def summarize(frame: pl.DataFrame) -> dict:
     else:
         out["cons_clv_pp"] = None
         out["cons_beat"] = None
-    if out["roi"] is not None:
-        out["gap"] = round(float(out["xroi"] - out["roi"]), 4)
     return out
 
 
@@ -216,7 +215,7 @@ def main() -> None:
         depth = s.get("cons_depth")
         depth_s = f", depth={depth:g}" if depth else ""
         return (f"{label}: n={s.get('n', 0)}, PnL={pnl}, EV=${s.get('ev_dollars', 0):.0f}, "
-                f"ROI={pct(s.get('roi'))}, xROI={pct(s.get('xroi'))}, "
+                f"ROI={pct(s.get('roi'))}, "
                 f"CLV={pp(s.get('mean_clv_pp'))} (n={s.get('n_clv', 0)}), "
                 f"beat={pct(s.get('beat_rate'))}, "
                 f"cons={pp(s.get('cons_clv_pp'))} (n={s.get('n_cons', 0)}{depth_s}), "

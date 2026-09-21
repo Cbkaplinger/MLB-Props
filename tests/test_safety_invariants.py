@@ -232,3 +232,19 @@ def test_live_board_drops_non_allowlisted_books(monkeypatch) -> None:
     assert meta["n_book_filtered_out"] == 2
     assert not frame.is_empty()
     assert set(frame["book"].to_list()) <= {"draftkings", "fanduel"}
+
+
+def test_grading_surface_has_no_xroi() -> None:
+    """xROI (+derived gap) purged from notification surface (owner 2026-09-21).
+
+    If this fails, edge-belief diagnostics leaked back into pages.
+    Research copies (grade_champion xroi_edge) are out of scope by design.
+    """
+    grading = _load_grading()
+    frame = pl.DataFrame([
+        {"stake": 50.0, "pnl": 45.0, "edge": 0.15, "result": "win", "clv_pp": 0.02},
+        {"stake": 50.0, "pnl": -50.0, "edge": 0.13, "result": "loss", "clv_pp": -0.01},
+    ])
+    out = grading.summarize(frame)
+    assert "xroi" not in out and "gap" not in out
+    assert out["ev_dollars"] == round(0.15 * 50 + 0.13 * 50, 2)

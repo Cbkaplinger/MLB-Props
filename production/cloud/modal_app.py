@@ -35,21 +35,44 @@ VOLUME_NAME = "mlb-props-state"
 SECRET_NAME = "mlb-props-keys"
 # All wall-clock jobs run on New York local time (OPS-1A 2026-09-17: explicit
 # IANA timezone so EST no longer fires 1h early; expressions below are LOCAL,
-# not UTC.
+# not UTC — e.g. morning is "0 8", not the old UTC "0 12").
 SCHEDULE_TZ = "America/New_York"
 CRON_MORNING = "0 8 * * *"  # 08:00 NY daily
-CRON_HOURLY = "0 9-22 * * *"  # hourly board 09:00-22:00 ET (EDT); 08:00 is morning's
-CRON_SWEEP = "*/20 12-22 * * *"  # close sweeps q20min 12:00-22:07 ET
+CRON_HOURLY = "0 9-22 * * *"  # hourly board 09:00-22:00 NY; 08:00 is morning's
+CRON_SWEEP = "*/20 12-22 * * *"  # close sweeps q20min 12:00-22:40 NY (ET gate caps 22.2)
 CRON_SETTLE = "0 3 * * *"  # 03:00 NY daily
-CRON_DRIFT = "30 5 * * *"  # 05:30 NY daily
+CRON_DRIFT = "30 5 * * *"  # 05:30 NY daily (drift + self-check + daily grade)
 
 ENV = {"PYTHONIOENCODING": "utf-8",
        "MLB_PROPS_DATA_DIR": "/state/data",
        "MLB_PROPS_OUTPUT_DIR": "/state/artifacts",
        "MLB_PROPS_SAVANT_DATA_DIR": "/state/data/Savant-Data/regular"}
 
-# OPS-1A 2026-09-17: image e ships the tz deploy (heartbeat marker).
-IMAGE_VERSION = "2026-09-17f"
+# Bump on every deploy. The heartbeat carries it, so the volume record proves
+# which image is actually live (owner 2026-09-16: heartbeat always said ok).
+IMAGE_VERSION = "2026-09-21a"
+
+
+def _run_steps(steps: list[list[str]]) -> tuple[bool, str]:
+    """Run chain steps, capturing exit codes (owner 2026-09-16).
+
+    Old code fire-and-forgot subprocess + always beat ok=True, so a dead
+    statcast step looked healthy. Returns (ok, note) for the heartbeat.
+    """
+    import subprocess
+    failed: list[str] = []
+    for step in steps:
+        label = next((str(a).split("/")[-1] for a in step if str(a).endswith(".py")),
+                     step[-1] if step else "?")
+        try:
+            proc = subprocess.run(step, cwd="/root/mlb-props", check=False)
+            if proc.returncode != 0:
+                failed.append(f"{label}:{proc.returncode}")
+        except Exception as exc:  # noqa: BLE001
+            failed.append(f"{label}:exc={exc}")
+    if failed:
+        return False, "; ".join(failed)
+    return True, "all steps exit 0"
 
 
 def _beat(job: str, ok: bool, note: str = "") -> None:
@@ -64,7 +87,7 @@ def _beat(job: str, ok: bool, note: str = "") -> None:
     try:
         line = json.dumps({"job": job, "utc": datetime.datetime.now(
             datetime.timezone.utc).isoformat(timespec="seconds"),
-            "ok": bool(ok), "note": note})
+            "ok": bool(ok), "note": note, "image": IMAGE_VERSION})
         with open("/state/artifacts/odds_log/cloud_heartbeat.jsonl", "a",
                   encoding="utf-8") as fh:
             fh.write(line + "\n")
@@ -110,41 +133,46 @@ try:
     secrets = modal.Secret.from_name(SECRET_NAME)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_MORNING, timezone=SCHEDULE_TZ), timeout=3600)
+                   schedule=modal.Cron(CRON_MORNING, timezone=SCHEDULE_TZ), timeout=3600)
     def morning_workflow() -> None:
         import os
         import subprocess
         os.environ.update(ENV)
-        os.environ["MLB_PROPS_NO_ALERT"] = "1"  # laptop is primary alerter
+        # Cloud is the primary alerter since the 2026-09-16 standby cutover
+        # (laptop tasks disabled; repo stays the deploy source + fallback).
         _link_state()
-        for step in (
+        ok, note = _run_steps([
             ["python", "-u", "production/ops/refresh_statcast.py", "--retries", "3"],
             ["python", "-u", "production/ops/refresh_features.py", "--skip-training"],
             ["python", "-u", "production/projections/log_projections.py", "--allow-stale"],
+            ["python", "-u", "production/ops/heal_stale_slate.py"],
             ["python", "-u", "production/odds/odds_board.py", "--unit", "50",
              "--roi-mode", "conservative"],
             ["python", "-u", "production/odds/poll_odds.py", "--snapshot", "open",
              "--unit", "50", "--roi-mode", "conservative", "--from-recommendations"],
             ["python", "-u", "production/ops/send_morning_alert.py"],
-        ):
-            subprocess.run(step, cwd="/root/mlb-props", check=False)
-        _beat("morning_workflow", True)
+        ])
+        _beat("morning_workflow", ok, note)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_HOURLY, timezone=SCHEDULE_TZ), timeout=1800)
+                   schedule=modal.Cron(CRON_HOURLY, timezone=SCHEDULE_TZ), timeout=1800)
     def hourly_refresh() -> None:
         """Hourly board + poll + edge-watch + alert, 08:00-22:00 ET.
 
         Mirrors run_market_refresh.ps1: projections re-log (dynamic lineups),
         then board/poll/watch/alert on fresh numbers. ~15 runs/day x ~2 min:
         still inside free-tier margin.
+        Heal-first (owner 2026-09-21): mid-afternoon staleness gets one repair
+        attempt before scoring; the healer no-ops in milliseconds when fresh
+        and always exits 0, so a failed heal never blocks the board.
         """
         import os
         import subprocess
         os.environ.update(ENV)
-        os.environ["MLB_PROPS_NO_ALERT"] = "1"  # laptop is primary alerter
+        # Cloud is the primary alerter since the 2026-09-16 standby cutover.
         _link_state()
-        for step in (
+        ok, note = _run_steps([
+            ["python", "-u", "production/ops/heal_stale_slate.py"],
             ["python", "-u", "production/projections/log_projections.py", "--allow-stale"],
             ["python", "-u", "production/odds/odds_board.py", "--unit", "50",
              "--roi-mode", "conservative", "--write-quotes",
@@ -154,12 +182,11 @@ try:
              "--quotes-file", "artifacts/odds_log/sharp_quotes_latest.parquet"],
             ["python", "-u", "production/ops/frozen_edge_watch.py"],
             ["python", "-u", "production/ops/send_morning_alert.py", "--flips-only"],
-        ):
-            subprocess.run(step, cwd="/root/mlb-props", check=False)
-        _beat("hourly_refresh", True)
+        ])
+        _beat("hourly_refresh", ok, note)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_SWEEP, timezone=SCHEDULE_TZ), timeout=900)
+                   schedule=modal.Cron(CRON_SWEEP, timezone=SCHEDULE_TZ), timeout=900)
     def close_sweep() -> None:
         """Close fills q20min in game windows (watcher-daemon replacement).
 
@@ -170,44 +197,43 @@ try:
         import subprocess
         os.environ.update(ENV)
         _link_state()
-        subprocess.run(["python", "-u", "production/ops/run_close_sweep.py"],
-                       cwd="/root/mlb-props", check=False)
-        _beat("close_sweep", True)
+        ok, note = _run_steps(
+            [["python", "-u", "production/ops/run_close_sweep.py"]])
+        _beat("close_sweep", ok, note)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_SETTLE, timezone=SCHEDULE_TZ), timeout=1800)
+                   schedule=modal.Cron(CRON_SETTLE, timezone=SCHEDULE_TZ), timeout=1800)
     def end_of_day_settle() -> None:
         import os
         import subprocess
         os.environ.update(ENV)
         _link_state()
-        for step in (
+        ok, note = _run_steps([
             ["python", "-u", "production/odds/grade_odds_ledger.py",
              "--auto-settle-api", "--void-scratches", "--status", "--curve"],
             ["python", "-u", "production/ops/build_validation_ops_report.py"],
             ["python", "-u", "production/ops/build_daily_operator_summary.py"],
             ["python", "-u", "production/ops/build_policy_governance_report.py"],
-        ):
-            subprocess.run(step, cwd="/root/mlb-props", check=False)
-        _beat("end_of_day_settle", True)
+        ])
+        _beat("end_of_day_settle", ok, note)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
-                  schedule=modal.Cron(CRON_DRIFT, timezone=SCHEDULE_TZ), timeout=1800)
+                    schedule=modal.Cron(CRON_DRIFT, timezone=SCHEDULE_TZ), timeout=1800)
     def nightly_drift() -> None:
         import os
         import subprocess
         os.environ.update(ENV)
         _link_state()
-        for step in (
+        ok, note = _run_steps([
             ["python", "-u", "production/odds/grade_odds_ledger.py",
              "--auto-settle-api", "--void-scratches", "--status", "--curve"],
             ["python", "-u", "production/projections/grade_projections.py",
              "--all-logged", "--preferred-only"],
-            ["python", "-u", "production/ops/check_nightly_drift.py"],
+            ["python", "-u", "production/ops/check_nightly_drift.py", "--page-on-red"],
             ["python", "-u", "production/ops/build_automation_self_check.py", "--notify-on-red"],
-        ):
-            subprocess.run(step, cwd="/root/mlb-props", check=False)
-        _beat("nightly_drift", True)
+            ["python", "-u", "production/ops/send_daily_grading.py"],
+        ])
+        _beat("nightly_drift", ok, note)
 
 except ImportError:  # modal not installed locally: file still parses, deploy needs it
     app = None  # noqa: F841

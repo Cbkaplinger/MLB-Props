@@ -28,6 +28,13 @@ Write-Host "Starting market refresh in $repoRoot"
 # projections are no longer frozen-AM; quotes AND projections refresh, and
 # the edge-watch diffs the combined result (flips still page, losses silent).
 $failure = ""
+# Heal-first (owner 2026-09-21): a mid-afternoon stale slate gets one repair
+# attempt before scoring. Best-effort and outside the $failure accumulator:
+# the healer always exits 0 and the board's stale tag + banner carry any
+# residual staleness, so a failed heal never blocks the board or pages.
+try {
+Run-Step "heal" @("production/ops/heal_stale_slate.py")
+} catch { Write-Warning "heal FAILED (non-blocking, board tags carry it): $_" }
 try {
 Run-Step "0 refresh_projections" @("production/projections/log_projections.py", "--allow-stale")
 } catch { $failure += "projections FAILED: $_`n" }

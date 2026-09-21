@@ -217,3 +217,21 @@ def test_modal_sdk_supports_timezone() -> None:
     assert "timezone" in inspect.signature(modal.Cron.__init__).parameters
     major, minor = (int(x) for x in str(modal.__version__).split(".")[:2])
     assert (major, minor) >= (1, 0), modal.__version__
+
+
+def test_hourly_heals_before_scoring() -> None:
+    """Heal-first (owner 2026-09-21): hourly repairs staleness before scoring.
+
+    If this is removed, mid-afternoon stale slates ride through tagged
+    instead of getting a repair attempt — the soft-quit the owner refused.
+    """
+    tree = ast.parse(MODAL_APP.read_text(encoding="utf-8"))
+    hourly = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "hourly_refresh"
+    )
+    segment = ast.get_source_segment(MODAL_APP.read_text(encoding="utf-8"), hourly)
+    assert segment is not None
+    heal_at = segment.find("heal_stale_slate.py")
+    log_at = segment.find("log_projections.py")
+    assert heal_at != -1 and log_at != -1 and heal_at < log_at
