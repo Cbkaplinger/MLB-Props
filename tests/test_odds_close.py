@@ -142,3 +142,15 @@ def test_urgency_fails_open() -> None:
                       "event_start_time_utc": tip}])
     fetch, _ = sweep.should_fetch(frame, slate="2026-09-21", now=now)
     assert fetch is True
+
+
+def test_burst_only_when_critical() -> None:
+    sweep = _load_sweep()
+    # Inside 6 min of tip, or just started: one more 60s look is worth it.
+    assert sweep.should_burst([120.0, 4.0]) is True
+    assert sweep.should_burst([-8.0]) is True
+    # Far future, long started, unknown, or nothing: the cron covers it.
+    assert sweep.should_burst([120.0, 90.0]) is False
+    assert sweep.should_burst([-40.0]) is False
+    assert sweep.should_burst([None, None]) is False
+    assert sweep.should_burst([]) is False

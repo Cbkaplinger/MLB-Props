@@ -12,6 +12,7 @@ Idempotent by construction (fill_closes skips filled rows); best-effort
 Usage:
   python production/ops/run_close_sweep.py [--dry-run]
          [--urgency-min 45] [--live-after-min 15]
+         [--burst-within-min 6] [--burst-iters 8] [--burst-sleep-s 60] [--no-burst]
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -30,6 +32,9 @@ WINDOW_START_H = 12
 WINDOW_END_H = 22.2  # last first-pitch ~22:07 ET
 URGENCY_MIN = 45  # fetch when any open ticket tips within 45 min
 LIVE_AFTER_MIN = 15  # or started within the last 15 min (live-fallback)
+BURST_WITHIN_MIN = 6  # inside this many minutes to tip, scan every 60s
+BURST_ITERS = 8  # hard cap on burst loops per invocation (~8 min max)
+BURST_SLEEP_S = 60
 
 
 def should_fetch(ledger, *, slate: str, now: datetime,
@@ -62,11 +67,42 @@ def should_fetch(ledger, *, slate: str, now: datetime,
     return False, f"nearest tip {nearest:.0f}m out — quiet (no API calls)"
 
 
+def should_burst(minutes: list[float | None], *,
+                 within_min: float = BURST_WITHIN_MIN,
+                 live_after_min: float = LIVE_AFTER_MIN) -> bool:
+    """One more 60s look? Pure (testable).
+
+    True only when a KNOWN tip sits inside [live_after, within] — the
+    minutes where books pull markets and a 5-minute grid is too coarse.
+    Unknown clocks do NOT burst (the initial fetch already covered them;
+    the next cron retries anyway). Bounded by the caller, never infinite.
+    """
+    known = [m for m in minutes if m is not None]
+    if not known:
+        return False
+    return any(-live_after_min <= m <= within_min for m in known)
+
+
+def _need_minutes(slate: str, now: datetime) -> list[float | None]:
+    from Python.odds_close import open_needing_close, row_minutes_to_tip
+    from Python.odds_ledger import load_ledger
+
+    need = open_needing_close(load_ledger(), slate=slate)
+    if need.is_empty():
+        return []
+    return [row_minutes_to_tip(r, as_of=now) for r in need.to_dicts()]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--urgency-min", type=float, default=URGENCY_MIN)
     ap.add_argument("--live-after-min", type=float, default=LIVE_AFTER_MIN)
+    ap.add_argument("--burst-within-min", type=float, default=BURST_WITHIN_MIN)
+    ap.add_argument("--burst-iters", type=int, default=BURST_ITERS)
+    ap.add_argument("--burst-sleep-s", type=float, default=BURST_SLEEP_S)
+    ap.add_argument("--no-burst", action="store_true",
+                    help="disable the 60s burst loop (single poll only)")
     args = ap.parse_args()
     now_et = datetime.now(timezone.utc).astimezone(ET)
     hour = now_et.hour + now_et.minute / 60.0
@@ -90,6 +126,23 @@ def main() -> None:
     proc = subprocess.run(cmd, cwd=REPO)
     if proc.returncode != 0:
         raise SystemExit(f"close-sweep poll exited {proc.returncode}")
+    # Burst mode (owner 2026-09-21): inside ~6 min of first pitch a 5-minute
+    # grid is too coarse and books pull markets. Re-poll every 60s, bounded
+    # (default 8 iters), stopping early when nothing still needs a close.
+    # Skipped entirely under --dry-run (no writes to chase) and --no-burst.
+    if not args.dry_run and not args.no_burst:
+        for _ in range(max(0, args.burst_iters)):
+            remaining = _need_minutes(slate, datetime.now(timezone.utc))
+            if not should_burst(remaining, within_min=args.burst_within_min,
+                                live_after_min=args.live_after_min):
+                break
+            time.sleep(max(1.0, args.burst_sleep_s))
+            burst = subprocess.run(cmd, cwd=REPO)
+            if burst.returncode != 0:
+                print(f"close-sweep burst poll exited {burst.returncode}; stopping burst")
+                break
+        else:
+            print("close-sweep burst cap reached; next cron continues")
 
 
 if __name__ == "__main__":
