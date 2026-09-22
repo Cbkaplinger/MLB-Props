@@ -2,9 +2,25 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from Python.odds_close import select_due_tickets
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_sweep():
+    spec = importlib.util.spec_from_file_location(
+        "run_close_sweep",
+        ROOT / "production" / "ops" / "run_close_sweep.py")
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["run_close_sweep"] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def _row(name: str, tip: datetime | None, **extra):
@@ -76,3 +92,53 @@ def test_next_future_tip_ignores_past() -> None:
     ]
     nxt = next_future_tip_minutes(waiting)
     assert nxt == (25.0, "Soon")
+
+
+def _ledger(rows: list[dict]):
+    import polars as pl
+
+    base = {"status": "open", "clv_pp": None, "close_status": None,
+            "game_date": "2026-09-21"}
+    return pl.DataFrame([{**base, **r} for r in rows])
+
+
+def test_urgency_fetches_when_tip_near() -> None:
+    sweep = _load_sweep()
+    now = datetime(2026, 9, 21, 22, 0, tzinfo=timezone.utc)
+    tip = (now + timedelta(minutes=20)).isoformat()
+    frame = _ledger([{"ticket_id": "a",
+                      "event_start_time_utc": tip}])
+    fetch, why = sweep.should_fetch(frame, slate="2026-09-21", now=now)
+    assert fetch is True
+    assert "20m" in why
+
+
+def test_urgency_quiet_when_all_far() -> None:
+    sweep = _load_sweep()
+    now = datetime(2026, 9, 21, 18, 0, tzinfo=timezone.utc)
+    tip = (now + timedelta(minutes=200)).isoformat()
+    frame = _ledger([{"ticket_id": "a",
+                      "event_start_time_utc": tip}])
+    fetch, why = sweep.should_fetch(frame, slate="2026-09-21", now=now)
+    assert fetch is False
+    assert "quiet" in why
+
+
+def test_urgency_fails_open() -> None:
+    sweep = _load_sweep()
+    now = datetime(2026, 9, 21, 18, 0, tzinfo=timezone.utc)
+    # No rows at all -> quiet (nothing to do).
+    fetch, _ = sweep.should_fetch(
+        _ledger([]).head(0), slate="2026-09-21", now=now)
+    assert fetch is False
+    # Unparseable tip -> fetch (never skip on uncertainty).
+    frame = _ledger([{"ticket_id": "a", "event_start_time_utc": "garbage"}])
+    fetch, why = sweep.should_fetch(frame, slate="2026-09-21", now=now)
+    assert fetch is True
+    assert "fail open" in why
+    # Recently started game -> fetch for the live-fallback window.
+    tip = (now - timedelta(minutes=8)).isoformat()
+    frame = _ledger([{"ticket_id": "a",
+                      "event_start_time_utc": tip}])
+    fetch, _ = sweep.should_fetch(frame, slate="2026-09-21", now=now)
+    assert fetch is True

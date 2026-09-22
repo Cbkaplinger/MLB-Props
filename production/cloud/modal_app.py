@@ -39,7 +39,7 @@ SECRET_NAME = "mlb-props-keys"
 SCHEDULE_TZ = "America/New_York"
 CRON_MORNING = "0 8 * * *"  # 08:00 NY daily
 CRON_HOURLY = "0 9-22 * * *"  # hourly board 09:00-22:00 NY; 08:00 is morning's
-CRON_SWEEP = "*/20 12-22 * * *"  # close sweeps q20min 12:00-22:40 NY (ET gate caps 22.2)
+CRON_SWEEP = "*/5 12-22 * * *"  # close sweeps q5min 12:00-22:55 NY (urgency gate skips idle runs; ET gate caps 22.2)
 CRON_SETTLE = "0 3 * * *"  # 03:00 NY daily
 CRON_DRIFT = "30 5 * * *"  # 05:30 NY daily (drift + self-check + daily grade)
 
@@ -188,10 +188,12 @@ try:
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],
                    schedule=modal.Cron(CRON_SWEEP, timezone=SCHEDULE_TZ), timeout=900)
     def close_sweep() -> None:
-        """Close fills q20min in game windows (watcher-daemon replacement).
+        """Close fills q5min in game windows (watcher-daemon replacement).
 
-        Mirrors run_close_sweep.py: ET-window-gated, idempotent, exits clean
-        outside windows. ~25 runs/day x ~1 min: pennies.
+        Mirrors run_close_sweep.py: ET-window-gated + per-ticket urgency gate
+        (no API calls when nothing tips soon), idempotent, exits clean
+        outside windows. ~130 runs/day x ~1 min: single-digit dollars
+        (owner 2026-09-21: urgency-gated, so idle runs cost ~0 API calls).
         """
         import os
         import subprocess

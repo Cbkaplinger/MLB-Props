@@ -1,4 +1,4 @@
-# Cloud cutover (Modal) — staged, not deployed
+# Cloud cutover (Modal) — LIVE primary since 2026-09-16 standby cutover
 
 ## Architecture (how it all fits)
 
@@ -113,6 +113,33 @@ October judge program finishes (judge needs compute; predictions don't run):
 October compute (full-season judge, stacker verdict) runs ad-hoc, not on
 cron — spin up, run, spin down. No standing spend at any point.
 
+## Manual rerun + failure workarounds (owner 2026-09-17)
+
+Payloads are consistent (same scripts, same volume state), so a missed or
+failed run is safe to re-fire by hand. WARNING: the cloud is the primary
+alerter — a rerun sends a REAL page. Rerun only a run that actually failed
+or missed; a duplicate board page beats silence.
+
+```powershell
+$env:PYTHONUTF8 = '1'  # Windows console decoding (modal prints ✓)
+modal run production/cloud/modal_app.py::morning_workflow   # full chain + alert
+modal run production/cloud/modal_app.py::hourly_refresh     # board + watch + alert
+modal run production/cloud/modal_app.py::end_of_day_settle  # post-game only
+```
+
+| Failure | Workaround (automatic unless noted) |
+|---|---|
+| Board file empty/torn at drift time | Drift reports YELLOW, never crashes; board writes are atomic temp+rename; next cron heals |
+| ntfy blip eats a page | `_send_ntfy` retries 3× (2s/4s backoff); send record always lands in `morning_alert_latest.json` |
+| Vendor 502s (SharpAPI restarting) | Run fails loud, next hourly retries; watch covers flips till 22:00 ET |
+| Drift RED verdict | Pages via `--page-on-red` by design; read `nightly_drift_latest.json` on the volume |
+| Laptop clock skew | Cosmetic only (cloud runs on its own clock); let the box NTP-sync |
+
+Health check in one line: `modal volume get mlb-props-state
+artifacts/odds_log/cloud_heartbeat.jsonl hb.jsonl --force` — every cron
+beats `ok=true` with the live `IMAGE_VERSION`; anything else names the
+patient.
+
 ## Go-live checklist (owner gates)
 
 ### Timing (all ET — laptop and cloud run the same clock; Modal crons carry explicit `America/New_York` since OPS-1A 2026-09-17, so EST no longer fires 1h early)
@@ -123,22 +150,22 @@ cron — spin up, run, spin down. No standing spend at any point.
 | 05:30 | America/New_York | Nightly drift (RED pages) | RED/failure only |
 | 08:00 | America/New_York | Morning board (full slate) | always (full board; cloud primary since 9/16 cutover) |
 | 09:00–22:00 hourly | America/New_York | Refresh: projections + board + poll + edge-watch | flips/failure only |
-| q20min 12:00–22:07 | America/New_York | Close sweeps | silent (fills CLV) |
+| q5min 12:00–22:07 | America/New_York | Close sweeps (urgency-gated: no calls when nothing tips soon) | silent (fills CLV) |
 | logon +5min | host local | Wake recovery (laptop only) | failure banner if degraded |
 
 1. ~~`pip install modal` → `modal token new`~~ DONE 2026-09-14 (token verified, cameron-kaplinger workspace).
 2. ~~Secret `mlb-props-keys`~~ DONE 2026-09-14 (SHARPAPI/OddsAPI/NTFY, values never displayed).
 3. ~~Volume `mlb-props-state`~~ DONE 2026-09-14 (data/processed, odds_log, models, live_scores, projection_log, dimensions, kpi_policy).
 4. ~~`modal deploy`~~ DONE 2026-09-14 (app `mlb-props`, 3 crons: 08:30 / 03:00 / 05:30 ET). First live fire: tomorrow 8:30 ET.
-5. ≥7 parallel days: diff cloud vs laptop boards/ledgers; laptop primary.
-6. Cutover: laptop to backup. Kill-switch (ntfy + postseason HOLD) travels as config.
+5. ≥7 parallel days: diff cloud vs laptop boards/ledgers; cloud primary since 2026-09-16 standby cutover (laptop tasks disabled, laptop is fallback).
+6. Cutover: DONE 2026-09-16. Kill-switch (ntfy + postseason HOLD) travels as config.
 
 CAVEATS (read before trusting it):
 - Code mounts snapshot at deploy: future `src/`/`production/` edits need a
   redeploy to reach the cloud. State (volume) is live-shared, code is not.
-- Schedules verified from decorators, not yet observed firing — tomorrow
-  8:30 ET is the first proof (cloud board + ntfy should mirror laptop).
-- Close-sweep cron unbuilt (watcher replacement); closeout stays manual.
+- Schedules fire proven (heartbeat `cloud_heartbeat.jsonl`, all five jobs);
+  morning board is 08:00 ET, not 08:30 (moved 2026-09-14).
+- Close-sweep cron is BUILT and live (q10min sweeps replaced the watcher daemon at cutover); closeout stays manual.
 - `modal volume put` progress bars crash Windows console decoding (cosmetic;
   verify with `volume ls`).
 

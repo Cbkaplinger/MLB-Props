@@ -25,7 +25,7 @@ NY = ZoneInfo("America/New_York")
 EXPECTED = {
     "morning_workflow": ("0 8 * * *", "America/New_York"),
     "hourly_refresh": ("0 9-22 * * *", "America/New_York"),
-    "close_sweep": ("*/20 12-22 * * *", "America/New_York"),
+    "close_sweep": ("*/5 12-22 * * *", "America/New_York"),
     "end_of_day_settle": ("0 3 * * *", "America/New_York"),
     "nightly_drift": ("30 5 * * *", "America/New_York"),
 }
@@ -35,7 +35,7 @@ EXPECTED = {
 PRE_SUMMER_LOCAL = {
     "morning_workflow": [(8, 0)],
     "hourly_refresh": [(h, 0) for h in range(9, 23)],
-    "close_sweep": [(h, m) for h in range(12, 23) for m in (0, 20, 40)],
+    "close_sweep": [(h, m) for h in range(12, 23) for m in (0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55)],
     "end_of_day_settle": [(3, 0)],
     "nightly_drift": [(5, 30)],
 }
@@ -207,7 +207,9 @@ def test_chain_ordering_both_seasons() -> None:
         assert max(times["morning_workflow"]) < min(times["hourly_refresh"])
         assert max(times["hourly_refresh"]) == (22, 0)
         sweeps = times["close_sweep"]
-        assert min(sweeps) == (12, 0) and all((h, m) <= (22, 40) for h, m in sweeps)
+        # Cron fires to 22:55; the ET gate (22.2) caps effective coverage.
+        # No-op tail runs are cheap by design, not schedule drift.
+        assert min(sweeps) == (12, 0) and all((h, m) <= (22, 55) for h, m in sweeps)
 
 
 def test_modal_sdk_supports_timezone() -> None:
