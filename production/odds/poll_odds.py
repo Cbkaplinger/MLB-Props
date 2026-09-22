@@ -30,7 +30,7 @@ from Python import config  # noqa: E402
 from Python.env_load import load_project_dotenv  # noqa: E402
 from Python.kpi_policy import load_kpi_policy  # noqa: E402
 from Python.market import DEFAULT_EDGE_FLOOR  # noqa: E402
-from Python.odds_close import fill_closes  # noqa: E402
+from Python.odds_close import expire_past_window_misses, fill_closes  # noqa: E402
 from Python.odds_ledger import (  # noqa: E402
     LEDGER_PATH,
     append_open_rows,
@@ -481,6 +481,13 @@ def _poll_close(
     if dry_run:
         print("dry-run: not writing")
         return
+    # T+5 stop (owner 2026-09-21): tickets past first-pitch +5 with no fill
+    # go unavailable here (mirrors the laptop daemon's per-tick expire), so
+    # the cloud path stops chasing pulled markets instead of lingering open.
+    # Paid consensus measurement backfills independently of close_status.
+    expired = expire_past_window_misses(slate=slate, minutes_after=5.0)
+    if expired.get("n_expired"):
+        print(f"expired unavailable closes: {expired['n_expired']}")
     if result.get("updated"):
         print(f"Wrote {LEDGER_PATH}")
     elif result["n_upd"] == 0:

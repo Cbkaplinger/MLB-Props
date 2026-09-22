@@ -4,14 +4,14 @@ Replaces the 8-hour idle watcher daemon for cloud/cron use: each run fetches
 latest SharpAPI quotes for tickets still needing a close and exits. Run
 q5min inside game windows (12:00-22:12 ET); outside windows it no-ops.
 Per-ticket urgency gate (owner 2026-09-21): runs with no ticket tipping
-within 45 min (or started in the last 15) exit before any API call, so a
+within 45 min (or started in the last 5) exit before any API call, so a
 flat q5m cron behaves like game-anchored bursts without spamming the vendor.
 Idempotent by construction (fill_closes skips filled rows); best-effort
 (exit 0 with a report, nonzero only on crash).
 
 Usage:
   python production/ops/run_close_sweep.py [--dry-run]
-         [--urgency-min 45] [--live-after-min 15]
+         [--urgency-min 45] [--live-after-min 5]
          [--burst-within-min 6] [--burst-iters 8] [--burst-sleep-s 60] [--no-burst]
 """
 
@@ -31,7 +31,11 @@ ET = ZoneInfo("America/New_York")
 WINDOW_START_H = 12
 WINDOW_END_H = 22.2  # last first-pitch ~22:07 ET
 URGENCY_MIN = 45  # fetch when any open ticket tips within 45 min
-LIVE_AFTER_MIN = 15  # or started within the last 15 min (live-fallback)
+LIVE_AFTER_MIN = 5  # ... or started within the last 5 min, then stop.
+# T+5 stop (owner 2026-09-21): no live betting means a pulled market is
+# unfillable — chasing it burns vendor calls for nothing. Dated-but-delayed
+# games share this cutoff (no delay feed exists); unknown tips still fail
+# open, and paid consensus backfills measurement either way.
 BURST_WITHIN_MIN = 6  # inside this many minutes to tip, scan every 60s
 BURST_ITERS = 8  # hard cap on burst loops per invocation (~8 min max)
 BURST_SLEEP_S = 60

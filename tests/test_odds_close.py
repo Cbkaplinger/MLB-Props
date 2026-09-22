@@ -136,21 +136,63 @@ def test_urgency_fails_open() -> None:
     fetch, why = sweep.should_fetch(frame, slate="2026-09-21", now=now)
     assert fetch is True
     assert "fail open" in why
-    # Recently started game -> fetch for the live-fallback window.
-    tip = (now - timedelta(minutes=8)).isoformat()
+    # Recently started game -> fetch inside the T+5 live window.
+    tip = (now - timedelta(minutes=3)).isoformat()
     frame = _ledger([{"ticket_id": "a",
                       "event_start_time_utc": tip}])
     fetch, _ = sweep.should_fetch(frame, slate="2026-09-21", now=now)
     assert fetch is True
 
 
+def test_urgency_stops_at_t_plus_5() -> None:
+    sweep = _load_sweep()
+    now = datetime(2026, 9, 21, 18, 0, tzinfo=timezone.utc)
+    # Started 6+ min ago -> quiet. No live betting means a pulled market is
+    # unfillable; the cron stops spending vendor calls on it.
+    tip = (now - timedelta(minutes=6)).isoformat()
+    frame = _ledger([{"ticket_id": "a",
+                      "event_start_time_utc": tip}])
+    fetch, why = sweep.should_fetch(frame, slate="2026-09-21", now=now)
+    assert fetch is False
+    assert "quiet" in why
+
+
 def test_burst_only_when_critical() -> None:
     sweep = _load_sweep()
     # Inside 6 min of tip, or just started: one more 60s look is worth it.
     assert sweep.should_burst([120.0, 4.0]) is True
-    assert sweep.should_burst([-8.0]) is True
-    # Far future, long started, unknown, or nothing: the cron covers it.
+    assert sweep.should_burst([-3.0]) is True
+    # Far future, past the T+5 stop, unknown, or nothing: the cron covers it.
     assert sweep.should_burst([120.0, 90.0]) is False
+    assert sweep.should_burst([-6.0]) is False
     assert sweep.should_burst([-40.0]) is False
     assert sweep.should_burst([None, None]) is False
     assert sweep.should_burst([]) is False
+
+
+def test_expire_stops_at_t_plus_5(monkeypatch) -> None:
+    import polars as pl
+
+    import Python.odds_close as oc
+
+    now = datetime(2026, 9, 21, 18, 0, tzinfo=timezone.utc)
+    df = _ledger([
+        {"ticket_id": "old", "note": None,
+         "event_start_time_utc": (now - timedelta(minutes=6)).isoformat()},
+        {"ticket_id": "young", "note": None,
+         "event_start_time_utc": (now - timedelta(minutes=4)).isoformat()},
+        {"ticket_id": "future", "note": None,
+         "event_start_time_utc": (now + timedelta(minutes=30)).isoformat()},
+    ])
+    store = {"df": df}
+    monkeypatch.setattr(oc, "load_ledger", lambda: store["df"])
+    monkeypatch.setattr(oc, "save_ledger", lambda d: store.update(df=d))
+    out = oc.expire_past_window_misses(minutes_after=5.0, as_of=now)
+    assert out == {"n_expired": 1, "updated": True}
+    got = dict(zip(store["df"]["ticket_id"].to_list(),
+                   store["df"]["close_status"].to_list()))
+    assert got["old"] == "unavailable"
+    assert got["young"] is None
+    assert got["future"] is None
+    assert store["df"].filter(pl.col("ticket_id") == "old")[
+        "note"].str.contains("past_window").to_list() == [True]
