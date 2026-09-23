@@ -201,6 +201,21 @@ try:
         _link_state()
         ok, note = _run_steps(
             [["python", "-u", "production/ops/run_close_sweep.py"]])
+        # Sweep-outcome sidecar (owner 2026-09-23): heartbeat says what the
+        # run DID (quiet/fetch/burst), not just that it ran. Best-effort.
+        try:
+            import json
+
+            sidecar = "/state/artifacts/odds_log/close_sweep_latest.json"
+            with open(sidecar, encoding="utf-8") as fh:
+                payload = json.load(fh)
+            mode = str(payload.get("mode") or "?")
+            why = str(payload.get("why") or "")[:80].replace("\n", " ")
+            burst = int(payload.get("burst_iters") or 0)
+            extra = f" burst={burst}" if burst else ""
+            note = f"{note} | sweep:{mode}{extra} {why}"[:200]
+        except Exception:
+            pass
         _beat("close_sweep", ok, note)
 
     @app.function(image=image, volumes={"/state": volume}, secrets=[secrets],

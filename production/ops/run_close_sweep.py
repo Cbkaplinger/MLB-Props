@@ -18,6 +18,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -97,6 +98,34 @@ def _need_minutes(slate: str, now: datetime) -> list[float | None]:
     return [row_minutes_to_tip(r, as_of=now) for r in need.to_dicts()]
 
 
+STATUS_NAME = "close_sweep_latest.json"
+
+
+def write_status(path: Path | None, payload: dict) -> None:
+    """Write the sweep-outcome sidecar (owner 2026-09-23).
+
+    Lets the heartbeat note say what the run DID (quiet/fetch/burst) instead
+    of only that it ran. Best-effort: never raises.
+    """
+    try:
+        from Python.odds_ledger import LEDGER_PATH
+
+        target = path or (LEDGER_PATH.parent / STATUS_NAME)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(payload, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def status_summary(payload: dict) -> str:
+    """One-line heartbeat note fragment (capped, no newlines)."""
+    mode = str(payload.get("mode") or "?")
+    why = str(payload.get("why") or "")[:80].replace("\n", " ")
+    burst = int(payload.get("burst_iters") or 0)
+    extra = f" burst={burst}" if burst else ""
+    return f"sweep:{mode}{extra} {why}"[:140]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true")
@@ -110,8 +139,11 @@ def main() -> None:
     args = ap.parse_args()
     now_et = datetime.now(timezone.utc).astimezone(ET)
     hour = now_et.hour + now_et.minute / 60.0
+    run_utc = now_et.astimezone(timezone.utc).isoformat(timespec="seconds")
     if not (WINDOW_START_H <= hour <= WINDOW_END_H):
         print(f"close-sweep no-op outside game windows (ET {now_et:%H:%M})")
+        write_status(None, {"utc": run_utc, "mode": "off_window",
+                            "why": "outside 12-22 ET", "burst_iters": 0})
         return
     from Python.odds_ledger import load_ledger
 
@@ -121,6 +153,8 @@ def main() -> None:
         urgency_min=args.urgency_min, live_after_min=args.live_after_min)
     print(f"close-sweep urgency: {why}")
     if not fetch:
+        write_status(None, {"utc": run_utc, "mode": "quiet",
+                            "why": why, "burst_iters": 0})
         return
     cmd = [sys.executable, "-u", "production/odds/poll_odds.py",
            "--snapshot", "close"]
@@ -135,6 +169,7 @@ def main() -> None:
     # (default 8 iters), stopping early when nothing still needs a close.
     # Skipped entirely under --dry-run (no writes to chase) and --no-burst.
     if not args.dry_run and not args.no_burst:
+        burst_n = 0
         for _ in range(max(0, args.burst_iters)):
             remaining = _need_minutes(slate, datetime.now(timezone.utc))
             if not should_burst(remaining, within_min=args.burst_within_min,
@@ -142,11 +177,17 @@ def main() -> None:
                 break
             time.sleep(max(1.0, args.burst_sleep_s))
             burst = subprocess.run(cmd, cwd=REPO)
+            burst_n += 1
             if burst.returncode != 0:
                 print(f"close-sweep burst poll exited {burst.returncode}; stopping burst")
                 break
         else:
             print("close-sweep burst cap reached; next cron continues")
+        write_status(None, {"utc": run_utc, "mode": "fetched",
+                            "why": why, "burst_iters": burst_n})
+    else:
+        write_status(None, {"utc": run_utc, "mode": "fetched",
+                            "why": why, "burst_iters": 0})
 
 
 if __name__ == "__main__":

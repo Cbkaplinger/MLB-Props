@@ -170,6 +170,20 @@ def test_burst_only_when_critical() -> None:
     assert sweep.should_burst([]) is False
 
 
+def test_sweep_status_sidecar(tmp_path) -> None:
+    import json
+
+    sweep = _load_sweep()
+    p = tmp_path / "close_sweep_latest.json"
+    sweep.write_status(p, {"utc": "x", "mode": "quiet",
+                           "why": "nearest tip 120m out", "burst_iters": 0})
+    assert json.loads(p.read_text(encoding="utf-8"))["mode"] == "quiet"
+    s = sweep.status_summary({"mode": "fetched", "why": "y" * 200,
+                              "burst_iters": 3})
+    assert "burst=3" in s and len(s) <= 140
+    assert sweep.status_summary({}).startswith("sweep:?")
+
+
 def test_expire_stops_at_t_plus_5(monkeypatch) -> None:
     import polars as pl
 
