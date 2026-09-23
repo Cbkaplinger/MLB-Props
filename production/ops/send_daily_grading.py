@@ -36,6 +36,7 @@ from Python.env_load import load_project_dotenv  # noqa: E402
 from Python.odds_ledger import (  # noqa: E402
     atomic_write_text,
     dedupe_ledger_props,
+    et_today,
     load_ledger,
     settled_bets,
 )
@@ -161,7 +162,8 @@ def main() -> None:
     args = ap.parse_args()
     load_project_dotenv()
 
-    target = args.date or (date.today() - timedelta(days=1)).isoformat()
+    # OPS-1B (owner 2026-09-23): ET-derived, never system-local date.
+    target = args.date or (date.fromisoformat(et_today()) - timedelta(days=1)).isoformat()
     day0 = date.fromisoformat(target[:10])
     season_start = f"{day0.year}-01-01"
     bounds = {

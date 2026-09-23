@@ -37,10 +37,12 @@ ET = ZoneInfo("America/New_York")
 def _load_edge_watch_today(path: Path | None = None) -> dict | None:
     """Today's edge-watch report (newest existing candidate), or None.
 
-    The producer names files with system-local `date.today()` (UTC on Modal
-    containers, ET on the laptop), so a single ET-derived name misses across
-    the 00:00–04:00 UTC window. Candidates are ET-today then UTC-today; the
-    most recently modified parseable file wins. Unknown (nothing parseable)
+    The producer names files with the canonical ET slate date
+    (``odds_ledger.et_today`` since OPS-1B 2026-09-23; before that it was
+    system-local `date.today()`, UTC on Modal containers vs ET on the laptop).
+    Candidates are ET-today then UTC-today; the most recently modified
+    parseable file wins (kept as belt-and-suspenders for pre-fix files).
+    Unknown (nothing parseable)
     means fail-OPEN: a flips-only caller must page rather than assume quiet.
     """
     if path is not None:

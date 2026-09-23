@@ -13,6 +13,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
+from zoneinfo import ZoneInfo
 
 import polars as pl
 
@@ -266,6 +267,22 @@ def stable_ticket_id(
         f"{str(game_date)[:10]}_{norm_player_name(player_name)}_"
         f"{float(line):g}_{str(book or '').lower()}_{side}"
     )
+
+
+_ET = ZoneInfo("America/New_York")
+
+
+def et_today(now_utc: datetime | None = None) -> str:
+    """Canonical slate date (owner 2026-09-23, OPS-1B root fix).
+
+    Artifact filenames used system-local ``date.today()`` — UTC on Modal,
+    ET on the laptop — so the same cron wrote different dates per host
+    (the 00:00–04:00 UTC window). Every producer must use this.
+    """
+    now = now_utc or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(_ET).date().isoformat()
 
 
 def load_ledger(path: Path = LEDGER_PATH) -> pl.DataFrame:

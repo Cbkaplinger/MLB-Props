@@ -334,4 +334,15 @@ def test_replace_open_slate_keeps_started_games(tmp_path: Path) -> None:
     assert frame.height == 1
 
 
+def test_et_today_uses_new_york_not_system() -> None:
+    from datetime import datetime, timezone
+
+    from Python.odds_ledger import et_today
+
+    # 02:00 UTC = 22:00 ET previous day (the 00:00-04:00 UTC skew window).
+    assert et_today(datetime(2026, 9, 23, 2, 0, tzinfo=timezone.utc)) == "2026-09-22"
+    assert et_today(datetime(2026, 9, 23, 5, 0, tzinfo=timezone.utc)) == "2026-09-23"
+    assert et_today(datetime(2026, 9, 23, 12, 0, tzinfo=timezone.utc)) == "2026-09-23"
+
+
 

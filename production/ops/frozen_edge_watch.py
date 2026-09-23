@@ -189,7 +189,9 @@ def main() -> None:
         return
     load_project_dotenv()
 
-    today = date.today().isoformat()
+    from Python.odds_ledger import et_today  # noqa: E402
+
+    today = et_today()
     state_path = ODDS_DIR / f"edge_watch_state_{today}.json"
     report_path = ODDS_DIR / f"edge_watch_report_{today}.json"
 
