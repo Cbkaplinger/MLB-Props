@@ -14,6 +14,7 @@ import polars as pl
 from Python.odds_ledger import (
     LEDGER_PATH,
     apply_close,
+    apply_close_xbook,
     load_ledger,
     mark_close_unavailable,
     minutes_to_tip,
@@ -244,6 +245,7 @@ def fill_closes(
         "n_miss": 0,
         "n_line_fallback": 0,
         "n_cross_book": 0,
+        "n_xbook": 0,
         "n_unavailable": 0,
         "n_quotes": 0,
         "misses": [],
@@ -272,6 +274,7 @@ def fill_closes(
     n_miss = 0
     n_line_fallback = 0
     n_cross = 0
+    n_xbook = 0
     n_unavail = 0
     misses: list[str] = []
     miss_ticket_ids: list[str] = []
@@ -312,9 +315,33 @@ def fill_closes(
             closed_at=closed_at,
             close_status=status,
         )
+        # Other-book live close (owner 2026-09-23): one slip per signal, so
+        # the second book's close lands on the surviving slip as CLV
+        # evidence instead of a second ticket. Same name+line, other book.
+        try:
+            r_name = norm_player_name(str(r.get("player_name") or ""))
+            r_book = str(r.get("book") or "").lower()
+            r_line = float(r["line"])
+            xq = next(
+                (qq for (n, b, ln), qq in by_line.items()
+                 if n == r_name and b != r_book and abs(ln - r_line) <= 1e-9),
+                None,
+            )
+        except (TypeError, ValueError, KeyError):
+            xq = None
+        n_xb = 0
+        if xq is not None and not dry_run:
+            updated = apply_close_xbook(
+                updated,
+                ticket_id=str(r["ticket_id"]),
+                close_over=float(xq.over_american),
+                close_under=float(xq.under_american),
+            )
+            n_xb = 1
         after = updated.filter(pl.col("ticket_id") == r["ticket_id"]).to_dicts()[0]
         if after.get("clv_pp") is not None:
             n_upd += 1
+        n_xbook += n_xb
 
     meta = {
         "n_need": len(rows),
@@ -322,6 +349,7 @@ def fill_closes(
         "n_miss": n_miss,
         "n_line_fallback": n_line_fallback,
         "n_cross_book": n_cross,
+        "n_xbook": n_xbook,
         "n_unavailable": n_unavail,
         "n_quotes": len(quotes),
         "n_dupes_dropped": n_dupes,

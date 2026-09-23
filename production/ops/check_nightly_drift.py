@@ -35,6 +35,12 @@ GRADED = ROOT / "artifacts" / "projection_log" / "graded.parquet"
 L3 = ROOT / "data" / "processed" / "pitcher_training.parquet"
 POINTER = ROOT / "artifacts" / "models" / "prob_calibration_production.json"
 LAST_LOG = ROOT / "artifacts" / "projection_log" / "last_log.json"
+HB_PATH = ODDS_DIR / "cloud_heartbeat.jsonl"
+# Trailing-24h minimum beats per job (owner 2026-09-21: dead-man switch).
+# Floors sit well below nominal (1/14/66/1) so normal variance never pages;
+# a fully-missing critical job (morning/settle) is RED, other gaps YELLOW.
+HB_EXPECTED = {"morning_workflow": 1, "hourly_refresh": 12,
+               "close_sweep": 40, "end_of_day_settle": 1}
 OUT_JSON = ODDS_DIR / "nightly_drift_latest.json"
 OUT_HIST = ODDS_DIR / "nightly_drift_history.jsonl"
 
@@ -75,6 +81,40 @@ def _max_date(strs) -> date | None:
     return max(ds) if ds else None
 
 
+def heartbeat_beats(path: Path | None = None,
+                     *, now: datetime | None = None,
+                     window_h: float = 24.0) -> tuple[dict | None, str]:
+    """Per-job beat counts in the trailing window (never raises).
+
+    Returns (counts|None, note). None = unreadable file (YELLOW downstream:
+    unknown, not proof of outage — matches the fail-open doctrine).
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    try:
+        lines = Path(path or HB_PATH).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None, "no heartbeat file"
+    counts: dict[str, int] = {}
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        try:
+            ts = datetime.fromisoformat(str(row.get("utc")))
+        except (ValueError, TypeError):
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        if (now - ts).total_seconds() < 0 or (now - ts).total_seconds() > window_h * 3600:
+            continue
+        job = str(row.get("job") or "unknown")
+        counts[job] = counts.get(job, 0) + 1
+    return counts, f"{sum(counts.values())} beats in {window_h:g}h"
+
+
 def serving_freshness(today: date) -> tuple[int | None, str]:
     """Serving-truth staleness from the projection sidecar (never raises).
 
@@ -105,6 +145,22 @@ def freshness_verdict(stale_days: int | None) -> str:
     if stale_days <= 4:
         return YELLOW
     return RED
+
+
+def l3_null_flag_verdict(n_recent: int, rr: float | None, bb: float) -> tuple[str, str]:
+    """Verdict + note for one L3 null-rate column (pure, testable).
+
+    Live scoring stops at L2 (``--skip-training``), so an L3 with zero recent
+    rows is the healthy steady state — not drift (owner 2026-09-23: this
+    exact shape YELLOWed every morning). Zero recent rows = GREEN with an
+    explicit not-rebuilt note; thin-but-nonzero stays YELLOW (can't judge);
+    real null ratios keep the existing rule.
+    """
+    if n_recent == 0:
+        return GREEN, "l3_not_rebuilt_live_skips_training"
+    if rr is None:
+        return YELLOW, "thin_recent_window"
+    return null_ratio_verdict(rr, bb or 0.0), ""
 
 
 def wr_drift_verdict(recent_wr: float | None, recent_n: int, base_wr: float | None) -> str:
@@ -149,9 +205,67 @@ def _wr(frame: pl.DataFrame) -> tuple[float | None, int]:
     return w / n, n
 
 
+def _page_red(checks: list[dict]) -> tuple[bool, str]:
+    """Opt-in RED banner (Modal drift chain; laptop cron pages via its own
+    banner path, so this defaults OFF to avoid double-sends)."""
+    import os
+    from urllib import request
+
+    reds = [c for c in checks if c.get("verdict") == RED]
+    if not reds:
+        return True, "no red checks"
+    topic = os.getenv("NTFY_TOPIC", "").strip()
+    url = os.getenv("NTFY_URL", "").strip() or (f"https://ntfy.sh/{topic}" if topic else "")
+    if not url:
+        return False, "ntfy_env_missing"
+    body = "MLBProps nightly drift RED\n" + "\n".join(
+        f"- {c.get('name')}: "
+        + ", ".join(f"{k}={v}" for k, v in c.items() if k not in ("name", "verdict"))
+        for c in reds)
+    req = request.Request(url, data=body.encode("utf-8"),
+                          headers={"Title": "MLBProps drift RED", "Priority": "high"},
+                          method="POST")
+    try:
+        with request.urlopen(req, timeout=15) as resp:
+            return True, f"ntfy_status={resp.status}"
+    except Exception as exc:  # noqa: BLE001
+        return False, f"ntfy_error={exc}"
+
+
+def veto_leak_check(rec_path, today) -> dict:
+    """Veto-leak tripwire on the live board file. Never raises: a missing,
+    unreadable, or empty board (e.g. pre-morning blank slate) reports YELLOW
+    instead of crashing the drift chain (owner 2026-09-17: 0-row parquet
+    raised ColumnNotFoundError, exit 3, no report written)."""
+    if not rec_path.exists():
+        return {"name": "veto_leak", "verdict": YELLOW, "note": "no board file"}
+    try:
+        rb = pl.scan_parquet(rec_path).select(
+            ["game_date", "line", "best_side", "recommendation"]).collect()
+    except Exception as exc:  # noqa: BLE001
+        return {"name": "veto_leak", "verdict": YELLOW,
+                "note": f"board unreadable: {type(exc).__name__}"}
+    if rb.is_empty():
+        return {"name": "veto_leak", "verdict": YELLOW, "note": "board empty"}
+    rb_dates = [d for d in (rb["game_date"].cast(pl.Utf8).to_list() or []) if d]
+    rb_latest = _max_date(rb_dates)
+    rb_stale = (today - rb_latest).days if rb_latest else None
+    leak = rb.filter((pl.col("game_date").cast(pl.Utf8) >= VETO_LIVE_DATE)
+                     & (pl.col("line") == 4.5) & (pl.col("best_side") == "over")
+                     & (pl.col("recommendation").cast(pl.Utf8) == "BET"))
+    if rb_stale is not None and rb_stale > 2:
+        return {"name": "veto_leak", "verdict": YELLOW,
+                "n_leaked": leak.height, "since": VETO_LIVE_DATE,
+                "note": f"board stale {rb_stale}d — cannot verify"}
+    return {"name": "veto_leak", "verdict": RED if leak.height > 0 else GREEN,
+            "n_leaked": leak.height, "since": VETO_LIVE_DATE}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.parse_args()
+    ap.add_argument("--page-on-red", action="store_true",
+                    help="send an ntfy banner when verdict is RED (Modal chain)")
+    args = ap.parse_args()
     today = datetime.now(timezone.utc).date()
     recent_cut = (today - timedelta(days=RECENT_DAYS)).isoformat()
     tail_cut = (today - timedelta(days=TAIL_DAYS)).isoformat()
@@ -202,24 +316,7 @@ def main() -> int:
     # paper ledger — the ledger logs every opportunity by design (shadow/A-B),
     # so ledger 4.5-overs are expected paper, never a leak.
     REC = ODDS_DIR / "recommendations.parquet"
-    if REC.exists():
-        rb = pl.scan_parquet(REC).select(
-            ["game_date", "line", "best_side", "recommendation"]).collect()
-        rb_dates = [d for d in (rb["game_date"].cast(pl.Utf8).to_list() or []) if d]
-        rb_latest = _max_date(rb_dates)
-        rb_stale = (today - rb_latest).days if rb_latest else None
-        leak = rb.filter((pl.col("game_date").cast(pl.Utf8) >= VETO_LIVE_DATE)
-                         & (pl.col("line") == 4.5) & (pl.col("best_side") == "over")
-                         & (pl.col("recommendation").cast(pl.Utf8) == "BET"))
-        if rb_stale is not None and rb_stale > 2:
-            checks.append({"name": "veto_leak", "verdict": YELLOW,
-                           "n_leaked": leak.height, "since": VETO_LIVE_DATE,
-                           "note": f"board stale {rb_stale}d — cannot verify"})
-        else:
-            checks.append({"name": "veto_leak", "verdict": RED if leak.height > 0 else GREEN,
-                           "n_leaked": leak.height, "since": VETO_LIVE_DATE})
-    else:
-        checks.append({"name": "veto_leak", "verdict": YELLOW, "note": "no board file"})
+    checks.append(veto_leak_check(REC, today))
 
     # 5. WS1c tail-line watch (8.5/9.5 behave under per-line Platt).
     tail = lg.filter((pl.col("game_date") > tail_cut) & (pl.col("line").is_in([8.5, 9.5])))
@@ -229,12 +326,15 @@ def main() -> int:
                                else GREEN),
                    "wr": t_wr, "n": t_n, "window_days": TAIL_DAYS})
 
-    # 6. Feature freshness: L3 staleness + missing-rate vs baseline (#45 rule).
+    # 6. Feature freshness: SERVING staleness (last_log rolling max — what the
+    # board actually scored on) + L3 missing-rate vs baseline (#45 rule).
+    serve_stale, serve_note = serving_freshness(today)
+    if serve_stale is None:
+        serve_verdict = YELLOW
+    else:
+        serve_verdict = freshness_verdict(serve_stale)
     if L3.exists():
         l3 = pl.scan_parquet(L3).select(["game_date"] + NULL_WATCH).collect()
-        l3_dates = [d for d in (l3["game_date"].cast(pl.Utf8).to_list() or []) if d]
-        l3_latest = _max_date(l3_dates)
-        l3_stale = (today - l3_latest).days if l3_latest else None
         null_flags = []
         for col in NULL_WATCH:
             if col not in l3.columns:
@@ -245,13 +345,17 @@ def main() -> int:
                             & (pl.col("game_date").cast(pl.Utf8) <= recent_cut))
             rr = r7[col].null_count() / r7.height if r7.height >= NULL_MIN_N else None
             bb = b60[col].null_count() / b60.height if b60.height else 0.0
-            v = YELLOW if rr is None else null_ratio_verdict(rr, bb or 0.0)
-            null_flags.append({"col": col, "verdict": v, "recent_rate": rr,
-                               "base_rate": bb, "n_recent": r7.height})
+            v, vnote = l3_null_flag_verdict(r7.height, rr, bb or 0.0)
+            entry = {"col": col, "verdict": v, "recent_rate": rr,
+                     "base_rate": bb, "n_recent": r7.height}
+            if vnote:
+                entry["note"] = vnote
+            null_flags.append(entry)
         checks.append({"name": "feature_freshness",
-                       "verdict": worst(freshness_verdict(l3_stale),
+                       "verdict": worst(serve_verdict,
                                         *[f["verdict"] for f in null_flags]),
-                       "stale_days": l3_stale, "nulls": null_flags})
+                       "stale_days": serve_stale, "stale_note": serve_note,
+                       "nulls": null_flags})
     else:
         checks.append({"name": "feature_freshness", "verdict": YELLOW, "note": "no L3 file"})
 
@@ -279,6 +383,26 @@ def main() -> int:
     checks.append({"name": "ship_watch",
                    "verdict": worst(ship_v, GREEN if fam_ok else RED), **ship_note})
 
+    # 8. Heartbeat completeness (dead-man switch, owner 2026-09-21): every
+    # scheduled job must have beaten within the trailing 24h. Catches the
+    # job that never starts — no exit code, no log, no other check fires.
+    hb_counts, hb_note = heartbeat_beats(HB_PATH)
+    if hb_counts is None:
+        checks.append({"name": "heartbeat_completeness", "verdict": YELLOW,
+                       "note": hb_note})
+    else:
+        short = {job: (HB_EXPECTED[job] - hb_counts.get(job, 0))
+                 for job in HB_EXPECTED if hb_counts.get(job, 0) < HB_EXPECTED[job]}
+        if not short:
+            verdict_hb, note_hb = GREEN, f"all jobs beat in 24h: {hb_counts}"
+        elif short.get("morning_workflow", 0) >= HB_EXPECTED["morning_workflow"] \
+                or short.get("end_of_day_settle", 0) >= HB_EXPECTED["end_of_day_settle"]:
+            verdict_hb, note_hb = RED, f"critical job missing beats: {short}"
+        else:
+            verdict_hb, note_hb = YELLOW, f"below floor: {short}"
+        checks.append({"name": "heartbeat_completeness", "verdict": verdict_hb,
+                       "note": note_hb, "counts": hb_counts})
+
     verdict = worst(*[c["verdict"] for c in checks])
     rep = {"generated_utc": datetime.now(timezone.utc).isoformat(),
            "verdict": verdict, "today": today.isoformat(), "checks": checks}
@@ -286,13 +410,21 @@ def main() -> int:
     # OBS-1 run manifest (provenance only — never gates, never raises).
     try:
         from Python.run_manifest import (  # noqa: E402
+            artifact_version,
             emit_manifest_safely,
             manifest_from_drift,
             manifest_path,
         )
         _failing = [c["name"] for c in checks if c.get("verdict") != "GREEN"]
         _man = manifest_from_drift(
-            verdict=verdict, today=today.isoformat(), failing_checks=_failing
+            verdict=verdict, today=today.isoformat(), failing_checks=_failing,
+            n_settled=int(lg.height),
+            policy_version=artifact_version(
+                ROOT / "production" / "ops" / "kpi_policy.json", "kpi"),
+            model_version=artifact_version(
+                ROOT / "production" / "ops" / "live_krate_ensemble.json", "krate"),
+            calibration_version=artifact_version(POINTER, "ws1c"),
+            as_of_utc=rep.get("generated_utc"),
         )
         emit_manifest_safely(_man, manifest_path(ODDS_DIR, "P6-SETTLE"))
     except Exception:
@@ -306,6 +438,9 @@ def main() -> int:
         print(f"[{c['verdict']}] {c['name']}: "
               + ", ".join(f"{k}={v}" for k, v in c.items() if k not in ("name", "verdict")))
     print(f"verdict={verdict}; wrote {OUT_JSON}")
+    if verdict == RED and args.page_on_red:
+        ok, info = _page_red(checks)
+        print(f"red page: {info}")
     return 0 if verdict == GREEN else (1 if verdict == YELLOW else 2)
 
 

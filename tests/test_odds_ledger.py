@@ -157,9 +157,11 @@ def test_replace_open_slate_keeps_closed_rows(tmp_path: Path) -> None:
     frame, n_written, n_removed = replace_open_slate(
         [fresh], slate="2026-07-30", path=path
     )
+    # One slip per signal (owner 2026-09-23): the closed same-signal row
+    # already holds the close, so the other book is CLV evidence, not a row.
     assert n_removed == 0
-    assert n_written == 1
-    assert frame.height == 2
+    assert n_written == 0
+    assert frame.height == 1
 
 
 def test_apply_close_sets_closed_at_and_is_idempotent() -> None:
@@ -305,8 +307,10 @@ def test_replace_open_slate_keeps_logged_bets(tmp_path: Path) -> None:
     frame, n_written, n_removed = replace_open_slate(
         [fresh], slate="2026-07-30", path=path
     )
+    # One slip per signal (owner 2026-09-23): the DK BET persists AND the FD
+    # same-signal row is skipped — no second slip for the other book.
     assert n_removed == 0
-    assert frame.height == 2
+    assert frame.height == 1
     kept = [r for r in frame.to_dicts() if r["book"] == "draftkings"][0]
     assert kept["stake"] == 39.80
 
@@ -325,8 +329,9 @@ def test_replace_open_slate_keeps_started_games(tmp_path: Path) -> None:
     frame, _n_written, n_removed = replace_open_slate(
         [fresh], slate="2026-07-30", path=path
     )
+    # Started-game row survives AND the same-signal FD row is skipped.
     assert n_removed == 0
-    assert frame.height == 2
+    assert frame.height == 1
 
 
 

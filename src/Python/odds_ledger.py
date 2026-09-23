@@ -185,6 +185,74 @@ def open_dedupe_key(
     )
 
 
+def signal_key(
+    *,
+    game_date: str,
+    player_name: str,
+    line: float,
+    side: str,
+) -> str:
+    """One slip per signal (owner 2026-09-23): same prop + side, any book.
+
+    Grading already dedupes to one slip per prop at the best edge
+    (``dedupe_ledger_props``); logging the second book as a second slip only
+    doubles close-fetch work and confuses the books. The book that carries
+    the slip is the best price at signal time; CLV for the other book lands
+    in the ``*_xbook`` columns, not a second row.
+    """
+    return (
+        f"{str(game_date)[:10]}|{norm_player_name(player_name)}|"
+        f"{float(line):g}|{str(side or '').lower()}"
+    )
+
+
+def collapse_signal_dupes(
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """Keep one row per signal: highest edge wins (pure, testable).
+
+    Ties keep the first row (stable). Survivors are tagged with the dropped
+    books so the decision stays auditable in ``note``.
+    """
+    best: dict[str, dict[str, Any]] = {}
+    dropped: dict[str, list[str]] = {}
+    order: list[str] = []
+    for row in rows:
+        key = signal_key(
+            game_date=str(row.get("game_date") or ""),
+            player_name=str(row.get("player_name") or ""),
+            line=float(row.get("line") or 0.0),
+            side=str(row.get("side") or ""),
+        )
+        if key not in best:
+            best[key] = row
+            order.append(key)
+            continue
+        try:
+            new_edge = float(row.get("edge") if row.get("edge") is not None else float("-inf"))
+            old_edge = float(best[key].get("edge") if best[key].get("edge") is not None else float("-inf"))
+        except (TypeError, ValueError):
+            new_edge, old_edge = float("-inf"), float("-inf")
+        if new_edge > old_edge:
+            dropped.setdefault(key, []).append(str(best[key].get("book") or "?"))
+            best[key] = row
+        else:
+            dropped.setdefault(key, []).append(str(row.get("book") or "?"))
+    kept: list[dict[str, Any]] = []
+    n_dropped = 0
+    for key in order:
+        row = best[key]
+        books = dropped.get(key, [])
+        n_dropped += len(books)
+        if books:
+            note = str(row.get("note") or "")
+            tag = f"signal_dupe_dropped={','.join(sorted(set(books)))}"
+            if tag not in note:
+                row = {**row, "note": f"{note} | {tag}".strip(" |")}
+        kept.append(row)
+    return kept, n_dropped
+
+
 def stable_ticket_id(
     *,
     game_date: str,
@@ -267,9 +335,31 @@ def append_open_rows(
     ensure_odds_dir()
     ledger = load_ledger(path)
     seen = existing_open_keys(ledger)
+    # One slip per signal (owner 2026-09-23): collapse the batch to the best
+    # edge per prop+side, and skip signals already on the ledger — a later
+    # book's quote is CLV evidence for the surviving slip, not a new ticket.
+    rows, _ = collapse_signal_dupes(list(rows))
+    ledger_signals: set[str] = set()
+    if not ledger.is_empty():
+        for r in ledger.to_dicts():
+            ledger_signals.add(signal_key(
+                game_date=str(r.get("game_date") or ""),
+                player_name=str(r.get("player_name") or ""),
+                line=float(r.get("line") or 0.0),
+                side=str(r.get("side") or ""),
+            ))
     fresh: list[dict[str, Any]] = []
     skipped = 0
     for row in rows:
+        sig = signal_key(
+            game_date=str(row.get("game_date") or ""),
+            player_name=str(row.get("player_name") or ""),
+            line=float(row.get("line") or 0.0),
+            side=str(row.get("side") or ""),
+        )
+        if sig in ledger_signals:
+            skipped += 1
+            continue
         key = open_dedupe_key(
             game_date=str(row.get("game_date") or ""),
             player_name=str(row.get("player_name") or ""),
@@ -280,6 +370,7 @@ def append_open_rows(
             skipped += 1
             continue
         seen.add(key)
+        ledger_signals.add(sig)
         fresh.append(row)
     if not fresh:
         return ledger, 0, skipped
@@ -359,10 +450,30 @@ def replace_open_slate(
         ledger = ledger.filter(~drop)
 
     # Dedupe incoming batch (SharpAPI / double books); skip tickets already
-    # kept above so a re-poll never double-counts a logged BET.
+    # kept above so a re-poll never double-counts a logged BET. One slip per
+    # signal (owner 2026-09-23): collapse to best edge, then skip signals the
+    # kept set already holds (best-book flip across re-polls is not a ticket).
+    rows, _ = collapse_signal_dupes(list(rows))
+    kept_signals: set[str] = set()
+    if not ledger.is_empty():
+        for r in ledger.to_dicts():
+            kept_signals.add(signal_key(
+                game_date=str(r.get("game_date") or slate_s),
+                player_name=str(r.get("player_name") or ""),
+                line=float(r.get("line") or 0.0),
+                side=str(r.get("side") or ""),
+            ))
     seen: set[str] = set()
     fresh: list[dict[str, Any]] = []
     for row in rows:
+        sig = signal_key(
+            game_date=str(row.get("game_date") or slate_s),
+            player_name=str(row.get("player_name") or ""),
+            line=float(row.get("line") or 0.0),
+            side=str(row.get("side") or ""),
+        )
+        if sig in kept_signals:
+            continue
         key = open_dedupe_key(
             game_date=str(row.get("game_date") or slate_s),
             player_name=str(row.get("player_name") or ""),
@@ -497,6 +608,12 @@ def score_quote_to_row(
         "close_under": None,
         "clv_pp": None,
         "close_status": None,
+        # Other-book live close (owner 2026-09-23): the slip rides the best
+        # price at signal time; CLV vs the other book's close lands here so
+        # both-books measurement needs no second slip.
+        "close_over_xbook": None,
+        "close_under_xbook": None,
+        "clv_pp_xbook": None,
         "settle_value": None,
         "settle_ip": None,
         "settle_outs": None,
@@ -580,6 +697,56 @@ def apply_close(
         .otherwise(pl.col("minutes_to_tip_at_close"))
         .alias("minutes_to_tip_at_close"),
         pl.when(set_mask).then(pl.lit(note)).otherwise(pl.col("note")).alias("note"),
+    )
+
+
+def apply_close_xbook(
+    ledger: pl.DataFrame,
+    *,
+    ticket_id: str,
+    close_over: float,
+    close_under: float,
+) -> pl.DataFrame:
+    """Fill the other-book close + CLV on one slip (owner 2026-09-23).
+
+    Same-book ``clv_pp`` stays the headline; ``clv_pp_xbook`` measures our
+    best-price line against the other book's close. Idempotent on
+    ``clv_pp_xbook`` non-null. Never touches status or the primary close.
+    """
+    mask = pl.col("ticket_id") == ticket_id
+    tgt = ledger.filter(mask).head(1)
+    if tgt.is_empty():
+        return ledger
+    row = tgt.row(0, named=True)
+    side = row["side"]
+    bet_price = float(row["bet_price"])
+    if side == "over":
+        clv = clv_pp_from_americans(
+            float(close_over), bet_price,
+            close_other=float(close_under), bet_other=row.get("under_price"))
+    else:
+        clv = clv_pp_from_americans(
+            float(close_under), bet_price,
+            close_other=float(close_over), bet_other=row.get("over_price"))
+    work = ledger
+    for col in ("close_over_xbook", "close_under_xbook", "clv_pp_xbook"):
+        if col not in work.columns:
+            work = work.with_columns(pl.lit(None, dtype=pl.Float64).alias(col))
+    already = pl.col("clv_pp_xbook").is_not_null()
+    set_mask = mask & ~already
+    return work.with_columns(
+        pl.when(set_mask)
+        .then(_float_literal(close_over))
+        .otherwise(pl.col("close_over_xbook"))
+        .alias("close_over_xbook"),
+        pl.when(set_mask)
+        .then(_float_literal(close_under))
+        .otherwise(pl.col("close_under_xbook"))
+        .alias("close_under_xbook"),
+        pl.when(set_mask)
+        .then(_float_literal(clv))
+        .otherwise(pl.col("clv_pp_xbook"))
+        .alias("clv_pp_xbook"),
     )
 
 

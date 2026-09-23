@@ -2,8 +2,9 @@
 
 Grades one slate date on the LIVE ledger: settled + staked + deduped to one
 ticket per prop (canonical `settled_bets` + `dedupe_ledger_props` — DK+FD
-doubles never count). Surface: N, stake, ROI, CLV
-mean + beat_rate, WR, plus trailing context and sample-size honesty flags:
+doubles never count; logging collapses to one slip per signal at the best
+edge since 2026-09-23). Surface: N, stake, ROI, CLV
+mean + beat_rate, xbook (other-book live close) + beat, WR, plus trailing context and sample-size honesty flags:
 THIN (n<5), CALIB (trailing-200 beat<0.50), EXEC (trailing CLV<0).
 xROI was removed from notifications 2026-09-21 (owner order); edge-belief
 diagnostics live in research (grade_champion xroi_edge), never in pages.
@@ -114,6 +115,19 @@ def summarize(frame: pl.DataFrame) -> dict:
     else:
         out["cons_clv_pp"] = None
         out["cons_beat"] = None
+    # Other-book live CLV (owner 2026-09-23): our best-price line vs the
+    # second SharpAPI book's close, on the same single slip. Fills in before
+    # paid consensus backfills; same-book above stays the headline.
+    xb = frame.filter(pl.col("clv_pp_xbook").is_not_null()) \
+        if "clv_pp_xbook" in frame.columns else frame.head(0)
+    out["n_xbook"] = xb.height
+    if xb.height:
+        xc = xb["clv_pp_xbook"].cast(pl.Float64) * 100.0
+        out["xbook_clv_pp"] = round(float(xc.mean()), 2)
+        out["xbook_beat"] = round(float((xc > 0).mean()), 4)
+    else:
+        out["xbook_clv_pp"] = None
+        out["xbook_beat"] = None
     return out
 
 
@@ -218,6 +232,7 @@ def main() -> None:
                 f"ROI={pct(s.get('roi'))}, "
                 f"CLV={pp(s.get('mean_clv_pp'))} (n={s.get('n_clv', 0)}), "
                 f"beat={pct(s.get('beat_rate'))}, "
+                f"xbook={pp(s.get('xbook_clv_pp'))} (n={s.get('n_xbook', 0)}), "
                 f"cons={pp(s.get('cons_clv_pp'))} (n={s.get('n_cons', 0)}{depth_s}), "
                 f"WR={pct(s.get('wr'))}")
 
@@ -228,7 +243,7 @@ def main() -> None:
         row("7d  ", w["w7"]),
         row("30d ", w["d30"]),
         row("YTD ", w["ytd"]),
-        "cons = devigged-median close, 9 books; depth = median book count.",
+        "cons = devigged-median close, 9 books; xbook = other SharpAPI book live close; depth = median book count.",
         f"Flags: {'; '.join(flags) if flags else 'none'} => {rep['status']}",
     ]
     # Keep each grading window on its own line, with a blank line for ntfy

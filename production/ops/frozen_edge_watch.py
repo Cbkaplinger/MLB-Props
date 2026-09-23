@@ -2,9 +2,11 @@
 
 Doctrine (#82 backlog): morning projections stay frozen all day; the board
 re-scores frozen probs vs fresh SharpAPI quotes on every refresh. This script
-diffs the current board against today's last-seen state and pages ONLY skip/HOLD
--> BET flips (a line moved into our threshold). BET -> skip is recorded
-silently. First run of the day stores the baseline and stays silent.
+diffs the current board against today's last-seen state and pages skip/HOLD
+-> BET flips AND first-seen BETs (a line that appears intraday straight into
+BET — absent at 08:00, BET at 16:00 — is the harvest case, not silence).
+BET -> skip is recorded silently. First run of the day stores the baseline
+and stays silent (catch-up board excepted).
 
 Veto/floors are applied by build_recommendations itself (same conservative
 flags as the production board), so a paged flip is policy-clean by
@@ -60,7 +62,10 @@ def diff_frames(old: list[dict], new: list[dict]) -> tuple[list[dict], list[dict
         k = row_key(r)
         prev = old_rec.get(k)
         cur = str(r.get("recommendation"))
-        if prev is not None and prev != "BET" and cur == "BET":
+        # prev None = first-seen row (owner 2026-09-23): a line that appears
+        # intraday straight into BET (Fried 9/22: absent at 08:00, BET at
+        # 16:00/18:00, zero pages) is the harvest case, not silence.
+        if prev != "BET" and cur == "BET":
             reason = str(r.get("policy_reason") or "")
             if "veto" in reason.lower():
                 raise AssertionError(f"veto-tagged flip paged as BET: {k} ({reason})")
@@ -85,6 +90,28 @@ def send_ntfy(text: str, title: str) -> tuple[bool, str]:
             return True, f"ntfy_status={resp.status}"
     except Exception as exc:
         return False, f"ntfy_error={exc}"
+
+
+def _alerts_muted() -> bool:
+    """True when this host must never page (Modal preview: laptop is the sole alerter)."""
+    return os.getenv("MLB_PROPS_NO_ALERT", "").strip() == "1"
+
+
+def _morning_board_posted_today(today: str, path: Path | None = None) -> bool:
+    """True if a success board already went out today.
+
+    Reads the last REAL send record (previews/dry-runs never touch it). A
+    failure banner does not count — the board never reached the owner.
+    """
+    latest = path or (ODDS_DIR / "morning_alert_latest.json")
+    try:
+        rec = json.loads(latest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    sent = str(rec.get("sent_utc") or "")[:10]
+    if sent != today:
+        return False
+    return "AUTOMATION FAILURE" not in str(rec.get("message") or "")
 
 
 def _game_started(row: dict, now: datetime) -> bool:
@@ -136,6 +163,10 @@ def self_test() -> None:
     flips, lost = diff_frames(old, new)
     assert [row_key(r) for r in flips] == ["B|6.5|over"], flips
     assert [row_key(r) for r in lost] == ["C|3.5|under"], lost
+    # First-seen BET pages (owner 2026-09-23: Fried 9/22 never paged).
+    first_seen = [dict(new[1])]
+    flips2, _ = diff_frames(old[:1], first_seen)
+    assert [row_key(r) for r in flips2] == ["B|6.5|over"], flips2
     van = diff_frames(old, [r for r in new if row_key(r) != "C|3.5|under"])[1]
     assert [row_key(r) for r in van] == ["C|3.5|under"] and van[0].get("_vanished"), van
     bad = [dict(new[1], policy_reason="veto_4_5_over")]
@@ -175,11 +206,31 @@ def main() -> None:
         atomic_write_text(state_path, json.dumps(
             {"date": today, "stored_at_utc": stamp, "rows": cur},
             indent=2, default=str))
+        # Catch-up board (owner 2026-09-16): no baseline means no morning run
+        # watched today. If the frame already holds live BETs AND no success
+        # board went out, those tickets would otherwise log silently (9/15:
+        # 5 BETs, zero pages). Page the board once; later runs diff normally.
+        now = datetime.now(timezone.utc)
+        live_bets = [r for r in cur
+                     if str(r.get("recommendation")) == "BET"
+                     and not _game_started(r, now)]
+        paged: bool | str = False
+        if live_bets and not _morning_board_posted_today(today):
+            body = ("MLB Props catch-up board (no morning run today):\n" + "\n".join(
+                fmt_flip(r) for r in live_bets))
+            if args.dry_run or _alerts_muted():
+                paged = "dry-run (not sent)" if args.dry_run else "muted (NO_ALERT)"
+                print(body)
+            else:
+                ok, info = send_ntfy(body, "MLB Props - Catch-up Board")
+                paged = ok if ok else info
+                print(f"{body}\npage: {info}")
         atomic_write_text(report_path, json.dumps(
             {"date": today, "baseline": True, "stored_at_utc": stamp,
-             "n": len(cur), "flips": [], "lost": [], "paged": False},
+              "n": len(cur), "flips": [], "lost": [], "paged": paged,
+              "catchup_bets": len(live_bets)},
             indent=2, default=str))
-        print(f"baseline stored ({len(cur)} rows); silent first run. wrote {state_path}")
+        print(f"baseline stored ({len(cur)} rows); catch-up paged={paged}. wrote {state_path}")
         return
 
     old = json.loads(state_path.read_text(encoding="utf-8"))["rows"]
@@ -191,12 +242,12 @@ def main() -> None:
     if flips and not live_flips:
         print(f"all {len(flips)} flip(s) on started games — silent.")
     flips = live_flips
-    paged: bool | str = False
+    paged = False
     if flips:
         body = "MLB Props edge harvest (frozen AM probs vs fresh lines):\n" + "\n".join(
             fmt_flip(r) for r in flips)
-        if args.dry_run:
-            paged = "dry-run (not sent)"
+        if args.dry_run or _alerts_muted():
+            paged = "dry-run (not sent)" if args.dry_run else "muted (NO_ALERT)"
             print(body)
         else:
             ok, info = send_ntfy(body, "MLB Props - Edge Harvest")

@@ -42,6 +42,7 @@ from Python.odds_ledger import (  # noqa: E402
     apply_void,
     dedupe_ledger_props,
     load_ledger,
+    parse_event_start_utc,
     run_threshold_curve,
     save_ledger,
     settled_bets,
@@ -124,7 +125,15 @@ def attach_paid_clocks(
     work = ledger.with_columns(
         pl.col("game_date").cast(pl.Utf8).str.slice(0, 10).alias("gd"),
         pl.col("player_name").map_elements(
-            lambda s: sorted_key(str(s)), return_dtype=pl.Utf8).alias("key"))
+            lambda s: sorted_key(str(s)), return_dtype=pl.Utf8).alias("key")).with_row_index("__ord")
+    # UTC fallback key: consensus panels are keyed by UTC commence date while
+    # the ledger's game_date is ET. ET-evening games (00:00-05:00 UTC starts)
+    # otherwise never match (owner 2026-09-16: 4 of 6 9/15 tickets missed).
+    if "event_start_time_utc" in work.columns:
+        work = work.with_columns(
+            pl.col("event_start_time_utc").cast(pl.Utf8).str.slice(0, 10).alias("utc_gd"))
+    else:
+        work = work.with_columns(pl.lit(None, dtype=pl.Utf8).alias("utc_gd"))
     for col in PAID_COLS:
         if col not in work.columns:
             work = work.with_columns(pl.lit(None, dtype=pl.Float64).alias(col))
@@ -143,6 +152,13 @@ def attach_paid_clocks(
             work = work.drop(pcol)
         sub = panel.select(cols).rename({"fair": pcol}) if ok else None
         m = work.join(sub, on=["gd", "key", "line", "market"], how="left") if sub is not None else work.with_columns(pl.lit(None, dtype=pl.Float64).alias(pcol))
+        if sub is not None and "utc_gd" in m.columns:
+            # Second chance on UTC commence date for ET-evening games.
+            miss = m.filter(pl.col(pcol).is_null()).drop(pcol)
+            hit = miss.join(sub, left_on=["utc_gd", "key", "line", "market"],
+                            right_on=["gd", "key", "line", "market"], how="left")
+            m = pl.concat([m.filter(pl.col(pcol).is_not_null()), hit],
+                          how="diagonal_relaxed")
         matched = int(m.filter(pl.col(pcol).is_not_null()).height) if pcol in m.columns else 0
         audit["matched"][name] = matched
         lut: dict[str, float] = {}
@@ -171,7 +187,9 @@ def attach_paid_clocks(
                 .alias("paid_clocks_attached_utc"))
         else:
             work = m
-    drop = [c for c in ("gd", "key") if c in work.columns and c not in ledger.columns]
+    if "__ord" in work.columns:
+        work = work.sort("__ord")
+    drop = [c for c in ("gd", "key", "utc_gd", "__ord") if c in work.columns and c not in ledger.columns]
     work = work.drop(drop)
     return work, audit
 
@@ -292,6 +310,20 @@ def auto_settle_api(
             stats["voided"] += 1
             continue
         if not res.get("game_started", False):
+            # Postponed-game cleanup (owner 2026-09-23): an unstarted game a
+            # full day past tip (PPD 9/22 game 824785 left Bassitt/Scherzer
+            # open forever) will be made up under a new game_pk — void here
+            # with reason instead of skipping silently. Fresh tickets log
+            # against the makeup game. Void rows stay excluded from grading.
+            tip = parse_event_start_utc(t.get("event_start_time_utc"))
+            now_utc = datetime.now(timezone.utc)
+            if tip is not None and (now_utc - tip).total_seconds() > 24 * 3600:
+                ledger = apply_void(
+                    ledger, ticket_id=t["ticket_id"],
+                    reason="postponed_unstarted_24h")
+                print(f"API void (postponed, unstarted 24h+): {t['player_name']}")
+                stats["voided"] += 1
+                continue
             print(f"API skip (unstarted): {t['player_name']}")
             stats["skipped"] += 1
             continue
