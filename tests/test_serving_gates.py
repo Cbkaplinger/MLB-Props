@@ -24,7 +24,9 @@ def _odds(tmp_path: Path, *, slate: str = "2026-09-23",
     d = tmp_path / "odds"
     d.mkdir()
     pl.DataFrame({"game_date": [slate]}).write_parquet(d / "recommendations.parquet")
-    (d / "last_log.json").write_text(json.dumps(
+    proj = tmp_path / "projection_log"
+    proj.mkdir()
+    (proj / "last_log.json").write_text(json.dumps(
         {"build_meta": {"rolling_max_date": rolling_max}}))
     return d
 

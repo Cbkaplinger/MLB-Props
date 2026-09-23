@@ -71,6 +71,11 @@ def _check(
         except OSError:
             pass
     last_log = odds_dir / LAST_LOG_NAME
+    if not last_log.exists():
+        # last_log.json lives in projection_log/, the sibling of odds_log/
+        # (owner 2026-09-23: first version looked in the wrong dir and
+        # false-alarmed every run — this fallback is the fix).
+        last_log = odds_dir.parent / "projection_log" / LAST_LOG_NAME
     try:
         meta = json.loads(last_log.read_text(encoding="utf-8")).get("build_meta", {})
         max_s = str(meta.get("rolling_max_date") or "")[:10]
