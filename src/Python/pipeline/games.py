@@ -41,7 +41,9 @@ from ..statcast import (
 def _write(df: pl.DataFrame, path: Path) -> Path:
     """Write a frame to parquet, creating the processed dir if needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.write_parquet(path)
+    from Python.odds_ledger import atomic_write_parquet  # local: keep pipeline import-light
+
+    atomic_write_parquet(df, path)
     return path
 
 
