@@ -318,6 +318,7 @@ def _poll_open(
         print(
             f"Appended {n_appended} (skipped {n_skipped} already-open) -> {LEDGER_PATH}"
         )
+    _banner_serving_gates()
 
 
 def _rows_from_recommendations(*, slate: str, unit_dollars: float) -> list[dict]:
@@ -451,6 +452,26 @@ def _open_from_recommendations(
         print(
             f"Appended {n_appended} (skipped {n_skipped} already-open) -> {LEDGER_PATH}"
         )
+    _banner_serving_gates()
+
+
+def _banner_serving_gates() -> None:
+    """DATA-1A (owner 2026-09-23, fail-LOUD): print serving warnings, if any.
+
+    Banner only — never blocks a write. A human reads it and decides.
+    """
+    try:
+        from zoneinfo import ZoneInfo  # noqa: E402
+
+        from Python.serving_gates import check_serving  # noqa: E402
+
+        gate = check_serving(
+            LEDGER_PATH.parent,
+            datetime.now(ZoneInfo("America/New_York")).date().isoformat())
+        for w in gate.get("warnings") or []:
+            print(f"SERVING-GATE: {w}")
+    except Exception as exc:  # noqa: BLE001 — the gate must never break polling
+        print(f"SERVING-GATE: check errored (fail-open): {exc!r}"[:160])
 
 
 def _poll_close(

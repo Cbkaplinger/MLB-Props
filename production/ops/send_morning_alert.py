@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib import request
@@ -24,7 +25,6 @@ import polars as pl
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 from Python.env_load import load_project_dotenv  # noqa: E402
-
 # Load repo .env so NTFY_TOPIC / NTFY_URL is available even when run from Task
 # Scheduler, which does NOT inherit the interactive shell's environment.
 load_project_dotenv()
@@ -183,7 +183,11 @@ def _slip_pick(bets: pl.DataFrame) -> dict | None:
     return max(pool, key=lambda r: float(r.get("edge") or 0.0))
 
 
-def _send_ntfy(text: str, *, title: str = "MLB Props - Daily Recs") -> tuple[bool, str]:
+def _send_ntfy(text: str, *, title: str = "MLB Props - Daily Recs",
+               retries: int = 3) -> tuple[bool, str]:
+    """POST with retries: a single transient (ntfy/vendor blip) must never
+    silently eat a recommendation (owner 2026-09-17: belt-and-suspenders so a
+    sent board always pages). Backoff 2s/4s; returns the last outcome."""
     topic = os.getenv("NTFY_TOPIC", "").strip()
     ntfy_url = os.getenv("NTFY_URL", "").strip()
     if not ntfy_url and topic:
@@ -200,11 +204,16 @@ def _send_ntfy(text: str, *, title: str = "MLB Props - Daily Recs") -> tuple[boo
         },
         method="POST",
     )
-    try:
-        with request.urlopen(req, timeout=15) as resp:
-            return True, f"ntfy_status={resp.status}"
-    except Exception as exc:
-        return False, f"ntfy_error={exc}"
+    last: tuple[bool, str] = (False, "ntfy_error=unknown")
+    for attempt in range(max(1, retries)):
+        try:
+            with request.urlopen(req, timeout=15) as resp:
+                return True, f"ntfy_status={resp.status}"
+        except Exception as exc:  # noqa: BLE001
+            last = (False, f"ntfy_error={exc}")
+            if attempt < retries - 1:
+                time.sleep(2 * (attempt + 1))
+    return last
 
 
 def main() -> None:
@@ -228,12 +237,38 @@ def main() -> None:
             "record never overwrites the morning picks record."
         ),
     )
+    p.add_argument(
+        "--flips-only",
+        action="store_true",
+        help=(
+            "Hourly mode: page only when today's edge-watch reports flips "
+            "(or on failure / unknown watch state, which fail open). "
+            "Quiet hours write a preview record and exit 0. "
+            "The morning chain never passes this flag - it always fires."
+        ),
+    )
     args = p.parse_args()
 
-    # Parallel-proofing (2026-09-15): the cloud runs the same chain while the
-    # laptop is primary. MLB_PROPS_NO_ALERT=1 turns this into a preview-only
-    # run (exit 0) so two machines never double-ping. Set in modal_app.py
-    # hourly_refresh; removed at cutover when the cloud becomes primary.
+    # DATA-1A serving gates (owner 2026-09-23, fail-LOUD): warnings banner the
+    # message, force flips-only pages, and land in the run manifest. Nothing
+    # here suppresses a ledger write or a page — a human reads and decides.
+    try:
+        from Python.serving_gates import check_serving  # noqa: E402
+
+        _gate = check_serving(
+            ODDS_DIR, datetime.now(ET).date().isoformat())
+        gate_warnings: list[str] = list(_gate.get("warnings") or [])
+    except Exception:  # noqa: BLE001 — the gate must never break the alert
+        gate_warnings = ["serving-gate import failed (fail-open)"]
+    gate_banner = "; ".join(gate_warnings)
+    failure_message = "; ".join(
+        s for s in (args.failure_message.strip(), gate_banner) if s)
+
+    # Parallel-proofing: the laptop runs the same chain as fallback while the
+    # cloud is primary (cutover 2026-09-16; laptop tasks disabled).
+    # MLB_PROPS_NO_ALERT=1 turns this into a preview-only
+    # run (exit 0) so two machines never double-ping. Set it on whichever
+    # host is secondary; removed from the cloud chain at cutover.
     if os.getenv("MLB_PROPS_NO_ALERT", "").strip() == "1" and not args.dry_run:
         msg = _build_message()
         out_path = OUT_PATH.parent / "morning_alert_preview.json"
@@ -249,7 +284,7 @@ def main() -> None:
 
     if args.flips_only and not args.dry_run:
         _fire, _why = _flips_fire(
-            _load_edge_watch_today(), failure_message=args.failure_message)
+            _load_edge_watch_today(), failure_message=failure_message)
         if not _fire:
             out_path = OUT_PATH.parent / "morning_alert_preview.json"
             out_path.write_text(json.dumps({
@@ -265,6 +300,8 @@ def main() -> None:
     msg = _build_message()
     if args.failure_message.strip():
         msg = f"AUTOMATION FAILURE\n{args.failure_message.strip()}\n\n{msg}"
+    elif gate_warnings:
+        msg = f"SERVING-GATE\n{gate_banner}\n\n{msg}"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     send_results: list[dict[str, object]] = []
 
@@ -297,7 +334,8 @@ def main() -> None:
     out_path = OUT_PATH.parent / "morning_alert_preview.json" if args.dry_run else OUT_PATH.parent / Path(args.record_name).name
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     # OBS-1 run manifest (provenance only — never gates paging, never raises).
-    # Slate identity lives with the board; the alerter records what it knows.
+    # Slate/rows come from the board's own meta file; versions are content
+    # hashes of the live pins. Anything unreadable stays null (unknown).
     try:
         from Python.run_manifest import (  # noqa: E402
             artifact_version,
@@ -309,6 +347,7 @@ def main() -> None:
         _man = manifest_from_alert(
             any_sent=bool(payload["any_sent"]),
             failure_message=args.failure_message,
+            warnings=gate_warnings or None,
             slate_date=_meta.get("slate_date"),
             input_rows={
                 k: int(_meta[k]) for k in ("n_board", "n_quotes", "n_matched")

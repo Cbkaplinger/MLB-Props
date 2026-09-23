@@ -230,6 +230,7 @@ def manifest_from_alert(
     *,
     any_sent: bool,
     failure_message: str = "",
+    warnings: list[str] | None = None,
     slate_date: str | None = None,
     input_rows: dict[str, int] | None = None,
     output_rows: dict[str, int] | None = None,
@@ -257,8 +258,9 @@ def manifest_from_alert(
             manifest, "FAILED",
             errors=[str(failure_message).strip()[:300]], **extra,
         )
+    warn = [str(w)[:300] for w in (warnings or []) if str(w).strip()]
     if bool(any_sent):
-        return finish_run(manifest, "SUCCESS_FRESH", **extra)
+        return finish_run(manifest, "SUCCESS_FRESH", warnings=warn or None, **extra)
     return finish_run(
         manifest,
         "DEGRADED_NO_PAGE",
