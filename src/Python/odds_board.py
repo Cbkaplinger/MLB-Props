@@ -22,7 +22,7 @@ from Python.market import (
     evaluate_side,
     size_in_units,
 )
-from Python.odds_ledger import ODDS_DIR, norm_player_name
+from Python.odds_ledger import ODDS_DIR, atomic_write_parquet, norm_player_name
 from Python.projection_support import row_oos_reason
 from Python.sharp_odds import StrikeoutQuote, fetch_mlb_strikeout_quotes
 
@@ -538,6 +538,21 @@ def _attach_slate_exposure(frame: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def _flag_game_stacks(frame: pl.DataFrame, threshold: int = 4) -> pl.DataFrame:
+    """Flag games stacking threshold-or-more BETs (display-only).
+
+    The cap-3 trigger condition as a signal with no BET-set change:
+    rows in games with n_game_bets >= threshold get game_stack_flag=true.
+    Requires _attach_slate_exposure first (fail-open without n_game_bets).
+    Revert = delete the call + helper.
+    """
+    if frame.is_empty() or "n_game_bets" not in frame.columns:
+        return frame.with_columns(pl.lit(False).alias("game_stack_flag")) \
+            if not frame.is_empty() else frame
+    return frame.with_columns(
+        (pl.col("n_game_bets") >= threshold).alias("game_stack_flag"))
+
+
 def _apply_game_cap(frame: pl.DataFrame, rules: dict) -> pl.DataFrame:
     """Keep only the top-edge BETs per game (fail-open when unset).
 
@@ -589,20 +604,25 @@ def _stale_days(slate_date: date | None = None) -> int | None:
         max_s = str(meta.get("rolling_max_date") or "")[:10]
         if not max_s:
             return None
-        anchor = slate_date or date.today()
+        from Python.odds_ledger import et_today  # noqa: E402  (OPS-1B: ET, never system-local)
+
+        anchor = slate_date or date.fromisoformat(et_today())
         return (anchor - date.fromisoformat(max_s)).days
     except Exception:
         return None
 
 
-def _apply_stale_data_hold(frame: pl.DataFrame, rules: dict,
-                           slate_date: date | None = None) -> pl.DataFrame:
-    """Fail closed on stale features: no BETs when data is older than cap.
+def _tag_stale_data(frame: pl.DataFrame, rules: dict,
+                      slate_date: date | None = None) -> pl.DataFrame:
+    """Hold (loud) on stale features — owner 2026-09-23: never pick on stale.
 
-    Owner 2026-09-15: never recommend a board off stale data. Default cap 1
-    day (anything over a day old is stale); override via rules["max_stale_days"].
-    Unknown freshness = fail-open (gate needs evidence). Demoted rows become
-    HOLD tagged `stale_data`; math untouched. Revert = delete the call.
+    Supersedes the 2026-09-17 tag-only repeal FOR THE POST-HEAL CASE: the heal
+    step runs before the board, so data still >cap days stale means upstream
+    is down and any BET is a guess. Difference vs the 9/15 rule that held
+    Javier/Wheeler silently: this holds LOUD (banner + `stale_hold` reason +
+    SERVING-GATE manifests downstream) and only after heal had its chance.
+    Default threshold 1 day via rules["max_stale_days"]; unknown freshness =
+    untagged (fail-open: no gate without evidence). Revert = delete the call.
     """
     if frame.is_empty() or "recommendation" not in frame.columns:
         return frame
@@ -613,16 +633,25 @@ def _apply_stale_data_hold(frame: pl.DataFrame, rules: dict,
     stale = _stale_days(slate_date)
     if stale is None or stale <= cap:
         return frame
+    print(f"STALE-HOLD: features {stale}d old (> {cap}d cap) — "
+          f"all BETs held, no picks on stale data.")
     has_reason = "policy_reason" in frame.columns
     base_reason = pl.col("policy_reason") if has_reason else pl.lit("")
+    hold_reason = (
+        pl.when(base_reason == "").then(pl.lit(f"stale_hold={stale}d"))
+        .otherwise(base_reason + pl.lit(f"|stale_hold={stale}d"))
+    )
     return frame.with_columns(
         pl.when(pl.col("recommendation") == "BET")
         .then(pl.lit("HOLD")).otherwise(pl.col("recommendation")).alias("recommendation"),
         pl.when(pl.col("recommendation") == "BET")
-        .then(pl.when(base_reason == "").then(pl.lit("stale_data"))
-              .otherwise(base_reason + pl.lit("|stale_data")))
+        .then(hold_reason)
         .otherwise(base_reason)
         .alias("policy_reason"),
+        # A held BET stakes nothing (same as game-cap/veto holds downstream).
+        *([pl.when(pl.col("recommendation") == "BET")
+           .then(pl.lit(0.0)).otherwise(pl.col("stake").cast(pl.Float64))
+           .alias("stake")] if "stake" in frame.columns else []),
     )
 
 
@@ -1251,18 +1280,23 @@ def build_recommendations(
         # correlation-cap design. Columns only — BET logic byte-identical.
         # Revert = delete the call + helper.
         frame = _attach_slate_exposure(frame)
+        # Game-stack watch (display-only, 2026-09-15): flag games with 4+
+        # BETs so stacked exposure is visible without changing the BET set.
+        # Revert = delete the call + helper.
+        frame = _flag_game_stacks(frame)
         # Per-game count cap (measured 2026-09-14: keep-max-edge-per-event
         # +3.55pp ROI on the juiced taken set, 48% less volume). OFF unless
         # kpi rules set game_cap_max_bets (fail-open when absent).
         frame = _apply_game_cap(frame, _pre_rules)
-        # Stale-data fail-closed (2026-09-15, owner order): no board off
-        # stale features. Slate date from the frame; unknown = fail-open.
+        # Stale-data tag (2026-09-17, owner order: fail-closed repealed).
+        # Freshness is healed upstream; here we only label BETs placed on
+        # stale features. Slate date from the frame; unknown = untagged.
         try:
             _slate = frame["game_date"].cast(pl.Utf8).str.slice(0, 10).min()
             _slate_d = date.fromisoformat(str(_slate)) if _slate else None
         except Exception:
             _slate_d = None
-        frame = _apply_stale_data_hold(frame, _pre_rules, _slate_d)
+        frame = _tag_stale_data(frame, _pre_rules, _slate_d)
         # Slate-final guard (2026-09-14, owner order): once the last game
         # has started the day is over for new bets — demote BETs to HOLD
         # tagged slate_final. Staked ledger rows persist regardless.
@@ -1510,7 +1544,9 @@ def write_recommendations(
     html_path: Path = BOARD_HTML,
 ) -> tuple[Path, Path]:
     ODDS_DIR.mkdir(parents=True, exist_ok=True)
-    frame.write_parquet(parquet_path)
+    # Atomic temp+rename: readers (drift, watch) never see a torn/empty file
+    # (owner 2026-09-17: 0-row board crashed drift with ColumnNotFoundError).
+    atomic_write_parquet(frame, parquet_path)
     html_path.write_text(recommendations_to_html(frame, meta), encoding="utf-8")
     import json
 

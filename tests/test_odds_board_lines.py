@@ -12,11 +12,12 @@ import polars as pl
 from Python.odds_board import (
     _apply_game_cap,
     _apply_slate_final,
-    _apply_stale_data_hold,
+    _tag_stale_data,
     _attach_slate_exposure,
     _clip_offset,
     _edge_cap_reason,
     _fill_books,
+    _flag_game_stacks,
     _lean_premium,
     _line_to_col,
     _postseason_hold_reason,
@@ -25,6 +26,7 @@ from Python.odds_board import (
     p_model_over_for_line,
     quality_gate_hold_reason,
     score_quote_against_board,
+    write_recommendations,
 )
 from Python.sharp_odds import StrikeoutQuote
 
@@ -472,6 +474,33 @@ def test_attach_slate_exposure_empty_or_missing_columns() -> None:
     assert _attach_slate_exposure(no_cols).to_dicts() == [{"a": 1}]
 
 
+def test_flag_game_stacks_marks_4_plus_bet_games() -> None:
+    frame = pl.DataFrame(
+        [
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0},
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0},
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0},
+            {"game_pk": 1, "recommendation": "BET", "stake": 50.0},
+            {"game_pk": 2, "recommendation": "BET", "stake": 50.0},
+            {"game_pk": 2, "recommendation": "BET", "stake": 50.0},
+        ]
+    )
+    before = frame.select(["game_pk", "recommendation", "stake"]).to_dicts()
+    out = _flag_game_stacks(_attach_slate_exposure(frame))
+    # Display only: recommendations and stakes untouched.
+    assert out.select(["game_pk", "recommendation", "stake"]).to_dicts() == before
+    g1 = out.filter(pl.col("game_pk") == 1).to_dicts()
+    assert all(r["game_stack_flag"] for r in g1)
+    g2 = out.filter(pl.col("game_pk") == 2).to_dicts()
+    assert not any(r["game_stack_flag"] for r in g2)
+
+
+def test_flag_game_stacks_fail_open_without_exposure() -> None:
+    frame = pl.DataFrame([{"game_pk": 1, "recommendation": "BET"}])
+    out = _flag_game_stacks(frame).to_dicts()
+    assert out[0]["game_stack_flag"] is False
+
+
 def test_slate_final_demotes_bets_after_last_first_pitch() -> None:
     past = "2026-09-14T18:00:00Z"
     frame = pl.DataFrame(
@@ -535,23 +564,80 @@ def test_game_cap_keeps_top_edge_per_game() -> None:
     assert by_key[(2, 0.12)]["recommendation"] == "BET"
 
 
-def test_stale_data_hold_demotes_only_when_stale(monkeypatch) -> None:
+def test_stale_data_holds_loud(monkeypatch) -> None:
+    # Owner 2026-09-23: never pick on stale data (post-heal). Stale BETs
+    # become HOLD with a stale_hold reason; fresh/unknown boards untouched.
     import Python.odds_board as ob
 
-    frame = pl.DataFrame(        [{"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15,
-          "policy_reason": ""}]
-    )
+    frame = pl.DataFrame([{"game_pk": 1, "recommendation": "BET", "stake": 50.0, "edge": 0.15,
+          "policy_reason": ""}])
     monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: 8)
-    out = _apply_stale_data_hold(frame, {}).to_dicts()
+    out = _tag_stale_data(frame, {}).to_dicts()
     assert out[0]["recommendation"] == "HOLD"
-    assert out[0]["policy_reason"] == "stale_data"
-    assert out[0]["stake"] == 50.0
+    assert out[0]["policy_reason"] == "stale_hold=8d"
+    assert out[0]["stake"] == 0.0
     monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: 2)
-    assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "HOLD"
+    held = _tag_stale_data(frame, {}).to_dicts()[0]
+    assert held["recommendation"] == "HOLD" and held["policy_reason"] == "stale_hold=2d"
     monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: 1)
-    assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"
+    assert _tag_stale_data(frame, {}).to_dicts()[0]["policy_reason"] == ""
     monkeypatch.setattr(ob, "_stale_days", lambda slate_date=None: None)
-    assert _apply_stale_data_hold(frame, {}).to_dicts()[0]["recommendation"] == "BET"
+    assert _tag_stale_data(frame, {}).to_dicts()[0]["policy_reason"] == ""
+
+
+def _load_heal_mod():
+    import importlib.util
+    import sys
+    from pathlib import Path as _P
+    spec = importlib.util.spec_from_file_location(
+        "heal_stale_slate",
+        _P(__file__).resolve().parents[1] / "production" / "ops" / "heal_stale_slate.py")
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["heal_stale_slate"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_heal_stale_slate_thresholds(tmp_path, monkeypatch) -> None:
+    import datetime
+    import json
+    heal_mod = _load_heal_mod()
+    fake_log = tmp_path / "last_log.json"
+    monkeypatch.setattr(heal_mod, "LAST_LOG", fake_log)
+    # Missing log -> unknown freshness, board decides (never blocks).
+    assert heal_mod.stale_days() is None
+    ok, _ = heal_mod.heal(threshold=1)
+    assert ok is True
+    # 5-day stale log reads back as 5.
+    old = (datetime.date.today() - datetime.timedelta(days=5)).isoformat()
+    fake_log.write_text(json.dumps({"build_meta": {"rolling_max_date": old}}),
+                        encoding="utf-8")
+    assert heal_mod.stale_days() == 5
+    # Fresh log -> no subprocess traffic at all.
+    fresh = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    fake_log.write_text(json.dumps({"build_meta": {"rolling_max_date": fresh}}),
+                        encoding="utf-8")
+    calls: list = []
+    monkeypatch.setattr(heal_mod.subprocess, "run",
+                        lambda *a, **k: calls.append(a) or (_ for _ in ()).throw(
+                            AssertionError("must not run steps when fresh")))
+    ok, note = heal_mod.heal(threshold=1)
+    assert ok is True and calls == [] and "fresh" in note
+    # Stale log -> exactly the 3-step cycle, failures recorded not raised.
+    fake_log.write_text(json.dumps({"build_meta": {"rolling_max_date": old}}),
+                        encoding="utf-8")
+
+    class _Proc:
+        returncode = 0
+
+    seen: list = []
+    monkeypatch.setattr(heal_mod.subprocess, "run",
+                        lambda cmd, **k: seen.append(cmd[2].split("/")[-1]) or _Proc())
+    ok, note = heal_mod.heal(threshold=1)
+    assert ok is True
+    assert seen == ["refresh_statcast.py", "refresh_features.py",
+                    "log_projections.py"]
 
 
 def test_cell_gate_2025_marks_take_drop_unrated() -> None:
@@ -568,3 +654,22 @@ def test_scored_row_carries_cell_gate_column() -> None:
         unit_dollars=50.0, edge_floor=0.12)
     assert s is not None
     assert s["cell_gate_2025"] in ("take", "drop", "unrated")
+
+
+def test_write_recommendations_roundtrip_atomic(tmp_path) -> None:
+    # Owner 2026-09-17: torn/empty board file crashed drift; writes must be
+    # atomic temp+rename with no stray tmp files left behind.
+    frame = pl.DataFrame({
+        "game_date": ["2026-09-17", "2026-09-17"],
+        "player_name": ["Test Arm", "Other Arm"],
+        "recommendation": ["BET", "skip"],
+    })
+    meta = {"slate_date": "2026-09-17", "n_matched": 2, "n_bet": 1,
+            "edge_floor": 0.12, "unit_dollars": 50.0, "built_at_utc": "x"}
+    pq = tmp_path / "recommendations.parquet"
+    html = tmp_path / "board.html"
+    write_recommendations(frame, meta, parquet_path=pq, html_path=html)
+    back = pl.read_parquet(pq)
+    assert back.height == 2 and set(back["player_name"].to_list()) == {"Test Arm", "Other Arm"}
+    assert html.exists()
+    assert list(tmp_path.glob("*.tmp")) == [] and list(tmp_path.glob("*~")) == []
