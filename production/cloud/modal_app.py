@@ -150,6 +150,10 @@ try:
              "--roi-mode", "conservative"],
             ["python", "-u", "production/odds/poll_odds.py", "--snapshot", "open",
              "--unit", "50", "--roi-mode", "conservative", "--from-recommendations"],
+            ["python", "-u", "production/ops/market_research/kalshi_k_reader.py",
+             "--soft-fail"],
+            ["python", "-u", "production/ops/market_research/novig_probe.py",
+             "--soft-fail"],
             ["python", "-u", "production/ops/send_morning_alert.py"],
         ])
         _beat("morning_workflow", ok, note)
@@ -181,6 +185,14 @@ try:
              "--unit", "50", "--roi-mode", "conservative", "--from-recommendations",
              "--quotes-file", "artifacts/odds_log/sharp_quotes_latest.parquet"],
             ["python", "-u", "production/ops/frozen_edge_watch.py"],
+            # Free-venue sidecars (owner 2026-09-23): Kalshi K panels (keyless)
+            # + Novig fill-availability probe (skips clean without creds).
+            # Both are --soft-fail best-effort: a free sidecar never fails
+            # the chain. No new cron (5-cap) — steps inside hourly.
+            ["python", "-u", "production/ops/market_research/kalshi_k_reader.py",
+             "--soft-fail"],
+            ["python", "-u", "production/ops/market_research/novig_probe.py",
+             "--soft-fail"],
             ["python", "-u", "production/ops/send_morning_alert.py", "--flips-only"],
         ])
         _beat("hourly_refresh", ok, note)

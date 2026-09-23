@@ -33,7 +33,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
 ELECTIONS_API = "https://api.elections.kalshi.com/trade-api/v2"
@@ -156,11 +156,20 @@ def main() -> None:
                     help="Slate date for the panel filename (default: today ET).")
     ap.add_argument("--dry-run", action="store_true",
                     help="Fetch + parse, print coverage, write nothing.")
+    ap.add_argument("--soft-fail", action="store_true",
+                    help="Chain mode: any failure prints KALSHI-SOFT and exits 0 "
+                         "(never fail a cron chain over a free sidecar).")
     args = ap.parse_args()
     from Python.odds_ledger import et_today  # noqa: E402
 
     day = args.date or et_today()
-    events = fetch_open_k_events()
+    try:
+        events = fetch_open_k_events()
+    except Exception as exc:  # noqa: BLE001
+        print(f"KALSHI-SOFT: discovery failed ({exc!r}[:120]); skipping panel.")
+        if args.soft_fail:
+            return
+        raise
     rows, skipped, events_hit = [], 0, 0
     for e in events:
         et = str(e.get("event_ticker") or "")
@@ -168,7 +177,14 @@ def main() -> None:
         if gd is not None and gd != day[:10]:
             continue
         events_hit += 1
-        for mk in fetch_event_markets(et):
+        try:
+            markets = fetch_event_markets(et)
+        except Exception as exc:  # noqa: BLE001
+            print(f"KALSHI-SOFT: {et} markets failed ({exc!r}[:100]); continuing.")
+            if not args.soft_fail:
+                raise
+            continue
+        for mk in markets:
             row = parse_k_market(mk)
             if row is None:
                 skipped += 1
