@@ -50,7 +50,7 @@ ENV = {"PYTHONIOENCODING": "utf-8",
 
 # Bump on every deploy. The heartbeat carries it, so the volume record proves
 # which image is actually live (owner 2026-09-16: heartbeat always said ok).
-IMAGE_VERSION = "2026-09-23c"
+IMAGE_VERSION = "2026-09-23d"
 
 
 def _run_steps(steps: list[list[str]]) -> tuple[bool, str]:
