@@ -53,6 +53,8 @@ MR_DIR = ROOT / "production" / "ops" / "market_research"
 FRIEND_DIR = ROOT / "data" / "Odds-Open-Close-2025-2026"
 PAID_COLS = ["paid_open_over", "paid_morning_over", "paid_close_over",
              "clv_paid_open_pp", "clv_paid_morning_pp", "clv_paid_close_pp"]
+KALSHI_COLS = ["kalshi_open_over", "kalshi_close_over",
+               "clv_kalshi_open_pp", "clv_kalshi_close_pp"]
 
 
 def _mr_join_keys():
@@ -194,6 +196,158 @@ def attach_paid_clocks(
     return work, audit
 
 
+def attach_kalshi_clocks(
+    ledger: pl.DataFrame,
+    panels: list[pl.DataFrame],
+) -> tuple[pl.DataFrame, dict]:
+    """Backfill Kalshi open/close fair probs onto ledger rows (observability).
+
+    Mirrors ``attach_paid_clocks``: left-join on (gd, key, line, market) with
+    the UTC-gd fallback for ET-evening games; writes kalshi_*_over fair probs
+    + clv_kalshi_*_pp in the CANONICAL sign (close-fair minus devigged-bet
+    side, x100). Fair cols fill-null; CLV ALWAYS recomputed.
+
+    Open = earliest panel snapshot of the game date (pre-tip ideally — the
+    join side must respect ``fetched_at_utc``; v1 takes earliest-of-day).
+    Close = latest snapshot at-or-before first pitch + 5 min (post-tip rows
+    are live-ball, excluded). Never touches close_over / clv_pp / policy.
+    Returns (frame, audit).
+    """
+    from datetime import datetime, timezone  # local: keeps import block stable
+    _, sorted_key = _mr_join_keys()
+    audit: dict = {"n_rows": int(ledger.height), "matched": {}, "filled": {}}
+    if ledger.is_empty() or not panels:
+        return ledger, audit
+    panel = pl.concat(
+        [p for p in panels if not p.is_empty()], how="diagonal_relaxed")
+    need = {"player_name", "line", "over_prob", "fetched_at_utc"}
+    if panel.is_empty() or not need.issubset(set(panel.columns)):
+        return ledger, audit
+    work = ledger.with_columns(
+        pl.col("game_date").cast(pl.Utf8).str.slice(0, 10).alias("gd"),
+        pl.col("player_name").map_elements(
+            lambda s: sorted_key(str(s)), return_dtype=pl.Utf8).alias("key")).with_row_index("__ord")
+    if "event_start_time_utc" in work.columns:
+        work = work.with_columns(
+            pl.col("event_start_time_utc").cast(pl.Utf8).str.slice(0, 10).alias("utc_gd"))
+    else:
+        work = work.with_columns(pl.lit(None, dtype=pl.Utf8).alias("utc_gd"))
+    for col in KALSHI_COLS:
+        if col not in work.columns:
+            work = work.with_columns(pl.lit(None, dtype=pl.Float64).alias(col))
+    if "kalshi_clocks_attached_utc" not in work.columns:
+        work = work.with_columns(pl.lit(None, dtype=pl.Utf8).alias("kalshi_clocks_attached_utc"))
+    stamp = datetime.now(timezone.utc).isoformat()
+    panel = panel.with_columns(
+        pl.col("player_name").map_elements(
+            lambda s: sorted_key(str(s)), return_dtype=pl.Utf8).alias("key"),
+        pl.col("line").cast(pl.Float64),
+        pl.col("over_prob").cast(pl.Float64),
+        pl.col("fetched_at_utc").cast(pl.Utf8),
+        pl.lit("pitcher_strikeouts").alias("market"),
+    )
+    snaps = {"open": None, "close": None}
+    for snap in ("open", "close"):
+        sub = panel
+        if snap == "open":
+            sub = sub.sort(["key", "line", "fetched_at_utc"]).unique(
+                subset=["key", "line"], keep="first")
+        else:
+            # Close keeps EVERY snapshot: the per-ticket latest-pre-tip pick
+            # happens below (a pre-collapsed latest is usually live-ball).
+            sub = sub.sort(["key", "line", "fetched_at_utc"])
+        snaps[snap] = sub.select(["key", "line", "market", "over_prob",
+                                  "fetched_at_utc"])
+    pairs = [("open", snaps["open"], "kalshi_open_over", "clv_kalshi_open_pp"),
+             ("close", snaps["close"], "kalshi_close_over", "clv_kalshi_close_pp")]
+    for name, sub, pcol, ccol in pairs:
+        if pcol in work.columns:
+            work = work.drop(pcol)
+        m = work.join(sub.select(["key", "line", "market", "over_prob",
+                                  "fetched_at_utc"]).rename(
+            {"over_prob": pcol, "fetched_at_utc": "kfetched"}),
+            on=["key", "line", "market"], how="left")
+        # NOTE: paid panels join on gd too (panels carry their date); Kalshi
+        # panels are per-day files but rows lack gd — the caller passes only
+        # the slate's panels, so key+line+market suffices. UTC fallback n/a.
+        if name == "close":
+            # Latest snapshot at-or-before tip+5m per ticket (owner 2026-09-23:
+            # Kalshi trades live — post-tip rows are live-ball, excluded; and
+            # when the latest snapshot is post-tip we fall back to the latest
+            # PRE-tip one, not to nothing).
+            from datetime import datetime as _dt
+
+            def _parse(ts: object) -> object:
+                try:
+                    t = _dt.fromisoformat(str(ts).replace("Z", "+00:00"))
+                    return t if t.tzinfo is not None else t.replace(
+                        tzinfo=timezone.utc)
+                except (ValueError, TypeError):
+                    return None
+
+            tips = {str(r["ticket_id"]): _parse(r.get("event_start_time_utc"))
+                    for r in work.select(
+                        ["ticket_id", "event_start_time_utc"]).to_dicts()}
+            winners: dict[str, tuple[str, float]] = {}
+            for r in m.select(
+                    ["ticket_id", "kfetched", pcol]).to_dicts():
+                fair = r.get(pcol)
+                if fair is None:
+                    continue
+                fet = _parse(r.get("kfetched"))
+                tip = tips.get(str(r["ticket_id"]))
+                if fet is None or tip is None:
+                    continue
+                if (fet - tip).total_seconds() > 5 * 60:
+                    continue
+                cur = winners.get(str(r["ticket_id"]))
+                if cur is None or str(r.get("kfetched")) > cur[0]:
+                    winners[str(r["ticket_id"])] = (
+                        str(r.get("kfetched")), float(fair))
+            m = work.with_columns(pl.lit(None, dtype=pl.Float64).alias(pcol))
+            if winners:
+                wmap = pl.DataFrame(
+                    [{"ticket_id": t, "_kclose": v} for t, (_, v) in winners.items()])
+                m = m.join(wmap, on="ticket_id", how="left").with_columns(
+                    pl.when(pl.col("_kclose").is_not_null())
+                    .then(pl.col("_kclose")).otherwise(pl.col(pcol))
+                    .alias(pcol)).drop("_kclose")
+        if "kfetched" in m.columns:
+            m = m.drop("kfetched")
+        matched = int(m.filter(pl.col(pcol).is_not_null()).height)
+        audit["matched"][name] = matched
+        lut: dict[str, float] = {}
+        for r in m.select(["ticket_id", "side", "bet_price", "over_price",
+                           "under_price", pcol, ccol]).to_dicts():
+            fair = r.get(pcol)
+            if fair is None:
+                continue
+            try:
+                fo, fu = devig_two_way(float(r["over_price"]), float(r["under_price"]))
+            except (TypeError, ValueError):
+                continue
+            p_bet = fo if str(r.get("side")) == "over" else fu
+            p_close = float(fair) if str(r.get("side")) == "over" else 1.0 - float(fair)
+            lut[str(r["ticket_id"])] = (p_close - p_bet) * 100.0
+        audit["filled"][name] = len(lut)
+        if lut:
+            vals = pl.DataFrame([{"ticket_id": t, ccol: v} for t, v in lut.items()])
+            work = m.join(vals, on="ticket_id", how="left", suffix="_new")
+            work = work.with_columns(pl.col(f"{ccol}_new").alias(ccol)).drop(f"{ccol}_new")
+            work = work.with_columns(
+                pl.when(pl.col("kalshi_clocks_attached_utc").is_null()
+                        & pl.col("ticket_id").is_in(list(lut)))
+                .then(pl.lit(stamp)).otherwise(pl.col("kalshi_clocks_attached_utc"))
+                .alias("kalshi_clocks_attached_utc"))
+        else:
+            work = m
+    if "__ord" in work.columns:
+        work = work.sort("__ord")
+    drop = [c for c in ("gd", "key", "utc_gd", "__ord") if c in work.columns and c not in ledger.columns]
+    work = work.drop(drop)
+    return work, audit
+
+
 def _parse_settle(raw: str) -> tuple[str, str, float]:
     parts = [p.strip() for p in raw.split(",")]
     if len(parts) != 3:
@@ -318,9 +472,14 @@ def auto_settle_api(
             tip = parse_event_start_utc(t.get("event_start_time_utc"))
             now_utc = datetime.now(timezone.utc)
             if tip is not None and (now_utc - tip).total_seconds() > 24 * 3600:
+                # Makeup-link note: postponed games resurface under a NEW
+                # game_pk, so record the dead pk — a weekly void audit can
+                # match makeups by matchup+date instead of guessing.
+                pk = t.get("game_pk")
+                reason = ("postponed_unstarted_24h"
+                          + (f"_pk{pk}" if pk is not None else ""))
                 ledger = apply_void(
-                    ledger, ticket_id=t["ticket_id"],
-                    reason="postponed_unstarted_24h")
+                    ledger, ticket_id=t["ticket_id"], reason=reason)
                 print(f"API void (postponed, unstarted 24h+): {t['player_name']}")
                 stats["voided"] += 1
                 continue
@@ -498,6 +657,13 @@ def main() -> None:
               "Observability only: fill-null, never touches close_over/clv_pp "
               "or any scoring column."),
     )
+    p.add_argument(
+        "--attach-kalshi-clocks",
+        action="store_true",
+        help=("Backfill Kalshi open/close fair probs (free keyless panels in "
+              "artifacts/odds_log/kalshi_panel_*.parquet) onto ledger rows as "
+              "kalshi_*_over + clv_kalshi_*_pp. Observability only."),
+    )
     args = p.parse_args()
 
     if not LEDGER_PATH.exists() and not args.status:
@@ -511,6 +677,7 @@ def main() -> None:
         and not args.curve
         and not args.auto_settle_api
         and not args.attach_paid_clocks
+        and not args.attach_kalshi_clocks
         and not args.void
     )
     if args.status or did_status_only:
@@ -598,6 +765,12 @@ def main() -> None:
         friend = _friend_opens()
         ledger, audit = attach_paid_clocks(ledger, morning, close_hist, friend)
         print(f"paid clocks: {json.dumps(audit, default=str)}")
+
+    if args.attach_kalshi_clocks and not ledger.is_empty():
+        panels = sorted((ROOT / "artifacts" / "odds_log").glob("kalshi_panel_*.parquet"))
+        frames = [pl.read_parquet(p) for p in panels] if panels else []
+        ledger, audit = attach_kalshi_clocks(ledger, frames)
+        print(f"kalshi clocks: {len(frames)} panels, {json.dumps(audit, default=str)}")
 
     save_ledger(ledger)
     _write_gate_next_n_artifact(ledger, next_n=max(1, int(args.gate_next_n)))
