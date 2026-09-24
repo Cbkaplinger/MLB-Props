@@ -37,10 +37,13 @@ def test_fresh_serving_is_ok(tmp_path) -> None:
 
 
 def test_stale_and_missing_warn_but_never_raise(tmp_path) -> None:
+    from datetime import datetime, timezone
+
+    now = datetime(2026, 9, 23, 12, 0, tzinfo=timezone.utc)
     d = _odds(tmp_path, slate="2026-09-20", rolling_max="2026-09-18")
-    old = time.time() - 30 * 3600  # 30h: safely stale vs any pinned now_utc
+    old = now.timestamp() - 30 * 3600  # anchored to pinned NOW, not wall clock
     os.utime(d / "recommendations.parquet", (old, old))
-    out = check_serving(d, "2026-09-23", now_utc=NOW)
+    out = check_serving(d, "2026-09-23", now_utc=now)
     assert out["ok"] is False
     assert len(out["warnings"]) >= 3  # wrong slate + old mtime + stale rolling
     empty = tmp_path / "empty"

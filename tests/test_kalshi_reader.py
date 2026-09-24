@@ -56,9 +56,52 @@ def test_event_game_date() -> None:
 def test_panel_write_roundtrip(tmp_path) -> None:
     rows = [kr.parse_k_market(_mkt(last_price_dollars="0.99"), now_utc="t")]
     path = kr.write_panel([r for r in rows if r], game_date="2026-09-23",
-                          out_dir=tmp_path)
-    assert path.name == "kalshi_panel_2026-09-23.parquet"
+                          out_dir=tmp_path, run_tag="2026-09-23T120000")
+    assert path.name == "kalshi_panel_2026-09-23T120000.parquet"
     import polars as pl
 
     back = pl.read_parquet(path)
     assert back.height == 1 and back["player_name"][0] == "Framber Valdez"
+
+
+def _load_grading():
+    spec = importlib.util.spec_from_file_location(
+        "grade_odds_ledger",
+        ROOT / "production" / "odds" / "grade_odds_ledger.py")
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["grade_odds_ledger"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_attach_kalshi_clocks_open_close_and_live_exclusion() -> None:
+    import polars as pl
+
+    g = _load_grading()
+    ledger = pl.DataFrame([{
+        "ticket_id": "t1", "game_date": "2026-09-23", "player_name": "Test Arm",
+        "line": 5.5, "side": "under", "book": "fanduel", "status": "open",
+        "bet_price": -110.0, "over_price": -110.0, "under_price": -110.0,
+        "event_start_time_utc": "2026-09-23T23:00:00+00:00", "market": "pitcher_strikeouts",
+    }])
+    panel = pl.DataFrame([
+        {"player_name": "Test Arm", "line": 5.5, "over_prob": 0.55,
+         "fetched_at_utc": "2026-09-23T12:00:00+00:00"},
+        {"player_name": "Test Arm", "line": 5.5, "over_prob": 0.60,
+         "fetched_at_utc": "2026-09-23T22:00:00+00:00"},
+        {"player_name": "Test Arm", "line": 5.5, "over_prob": 0.99,
+         "fetched_at_utc": "2026-09-23T23:30:00+00:00"},  # live-ball: excluded
+    ])
+    out, audit = g.attach_kalshi_clocks(ledger, [panel])
+    row = out.to_dicts()[0]
+    assert row["kalshi_open_over"] == 0.55
+    # Close = latest PRE-tip snapshot (22:00), not the 23:30 live row.
+    assert row["kalshi_close_over"] == 0.60
+    # Under side: (1 - fair) - devigged_under(-110)=0.5, x100.
+    import pytest
+
+    assert row["clv_kalshi_close_pp"] == pytest.approx(-10.0)
+    assert row["clv_kalshi_open_pp"] == pytest.approx(-5.0)
+    assert audit["matched"] == {"open": 1, "close": 1}
+    assert out["kalshi_clocks_attached_utc"][0] is not None

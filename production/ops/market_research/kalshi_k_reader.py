@@ -131,15 +131,24 @@ def parse_k_market(market: dict, *, now_utc: str = "") -> dict | None:
 
 
 def write_panel(rows: list[dict], *, game_date: str,
-                out_dir: Path | None = None) -> Path:
-    """Idempotent daily panel write (atomic). Returns the path."""
+                out_dir: Path | None = None,
+                run_tag: str = "") -> Path:
+    """Per-run panel write (atomic; owner 2026-09-24).
+
+    One file per run (``kalshi_panel_YYYY-MM-DDTHHMMSS.parquet``), never one
+    per day: a daily file gets overwritten by the next hourly run and the
+    morning opens are lost. The join reads ``kalshi_panel_*.parquet`` and
+    picks earliest-of-day (open) / latest-pre-tip (close) per key, so reruns
+    and duplicates are harmless by construction.
+    """
     from Python.odds_ledger import atomic_write_parquet  # noqa: E402
 
     import polars as pl  # noqa: E402
 
     target_dir = out_dir or (ROOT / "artifacts" / PANEL_DIR_NAME)
     target_dir.mkdir(parents=True, exist_ok=True)
-    path = target_dir / f"{PANEL_PREFIX}{game_date[:10]}.parquet"
+    tag = run_tag or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%S")
+    path = target_dir / f"{PANEL_PREFIX}{tag}.parquet"
     frame = pl.DataFrame(rows) if rows else pl.DataFrame(
         schema={"player_name": pl.Utf8, "line": pl.Float64,
                 "over_prob": pl.Float64, "under_prob": pl.Float64,
