@@ -1,6 +1,6 @@
 # Index — MLB Props research map
 
-Four phase diagrams. Open each file for detail; this index only shows how they
+Five phase diagrams. Open each file for detail; this index only shows how they
 relate.
 
 > Live ops / approvals / deferred work: [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md).
@@ -21,11 +21,13 @@ flowchart TB
   B["02 Leakage & risks<br/>priors · parks · PA≥9 filter"]:::risk
   C["03 Modeling & evaluation<br/>chrono · freeze · governance"]:::built
   D["04 Roadmap<br/>holdout growth · retest gates"]:::next
+  E["05 Live prediction flow<br/>crons → board → ledger → grading (2026-09-24)"]:::built
 
   IDX --> A
   IDX --> B
   IDX --> C
   IDX --> D
+  IDX --> E
 
   A -.->|"feeds"| C
   B -.->|"constraints"| A
@@ -58,8 +60,10 @@ flowchart TB
 - **CLV skill suite shipped (2026-08-06):** `production/notebooks/results_dashboard.ipynb`
   §11-20: reliability+z-test / residual decomposition / chrono recalibration /
   model health scorecard / BCa-CLV checkpoint framework — see
-  `docs/research/notebook_change_log.md`. Floor + Kelly frozen at
-  **12% / ⅛ Kelly** (`docs/research/floor_freeze_log.md`).
+  `docs/research/notebook_change_log.md`. Floor + Kelly: edge floor with
+  1/16-Kelly sizing realized as flat $50u (Kelly fractions anchor to 1u at
+  this bankroll; flat wins paper ROI per 04-roadmap line 72 — the "⅛ Kelly"
+  wording below is stale).
 - **Execution vs research gate split wired:** execution lane tracks freshness,
   quote coverage, and board↔ledger parity; research lane tracks counterfactual
   confidence and long-horizon skill.
