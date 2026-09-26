@@ -264,6 +264,48 @@ def main() -> None:
         {"date": today, "baseline": False, "n": len(cur),
          "flips": flips, "lost": lost, "paged": paged}, indent=2, default=str))
     print(f"wrote {report_path}")
+    # Flip history (owner 2026-09-24, Bassitt lesson): the report overwrites
+    # every run, so intraday flips are undebuggable after the fact. Append
+    # one line per run (best-effort, never breaks the run).
+    try:
+        with open(ODDS_DIR / "edge_watch_history.jsonl", "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({
+                "ts_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "date": today, "n": len(cur),
+                "flips": [{k: r.get(k) for k in (
+                    "player_name", "line", "best_side", "recommendation",
+                    "edge", "stake")} for r in flips],
+                "n_lost": len(lost), "paged": paged}, default=str) + "\n")
+    except OSError:
+        pass
+    # Stake-sync (owner 2026-09-24, Griffin lesson): the alert pages the
+    # CURRENT board ($50 BET) so the ledger must agree — upgrade open $0
+    # slips to flipped stakes. Upgrades only (never downgrades, never
+    # touches staked/settled rows); dry-run writes nothing.
+    if flips and not args.dry_run:
+        try:
+            from Python.odds_ledger import (  # noqa: E402
+                apply_flip_stake, load_ledger, save_ledger)
+
+            led = load_ledger()
+            n_synced = 0
+            for f in flips:
+                try:
+                    led, n = apply_flip_stake(
+                        led, game_date=today,
+                        player_name=str(f.get("player_name") or ""),
+                        line=float(f.get("line")),
+                        side=str(f.get("best_side") or ""),
+                        stake=float(f.get("stake") or 0.0))
+                    n_synced += n
+                except (TypeError, ValueError):
+                    continue
+            if n_synced:
+                save_ledger(led)
+            print(f"stake-sync: {n_synced} slip(s) upgraded "
+                  f"({len(flips)} flip(s) reconciled).")
+        except Exception as exc:  # noqa: BLE001 — sync must never break watch
+            print(f"stake-sync skipped (fail-open): {exc!r}"[:160])
 
 
 if __name__ == "__main__":

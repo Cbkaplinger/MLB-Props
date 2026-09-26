@@ -245,3 +245,25 @@ def test_roi_invariant_to_row_order(props: list[dict]) -> None:
     random.Random(7).shuffle(shuffled)
     other = float(dedupe_ledger_props(_prop_frame(shuffled))["stake"].sum())
     assert base == other
+
+
+def test_rung_monotonicity_all_families() -> None:
+    # Standing invariant (owner 2026-09-24): P(K > line) never rises with the
+    # line, in any count family. A violation would misprice every ladder.
+    import numpy as np
+
+    from Python.count_layer import p_strikeouts_ge
+
+    lines = [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5]
+    rate = np.array([0.28] * 4)
+    tbf = np.array([24.0, 20.0, 27.0, 22.0])
+    for family in ("binomial", "beta_binomial", "poisson"):
+        kw: dict = {"family": family}
+        if family == "beta_binomial":
+            kw["kappa"] = 50.0
+        prev = None
+        for ln in lines:
+            cur = p_strikeouts_ge(ln, k_rate=rate, projected_tbf=tbf, **kw)
+            if prev is not None:
+                assert bool((cur <= prev + 1e-12).all())
+            prev = cur

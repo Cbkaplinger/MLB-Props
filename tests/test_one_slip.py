@@ -88,6 +88,40 @@ def _load_grading():
     return mod
 
 
+def test_flip_stake_upgrades_open_zero_only() -> None:
+    base = {"game_date": "2026-09-23", "player_name": "Test Arm", "line": 5.5,
+            "side": "under", "book": "fanduel", "edge": 0.18,
+            "bet_price": -110.0, "over_price": -110.0, "under_price": -110.0,
+            "event_start_time_utc": None, "clv_pp": None, "close_status": None,
+            "close_over": None, "close_under": None, "closed_at_utc": None,
+            "minutes_to_tip_at_close": None, "note": None, "units": 0.0,
+            "unit_dollars": 50.0}
+    rows = [
+        {"ticket_id": "zero", "status": "open", "stake": 0.0, **base},
+        {"ticket_id": "staked", "status": "open", "stake": 50.0, **base},
+        {"ticket_id": "settled", "status": "settled", "stake": 0.0, **base},
+        {"ticket_id": "other", "status": "open", "stake": 0.0,
+         **{**base, "line": 6.5}},
+    ]
+    import polars as pl
+
+    df = pl.DataFrame(rows)
+    out, n = led.apply_flip_stake(
+        df, game_date="2026-09-23", player_name="Test Arm", line=5.5,
+        side="under", stake=50.0)
+    assert n == 1
+    got = dict(zip(out["ticket_id"].to_list(), out["stake"].to_list()))
+    assert got == {"zero": 50.0, "staked": 50.0, "settled": 0.0, "other": 0.0}
+    note = out.filter(pl.col("ticket_id") == "zero")["note"][0]
+    assert "flip_upgrade" in str(note)
+    assert out.filter(pl.col("ticket_id") == "zero")["units"][0] == 1.0
+    # Zero/negative board stake never touches anything.
+    out2, n2 = led.apply_flip_stake(
+        df, game_date="2026-09-23", player_name="Test Arm", line=5.5,
+        side="under", stake=0.0)
+    assert n2 == 0
+
+
 def test_summarize_reports_xbook() -> None:
     g = _load_grading()
     frame = pl.DataFrame([
@@ -100,3 +134,48 @@ def test_summarize_reports_xbook() -> None:
     assert s["n_xbook"] == 2
     assert s["xbook_beat"] == 0.5
     assert s["n"] == 2 and s["beat_rate"] == 0.5
+
+
+def test_append_second_line_same_family_links_zero(tmp_path) -> None:
+    # Glasnow 2026-09-24: U7.5 FD 08:00 staked, U6.5 DK 11:00 must NOT become
+    # a second $50 slip — it appends as $0 telemetry, tagged.
+    import polars as pl
+
+    path = tmp_path / "ledger.parquet"
+    r1 = _row("u75", "fanduel", 0.15)
+    r1["stake"] = 50.0
+    led.append_open_rows([r1], path=path)
+    r2 = _row("u65", "draftkings", 0.20)
+    r2["stake"] = 50.0
+    r2["line"] = 6.5
+    frame, n_app, _ = led.append_open_rows([r2], path=path)
+    assert n_app == 1 and frame.height == 2
+    got = dict(zip(frame["ticket_id"].to_list(), frame["stake"].to_list()))
+    assert got == {"u75": 50.0, "u65": 0.0}
+    note = frame.filter(pl.col("ticket_id") == "u65")["note"][0]
+    assert "signal_family_linked" in str(note)
+
+
+def test_dedupe_keeps_earliest_line_per_family() -> None:
+    # Grading: earliest line when it pops up, even if the later line has the
+    # better edge (explicit logged_at clocks — no build-order luck).
+    import polars as pl
+    from datetime import datetime, timezone
+
+    def _t(ticket_id, line, edge, logged):
+        r = _row(ticket_id, "draftkings", edge)
+        r["line"] = line
+        r["stake"] = 50.0
+        r["status"] = "settled"
+        r["logged_at_utc"] = logged
+        return r
+
+    early = "2026-09-24T12:00:00+00:00"
+    late = "2026-09-24T15:00:00+00:00"
+    df = pl.DataFrame([
+        _t("late-better", 6.5, 0.25, late),
+        _t("early-worse", 7.5, 0.10, early),
+    ])
+    one = led.dedupe_ledger_props(df)
+    assert one.height == 1
+    assert one["ticket_id"][0] == "early-worse"

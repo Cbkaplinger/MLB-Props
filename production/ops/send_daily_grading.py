@@ -91,6 +91,14 @@ def summarize(frame: pl.DataFrame) -> dict:
         "ev_dollars": round(float(
             (edge * frame["stake"].cast(pl.Float64).fill_null(0.0)).sum()), 2),
     }
+    # Season Sharpe (owner 2026-09-24): per-bet returns in THIS window
+    # (labeled window Sharpe, never annualized). The phone alert shows the
+    # YTD one — how profitable the method is, not one ticket.
+    ret = (frame["pnl"].cast(pl.Float64).fill_null(0.0)
+           / frame["stake"].cast(pl.Float64).fill_null(0.0).replace(0, None))
+    ret = ret.drop_nulls()
+    out["sharpe"] = round(float(ret.mean() / (ret.std() or float("nan"))), 3) \
+        if ret.len() >= 2 and (ret.std() or 0.0) > 0 else None
     clv = frame.filter(pl.col("clv_pp").is_not_null()) \
         if "clv_pp" in frame.columns else frame.head(0)
     out["n_clv"] = clv.height
@@ -230,8 +238,10 @@ def main() -> None:
         pnl = f"${s.get('pnl', 0):+.0f}"
         depth = s.get("cons_depth")
         depth_s = f", depth={depth:g}" if depth else ""
+        shp = s.get("sharpe")
+        shp_s = f", Sharpe={shp:+.2f}" if shp is not None else ""
         return (f"{label}: n={s.get('n', 0)}, PnL={pnl}, EV=${s.get('ev_dollars', 0):.0f}, "
-                f"ROI={pct(s.get('roi'))}, "
+                f"ROI={pct(s.get('roi'))}{shp_s}, "
                 f"CLV={pp(s.get('mean_clv_pp'))} (n={s.get('n_clv', 0)}), "
                 f"beat={pct(s.get('beat_rate'))}, "
                 f"xbook={pp(s.get('xbook_clv_pp'))} (n={s.get('n_xbook', 0)}), "

@@ -92,9 +92,20 @@ def _safe_json(path: Path) -> dict:
         return {}
 
 
-def _build_message() -> str:
+def _build_message(flips: list[dict] | None = None) -> str:
     rec_path = ODDS_DIR / "recommendations.parquet"
     pick_lines: list[str] = []
+    flip_lines: list[str] = []
+    for f in flips or []:
+        try:
+            fside = str(f.get("best_side") or "").strip().lower()
+            fside = "Over" if fside == "over" else "Under" if fside == "under" else fside.title()
+            fedge = float(f.get("edge") or 0.0) * 100.0
+            flip_lines.append(
+                f"NEW: {f.get('player_name')} {fside} {f.get('line')} @ "
+                f"{f.get('best_price')} (edge {fedge:.1f}%)")
+        except (TypeError, ValueError, AttributeError):
+            continue
     slip_line = ""
     raw_max = os.getenv("ALERT_MAX_BETS", "").strip()
     max_bets = int(raw_max) if raw_max else 0
@@ -163,6 +174,15 @@ def _build_message() -> str:
         lines.extend(pick_lines)
     else:
         lines.append("No BET recommendations.")
+    if flip_lines:
+        # Hourly flips pages carry the FULL board (all current BETs), so the
+        # trigger gets top billing — owner 2026-09-24 (Seymour rode along on
+        # Glasnow's flip with no visible cause).
+        lines.append("")
+        lines.append("--- Flips this run (why you were paged) ---")
+        lines.extend(flip_lines)
+        lines.append("--- Full current board below ---")
+        lines.append("")
     if slip_line:
         lines.append("")
         lines.append(slip_line)
@@ -299,7 +319,9 @@ def main() -> None:
             print(f"flips-only quiet ({_why}): wrote {out_path}")
             return
 
-    msg = _build_message()
+    msg = _build_message(
+        flips=((_load_edge_watch_today() or {}).get("flips") or [])
+        if args.flips_only else None)
     if args.failure_message.strip():
         msg = f"AUTOMATION FAILURE\n{args.failure_message.strip()}\n\n{msg}"
     elif gate_warnings:

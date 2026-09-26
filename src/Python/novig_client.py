@@ -149,6 +149,10 @@ def resolve_market(markets: list[dict], *, player_name: str, line: float,
 
     Matches on normalized player + line within 1e-9; returns the market with
     the outcome id for ``side`` when present, else None (no fill there).
+
+    Owner 2026-09-24 assumption: Novig is peer-to-peer (must settle a winner
+    and a loser — pushes break the market), so expect .5 lines only, same as
+    our book lines. Exact-float match holds; revisit if whole numbers appear.
     """
     want = norm_name(player_name)
     try:

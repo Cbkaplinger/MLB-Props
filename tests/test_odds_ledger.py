@@ -192,7 +192,10 @@ def test_apply_close_sets_closed_at_and_is_idempotent() -> None:
     assert r2["closed_at_utc"].startswith("2026-07-30T23:05")
 
 
-def test_dedupe_ledger_props_keeps_best_edge_book() -> None:
+def test_dedupe_ledger_props_keeps_earliest_per_family() -> None:
+    # Owner 2026-09-24: one graded slip per FAMILY (not per book) — earliest
+    # line when it pops up (name matching, never ticket id). Here DK is both
+    # earliest-built and max-edge, so both rules agree.
     dk = _row(book="draftkings", over_price=-126, under_price=104, p_model_over=0.35)
     fd = _row(book="fanduel", over_price=-130, under_price=100, p_model_over=0.35)
     # Force edges: DK higher edge on under side via p_model
@@ -222,8 +225,8 @@ def test_dedupe_ledger_props_keeps_over_and_under_separate() -> None:
 
 
 def test_dedupe_ledger_props_keeps_best_book_per_side() -> None:
-    # Two books on the SAME side collapse to one row (best edge); a second side
-    # on the same line is retained separately.
+    # Two books on the SAME side collapse to one row (earliest logged);
+    # a second side on the same line is retained separately.
     dk_over = _row(book="draftkings", over_price=-120, under_price=104, p_model_over=0.62)
     fd_over = _row(book="fanduel", over_price=-130, under_price=100, p_model_over=0.62)
     under = _row(book="novig", over_price=-110, under_price=+100, p_model_over=0.42)

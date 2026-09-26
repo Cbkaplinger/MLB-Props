@@ -186,6 +186,21 @@ def open_dedupe_key(
     )
 
 
+def family_key(
+    *,
+    game_date: str,
+    player_name: str,
+    side: str,
+) -> str:
+    """One graded slip per signal FAMILY (owner 2026-09-24): same prop + side
+    across books AND lines (Glasnow U7.5 FD + U6.5 DK = one bet, graded at
+    the earliest). Name matching (not ticket id) so books/lines never double
+    count. See ``collapse_signal_dupes`` (per-line) vs this (per-family).
+    """
+    return (f"{str(game_date)[:10]}|{norm_player_name(player_name)}|"
+            f"{str(side or '').lower()}")
+
+
 def signal_key(
     *,
     game_date: str,
@@ -252,6 +267,46 @@ def collapse_signal_dupes(
                 row = {**row, "note": f"{note} | {tag}".strip(" |")}
         kept.append(row)
     return kept, n_dropped
+
+
+def link_family_dupes(
+    rows: list[dict[str, Any]],
+    staked_families: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], int, set[str]]:
+    """Zero the stake on later lines of an already-staked family (pure).
+
+    First staked signal wins (earliest line when it pops up — Glasnow U7.5
+    FD 08:00 beats U6.5 DK 11:00); later same-family lines stay as $0
+    telemetry tagged ``signal_family_linked``. Unstaked rows always pass
+    (telemetry never blocks). Returns (rows, n_linked, claimed_families).
+    """
+    claimed: set[str] = set(staked_families or ())
+    out: list[dict[str, Any]] = []
+    n_linked = 0
+    for row in rows:
+        key = family_key(
+            game_date=str(row.get("game_date") or ""),
+            player_name=str(row.get("player_name") or ""),
+            side=str(row.get("side") or ""),
+        )
+        try:
+            st = float(row.get("stake") or 0.0)
+        except (TypeError, ValueError):
+            st = 0.0
+        if st > 0 and key in claimed:
+            note = str(row.get("note") or "")
+            tag = "signal_family_linked"
+            new_row = {**row, "stake": 0.0,
+                       "note": f"{note} | {tag}".strip(" |")}
+            if "units" in new_row:
+                new_row["units"] = 0.0
+            out.append(new_row)
+            n_linked += 1
+        else:
+            if st > 0:
+                claimed.add(key)
+            out.append(row)
+    return out, n_linked, claimed
 
 
 def stable_ticket_id(
@@ -357,6 +412,7 @@ def append_open_rows(
     # book's quote is CLV evidence for the surviving slip, not a new ticket.
     rows, _ = collapse_signal_dupes(list(rows))
     ledger_signals: set[str] = set()
+    ledger_families_staked: set[str] = set()
     if not ledger.is_empty():
         for r in ledger.to_dicts():
             ledger_signals.add(signal_key(
@@ -365,6 +421,17 @@ def append_open_rows(
                 line=float(r.get("line") or 0.0),
                 side=str(r.get("side") or ""),
             ))
+            try:
+                st = float(r.get("stake") or 0.0)
+            except (TypeError, ValueError):
+                st = 0.0
+            if st > 0:
+                ledger_families_staked.add(family_key(
+                    game_date=str(r.get("game_date") or ""),
+                    player_name=str(r.get("player_name") or ""),
+                    side=str(r.get("side") or ""),
+                ))
+    rows, _, _ = link_family_dupes(rows, ledger_families_staked)
     fresh: list[dict[str, Any]] = []
     skipped = 0
     for row in rows:
@@ -472,6 +539,7 @@ def replace_open_slate(
     # kept set already holds (best-book flip across re-polls is not a ticket).
     rows, _ = collapse_signal_dupes(list(rows))
     kept_signals: set[str] = set()
+    kept_families_staked: set[str] = set()
     if not ledger.is_empty():
         for r in ledger.to_dicts():
             kept_signals.add(signal_key(
@@ -480,6 +548,17 @@ def replace_open_slate(
                 line=float(r.get("line") or 0.0),
                 side=str(r.get("side") or ""),
             ))
+            try:
+                st = float(r.get("stake") or 0.0)
+            except (TypeError, ValueError):
+                st = 0.0
+            if st > 0:
+                kept_families_staked.add(family_key(
+                    game_date=str(r.get("game_date") or slate_s),
+                    player_name=str(r.get("player_name") or ""),
+                    side=str(r.get("side") or ""),
+                ))
+    rows, _, _ = link_family_dupes(rows, kept_families_staked)
     seen: set[str] = set()
     fresh: list[dict[str, Any]] = []
     for row in rows:
@@ -862,6 +941,83 @@ def apply_settle(
     )
 
 
+def apply_flip_stake(
+    ledger: pl.DataFrame,
+    *,
+    game_date: str,
+    player_name: str,
+    line: float,
+    side: str,
+    stake: float,
+) -> tuple[pl.DataFrame, int]:
+    """Upgrade an open $0 slip to the board's stake on a skip/HOLD->BET flip.
+
+    Owner 2026-09-24 (Griffin lesson): the alert pages the CURRENT board
+    ($50 BET) while the ledger froze at first-log ($0 skip) — books must
+    agree. Upgrades ONLY: open rows with zero stake whose signal matches;
+    staked rows, settled rows, and downward moves are untouched (intraday
+    decay never un-takes). Tags ``flip_upgrade``. One slip stays one slip.
+    """
+    if ledger.is_empty():
+        return ledger, 0
+    sig = signal_key(game_date=str(game_date)[:10],
+                     player_name=player_name, line=line, side=side)
+    try:
+        want = float(stake or 0.0)
+    except (TypeError, ValueError):
+        return ledger, 0
+    if want <= 0:
+        return ledger, 0
+
+    def _sig_of(row: dict) -> str:
+        return signal_key(game_date=str(row.get("game_date") or ""),
+                          player_name=str(row.get("player_name") or ""),
+                          line=float(row.get("line") or 0.0),
+                          side=str(row.get("side") or ""))
+
+    ids: list[str] = []
+    for row in ledger.to_dicts():
+        if str(row.get("status") or "") != "open":
+            continue
+        try:
+            has = float(row.get("stake") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        if has != 0.0 or _sig_of(row) != sig:
+            continue
+        ids.append(str(row.get("ticket_id")))
+    if not ids:
+        return ledger, 0
+    out = ledger
+    for tid in ids:
+        tgt = out.filter(pl.col("ticket_id") == tid).head(1)
+        if tgt.is_empty():
+            continue
+        trow = tgt.row(0, named=True)
+        note = str(trow.get("note") or "")
+        tag = "flip_upgrade"
+        if tag not in note:
+            note = f"{note} | {tag}".strip(" |")
+        try:
+            unit = float(trow.get("unit_dollars") or 50.0)
+        except (TypeError, ValueError):
+            unit = 50.0
+        units = float(want) / unit if unit > 0 else 0.0
+        out = out.with_columns(
+            pl.when(pl.col("ticket_id") == tid)
+            .then(pl.lit(float(want)))
+            .otherwise(pl.col("stake").cast(pl.Float64)).alias("stake"),
+            pl.when(pl.col("ticket_id") == tid)
+            .then(pl.lit(note)).otherwise(pl.col("note")).alias("note"),
+        )
+        if "units" in out.columns:
+            out = out.with_columns(
+                pl.when(pl.col("ticket_id") == tid)
+                .then(pl.lit(units))
+                .otherwise(pl.col("units").cast(pl.Float64)).alias("units"))
+    return out, len(ids)
+
+
 def apply_void(
     ledger: pl.DataFrame,
     *,
@@ -903,16 +1059,19 @@ def settled_bets(ledger: pl.DataFrame) -> pl.DataFrame:
 
 
 def dedupe_ledger_props(ledger: pl.DataFrame) -> pl.DataFrame:
-    """One ticket per prop for skill stats / curves (no DK+FD double count).
+    """One ticket per prop FAMILY for skill stats / curves (no double count).
 
-    Prop key: ``(game_date, pitcher|player_name, line, side)``.
+    Family key: ``(game_date, pitcher|player_name, side)`` — books AND lines
+    collapse (owner 2026-09-24: Glasnow U7.5 FD + U6.5 DK = one bet, graded
+    at the earliest line when it pops up; name matching, never ticket id).
 
-    Keeps the book you'd paper-bet: highest ``edge``, then ``units``.
-    Ties break toward same-book close (``ok``) over ``ok_cross_book``.
+    Keeps the earliest ``logged_at_utc`` per family (ties/missing clocks
+    fall back to highest ``edge``, then ``units`` — the old rule, so
+    clockless frames grade exactly as before). Ties break toward same-book
+    close (``ok``) over ``ok_cross_book``.
 
     ``side`` is part of the key so an over/under pair on the same line is
-    *not* merged (you could bet either side); duplicates are the same prop
-    placed at multiple books (DK+FD) on the same side.
+    *not* merged (you could bet either side).
 
     The per-book detail table can still show every ticket; call this only for
     summary statistics, histograms, and threshold curves.
@@ -959,8 +1118,8 @@ def dedupe_ledger_props(ledger: pl.DataFrame) -> pl.DataFrame:
     ranked = df.with_columns(pid, close_rank)
     sort_keys = ["_prop_d", "_prop_pid", "_prop_side"]
     sort_desc: list[bool] = [False, False, False]
-    if "line" in ranked.columns:
-        sort_keys.append("line")
+    if "logged_at_utc" in ranked.columns:
+        sort_keys.append("logged_at_utc")
         sort_desc.append(False)
     if "edge" in ranked.columns:
         sort_keys.append("edge")
@@ -972,9 +1131,7 @@ def dedupe_ledger_props(ledger: pl.DataFrame) -> pl.DataFrame:
     sort_desc.append(False)
 
     ranked = ranked.sort(sort_keys, descending=sort_desc)
-    subset = ["_prop_d", "_prop_pid", "_prop_side"] + (
-        ["line"] if "line" in ranked.columns else []
-    )
+    subset = ["_prop_d", "_prop_pid", "_prop_side"]
     out = ranked.unique(subset=subset, keep="first")
     return out.drop([c for c in ("_prop_d", "_prop_pid", "_prop_side", "_close_rank") if c in out.columns])
 
