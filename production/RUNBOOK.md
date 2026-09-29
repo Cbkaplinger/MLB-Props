@@ -34,6 +34,29 @@ Optional post-score automation (free-tier MLOps):
 .\.venv\Scripts\python.exe production/ops/run_post_score_automation.py --append-lineage --operator "kapcam"
 ```
 
+## Canonical Daily Process (linear, cloud primary since 2026-09-16 cutover)
+
+1. **03:00** settle (post-game only) → **05:30** drift + grading → **08:00**
+   morning (heal → projections → board → poll → always-fire alert) →
+   **09:00–22:00** hourly (heal → re-log on fresh lineups → board → poll →
+   watch → flips-only alert) → **q20min 12:00–22:12** close sweeps →
+   next 03:00. All ET (`America/New_York` on Modal; see cloud README timing).
+
+Backwards restart paths (in order, stop at the first that fixes it):
+- Missed board: re-run the chain step (Modal) or laptop `run_morning_workflow.ps1`
+  fallback; never fabricate a missed slate.
+- Stale slate mid-day: `heal_stale_slate.py` (one repair cycle, always exit 0),
+  then re-run board; residual staleness rides tags + banner, never a quit.
+- Missing closes: `run_close_sweep.py --dry-run` to preview, then live; or
+  `backfill_closes_from_cloud.py` for the one-way cloud→laptop merge.
+- Unsettled yesterday: `grade_odds_ledger.py --auto-settle-api --void-scratches`;
+  multi-day gap: `run_catchup.ps1` (grades only) or `run_wake_recovery.ps1`
+  (full rebuild, never settles intraday, never fabricates).
+- Silence (no heartbeat): Modal dashboard → volume `cloud_heartbeat.jsonl`
+  recency per schedule; laptop tasks only on owner order (disabled at cutover).
+- Duplicate pages: exactly one alerter must own sends (cloud primary;
+  `MLB_PROPS_NO_ALERT=1` on whichever host is secondary).
+
 ## Core Commands
 
 From repo root:
@@ -69,6 +92,10 @@ Diagnostics-first risk gating (optional, not default):
 ```
 
 ## CLV Close Watcher
+
+> Laptop daemon = fallback only. Cloud close sweeps (q20min, ET-gated) are
+> primary since the 2026-09-16 cutover. Keep the daemon files; do not run
+> both primaries at once.
 
 ```powershell
 .\.venv\Scripts\python.exe production/odds/close_watcher.py
@@ -117,6 +144,11 @@ warn-only at the end of `pull_regular_season_closeout.py`.
 
 ## Daily Scheduler (Windows Task Scheduler)
 
+> Laptop tasks DISABLED at the 2026-09-16 cloud cutover; the laptop is
+> fallback-only. Re-register below only on owner order (e.g. cloud outage).
+> The 04:00–12:00 settle-backfill task is covered on cloud by the 03:00
+> settle + 05:30 drift auto-settle pair — no cloud backfill job needed.
+
 Create/update automated tasks:
 
 ```powershell
@@ -157,7 +189,7 @@ Manual overrides:
 - Morning board: `production/notebooks/daily_projections.ipynb`
 - KPI monitor: `production/notebooks/results_kpi_monitor.ipynb`
 - Calibration monitor: `production/notebooks/results_calibration_lab.ipynb`
-- Gate policy monitor: `production/notebooks/results_gate_policy.ipynb`
+- Gate policy simulator audit: section inside `production/notebooks/results_bettable_cohort.ipynb` (`results_gate_policy.ipynb` retired 2026-09-17)
 - PnL + CLV monitor: `production/notebooks/results_pnl_clv.ipynb`
 - Recommendation audit: `production/notebooks/results_recommendation_audit.ipynb`
 - Bettable cohort profile monitor: `production/notebooks/results_bettable_cohort.ipynb`
@@ -169,6 +201,26 @@ Manual overrides:
 ```powershell
 .\.venv\Scripts\python.exe scripts/check_notebook_artifacts.py
 ```
+
+## Data Freshness Doctrine (never-again rule, 2026-09-28)
+
+Savant, L1, L2, and L3 move in lockstep — same max game_date within 1 day,
+always. L3 is rebuilt with every refresh (full `refresh_features.py`, never
+`--skip-training` for the standing dataset); `--skip-training` is a live-scoring
+shortcut only and must never be mistaken for dataset state.
+
+```powershell
+.\.venv\Scripts\python.exe production/ops/check_data_freshness.py
+# exit 0 GREEN / 1 YELLOW / 2 RED; --refresh pulls + rebuilds when stale, then re-checks
+```
+
+In season (Apr–Sep) every artifact must sit within 2 days of yesterday ET; a
+3+ day gap flags YELLOW/RED, never passes silently. Offseason the max must be a
+completed season end (Sep 20+). Cancelled/unmade-up games are excluded only by
+schedule-verified game_pk (`--exclude-pk`, logged in the report) — the coverage
+gate itself is never weakened. 2027 guard: this check runs before the first
+2027 scoring chain and weekly thereafter; any RED blocks the morning board until
+a refresh clears it (chain wiring is a separately-approved deploy change).
 
 ## One-Command Analysis Refresh
 
@@ -186,7 +238,6 @@ powershell -ExecutionPolicy Bypass -File production/ops/run_daily_operator_flow.
 # options:
 #   -SkipArtifactCheck
 #   -IncludeCalibration
-#   -IncludeGatePolicy
 #   -IncludeDeepDive
 ```
 

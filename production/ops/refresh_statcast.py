@@ -66,6 +66,17 @@ def main() -> None:
         default=60,
         help="Seconds to wait between fetch attempts.",
     )
+    parser.add_argument(
+        "--exclude-pk",
+        type=int,
+        action="append",
+        default=[],
+        help=(
+            "Schedule-verified non-played game_pk to exclude from the coverage "
+            "check (e.g. cancelled, never made up). Repeatable. Logged loudly "
+            "in the report; never use for games with pitches."
+        ),
+    )
     args = parser.parse_args()
 
     last_err: Exception | None = None
@@ -76,6 +87,7 @@ def main() -> None:
                 end_dt=args.end_dt or yesterday_et(),
                 refresh_trailing_days=args.refresh_trailing_days,
                 verbose=not args.quiet,
+                exclude_game_pks=frozenset(args.exclude_pk or ()),
             )
             break
         except Exception as exc:  # noqa: BLE001

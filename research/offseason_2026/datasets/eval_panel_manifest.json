@@ -1,0 +1,363 @@
+{
+  "built": "2026-09-28",
+  "inputs": {
+    "pitcher_training_max": "2026-09-27",
+    "score_report": {
+      "k_rate_model": "None",
+      "k_rate_sha256": "None",
+      "k_rate_n_features": "None",
+      "k_rate_ensemble_used": "True",
+      "k_rate_ensemble_config": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props\\production\\ops\\live_krate_ensemble.json",
+      "k_rate_ensemble_members": "[{'stem': 'C:\\\\Users\\\\ckaplinger\\\\Downloads\\\\Personal-Projects\\\\MLB-Props\\\\artifacts\\\\models\\\\lightgbm_krate_20260821_05",
+      "tbf_model": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props\\artifacts\\models\\tbf_pa_ridge_workload_context_bullpen_2026072",
+      "tbf_sha256": "5ee23260ae5f0c0ca55436eeb5248a1ea833e1a15fb1c2dfe80d9e0244cf95d3",
+      "tbf_n_features": "24",
+      "tbf_alpha": "123.28467394420659",
+      "lines": "[2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5]",
+      "count_family": "poisson",
+      "n_scored": "9378",
+      "mean_k_rate_pred": "0.22034786454329394",
+      "mean_projected_tbf": "22.630719696553935",
+      "mean_expected_K": "4.990546932091663",
+      "n_out_of_support": "120",
+      "approved_utc": "2026-09-29T17:32:39Z",
+      "k_rate_registry": "None",
+      "out_of_support_policy": "mark projected_tbf/expected_K instability and extreme rest as OOS; days_rest>=45 always OOS",
+      "calibration_applied": "True",
+      "calibration_version": "prob_calibration_ws1c_platt_20260910_012559",
+      "calibration_method": "platt",
+      "calibration_path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props\\artifacts\\models\\prob_calibration_ws1c_platt_20260910_012559.j",
+      "calibration_fit_cutoff": "2026-09-03"
+    }
+  },
+  "metrics": {
+    "reproduction_max_abs_diff": 0.0,
+    "conventions": {
+      "books": [
+        "draftkings",
+        "fanduel"
+      ],
+      "edge_floor": 0.12,
+      "stake": 50.0,
+      "side_rule": "over iff edge > 0 else under (takes imply over at base floor)",
+      "open": "best price of DK/FD at board clock + DK-only sensitivity column",
+      "close_headline": "same-book DK/FD close CLV (fillable)",
+      "close_confirm": "devigged consensus over ALL books at exact line+side; <3 books = lowconf flag",
+      "exclusions_from_clv": "pushes/voids (0 in panel: all half-lines, all settled), post-commence refusals, missing-board rows",
+      "frozen": "multiplicative devig, one-slip (game,pitcher,line), uniqueness asserts, no both-sides",
+      "veto_cap_probation": "NOT applied (policy layer = 2025A, pre-registered)"
+    },
+    "2025": {
+      "n_quoted": 2810,
+      "n_bets": 283,
+      "turnover": 14150.0,
+      "pnl": 450.0,
+      "roi": 0.03180212014134275,
+      "roi_ci95": [
+        0.030881000685779463,
+        -0.061053783614759216,
+        0.11918084027934218
+      ],
+      "xroi_mean_edge": 0.1659261789378877,
+      "ev_dollars": 2347.8554319711106,
+      "win_rate": 0.5159010600706714,
+      "profit_factor": 1.0656934306569343,
+      "push_rate": 0.0,
+      "void_rate": 0.0,
+      "clv_mean_pp": 1.6027534932354763,
+      "clv_stake_weighted_pp": 1.6027534932354763,
+      "clv_t_stat": 10.56324614984469,
+      "clv_ci95": [
+        1.599714316001807,
+        1.3901561407064469,
+        1.8231868168904037
+      ],
+      "beat_close_rate": 0.6996466431095406,
+      "beat_ci95": [
+        0.6993012118537959,
+        0.6607142857142857,
+        0.7417669172932331
+      ],
+      "clv_cons_mean_pp": 1.7713266593870964,
+      "clv_cons_n": 277,
+      "lowconf_close_rate": 0.02704626334519573,
+      "brier": 0.26556036219385126,
+      "logloss": 0.7273975063342092,
+      "calib_slope": 0.4260879681911427,
+      "calib_intercept": -0.1881499019633594,
+      "market_slope_ref": 0.8157014685078822,
+      "ece_model_vs_outcome": 0.1253066647995392,
+      "reliability_by_edge_band": {
+        "(0.15, 0.2]": {
+          "n": 122,
+          "win_rate": 0.5245901639344263,
+          "mean_edge": 0.17032993271077848
+        },
+        "(0.12, 0.15]": {
+          "n": 120,
+          "win_rate": 0.5166666666666667,
+          "mean_edge": 0.13502075585565818
+        },
+        "(0.2, 1.0]": {
+          "n": 41,
+          "win_rate": 0.4878048780487805,
+          "mean_edge": 0.24327722307386007
+        }
+      },
+      "edge_win_spearman": 0.06117987528206605,
+      "sharpe_daily_x162": 0.5728650518814286,
+      "sharpe_decay_trail30": 1.0337832236657372,
+      "sortino_daily_x162": 1.0608130723643763,
+      "calmar_dollars": 0.75,
+      "max_drawdown": -600.0,
+      "longest_losing_streak": 8,
+      "time_under_water": 0.889763779527559,
+      "dk_only_pnl": 200.0,
+      "dk_only_n": 218,
+      "by_line": {
+        "2.5": {
+          "n": 23,
+          "roi": 0.13043478260869565,
+          "wr": 0.5652173913043478
+        },
+        "3.5": {
+          "n": 104,
+          "roi": 0.019230769230769232,
+          "wr": 0.5096153846153846
+        },
+        "4.5": {
+          "n": 91,
+          "roi": -0.054945054945054944,
+          "wr": 0.4725274725274725
+        },
+        "5.5": {
+          "n": 53,
+          "roi": 0.16981132075471697,
+          "wr": 0.5849056603773585
+        },
+        "6.5": {
+          "n": 11,
+          "roi": 0.09090909090909091,
+          "wr": 0.5454545454545454
+        },
+        "7.5": {
+          "n": 1,
+          "roi": -1.0,
+          "wr": 0.0
+        }
+      },
+      "by_side": {
+        "over": {
+          "n": 283,
+          "roi": 0.03180212014134275
+        }
+      },
+      "by_book": {
+        "draftkings": {
+          "n": 130,
+          "roi": -0.03076923076923077
+        },
+        "fanduel": {
+          "n": 153,
+          "roi": 0.08496732026143791
+        }
+      },
+      "by_month": {
+        "2025-03": {
+          "n": 6,
+          "roi": -0.6666666666666666,
+          "pnl": -200.0
+        },
+        "2025-04": {
+          "n": 26,
+          "roi": 0.07692307692307693,
+          "pnl": 100.0
+        },
+        "2025-05": {
+          "n": 40,
+          "roi": -0.05,
+          "pnl": -100.0
+        },
+        "2025-06": {
+          "n": 53,
+          "roi": 0.05660377358490566,
+          "pnl": 150.0
+        },
+        "2025-07": {
+          "n": 45,
+          "roi": -0.06666666666666667,
+          "pnl": -150.0
+        },
+        "2025-08": {
+          "n": 53,
+          "roi": 0.20754716981132076,
+          "pnl": 550.0
+        },
+        "2025-09": {
+          "n": 60,
+          "roi": 0.03333333333333333,
+          "pnl": 100.0
+        }
+      }
+    },
+    "2026": {
+      "n_quoted": 2790,
+      "n_bets": 230,
+      "turnover": 11500.0,
+      "pnl": 700.0,
+      "roi": 0.06086956521739131,
+      "roi_ci95": [
+        0.06007140366268676,
+        -0.051094890510948905,
+        0.16342331453129194
+      ],
+      "xroi_mean_edge": 0.16104576719366656,
+      "ev_dollars": 1852.0263227271653,
+      "win_rate": 0.5304347826086957,
+      "profit_factor": 1.1296296296296295,
+      "push_rate": 0.0,
+      "void_rate": 0.0,
+      "clv_mean_pp": 2.0825233701668227,
+      "clv_stake_weighted_pp": 2.0825233701668227,
+      "clv_t_stat": 9.138738012111348,
+      "clv_ci95": [
+        2.0806472247547854,
+        1.698756716646337,
+        2.4461182937080124
+      ],
+      "beat_close_rate": 0.6782608695652174,
+      "beat_ci95": [
+        0.6790607649272744,
+        0.6335814249363867,
+        0.7243708053691275
+      ],
+      "clv_cons_mean_pp": 2.080719859294709,
+      "clv_cons_n": 226,
+      "lowconf_close_rate": 0.026164874551971327,
+      "brier": 0.2548598042573087,
+      "logloss": 0.7035572616631379,
+      "calib_slope": 1.0407527833513992,
+      "calib_intercept": -0.4598983551285275,
+      "market_slope_ref": 1.3147696568270215,
+      "ece_model_vs_outcome": 0.1080079829494852,
+      "reliability_by_edge_band": {
+        "(0.12, 0.15]": {
+          "n": 117,
+          "win_rate": 0.5384615384615384,
+          "mean_edge": 0.13257888846590749
+        },
+        "(0.15, 0.2]": {
+          "n": 73,
+          "win_rate": 0.5068493150684932,
+          "mean_edge": 0.17040954341660652
+        },
+        "(0.2, 1.0]": {
+          "n": 40,
+          "win_rate": 0.55,
+          "mean_edge": 0.22722249586549642
+        }
+      },
+      "edge_win_spearman": 0.022655643198646807,
+      "sharpe_daily_x162": 0.9614594493799373,
+      "sharpe_decay_trail30": 1.3256561365817912,
+      "sortino_daily_x162": 1.7800391360424344,
+      "calmar_dollars": 1.4,
+      "max_drawdown": -500.0,
+      "longest_losing_streak": 7,
+      "time_under_water": 0.8888888888888888,
+      "dk_only_pnl": 150.0,
+      "dk_only_n": 149,
+      "by_line": {
+        "2.5": {
+          "n": 24,
+          "roi": 0.0,
+          "wr": 0.5
+        },
+        "3.5": {
+          "n": 76,
+          "roi": 0.15789473684210525,
+          "wr": 0.5789473684210527
+        },
+        "4.5": {
+          "n": 70,
+          "roi": 0.0,
+          "wr": 0.5
+        },
+        "5.5": {
+          "n": 44,
+          "roi": 0.0,
+          "wr": 0.5
+        },
+        "6.5": {
+          "n": 15,
+          "roi": 0.06666666666666667,
+          "wr": 0.5333333333333333
+        },
+        "7.5": {
+          "n": 1,
+          "roi": 1.0,
+          "wr": 1.0
+        }
+      },
+      "by_side": {
+        "over": {
+          "n": 230,
+          "roi": 0.06086956521739131
+        }
+      },
+      "by_book": {
+        "draftkings": {
+          "n": 78,
+          "roi": 0.02564102564102564
+        },
+        "fanduel": {
+          "n": 152,
+          "roi": 0.07894736842105263
+        }
+      },
+      "by_month": {
+        "2026-03": {
+          "n": 10,
+          "roi": 0.8,
+          "pnl": 400.0
+        },
+        "2026-04": {
+          "n": 58,
+          "roi": -0.10344827586206896,
+          "pnl": -300.0
+        },
+        "2026-05": {
+          "n": 27,
+          "roi": 0.3333333333333333,
+          "pnl": 450.0
+        },
+        "2026-06": {
+          "n": 27,
+          "roi": -0.18518518518518517,
+          "pnl": -250.0
+        },
+        "2026-07": {
+          "n": 28,
+          "roi": 0.0,
+          "pnl": 0.0
+        },
+        "2026-08": {
+          "n": 39,
+          "roi": -0.02564102564102564,
+          "pnl": -50.0
+        },
+        "2026-09": {
+          "n": 41,
+          "roi": 0.21951219512195122,
+          "pnl": 450.0
+        }
+      }
+    }
+  },
+  "panel_sha256": "7455234734575f318daaefbdefe69a7c53dc07d0eb16fe555e86176d11515585",
+  "panel_bytes": 465294,
+  "panel_rows": 5600,
+  "reconciliation_vs_funnel": "Funnel training PAs 2025:106123 / 2026:103031. Panel quoted pairs 2810/2790 = best-edge DK/FD (start,line) with board+close+model coverage, lines 2.5-9.5 (10.5 excluded: outside WS1c). Starts with board+close K-main: 3341/3298. Gap = non-DK/FD-only starts + 10.5-line rows + name-join misses, documented not dropped silently.",
+  "name_order_fix": "First build fanned quotes across pitchers sharing an event (pairs lacked player key): +42pct ROI fantasy. Fixed with player_norm in pair key + sorted_key both sides; 0.6pct crosscheck vs ID-join (75695 vs 76151 close-only 2025 vol).",
+  "rescore_decision": "All panels use today frozen stack (Poisson + WS1c, determinism 0.0). Stored historical_scores predate the 9/10 promotion (binomial/isotonic era) and are retired as comparator inputs, preserved as lineage."
+}

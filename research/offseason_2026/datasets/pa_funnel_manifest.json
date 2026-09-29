@@ -1,0 +1,488 @@
+{
+  "built_utc": "2026-09-29",
+  "years": {
+    "2023": {
+      "pitch_rows": 720684,
+      "distinct_pa": 184478,
+      "terminal_rows": 184376,
+      "terminal_pa": 184376,
+      "multi_terminal": 0,
+      "no_terminal_pa": 102,
+      "event_counts": {
+        "field_out": 72563,
+        "strikeout": 41743,
+        "single": 26031,
+        "walk": 15345,
+        "double": 8228,
+        "home_run": 5868,
+        "force_out": 3598,
+        "grounded_into_double_play": 3455,
+        "hit_by_pitch": 2112,
+        "sac_fly": 1206,
+        "field_error": 1066,
+        "triple": 712,
+        "intent_walk": 474,
+        "sac_bunt": 429,
+        "double_play": 389,
+        "fielders_choice": 377,
+        "fielders_choice_out": 287,
+        "truncated_pa": 272,
+        "strikeout_double_play": 100,
+        "catcher_interf": 96,
+        "sac_fly_double_play": 24,
+        "triple_play": 1
+      },
+      "non_pa_hits": 0,
+      "unknown_events": {},
+      "k_events": 41843,
+      "mid_pa_pitcher_sub": 64,
+      "mid_pa_batter_sub": 16,
+      "dup_pitch_rows": 0,
+      "zone10_pitches": 0,
+      "null_ids": {
+        "pitcher": 0,
+        "batter": 0,
+        "stand": 0,
+        "p_throws": 0
+      },
+      "game_types": [
+        {
+          "game_type": "R",
+          "len": 720684
+        }
+      ],
+      "kept_starts": 4663,
+      "training_pa": 105385,
+      "short_groups_lt9": 14602,
+      "short_groups_vol": 62093,
+      "pitcher_history_null": {
+        "n": 4663,
+        "k_rate_P5_null": 328
+      },
+      "batter_history_null": {
+        "n": 48767,
+        "k_rate_std_null": 663
+      },
+      "oracle_nine_valid": {
+        "team_games": 4860,
+        "bad_team_games": 0
+      }
+    },
+    "2024": {
+      "pitch_rows": 711208,
+      "distinct_pa": 182687,
+      "terminal_rows": 182582,
+      "terminal_pa": 182582,
+      "multi_terminal": 0,
+      "no_terminal_pa": 105,
+      "event_counts": {
+        "field_out": 73761,
+        "strikeout": 41056,
+        "single": 25866,
+        "walk": 14395,
+        "double": 7765,
+        "home_run": 5451,
+        "force_out": 3472,
+        "grounded_into_double_play": 3220,
+        "hit_by_pitch": 2016,
+        "sac_fly": 1243,
+        "field_error": 1110,
+        "triple": 696,
+        "intent_walk": 509,
+        "sac_bunt": 452,
+        "fielders_choice": 377,
+        "double_play": 338,
+        "truncated_pa": 316,
+        "fielders_choice_out": 313,
+        "strikeout_double_play": 111,
+        "catcher_interf": 100,
+        "sac_fly_double_play": 13,
+        "triple_play": 2
+      },
+      "non_pa_hits": 0,
+      "unknown_events": {},
+      "k_events": 41167,
+      "mid_pa_pitcher_sub": 58,
+      "mid_pa_batter_sub": 14,
+      "dup_pitch_rows": 0,
+      "zone10_pitches": 0,
+      "null_ids": {
+        "pitcher": 0,
+        "batter": 0,
+        "stand": 0,
+        "p_throws": 0
+      },
+      "game_types": [
+        {
+          "game_type": "R",
+          "len": 711208
+        }
+      ],
+      "kept_starts": 4711,
+      "training_pa": 106267,
+      "short_groups_lt9": 14777,
+      "short_groups_vol": 62157,
+      "pitcher_history_null": {
+        "n": 4711,
+        "k_rate_P5_null": 116
+      },
+      "batter_history_null": {
+        "n": 48756,
+        "k_rate_std_null": 653
+      },
+      "oracle_nine_valid": {
+        "team_games": 4854,
+        "bad_team_games": 0
+      }
+    },
+    "2025": {
+      "pitch_rows": 712528,
+      "distinct_pa": 183362,
+      "terminal_rows": 183245,
+      "terminal_pa": 183245,
+      "multi_terminal": 0,
+      "no_terminal_pa": 117,
+      "event_counts": {
+        "field_out": 74307,
+        "strikeout": 40520,
+        "single": 26115,
+        "walk": 14823,
+        "double": 7745,
+        "home_run": 5650,
+        "force_out": 3362,
+        "grounded_into_double_play": 3112,
+        "hit_by_pitch": 1928,
+        "sac_fly": 1292,
+        "field_error": 1010,
+        "triple": 628,
+        "sac_bunt": 560,
+        "intent_walk": 556,
+        "fielders_choice": 387,
+        "double_play": 377,
+        "fielders_choice_out": 325,
+        "truncated_pa": 319,
+        "strikeout_double_play": 125,
+        "catcher_interf": 86,
+        "sac_fly_double_play": 15,
+        "triple_play": 3
+      },
+      "non_pa_hits": 0,
+      "unknown_events": {},
+      "k_events": 40645,
+      "mid_pa_pitcher_sub": 65,
+      "mid_pa_batter_sub": 13,
+      "dup_pitch_rows": 0,
+      "zone10_pitches": 0,
+      "null_ids": {
+        "pitcher": 0,
+        "batter": 0,
+        "stand": 0,
+        "p_throws": 0
+      },
+      "game_types": [
+        {
+          "game_type": "R",
+          "len": 712528
+        }
+      ],
+      "kept_starts": 4750,
+      "training_pa": 106123,
+      "short_groups_lt9": 14886,
+      "short_groups_vol": 62296,
+      "pitcher_history_null": {
+        "n": 4750,
+        "k_rate_P5_null": 91
+      },
+      "batter_history_null": {
+        "n": 48862,
+        "k_rate_std_null": 676
+      },
+      "oracle_nine_valid": {
+        "team_games": 4860,
+        "bad_team_games": 0
+      }
+    },
+    "2026": {
+      "pitch_rows": 716792,
+      "distinct_pa": 184288,
+      "terminal_rows": 184178,
+      "terminal_pa": 184178,
+      "multi_terminal": 0,
+      "no_terminal_pa": 110,
+      "event_counts": {
+        "field_out": 74085,
+        "strikeout": 40600,
+        "single": 26113,
+        "walk": 15792,
+        "double": 7491,
+        "home_run": 5575,
+        "force_out": 3404,
+        "grounded_into_double_play": 3137,
+        "hit_by_pitch": 2118,
+        "sac_fly": 1288,
+        "field_error": 1038,
+        "sac_bunt": 682,
+        "triple": 671,
+        "intent_walk": 545,
+        "fielders_choice": 410,
+        "double_play": 384,
+        "truncated_pa": 329,
+        "fielders_choice_out": 322,
+        "strikeout_double_play": 100,
+        "catcher_interf": 83,
+        "sac_fly_double_play": 10,
+        "triple_play": 1
+      },
+      "non_pa_hits": 0,
+      "unknown_events": {},
+      "k_events": 40700,
+      "mid_pa_pitcher_sub": 47,
+      "mid_pa_batter_sub": 21,
+      "dup_pitch_rows": 0,
+      "zone10_pitches": 0,
+      "null_ids": {
+        "pitcher": 0,
+        "batter": 0,
+        "stand": 0,
+        "p_throws": 0
+      },
+      "game_types": [
+        {
+          "game_type": "R",
+          "len": 716792
+        }
+      ],
+      "kept_starts": 4632,
+      "training_pa": 103031,
+      "short_groups_lt9": 14698,
+      "short_groups_vol": 62802,
+      "pitcher_history_null": {
+        "n": 4632,
+        "k_rate_P5_null": 71
+      },
+      "batter_history_null": {
+        "n": 49634,
+        "k_rate_std_null": 663
+      },
+      "oracle_nine_valid": {
+        "team_games": 4858,
+        "bad_team_games": 0
+      }
+    }
+  },
+  "inputs": [
+    {
+      "path": "data\\Savant-Data\\regular\\2023\\statcast_2023_regular.parquet",
+      "bytes": 82534897,
+      "sha256": "b9f9db9923badca17e551cf23be8429bfba984361732a8911bf0d68a40d5285f"
+    },
+    {
+      "path": "data\\Savant-Data\\regular\\2024\\statcast_2024_regular.parquet",
+      "bytes": 88919641,
+      "sha256": "de78a1893aa21e305153f5594987f85b40e4bc0cf572484e995a1416b3c49b33"
+    },
+    {
+      "path": "data\\Savant-Data\\regular\\2025\\statcast_2025_regular.parquet",
+      "bytes": 98740689,
+      "sha256": "cb072ff830959374ae2f8a8d804a0093e77b2cf0d898fda046b44605d5c31aad"
+    },
+    {
+      "path": "data\\Savant-Data\\regular\\2026\\statcast_2026_regular.parquet",
+      "bytes": 93625375,
+      "sha256": "b0bf575da1f7fd6f40a27132170327f8621821449b1d27dcdec568489278b805"
+    },
+    {
+      "path": "data/processed/pitcher_games.parquet",
+      "bytes": 7322111,
+      "sha256": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d"
+    },
+    {
+      "path": "data/processed/pitcher_rolling.parquet",
+      "bytes": 36679703,
+      "sha256": "eac7ea807c8bf8a67965a4cde570a2abc1312c780f0af77dc5ae426c200ccdac"
+    },
+    {
+      "path": "data/processed/batter_rolling.parquet",
+      "bytes": 56886463,
+      "sha256": "d0180d52a4cd9fd75026c51d716ad9297eaddc3e829bcf3823b2ba1e9216388c"
+    },
+    {
+      "path": "data\\Odds-Open-Close-2025-2026\\pitcher_strikeouts_early_open_2025_2026.csv",
+      "bytes": 7829771,
+      "sha256": "ca8b68a562e1ffc0a78bbb62264a53bf01573efeb7a659453050373a0bc1f01e"
+    }
+  ],
+  "lineups": {
+    "snapshot_files": [
+      "daily_lineups_2026-07-28.parquet",
+      "daily_lineups_2026-07-30.parquet",
+      "daily_lineups_2026-08-07.parquet",
+      "daily_lineups_2026-08-10.parquet",
+      "daily_lineups_2026-08-20.parquet",
+      "daily_lineups_2026-08-21.parquet"
+    ],
+    "rows": 1278,
+    "null_batter_rate_retained": 0.0,
+    "note": "0% on retained rows; upstream bad-game drops are WARNING-only with no ID ledger (rate unmeasurable from parquets)."
+  },
+  "odds": {
+    "2025": {
+      "starts_covered": 3381,
+      "starts_total": 4750,
+      "note": "early-open join only; full odds-evaluable vol (76k/43k) needs book_lines panels"
+    },
+    "2026": {
+      "starts_covered": 1880,
+      "starts_total": 4632,
+      "note": "early-open join only; full odds-evaluable vol (76k/43k) needs book_lines panels"
+    }
+  },
+  "deferred": {
+    "void_season_rate": "UNMEASURABLE: live ledger lives in cloud volume; repo holds no season ledger.",
+    "unresolved_id_rate": 0.0,
+    "raw_json_2025_vs_2026": {
+      "2025": {
+        "n_files_total": 14531,
+        "sample": [
+          "3a172472025c8a93b73ee88bcd3c4ff4.json",
+          "50c6b8bd7c47dcb817427d02025bae33.json",
+          "828d9387e45dac20bd4336888bc32025.json"
+        ],
+        "top_keys": [
+          [
+            "data",
+            "next_timestamp",
+            "previous_timestamp",
+            "timestamp"
+          ],
+          [
+            "data",
+            "next_timestamp",
+            "previous_timestamp",
+            "timestamp"
+          ],
+          [
+            "data",
+            "next_timestamp",
+            "previous_timestamp",
+            "timestamp"
+          ]
+        ]
+      },
+      "2026": {
+        "n_files_total": 14531,
+        "sample": [
+          "b9418cfc726e2026db2820049c802b51.json",
+          "dc702b47ac9b42026abfd78331280f3e.json",
+          "b9418cfc726e2026db2820049c802b51.json"
+        ],
+        "top_keys": [
+          [
+            "data",
+            "next_timestamp",
+            "previous_timestamp",
+            "timestamp"
+          ],
+          [
+            "data",
+            "next_timestamp",
+            "previous_timestamp",
+            "timestamp"
+          ],
+          [
+            "data",
+            "next_timestamp",
+            "previous_timestamp",
+            "timestamp"
+          ]
+        ]
+      }
+    },
+    "envelope_gap": "CLOSED 2026-09-28."
+  },
+  "reconciliation": {
+    "2023": {
+      "expected_training_pa": 105385,
+      "measured_training_pa": 105385,
+      "match": true,
+      "expected_odds_note": 0
+    },
+    "2024": {
+      "expected_training_pa": 106267,
+      "measured_training_pa": 106267,
+      "match": true,
+      "expected_odds_note": 0
+    },
+    "2025": {
+      "expected_training_pa": 106123,
+      "measured_training_pa": 106123,
+      "match": true,
+      "expected_odds_note": 76151
+    },
+    "2026": {
+      "expected_training_pa": 103031,
+      "measured_training_pa": 103031,
+      "match": true,
+      "expected_odds_note": 42548
+    }
+  },
+  "open_definition": "board clock (requested 12:00 UTC approx 08:00 ET), canonical per audit AI-3; friend CSVs deprecated; no -30h/-24h clocks exist",
+  "odds_clocks_canonical": {
+    "measured_utc": "2026-09-28 (full-season refresh)",
+    "kmain_board": {
+      "2025": {
+        "starts": 3469,
+        "pa_vol": 77740
+      },
+      "2026": {
+        "starts": 3348,
+        "pa_vol": 74936
+      },
+      "events": 4841
+    },
+    "kmain_close": {
+      "2025": {
+        "starts": 3381,
+        "pa_vol": 75695
+      },
+      "2026": {
+        "starts": 3324,
+        "pa_vol": 74397
+      },
+      "events": 4705
+    },
+    "kmain_morning": {
+      "2025": {
+        "starts": 3495,
+        "pa_vol": 78291
+      },
+      "2026": {
+        "starts": 3345,
+        "pa_vol": 74867
+      },
+      "events": 4866
+    },
+    "board_and_close_events": 4645,
+    "board_and_close": {
+      "2025": {
+        "starts": 3341,
+        "pa_vol": 74841
+      },
+      "2026": {
+        "starts": 3298,
+        "pa_vol": 73859
+      }
+    },
+    "method": "token-sorted name join on (game_date, player) via envelope event_id; close-only 2025 vol 75695 vs Phase-3 ID-join 76151 (0.6 pct method gap, disclosed)",
+    "reconciliation_vs_phase3": "Phase-3 market-evaluable 76151+42548=118699 PAs (early-open/close mix, stale 09-16 lake); board-canonical board+close now 74841+73859=148700 PAs (+30001, +25 pct). 2026: 42548 to 73859 (+74 pct) on full-season data."
+  },
+  "coverage_flags": [
+    "envelope gap 09-11..26 CLOSED by 09-28 refresh",
+    "savant+L1+L2+L3 lockstep 2026-09-27 (spread 0d)",
+    "excluded cancelled game_pk 823490 (BAL@NYY 9/27, schedule-verified)",
+    "postseason excluded (88 Oct/Nov-2025 envelope rows)",
+    "postdate rows refused: board 2, close 14, morning 0",
+    "skipped_events.json (51 IDs) re-check before 2026 run",
+    "batter-K ghost market, never primary"
+  ]
+}

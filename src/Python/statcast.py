@@ -364,6 +364,21 @@ def download_statcast_season(
     return destination
 
 
+def missing_official_pks(
+    window_pks: frozenset[int],
+    observed_pks: frozenset[int],
+    exclude_game_pks: frozenset[int] | None = None,
+) -> list[int]:
+    """Official game_pks in the fetch window with no observed Savant rows.
+
+    ``exclude_game_pks`` removes schedule-verified non-played games (cancelled /
+    unmade-up) from the check. Never passes pitcher/batter IDs here — game_pks
+    only. Returns sorted missing PKs after exclusions.
+    """
+    excluded = frozenset(int(pk) for pk in (exclude_game_pks or frozenset()))
+    return sorted((set(window_pks) - set(observed_pks)) - excluded)
+
+
 def update_statcast_season(
     year: int,
     *,
@@ -371,6 +386,7 @@ def update_statcast_season(
     end_dt: dt.date | None = None,
     refresh_trailing_days: int = 0,
     verbose: bool = True,
+    exclude_game_pks: frozenset[int] | None = None,
 ) -> dict[str, object]:
     """Incrementally refresh a season parquet (production daily path).
 
@@ -424,12 +440,14 @@ def update_statcast_season(
             observed_new = frozenset(
                 int(pk) for pk in new_frame["game_pk"].drop_nulls().unique().to_list()
             )
-            missing = sorted(window_pks - observed_new)
+            missing = missing_official_pks(window_pks, observed_new, exclude_game_pks)
             if missing:
                 raise ValueError(
                     f"Incremental Statcast {year} fetch {fetch_start}..{pull_end} "
                     f"missing {len(missing)} official game_pk(s); sample={missing[:5]}. "
-                    "Retry later (Savant lag) or run a full download_statcast_season repair."
+                    "Retry later (Savant lag), pass schedule-verified cancelled "
+                    "game_pks via exclude_game_pks, or run a full "
+                    "download_statcast_season repair."
                 )
         if existing is None or existing.is_empty():
             combined = new_frame
@@ -461,6 +479,7 @@ def update_statcast_season(
         "total_rows": int(combined.height),
         "max_game_date": str(combined["game_date"].max()),
         "skipped_fetch": fetch_start > pull_end,
+        "excluded_game_pks": sorted(int(pk) for pk in (exclude_game_pks or frozenset())),
     }
 
 
