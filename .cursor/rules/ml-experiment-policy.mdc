@@ -1,0 +1,28 @@
+---
+description: Leakage-safe ML experiment policy for mlb-props
+alwaysApply: true
+---
+
+# ML experiment policy
+
+## Temporal discipline
+
+- Chronological, date-disjoint splits only. Never split a calendar date across partitions.
+- `TRAIN_SEASONS = (2023, 2024)`. 2022 is prior-only context. 2025 is historical benchmark, never pristine. 2026 is locked retrospective / confirmatory only.
+- Fit preprocessing on train dates only. Select on inner folds, confirm on distinct outer folds.
+
+## Leakage rules
+
+- Every feature must be known before first pitch. Forbidden as features: same-game K/PA/Outs/k_rate/actual TBF, current-game rolling contributions, future dates/seasons/lineups/park outcomes, raw IDs/names/teams/dates/join keys.
+- Level 2 uses prior games only (exclude current-date games including doubleheaders). Park for season Y uses seasons < Y.
+- `src/Python/features.py` + frozen registries gate which columns may train. Unknown numerics fail loudly.
+
+## Experiment cards
+
+- Plan before running: immutable hypothesis, comparator, population, temporal splits, metrics, slices, bootstrap unit, promotion rule, stop rule, input hashes, permitted deviations, output paths.
+- Write under `research/offseason_2026/experiments/<card>/` with card + manifest + deviations. Never overwrite a prior card.
+- Shadow first: new columns beside live, zero live-path change. Promote only via `champion_challenger_protocol.md` + `experiment_sop.md` with sign-off + revert path.
+
+## No-2026-tuning
+
+Do not retune floors, veto, Kelly, WS1c, Poisson, or champion from 2026 paper or juiced 2026 slices. Clean 2025-select / 2026-judge once, post-9/27, pre-registered.

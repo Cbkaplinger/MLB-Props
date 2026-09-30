@@ -1,0 +1,26 @@
+---
+description: Documentation conventions for mlb-props
+alwaysApply: true
+---
+
+# Documentation policy
+
+## Hierarchy
+
+`docs/EXECUTION_BACKLOG.md` wins over all subordinate "next steps". Reports are dated point-in-time evidence; mark SUPERSEDED when replaced and point back to the backlog.
+
+## Naming and placement
+
+- Lowercase hyphenated markdown names for new docs.
+- ADRs in `docs/adr/` (accepted only with repo evidence; else `PROPOSED-*.md`).
+- Architecture in `docs/diagrams/` + `docs/reference/`.
+- Experiment cards in `research/offseason_2026/experiments/`.
+- Historical reports in `docs/reference/reports/`.
+- Skill docs in `docs/agent/`.
+
+## Rules
+
+- `CONTEXT.md` holds glossary + lifecycle + grains + paths. Do not paste reports into it.
+- Cite n, Brier/skill, ECE, ROI/WR, CLV to a file or report key. Cite golden metrics; do not recompute.
+- Prefer links to canonical docs over duplicating procedures.
+- Research scripts stay ASCII-only (cp1252 consoles).

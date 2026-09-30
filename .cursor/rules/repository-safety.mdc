@@ -1,0 +1,29 @@
+---
+description: Protected production paths and research-vs-production separation
+alwaysApply: true
+---
+
+# Repository safety
+
+## Protected production paths
+
+These need an explicit owner order before any change:
+
+- `production/ops/kpi_policy.json`, `production/ops/line_floor_policy.json`, `production/ops/live_krate_ensemble.json`
+- `production/odds/odds_board.py`, `production/odds/poll_odds.py`
+- `src/Python/market.py`, `src/Python/count_layer.py`, `src/Python/live_assembly.py`, `src/Python/odds_ledger.py`
+- Model artifacts under `artifacts/models/`, Modal schedules/crons, ledger/pointers.
+
+## Research never edits production
+
+- Research writes shadow columns beside live values. Zero live-path change until a gated promotion with sign-off + revert path.
+- Never edit live scorers, policy JSONs, schedules, or ledgers from a research task.
+- Never train/score, run backtests, or run the 2026 retrospective unless the backlog explicitly approves it.
+
+## Generated paths
+
+`data/`, `artifacts/`, `.venv/`, `.hypothesis/`, `.pytest_cache/` are generated/ignored. Never commit them. Never glob parquet to "discover" the repo.
+
+## Safe read-only commands
+
+`python production/odds/grade_odds_ledger.py --status --curve`, `python scripts/check_notebook_artifacts.py`, `python -m pytest -q`, `git status --short`, `git diff --stat`.
