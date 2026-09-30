@@ -329,6 +329,11 @@ STANDING 2026-09-14 (owner directive):** respond as a professional quant researc
 - **2026-09-08 git bloat fix (Agent, per user):** `data/Savant-Data/` untracked (`git rm --cached`, kept on disk, gitignored with rebuild note) — was bloating `.git` to 2.1GB with a daily-rewritten 2026 file, likely the real push blocker. History still fat until optional filter-repo (needs sign-off). Small static CSVs stay tracked. No other dead tracked files found (no .pyc/probes; artifacts/ already ignored).
 - **2026-09-08 hosting/storage verdict (Agent research, per user Q&A):** Oracle ruled OUT (capacity games + June 2026 halving to 2 OCPU/12GB); PythonAnywhere free ruled OUT (no scheduled tasks for new accounts since 2026-01-15). Primary: **Modal** ($30/mo free ≈ covers ~35 CPU-min/day chains + 8h watcher ≈ $12; cron native, python-native). Fallback: **GitHub Actions cron** (reliable, free minutes, stateless → needs DB). Storage downstream of host: **DuckDB-over-parquet interim (zero migration, originals kept)** → Postgres (Neon/Supabase free) if/when cloud. Stack plan filed at `docs/reference/agentic_stack_final_plan.md` (model/harness decision explicitly DEFERRED per user).
 - **Queued (user-approved direction, not started):** README-per-folder refresh + full docs/diagrams/paper sweep; historical-CLV-buy pipeline prep; metric canonicalization + dead-list deletion; drawdown brake.
+- **OPS SKILLS INFRA 2026-09-30 (Wave 1-3, DONE, uncommitted):** 12 project skills in `.cursor/skills/` (10 NATIVE_NEW from repo specs + 2 PUBLIC_ADAPTATION from Matt Pocock MIT `d81f3a18`: improve-codebase-architecture, grill-with-docs); `CONTEXT.md` (glossary/lifecycle/grains/paths); AGENTS.md operating rules; 3 new `.cursor/rules` (repository-safety, ml-experiment-policy, documentation-policy); `docs/adr/TEMPLATE.md`; `scripts/agent/` validator + link checker + inventory (PASS); `docs/agent/` provenance/catalog/evaluations. No Helios/Qira bodies read or copied; `/helios-*` ignored in this repo. Follow-up hardening: `Repository evidence` pointers on 8 skills (verified targets only).
+- **ARCHITECTURE SURVEY 2026-09-30 (read-only; pruner merge REFUSED):** survey found research-home fragmentation (95 flat files market_research + 66 models research), twin pruners, flat ops dir, morning-runner overlap, report sprawl. Owner correction: same-name is not same-behavior (hash-dedupe vs age-retention are different policies) — pruners stay KEEP DISTINCT, manual-only, guards+tests required before any scheduled use. Temp HTML survey is not evidence.
+- **DIAGRAM REFRESH 2026-09-30 (docs-only):** `05-live-prediction-flow.md` fixed (heal-after-log order; edge-watch is hourly-only); `04-roadmap.md` fixed (WS1c-live calibration lane; 1/16-Kelly aligned); verification footers on `00-index.md`, `02-leakage-and-risks.md`. `01`/`03` proposed-only (concurrent edits in tree). Proposed new: `06-deployment.md`, `07-failure-replay.md` (specified, not created).
+- **OPS CHECKPOINT A 2026-09-30 (report only):** `docs/reference/reports/ops_contracts_2026-09-30.md`. Deployment truth: source mapped, remote UNVERIFIED (no Modal auth here; heartbeat is supporting evidence only, not deployment authority). Settlement contract SPECIFIED (`apply_settle` overwrites unconditionally — same-facts retry effectively harmless but not a strict no-op; corrections/voids/overrides silent). Dashboard lineage SPECIFIED (display `_dedupe_frame` vs canonical `dedupe_ledger_props`; 5 panel groups NON-AUTHORITATIVE until parity tests). Cards: OPS-1 settlement (recommended next) then OPS-2 dashboard parity (quote/opportunity/ticket grains first). PA-model thread untouched.
+- **OPS-1 OWNER DEFAULTS STATED 2026-09-30 (pending formal sign-off at review):** trusted-source corrections auto-apply but revisioned; manual overrides need explicit flag + reason; append-only audit sidecar; single scheduled writer + stale-write detection if clean. Strict no-op defined over all observable state (bytes, mtime, timestamps, revision, audit count, downstream events), not just PnL.
 
 ## CLV + Hosting Plan — 2026-09-08 (user decisions locked)
 > Pick-apart-able. Decisions: stay on laptop (Modal DEFERRED, revisit after CLV work); friend 12h opens treated as owned (26k K + 13k outs rows, 2025→2026-07-10, 9 books); closer = cron-sweeps redesign (daemon retired when host moves); **plan scope evolved 2026-09-08 → $119/5M, all-confirmed-markets, regular-season only, us region only.** See §CLV Execution state below + `docs/reference/clv_backfill_plan.md`.
@@ -521,6 +526,15 @@ Enforcement (owner 2026-09-17): gates ship ENFORCING by default, with a tested, 
 
 > Archived 2026-09-14: sign-offs history, #113 steps, #66–#120 diary, items 10–17 → `docs/reference/reports/forward_diary_archive_2026-09-14.md`. That file is history, not a queue.
 
+**OPS CHECKPOINTS 2026-09-30 (separate ops thread; PA-model thread untouched):**
+> 1. Review Checkpoint A (`docs/reference/reports/ops_contracts_2026-09-30.md`): 5 owner questions, defaults YES; confirm OPS-1 defaults (auto-correction revisioned, manual flag+reason, sidecar, single-writer).
+> 2. Scoped commit checkpoint (infra + reviewed docs/diagrams only; pause writers during staging; Prompt 2). NOT a blanket commit — model outputs, production code, ledgers, secrets excluded.
+> 3. Authorize OPS-1 only (settlement no-op/correction history; characterization tests on fixtures first; strict no-op over all observable state).
+> 4. Review OPS-1 → authorize OPS-2 dashboard parity (quote/opportunity/ticket grains first; no forced single dedupe).
+> 5. Collect deployment evidence separately (`modal app list`, deployment history, heartbeat tail, scheduler states) to move deployed truth UNKNOWN → PARTIAL/VERIFIED.
+> 6. Deferred until contracts land: MLflow (tracking decision only), research migration, dead-code removal, notification design, pruner changes.
+> Skill order for ops understanding (read-only first): `/audit-dead-code` bounded to `market_research/` → `/archive-research-memory` (report index) → `/write-adr` (contract decisions) → `/grill-with-docs` (MLflow A/B, research isolation). Do not start OPS-1 implementation or OPS-2 before steps 1–2 clear.
+
 ### Waiting on user
 - [x] ~~**`go step 3`**~~ DONE 2026-09-11 — #113.3 shared SharpAPI fetch + #113.4 regression pack green. Pack waits on first live 8:30 board carrying steps 2+3.
 - [x] ~~**Offset cap 0.02 / keep / remove**~~ SHIPPED live 2026-09-11 (owner order).
@@ -682,6 +696,8 @@ Evidence anchors: `docs/reference/reports/postfreeze_pack_2026-09-01.md`; live e
 
 **Waiting on user (blocks these):**
 - [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
+- [ ] Ops Checkpoint A review: 5 owner questions (`docs/reference/reports/ops_contracts_2026-09-30.md`, defaults YES) + OPS-1 defaults sign-off.
+- [ ] Scoped infra/docs commit checkpoint (writers paused during staging; model/production/ledger files excluded).
 - [ ] Item 6/#12: per-ticket decision-time prices/stakes/pnl for the 8 + 9th identity.
 - [ ] Item 9: explicit champion→monotone sign-off, or leave deferred (not needed for 4.5 veto).
 
