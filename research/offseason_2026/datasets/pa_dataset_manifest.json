@@ -1,0 +1,66 @@
+{
+  "built": "2026-09-28",
+  "seasons": [
+    2023,
+    2024
+  ],
+  "rows": 211652,
+  "k_rate": 0.21987507795815772,
+  "inputs": [
+    {
+      "path": "data/processed/pitcher_games.parquet",
+      "sha256": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d"
+    },
+    {
+      "path": "data/processed/pitcher_rolling.parquet",
+      "sha256": "eac7ea807c8bf8a67965a4cde570a2abc1312c780f0af77dc5ae426c200ccdac"
+    },
+    {
+      "path": "data/processed/batter_rolling.parquet",
+      "sha256": "d0180d52a4cd9fd75026c51d716ad9297eaddc3e829bcf3823b2ba1e9216388c"
+    },
+    {
+      "path": "data/processed/batter_games.parquet",
+      "sha256": "691e104b04e1261cf24a905648421a11756e17e286002d6dcfbf212f4798acee"
+    },
+    {
+      "path": "data\\Savant-Data\\regular\\2023\\statcast_2023_regular.parquet",
+      "sha256": "b9f9db9923badca17e551cf23be8429bfba984361732a8911bf0d68a40d5285f"
+    },
+    {
+      "path": "data\\Savant-Data\\regular\\2024\\statcast_2024_regular.parquet",
+      "sha256": "de78a1893aa21e305153f5594987f85b40e4bc0cf572484e995a1416b3c49b33"
+    }
+  ],
+  "exclusions": {
+    "2023_no_terminal": 102,
+    "2023_truncated_or_error_as_pa": 1338,
+    "2023_non_starter_or_short": 78991,
+    "2024_no_terminal": 105,
+    "2024_truncated_or_error_as_pa": 1426,
+    "2024_non_starter_or_short": 76315
+  },
+  "feature_availability": {
+    "k_rate_P5": 0.9594097858749268,
+    "k_rate_P10": 0.9594097858749268,
+    "k_rate_P20": 0.9594097858749268,
+    "k_rate_std": 0.9381720938143745,
+    "whiff_rate_P5": 0.9594097858749268,
+    "swstr_rate_P5": 0.9594097858749268,
+    "chase_rate_P5": 0.9594097858749268,
+    "bb_rate_P5": 0.9594097858749268,
+    "zone_rate_P5": 0.9594097858749268,
+    "contact_rate_P5": 0.9594097858749268,
+    "b_k_rate_std": 0.9886275584449946,
+    "b_k_rate_std_vL": 0.9746092642639805,
+    "b_k_rate_std_vR": 0.9871061931850396,
+    "b_k_rate_std_shrunk": 1.0,
+    "b_whiff_rate_std": 0.9885661368661766,
+    "b_swstr_rate_std": 0.9886275584449946,
+    "b_chase_rate_std": 0.9882684784457506,
+    "lineup_slot": 1.0
+  },
+  "lineup_mode": "3 (oracle realized initial-lineup; non-actionable)",
+  "output_sha256": "f933e207e8ea8440fe738e966ec809034b3b3fc20005ef26f389be6bc68e0783",
+  "note": "No model trained. Rookie rows kept with nulls (fallback at train time)."
+}
