@@ -1,0 +1,336 @@
+{
+  "timestamp_utc": "2026-09-30T21:15:15.866494+00:00",
+  "card_sha256": "95b9627d435134b4e980e266047c14e2f40b810b29ed27f903de79346bc87315",
+  "mlflow": {
+    "decision": "DEFERRED",
+    "rationale": "mlflow not installed; installing mid-phase risks environment churn before a registered evaluation. Adopt post-tree as a read-only SQLite mirror over existing cards/manifests/hashes. Cards and manifests remain authoritative. MLflow failure is nonfatal to experiment outputs."
+  },
+  "grid_scores": {
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517609,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517374,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517668,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517407,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.516918,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.516978,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.517175,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.517088,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517665,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517524,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517887,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 7}": 0.517547,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.517033,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.517106,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.517168,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 7}": 0.517149,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.517718,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.517431,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.517715,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.517429,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517112,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517084,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517205,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 3, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517129,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.51854,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.518206,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.518681,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 200, \"num_leaves\": 15}": 0.51841,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517672,
+    "{\"feature_fraction\": 0.8, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517654,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 1.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517988,
+    "{\"feature_fraction\": 1.0, \"lambda_l2\": 10.0, \"max_depth\": 4, \"min_data_in_leaf\": 500, \"num_leaves\": 15}": 0.517859
+  },
+  "best_config": {
+    "feature_fraction": 0.8,
+    "lambda_l2": 1.0,
+    "max_depth": 3,
+    "min_data_in_leaf": 500,
+    "num_leaves": 7
+  },
+  "t2_monotone": {
+    "score": 0.517279,
+    "used": false
+  },
+  "blend_gate": {
+    "corr_2023_OOF": 0.9965,
+    "blend_scores": {
+      "0.25": 0.517828,
+      "0.5": 0.517207,
+      "0.75": 0.517019
+    },
+    "single_best": 0.517279,
+    "best_w": 0.75,
+    "met": false,
+    "proxy_note": "T3 blend gate executed against P3-log5 OOF residuals (registered substitute because fold-fitted L3 models were not serialized)."
+  },
+  "metrics_2024": {
+    "E1": {
+      "T0_L3": {
+        "logloss": 0.5136405504082726,
+        "brier": 0.16668840794777387
+      },
+      "T1": {
+        "logloss": 0.5136628527896967,
+        "brier": 0.166690529235244
+      }
+    },
+    "E2": {
+      "T0_L3": {
+        "logloss": 0.5167072047467487,
+        "brier": 0.16836563511483382
+      },
+      "T1": {
+        "logloss": 0.5166655469571959,
+        "brier": 0.1683126483681588
+      }
+    },
+    "pooled_descriptive": {
+      "T0_L3": {
+        "logloss": 0.5151449033527007,
+        "brier": 0.16750354238695947
+      },
+      "T1": {
+        "logloss": 0.5151411443033188,
+        "brier": 0.1674815819939493
+      }
+    }
+  },
+  "paired_date": {
+    "E1": {
+      "T1-T0_ll": {
+        "raw": 2.2302381424002684e-05,
+        "ci95": [
+          -0.00038139364062329844,
+          0.00042495409884974985
+        ],
+        "fav": 0.4735
+      },
+      "T1-T0_br": {
+        "raw": 2.1212874701080848e-06,
+        "ci95": [
+          -0.0001348681032279599,
+          0.0001412826617915285
+        ],
+        "fav": 0.5155
+      }
+    },
+    "E2": {
+      "T1-T0_ll": {
+        "raw": -4.165778955280336e-05,
+        "ci95": [
+          -0.0003687745791220024,
+          0.0002720640883391888
+        ],
+        "fav": 0.582
+      },
+      "T1-T0_br": {
+        "raw": -5.2986746675027794e-05,
+        "ci95": [
+          -0.00016172613615746798,
+          5.0324819663809565e-05
+        ],
+        "fav": 0.8295
+      }
+    },
+    "pooled_descriptive": {
+      "T1-T0_ll": {
+        "raw": -3.7590493820135073e-06,
+        "ci95": [
+          -0.00026373781092707695,
+          0.0002640487451379963
+        ],
+        "fav": 0.513
+      },
+      "T1-T0_br": {
+        "raw": -2.1960393010142777e-05,
+        "ci95": [
+          -0.00011066847167277887,
+          6.579149426386461e-05
+        ],
+        "fav": 0.6905
+      }
+    }
+  },
+  "paired_game_pk": {
+    "E1": {
+      "T1-T0_ll": {
+        "raw": 2.2302381424045886e-05,
+        "ci95": [
+          -0.0003921465058854138,
+          0.0004615208061905251
+        ],
+        "fav": 0.47
+      },
+      "T1-T0_br": {
+        "raw": 2.121287470118729e-06,
+        "ci95": [
+          -0.0001371119560176028,
+          0.0001546519639053224
+        ],
+        "fav": 0.495
+      }
+    },
+    "E2": {
+      "T1-T0_ll": {
+        "raw": -4.165778955281024e-05,
+        "ci95": [
+          -0.0003883200841583631,
+          0.0003137149420603551
+        ],
+        "fav": 0.6025
+      },
+      "T1-T0_br": {
+        "raw": -5.29867466750393e-05,
+        "ci95": [
+          -0.00016849960271538174,
+          6.629902535208699e-05
+        ],
+        "fav": 0.811
+      }
+    }
+  },
+  "calibration": {
+    "E1": {
+      "T0_L3": {
+        "alpha": -0.009449490867451034,
+        "beta": 0.9771075751535473
+      },
+      "T1": {
+        "alpha": -0.07102364102634467,
+        "beta": 0.9330509537477546
+      }
+    },
+    "E2": {
+      "T0_L3": {
+        "alpha": 0.018486847308181727,
+        "beta": 1.010103233246508
+      },
+      "T1": {
+        "alpha": -0.032177644697256716,
+        "beta": 0.9571975278203088
+      }
+    }
+  },
+  "family_ablation_folds": {
+    "F1_platoon": 0.000367,
+    "F2_batter_discipline": 0.000915,
+    "F3_pitcher_discipline": 0.000148,
+    "F4_history": -3.6e-05,
+    "F5_park": 0.000215,
+    "L3_terms": 0.001369
+  },
+  "grouped_importance_2024": {
+    "F1_platoon": 0.000546,
+    "F2_batter_discipline": 0.003186,
+    "F3_pitcher_discipline": 0.000228,
+    "F4_history": 0.00026,
+    "F5_park": -6.2e-05,
+    "L3_terms": 0.001471
+  },
+  "aggregation": {
+    "metrics": {
+      "E1": {
+        "L3": {
+          "MAE": 1.707737093986758,
+          "RMSE": 2.152030255271709,
+          "bias": -0.07373964179253134
+        },
+        "tree": {
+          "MAE": 1.7071980532238253,
+          "RMSE": 2.1547282674820107,
+          "bias": -0.05047627887151523
+        }
+      },
+      "E2": {
+        "L3": {
+          "MAE": 1.6851224295899778,
+          "RMSE": 2.1162363956468693,
+          "bias": -0.023048973313708473
+        },
+        "tree": {
+          "MAE": 1.6850115346019783,
+          "RMSE": 2.116073431746919,
+          "bias": -0.07765753060200124
+        }
+      }
+    },
+    "paired": {
+      "E1": {
+        "tree-L3_MAE": {
+          "raw": -0.0005390407629325024,
+          "ci95": [
+            -0.00913315489612442,
+            0.00810618886496986
+          ],
+          "fav": 0.5675
+        }
+      },
+      "E2": {
+        "tree-L3_MAE": {
+          "raw": -0.00011089498799951545,
+          "ci95": [
+            -0.007619915555999301,
+            0.006777369404784522
+          ],
+          "fav": 0.506
+        }
+      }
+    }
+  },
+  "slices": {
+    "month": {
+      "3": {
+        "n": 2224,
+        "L3_logloss": 0.545404,
+        "T1_logloss": 0.540924
+      },
+      "4": {
+        "n": 17677,
+        "L3_logloss": 0.518316,
+        "T1_logloss": 0.518719
+      },
+      "5": {
+        "n": 18381,
+        "L3_logloss": 0.512364,
+        "T1_logloss": 0.512409
+      },
+      "6": {
+        "n": 17636,
+        "L3_logloss": 0.506589,
+        "T1_logloss": 0.506798
+      },
+      "7": {
+        "n": 16199,
+        "L3_logloss": 0.511829,
+        "T1_logloss": 0.511789
+      },
+      "8": {
+        "n": 18080,
+        "L3_logloss": 0.513454,
+        "T1_logloss": 0.5134
+      },
+      "9": {
+        "n": 16070,
+        "L3_logloss": 0.525285,
+        "T1_logloss": 0.525256
+      }
+    },
+    "p_throws": {
+      "L": {
+        "n": 28625,
+        "L3_logloss": 0.518001,
+        "T1_logloss": 0.517965
+      },
+      "R": {
+        "n": 77642,
+        "L3_logloss": 0.514092,
+        "T1_logloss": 0.5141
+      }
+    }
+  },
+  "deviations": [
+    {
+      "finding": "T3 blend gate executed against P3-log5 OOF residuals (registered substitute because fold-fitted L3 models were not serialized).",
+      "classification": "NON-SUBSTANTIVE (labeled)"
+    }
+  ]
+}

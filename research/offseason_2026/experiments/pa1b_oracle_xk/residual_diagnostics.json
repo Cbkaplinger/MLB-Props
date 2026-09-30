@@ -1,0 +1,60 @@
+{
+  "icc_pa_level_residuals_M2": {
+    "start": {
+      "between_var_of_cluster_means": 0.0034130113880448294,
+      "mean_within_var": 0.16628449787026084,
+      "icc_approx": 0.02011232458839276,
+      "n_clusters": 4711
+    },
+    "pitcher": {
+      "between_var_of_cluster_means": 0.0019024864773809688,
+      "mean_within_var": 0.16052434208612276,
+      "icc_approx": 0.01171288323614074,
+      "n_clusters": 336
+    },
+    "batter": {
+      "between_var_of_cluster_means": 0.003259037394705261,
+      "mean_within_var": 0.18099351667887595,
+      "icc_approx": 0.017687881783195067,
+      "n_clusters": 644
+    },
+    "team_pitcher_side": {
+      "between_var_of_cluster_means": 0.00011343504233617485,
+      "mean_within_var": 0.16953425670317404,
+      "icc_approx": 0.0006686506675631025,
+      "n_clusters": 30
+    },
+    "month": {
+      "between_var_of_cluster_means": 2.768775335284367e-05,
+      "mean_within_var": 0.17093635803385027,
+      "icc_approx": 0.0001619507378019486,
+      "n_clusters": 7
+    },
+    "trip": {
+      "between_var_of_cluster_means": 0.0003525208197610058,
+      "mean_within_var": 0.1592481833552804,
+      "icc_approx": 0.002208767320815703,
+      "n_clusters": 4
+    }
+  },
+  "note": "diagnostic only; no corrective fitting",
+  "decomposition_by_trip": {
+    "1": {
+      "n": 42399,
+      "mean_resid_M2": -0.01728233439872504
+    },
+    "2": {
+      "n": 41209,
+      "mean_resid_M2": 0.007980856483586197
+    },
+    "3": {
+      "n": 22195,
+      "mean_resid_M2": 0.022466906859978396
+    },
+    "4": {
+      "n": 464,
+      "mean_resid_M2": 0.04793154836201369
+    }
+  },
+  "decomposition_by_batter_history": "see pitcher_prior slices (batter buckets mirrored)"
+}

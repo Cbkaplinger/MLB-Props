@@ -1,0 +1,47 @@
+{
+ "verdict_for_2024_comparison": "DESCRIPTIVE_TRAIN_OVERLAP_ONLY_NOT_PRIMARY",
+ "clean_comparison_period": "2025 (deferred; not run this phase)",
+ "components": [
+  {
+   "component": "LightGBM member sparse72_monotone",
+   "artifact": "artifacts/models/lightgbm_krate_mono_20260821_054127",
+   "fit": "train <=2024-06-08; val 2024-06-09..08-05; test >=2024-08-06 (sidecar cutoffs)",
+   "status_2024": "REPLAYABLE_BUT_TRAIN_OVERLAP"
+  },
+  {
+   "component": "LightGBM member final58",
+   "artifact": "artifacts/models/lightgbm_krate_20260821_054126",
+   "fit": "same cutoffs",
+   "status_2024": "REPLAYABLE_BUT_TRAIN_OVERLAP"
+  },
+  {
+   "component": "Ensemble weights 0/0.60/0.40",
+   "artifact": "production/ops/live_krate_ensemble.json",
+   "selection": "2026-08-21 sweep on 2026-era ROI (source csv aug21_deduped)",
+   "status_2024": "REPLAYABLE_BUT_SELECTION_EXPOSED"
+  },
+  {
+   "component": "TBF Ridge",
+   "artifact": "artifacts/models/tbf_pa_ridge_workload_context_bullpen_20260728_035607.joblib",
+   "fit": "2023-24 only (audit L1194)",
+   "status_2024": "REPLAYABLE_BUT_TRAIN_OVERLAP (fits within 2024)"
+  },
+  {
+   "component": "Count layer",
+   "artifact": "count_layer.py poisson",
+   "fit": "structural",
+   "status_2024": "REPLAYABLE_AND_OOF_VALID"
+  },
+  {
+   "component": "WS1c calibration",
+   "artifact": "prob_calibration_ws1c_platt_20260910_012559",
+   "fit": "fit_cutoff 2026-09-03",
+   "status_2024": "REPLAYABLE_BUT_SELECTION_EXPOSED"
+  },
+  {
+   "component": "OOF frozen predictions for 2024",
+   "status": "NOT_FOUND (no stored 2024 production predictions; historical_scores are 2025-26 live logs)"
+  }
+ ],
+ "decision": "Frozen comparator arm STOPPED for 2024 primary; descriptive-train-overlap replay deferred; first clean frozen comparison = 2025 validation."
+}

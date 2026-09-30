@@ -1,0 +1,74 @@
+{
+  "feature_order": [
+    "same_hand",
+    "b_hand_rate",
+    "b_whiff",
+    "b_swstr",
+    "b_chase",
+    "p_whiff_P5",
+    "p_swstr_P5",
+    "p_chase_P5",
+    "p_zone_P5",
+    "p_contact_P5",
+    "p_whiff_std",
+    "p_swstr_std",
+    "p_chase_std",
+    "p_zone_std",
+    "p_contact_std",
+    "log_pa_curr",
+    "log_pa_prior",
+    "park_k",
+    "rest",
+    "debut",
+    "trip_eq_2",
+    "trip_eq_3",
+    "trip_ge_4",
+    "spi_over_9"
+  ],
+  "families": {
+    "F1_platoon": [
+      "same_hand",
+      "b_hand_rate"
+    ],
+    "F2_batter_discipline": [
+      "b_whiff",
+      "b_swstr",
+      "b_chase"
+    ],
+    "F3_pitcher_discipline": [
+      "p_whiff_P5",
+      "p_swstr_P5",
+      "p_chase_P5",
+      "p_zone_P5",
+      "p_contact_P5",
+      "p_whiff_std",
+      "p_swstr_std",
+      "p_chase_std",
+      "p_zone_std",
+      "p_contact_std"
+    ],
+    "F4_history": [
+      "log_pa_curr",
+      "log_pa_prior"
+    ],
+    "F5_park": [
+      "park_k"
+    ],
+    "F6_rest": [
+      "rest",
+      "debut"
+    ],
+    "L3_interactions": [
+      "trip_eq_2",
+      "trip_eq_3",
+      "trip_ge_4",
+      "spi_over_9"
+    ]
+  },
+  "status": {
+    "F6_rest": "EXCLUDED_FROM_NEXT_PA_K_MANIFEST (Phase 7 2023-fold ablation ~zero; kept eligible for opportunity/TBF research)",
+    "F1-F5+trip/index": "FROZEN for next challenger"
+  },
+  "definitions": "see logistic_pa/card.json families_L2/interactions_L3; nan_to_num(0) except b_hand_rate->LG, park_k->1.0, rest->15.0",
+  "allow_extra_columns": true
+}

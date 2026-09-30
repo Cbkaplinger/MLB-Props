@@ -1,0 +1,52 @@
+{
+  "best_m": 100,
+  "p2_selection": {
+    "m=100": {
+      "logloss_2023_pooled": 0.524611
+    },
+    "m=200": {
+      "logloss_2023_pooled": 0.524769
+    },
+    "m=300": {
+      "logloss_2023_pooled": 0.52501
+    }
+  },
+  "lg_prior_2023": 0.22050576457750154,
+  "pa1b_population": {
+    "all_completing_starts_2024": 4711,
+    "official_starter_starts": 4711,
+    "bulk9_starts_excluded": 0,
+    "exact_and_official_and_nosplit": 4711,
+    "pa1a_4514_note": "Phase 5 count included >=9-PA bulk pitchers and did not exclude split PAs at start level",
+    "primary_starts": 4711
+  },
+  "pa1a_row_official_share": [
+    {
+      "is_official_starter": true,
+      "rows": 106267,
+      "ks": 23299
+    }
+  ],
+  "census": {
+    "2025|bulk9": {
+      "entries": 4750,
+      "pas": 106123
+    },
+    "2024|official": {
+      "entries": 4711,
+      "pas": 106267
+    },
+    "2023|official": {
+      "entries": 4663,
+      "pas": 105385
+    },
+    "2026|bulk9": {
+      "entries": 4632,
+      "pas": 103031
+    }
+  },
+  "role_relationships": {
+    "NEITHER_IS_OFFICIAL_STARTER": 58,
+    "OFFICIAL_STARTER_BEGAN_RELIEVER_COMPLETED": 64
+  }
+}

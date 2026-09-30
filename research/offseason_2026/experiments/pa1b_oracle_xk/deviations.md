@@ -1,0 +1,1 @@
+- [2026-09-30T18:18:37.279686+00:00] Phase 5 completeness.json (4,514 exact) superseded by verified 4,711/4,711 exact; split PAs never entered the table; PA-1A population purity confirmed (100% official starters). NON-SUBSTANTIVE (correction of prior measurement error; population definition unchanged)

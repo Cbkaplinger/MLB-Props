@@ -1,0 +1,116 @@
+{
+  "experiment_id": "TREE-PA-T",
+  "timestamp_utc": "2026-09-30T20:56:05.601227+00:00",
+  "mlflow_decision": {
+    "decision": "DEFERRED",
+    "rationale": "mlflow not installed; installing mid-phase risks environment churn before a registered evaluation. Adopt post-tree as a read-only SQLite mirror over existing cards/manifests/hashes. Cards and manifests remain authoritative. MLflow failure is nonfatal to experiment outputs."
+  },
+  "lineup_audit": "lineup_replay_audit.json (NOT READY for historical replay; lane D deferred to 2027 logging)",
+  "comparator": {
+    "T0": "L3 logistic development bundle (bundle/model_bundle.json); tree must beat T0, not P3"
+  },
+  "inputs": [
+    {
+      "path": "research/offseason_2026/datasets/pa_table_2023_2024.parquet",
+      "sha256": "f933e207e8ea8440fe738e966ec809034b3b3fc20005ef26f389be6bc68e0783"
+    },
+    {
+      "path": "data/processed/pitcher_games.parquet",
+      "sha256": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d"
+    },
+    {
+      "path": "data/processed/pitcher_rolling.parquet",
+      "sha256": "eac7ea807c8bf8a67965a4cde570a2abc1312c780f0af77dc5ae426c200ccdac"
+    },
+    {
+      "path": "data/processed/park_factors.parquet",
+      "sha256": "b38b232a3be361c92cb3b93e7eef7ed15d8b90ce6d95119b168d438a01f1305d"
+    },
+    {
+      "path": "data/processed/batter_games.parquet",
+      "sha256": "691e104b04e1261cf24a905648421a11756e17e286002d6dcfbf212f4798acee"
+    },
+    {
+      "path": "research/offseason_2026/experiments/logistic_pa/pa_predictions.parquet",
+      "sha256": "8b797c04e5d167541c809680b95dd7096344dfafc3dd8b267b695def89e23889"
+    },
+    {
+      "path": "research/offseason_2026/experiments/logistic_pa/bundle/model_bundle.json",
+      "sha256": "01211d7afd07d31e07823d1f0b572259876d419b6bd728c6d0ce4000e5c687ee"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pitcher_prior/pa_predictions.parquet",
+      "sha256": "8751f8312df52e8a2cdfa434da6fc42f2637f83e406391b6e1eb75c52c76b76b"
+    }
+  ],
+  "feature_manifest": "F1-F5 (16 columns) + trip/index terms (4) + logit(P3) baseline input; F6_rest EXCLUDED; no repertoire/velocity/movement; no new interactions; identical construction to the validated L3 bundle feature build (reproduces stored L3 to 2.2e-16)",
+  "monotone_constraints_T2": "increasing on b_hand_rate, b_whiff, b_swstr, b_chase, p_whiff_P5, p_whiff_std, p_swstr_P5, p_swstr_std, p_chase_P5, p_chase_std; free: same_hand, log_pa_curr, log_pa_prior, park_k, trip terms, logit_p3",
+  "grid_T1": {
+    "num_leaves": [
+      7,
+      15
+    ],
+    "max_depth": [
+      3,
+      4
+    ],
+    "min_data_in_leaf": [
+      200,
+      500
+    ],
+    "feature_fraction": [
+      0.8,
+      1.0
+    ],
+    "lambda_l2": [
+      1.0,
+      10.0
+    ],
+    "learning_rate": [
+      0.05
+    ],
+    "n_estimators": [
+      200
+    ]
+  },
+  "fold_design_2023": {
+    "F1": "fit 03-30..06-30 -> eval 07-01..08-15",
+    "F2": "fit 03-30..08-15 -> eval 08-16..10-01"
+  },
+  "blend_gate_T3": "2023 OOF only: Pearson corr(L3 residual, tree residual) <= 0.85 AND best probability-average weight in {0.25,0.5,0.75} improves mean fold logloss > 0.0002 over the better single arm; else NO BLEND",
+  "evaluation": {
+    "2024": "E1 (<=06-30, n=55,815) and E2 (>=07-01, n=50,252) primary rows, ONE evaluation, identical rows all arms",
+    "metrics": "logloss primary, brier, calibration alpha/beta, ECE-20bin, reliability",
+    "paired": "date-cluster B=2000 seed=0 + game_pk sensitivity vs L3 (and vs P3 descriptive)",
+    "slices": "month, p_throws, batter-history bucket, pitcher-prior bucket",
+    "ablation": "drop-family refits on 2023 folds (selected config)",
+    "importance": "grouped permutation on 2024 eval (families joint, 20 perms, logloss increase)",
+    "aggregation": "oracle start sums over 4,711 exact official starts; paired MAE/RMSE vs L3"
+  },
+  "gates": {
+    "promote_tree": [
+      "beats L3 PA logloss BOTH blocks (100%-consistent bootstrap direction preferred)",
+      "brier non-inferior both blocks",
+      "no calibration collapse",
+      "survives oracle aggregation (MAE paired CI excludes 0 favoring tree both blocks)",
+      "gains in both 2023 selection folds",
+      "not one-month/slice driven"
+    ],
+    "stop": [
+      "ties/loses to L3 -> retain logistic; complexity escalation stops",
+      "leakage assertion fires",
+      "calibration slope outside 0.9-1.1 without registered correction"
+    ]
+  },
+  "prohibited": [
+    "2025/2026",
+    "market/betting",
+    "TBF changes",
+    "projected lineups in oracle experiment",
+    "blend without gate",
+    "hierarchy/NN/simulation",
+    "production changes",
+    "post-2024 tuning"
+  ],
+  "owner_authorization": "Phase 8 owner message (2026-09-30): execute the drafted tree card with the two preflights (MLflow decision, lineup audit) completed first."
+}

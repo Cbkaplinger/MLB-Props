@@ -1,0 +1,83 @@
+{
+  "model_id": "L3_logistic_pa_dev",
+  "model_version": "phase7-executed",
+  "status": "DEVELOPMENT_BASELINE \u2014 NOT PRODUCTION_APPROVED",
+  "estimator": "sklearn LogisticRegression penalty=l2 C=0.01 solver=lbfgs max_iter=2000",
+  "formula": "logit(p) = intercept + 0.9197-style*beta_base*logit(P3_l5) + sum(coef_i * z_i) + trip terms",
+  "beta_baseline_logitP3": 0.769259956046474,
+  "intercept": {
+    "value": -0.33305196362724293,
+    "provenance": "RECOVERED from stored Phase 7 predictions + rebuilt features (was not serialized at execution time); constancy validated < 1e-6"
+  },
+  "coefficients": {
+    "same_hand": 0.027893702525068485,
+    "b_hand_rate": 0.03924692182396773,
+    "b_whiff": 0.026308405360031456,
+    "b_swstr": 0.12441286855296467,
+    "b_chase": -0.10222924398911694,
+    "p_whiff_P5": 0.028813681819106086,
+    "p_swstr_P5": -0.022992727568682546,
+    "p_chase_P5": 0.041974969624375504,
+    "p_zone_P5": -0.006151688190335899,
+    "p_contact_P5": -0.04678805718627943,
+    "p_whiff_std": 0.013294354043958491,
+    "p_swstr_std": 0.012391790458910677,
+    "p_chase_std": -0.023942881957726554,
+    "p_zone_std": 0.04070452015372158,
+    "p_contact_std": -0.040141832078007325,
+    "log_pa_curr": 0.055742154312691104,
+    "log_pa_prior": 0.0,
+    "park_k": 0.037247752192088084,
+    "rest": -0.005882683328064121,
+    "debut": 0.026919044638154987,
+    "trip_dummies_and_index": [
+      -0.11485377754241584,
+      -0.12931531223283027,
+      -0.02366161086101645,
+      0.027930574943613812
+    ]
+  },
+  "baseline_dependency": {
+    "model": "P3-log5 (pitcher_prior experiment)",
+    "rollback_target": true,
+    "formula": "(K_prior_season + K_curr + 100*lg)/(PA_prior_season + PA_curr + 100) in odds-form log5, lg=0.223813, m=100 selected on 2023 folds only"
+  },
+  "training": {
+    "fit_rows": "2023 primary PA rows (105,225)",
+    "fit_dates": "2023-03-30..2023-10-01",
+    "permitted_scoring_dates": "2024 E1 (<=2024-06-30), E2 (>=2024-07-01)",
+    "selection": "C and families via 2023 chronological folds only"
+  },
+  "period_qualifications": [
+    "2024 = development evidence (architecture informed by it)",
+    "no 2025/2026 access",
+    "oracle aggregation only (ACTUAL_TBF_ORACLE)"
+  ],
+  "known_limitations": [
+    "intercept + scaler not serialized at execution time (recovered/recomputed; future bundles must serialize at fit time)",
+    "F6_rest ~zero value; excluded from next manifest",
+    "development-only; no frozen-model, market, or deployability claim"
+  ],
+  "no_2025_2026_declaration": true,
+  "reproduction": {
+    "command": "python research/offseason_2026/experiments/logistic_pa/bundle/build_bundle.py",
+    "max_abs_diff_vs_stored": 2.220446049250313e-16,
+    "tolerance": 1e-08,
+    "passed": true
+  },
+  "hashes": {
+    "pa_table": "f933e207e8ea8440fe738e966ec809034b3b3fc20005ef26f389be6bc68e0783",
+    "pitcher_games": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d",
+    "pitcher_rolling": "eac7ea807c8bf8a67965a4cde570a2abc1312c780f0af77dc5ae426c200ccdac",
+    "park_factors": "b38b232a3be361c92cb3b93e7eef7ed15d8b90ce6d95119b168d438a01f1305d",
+    "batter_games": "691e104b04e1261cf24a905648421a11756e17e286002d6dcfbf212f4798acee",
+    "stored_predictions": "8b797c04e5d167541c809680b95dd7096344dfafc3dd8b267b695def89e23889",
+    "phase7_card": "489b892b2758754b378d8f924483950df1dbf1a58034ade3a54c821de10d48ab"
+  },
+  "environment": {
+    "python": "3.11.9",
+    "numpy": "2.4.6",
+    "polars": "1.43.0"
+  },
+  "built_utc": "2026-09-30T20:16:13.751999+00:00"
+}

@@ -1,0 +1,72 @@
+{
+ "audit": "projected-lineup replayability (Phase 8 preflight; read-only, existing data only)",
+ "provider": "RotoGrinders via src/Python/daily_lineups.py (planned provider, not replaced)",
+ "snapshot_inventory": [
+  {
+   "file": "daily_lineups_2026-07-28.parquet",
+   "rows": 288,
+   "status": {
+    "projected": 270,
+    "confirmed": 18
+   },
+   "fetched_utc": "2026-07-28T18:06"
+  },
+  {
+   "file": "daily_lineups_2026-07-30.parquet",
+   "rows": 108,
+   "status": {
+    "confirmed": 108
+   },
+   "fetched_utc": "2026-07-30T05:01",
+   "note": "clean pre-tip confirmed day"
+  },
+  {
+   "file": "daily_lineups_2026-08-07.parquet",
+   "rows": 270,
+   "status": {
+    "projected": 270
+   },
+   "fetched_utc": "2026-08-07T18:49"
+  },
+  {
+   "file": "daily_lineups_2026-08-10.parquet",
+   "rows": 180,
+   "status": {
+    "projected": 180
+   },
+   "fetched_utc": "2026-08-10T15:48",
+   "note": "pre-tip-ish"
+  },
+  {
+   "file": "daily_lineups_2026-08-20.parquet",
+   "rows": 162,
+   "status": {
+    "confirmed": 162
+   },
+   "fetched_utc": "2026-08-21T05:06",
+   "note": "next-day confirmed for 08-20 slate = post-game, not pre-tip"
+  },
+  {
+   "file": "daily_lineups_2026-08-21.parquet",
+   "rows": 270,
+   "status": {
+    "projected": 270
+   },
+   "fetched_utc": "2026-08-21T14:11"
+  }
+ ],
+ "total_rows": 1278,
+ "seasons_covered": [
+  "2026"
+ ],
+ "seasons_2025": 0,
+ "mlbam_id_column": "ABSENT - name-only; resolution via team-scoped roster matching (daily_lineups.py), unresolved-ID rate unmeasured",
+ "first_seen_vs_last_updated": "single fetch per file; no revision history",
+ "verdict": "PROJECTED-LINEUP REPLAY: NOT READY for historical claims; ~1-2 usable pre-tip days total; lane D requires the lineup-version logging spec (validation_lanes.md) implemented at 2027 spring reactivation",
+ "permitted_now": [
+  "lane A (actual batters)",
+  "lane B (oracle TBF)",
+  "lane C (historical initial lineup + frozen TBF, labeled availability-unverified)"
+ ],
+ "no_scraping_or_backfill_performed": true
+}

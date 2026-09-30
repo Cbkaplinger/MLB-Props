@@ -1,0 +1,128 @@
+{
+  "experiment_id": "PA-1B-O",
+  "label": "Oracle opportunity decomposition; not pregame xK, not actionable replay",
+  "timestamp_utc": "2026-09-30T15:50:04.214629+00:00",
+  "git": {
+    "dirty_paths": 109,
+    "head": "bb1ea6b292cdd16a3782b3203aa93086dae80712"
+  },
+  "inputs": [
+    {
+      "path": "research/offseason_2026/datasets/pa_table_2023_2024.parquet",
+      "sha256": "f933e207e8ea8440fe738e966ec809034b3b3fc20005ef26f389be6bc68e0783"
+    },
+    {
+      "path": "data/processed/pitcher_games.parquet",
+      "sha256": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/per_pa.parquet",
+      "sha256": "3052654e21a73e1c599e16cd1cbbf2970878942f4c3013457a182fff75a9fb37"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/card.json",
+      "sha256": "4392e9058542c781b07c2431fd88a7f3aaadb4da55ed912ca68f9ef11b7545c1"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/attribution_reconciliation.json",
+      "sha256": "4245cf5e0d0e6b7fa74c2868242bf87219d17f56d1f9ba673089cc3e208bcc25"
+    }
+  ],
+  "bootstrap": {
+    "primary": {
+      "cluster": "game_date",
+      "B": 2000,
+      "seed": 0,
+      "ci": "percentile 95"
+    },
+    "sensitivity": {
+      "cluster": "game_pk"
+    },
+    "fav_convention": "% replicates favoring challenger; negative deltas favor second arm"
+  },
+  "clip": "[1e-6, 1-1e-6] on all arm outputs; no tuning",
+  "prohibited": [
+    "2025/2026 scoring",
+    "projected lineups",
+    "count distributions (PB)",
+    "calibration fitting for prediction",
+    "policy/ROI/CLV/Sharpe",
+    "trained models (logistic/LGBM/CatBoost/hierarchical/neural)",
+    "frozen-TBF use",
+    "production modification",
+    "dataset modification",
+    "PA-1A output modification",
+    "post-hoc variant addition",
+    "git state changes"
+  ],
+  "population_primary": {
+    "definition": "2024 starts where modeled pitcher == official starter; primary PA-1A rows; split PAs EXCLUDED; no truncated rows; row count == official_BF (pitcher_games PA, canonical proxy for official BF); >=1 row",
+    "recalculated": {
+      "all_completing_starts_2024": 4711,
+      "official_starter_starts": 4711,
+      "bulk9_starts_excluded": 0,
+      "exact_and_official_and_nosplit": 4711,
+      "pa1a_4514_note": "Phase 5 count included >=9-PA bulk pitchers and did not exclude split PAs at start level",
+      "primary_starts": 4711
+    },
+    "difference_vs_phase5_4514": "documented in prep.json"
+  },
+  "sensitivity_populations": [
+    "starts including reconciled split PAs",
+    "bulk9-pitcher starts (nontraditional role)",
+    "197 non-exact-reconciliation starts (only if target reconciles)"
+  ],
+  "arms": [
+    "M0",
+    "M1",
+    "M2 (original PA-1A per_pa.parquet predictions)",
+    "each P-arm log5 (transparency)",
+    "selected repaired baseline if promoted"
+  ],
+  "aggregation": "oracle_xK_a = sum(p_a_t over included rows of the start); actual_K = sum(is_k) over the same rows",
+  "metrics": [
+    "MAE",
+    "RMSE",
+    "mean_error",
+    "median_abs_error",
+    "mean_pred_xK",
+    "mean_actual_K",
+    "correlation(descriptive)",
+    "error quantiles"
+  ],
+  "slices": [
+    "E1/E2",
+    "actual BF bucket (<=17/18-23/24-27/>=28)",
+    "actual K bucket",
+    "trips",
+    "month",
+    "pitcher-history bucket",
+    "rookie status",
+    "handedness",
+    "official vs bulk9",
+    "with/without split exclusion"
+  ],
+  "paired_comparisons": [
+    "M2-M1",
+    "M2-M0",
+    "selected-M2",
+    "selected-M1",
+    "each valid PA arm vs frozen comparator IF temporally valid (NOT the case for 2024; see frozen_comparator_validity.json)"
+  ],
+  "frozen_comparator": "STOPPED for 2024 primary: train/selection overlap (members fit <=2024-06-08; weights+WS1c 2026). DESCRIPTIVE_TRAIN_OVERLAP only; clean comparison deferred to 2025.",
+  "residual_diagnostics": "per-start residuals + within-cluster ICC by start/pitcher/batter/team/month/trip; diagnostic only, no corrective fitting",
+  "outputs": [
+    "card.json",
+    "hashes.json",
+    "preflight.json",
+    "start_predictions.parquet",
+    "metrics.json",
+    "paired_comparisons.json",
+    "slices.json",
+    "bootstrap.json",
+    "residual_diagnostics.json",
+    "frozen_comparator_validity.json",
+    "deviations.md",
+    "report.md"
+  ]
+}

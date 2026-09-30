@@ -1,0 +1,23 @@
+{
+  "population": "2024 primary",
+  "n_groups": 4711,
+  "eligible_pa_count_distribution": {
+    "min": 9,
+    "p25": 21.0,
+    "median": 23.0,
+    "p75": 25.0,
+    "max": 34
+  },
+  "starts_with_truncated_pa": 197,
+  "starts_with_multipitcher_ambiguity": 20,
+  "canonical_tbf_source": "data/processed/pitcher_games.parquet PA column (starter game PA, PA>=9 gate)",
+  "reconciliation": {
+    "exact": 4514,
+    "under_canonical": 197,
+    "over_canonical": 0,
+    "pct_fully_reconciled": 0.9582,
+    "reasons": "under = dropped truncated_pa + reliever-attributed PAs within starter outing (terminal-row credit); over = none expected; audit per-start in pa1b outputs"
+  },
+  "proposed_pa1b_primary": "starts with exact reconciliation (eligible_rows == canonical PA), no truncated_pa, no unresolved multi-pitcher attribution; other starts reserved for a separately labeled sensitivity",
+  "status": "MEASURED ONLY - PA-1B NOT RUN (owner prohibition)"
+}

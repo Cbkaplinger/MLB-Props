@@ -1,0 +1,15 @@
+{
+  "bootstrap.json": "45eeec61df6291ef190aa702d681a7eab40039814fea445cd0ddfbf22f18d664",
+  "calibration.json": "2aa8e4242f7fa3ccefbae25f107af52bef40bec1c1ff9f8b75072b396ff42b48",
+  "card.json": "12a668e25568f375cdbf4b286eeeadf20643015cd46e0ea5e32dbd80e45512a9",
+  "deviations.md": "147aa95ad48d413c7617cf2e77bcdbdb73d52ae488308bcda4480621b9a92777",
+  "gate_prep.py": "e7f7d1fc1c5e0092a2340d5d77247a026ce62415cea83a3e877613f18a5bec1a",
+  "metrics.json": "2aa8e4242f7fa3ccefbae25f107af52bef40bec1c1ff9f8b75072b396ff42b48",
+  "paired_comparisons.json": "3d96cf5854b3b909715a82a6d08d70b6d051b61abb8b27f466ce194c58a86516",
+  "pa_predictions.parquet": "8751f8312df52e8a2cdfa434da6fc42f2637f83e406391b6e1eb75c52c76b76b",
+  "pitcher_identity_resolution.json": "7961e18a190f080f282156b5f21d37da62b749a5b22b6aa3eab7c90a7c0150ef",
+  "preflight.json": "2414b7c6422afc3146863b63009dd0da8e6f583f80542ae3b835819ff8c76256",
+  "prep.json": "2f88d4f97612081cfe1f739fa9fbcfc600c7080c8674c58dd99ff5f976b5d57e",
+  "run_pitcher_prior.py": "f06b678fd8abaa0909e134661ca2d0b1813c315a648ca61da97995e3d96a8df0",
+  "slices.json": "d2a2aca847335ec8d2f3dc9c51de85d080e7b7c589658b99654b30f7cdce3ca9"
+}

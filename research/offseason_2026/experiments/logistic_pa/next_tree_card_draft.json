@@ -1,0 +1,24 @@
+{
+ "experiment_id": "TREE-PA-T (DRAFT — not authorized to run)",
+ "status": "SPECIFIED_ONLY",
+ "comparator": {"arm": "T0", "definition": "immutable L3 logistic development bundle (bundle/model_bundle.json)",
+                 "rule": "tree arms must beat T0, not merely P3-log5"},
+ "population": "Phase 6 reconciled PA population (identical rows all arms); 2023 folds for selection; 2024 E1/E2 one development evaluation; no 2025/2026",
+ "feature_manifest": "frozen F1-F5 + trip/index terms from logistic_pa/bundle/feature_manifest.json; F6_rest EXCLUDED; no repertoire/velocity/movement; no new interactions",
+ "arms": {
+   "T1": {"model": "LightGBM binary, shallow", "budget": {"num_leaves": [7, 15], "max_depth": [3, 4], "min_data_in_leaf": [200, 500], "learning_rate": [0.05], "feature_fraction": [0.8, 1.0], "lambda_l2": [1.0, 10.0]},
+           "selection": "2023 chronological folds (same F1/F2 boundaries as Phase 7), mean fold eval logloss, subject to Brier + calibration + fold consistency"},
+   "T2": {"model": "LightGBM + monotone constraints where semantics defensible", "constraints": "increasing in batter/pitcher K-tendency inputs only if T1 qualifies; registered before fitting"},
+   "T3": {"model": "logistic/tree blend", "authorization": "ONLY if 2023 OOF errors of the qualifying tree arm and L3 show complementarity (registered correlation/coverage test on 2023 folds); weighting selected on 2023 only; never because reused-2024 score improves"}
+ },
+ "gates": {"promote_tree": ["beats T0 PA logloss in BOTH E1 and E2 with 100%-consistent date-cluster bootstrap direction",
+                             "Brier non-inferior both blocks", "no calibration collapse (registered slope range 0.9-1.1 diagnostic)",
+                             "survives oracle aggregation (start-level MAE paired CI excludes 0 favoring tree in both blocks)",
+                             "fold-stable: gains in both 2023 selection folds", "not driven by one month/slice"],
+            "stop": ["tree ties or loses to T0 -> retain logistic, stop complexity escalation",
+                      "any leakage assertion fires", "calibration slope outside registered range with no registered correction"]},
+ "writer_boundary": "research/offseason_2026/experiments/tree_pa/ only",
+ "metrics": "same as Phase 7 (logloss primary, Brier, calibration diagnostics, reliability, slices, paired bootstraps date+game_pk, oracle aggregation)",
+ "interpretation_limits": "2024 remains development evidence; no frozen-model, market, or deployability claim",
+ "prohibited": ["feature discovery", "2025/2026", "policy/betting", "production changes", "automatic launch"]
+}

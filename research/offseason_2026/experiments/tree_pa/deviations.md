@@ -1,0 +1,1 @@
+- T3 blend gate executed against P3-log5 OOF residuals (registered substitute because fold-fitted L3 models were not serialized). NON-SUBSTANTIVE (labeled)

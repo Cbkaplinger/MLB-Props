@@ -1,0 +1,233 @@
+{
+  "model_id": "L3_logistic_pa_dev",
+  "model_version": "phase7-executed",
+  "intercept": -0.33305196362724293,
+  "coefficients": {
+    "__BASELINE_LOGIT__": 0.769259956046474,
+    "same_hand": 0.027893702525068485,
+    "b_hand_rate": 0.03924692182396773,
+    "b_whiff": 0.026308405360031456,
+    "b_swstr": 0.12441286855296467,
+    "b_chase": -0.10222924398911694,
+    "p_whiff_P5": 0.028813681819106086,
+    "p_swstr_P5": -0.022992727568682546,
+    "p_chase_P5": 0.041974969624375504,
+    "p_zone_P5": -0.006151688190335899,
+    "p_contact_P5": -0.04678805718627943,
+    "p_whiff_std": 0.013294354043958491,
+    "p_swstr_std": 0.012391790458910677,
+    "p_chase_std": -0.023942881957726554,
+    "p_zone_std": 0.04070452015372158,
+    "p_contact_std": -0.040141832078007325,
+    "log_pa_curr": 0.055742154312691104,
+    "log_pa_prior": 0.0,
+    "park_k": 0.037247752192088084,
+    "rest": -0.005882683328064121,
+    "debut": 0.026919044638154987,
+    "trip_dummies_and_index": [
+      -0.11485377754241584,
+      -0.12931531223283027,
+      -0.02366161086101645,
+      0.027930574943613812
+    ]
+  },
+  "baseline_column": "P3_l5_logit",
+  "feature_manifest": {
+    "feature_order": [
+      "same_hand",
+      "b_hand_rate",
+      "b_whiff",
+      "b_swstr",
+      "b_chase",
+      "p_whiff_P5",
+      "p_swstr_P5",
+      "p_chase_P5",
+      "p_zone_P5",
+      "p_contact_P5",
+      "p_whiff_std",
+      "p_swstr_std",
+      "p_chase_std",
+      "p_zone_std",
+      "p_contact_std",
+      "log_pa_curr",
+      "log_pa_prior",
+      "park_k",
+      "rest",
+      "debut",
+      "trip_eq_2",
+      "trip_eq_3",
+      "trip_ge_4",
+      "spi_over_9"
+    ],
+    "families": {
+      "F1_platoon": [
+        "same_hand",
+        "b_hand_rate"
+      ],
+      "F2_batter_discipline": [
+        "b_whiff",
+        "b_swstr",
+        "b_chase"
+      ],
+      "F3_pitcher_discipline": [
+        "p_whiff_P5",
+        "p_swstr_P5",
+        "p_chase_P5",
+        "p_zone_P5",
+        "p_contact_P5",
+        "p_whiff_std",
+        "p_swstr_std",
+        "p_chase_std",
+        "p_zone_std",
+        "p_contact_std"
+      ],
+      "F4_history": [
+        "log_pa_curr",
+        "log_pa_prior"
+      ],
+      "F5_park": [
+        "park_k"
+      ],
+      "F6_rest": [
+        "rest",
+        "debut"
+      ],
+      "L3_interactions": [
+        "trip_eq_2",
+        "trip_eq_3",
+        "trip_ge_4",
+        "spi_over_9"
+      ]
+    },
+    "status": {
+      "F6_rest": "EXCLUDED_FROM_NEXT_PA_K_MANIFEST (Phase 7 2023-fold ablation ~zero; kept eligible for opportunity/TBF research)",
+      "F1-F5+trip/index": "FROZEN for next challenger"
+    },
+    "definitions": "see logistic_pa/card.json families_L2/interactions_L3; nan_to_num(0) except b_hand_rate->LG, park_k->1.0, rest->15.0",
+    "allow_extra_columns": true
+  },
+  "feature_manifest_hash": "faf585df7619f11458b7db6e954d84556565595213171ff19ff5783e27cf445f",
+  "preprocessing": {
+    "same_hand": {
+      "mean": 0.42194809507994496,
+      "std": 0.4938703282499877,
+      "fill": 0.0
+    },
+    "b_hand_rate": {
+      "mean": 0.22496448588487175,
+      "std": 0.09357150446094589,
+      "fill": 0.0
+    },
+    "b_whiff": {
+      "mean": 0.2539252767627304,
+      "std": 0.07873164036478209,
+      "fill": 0.0
+    },
+    "b_swstr": {
+      "mean": 0.12021450952910431,
+      "std": 0.04268503302230267,
+      "fill": 0.0
+    },
+    "b_chase": {
+      "mean": 0.279255153559411,
+      "std": 0.08048432876805484,
+      "fill": 0.0
+    },
+    "p_whiff_P5": {
+      "mean": 0.23468328329865196,
+      "std": 0.08128077134781232,
+      "fill": 0.0
+    },
+    "p_swstr_P5": {
+      "mean": 0.11183607441134372,
+      "std": 0.040313204307939214,
+      "fill": 0.0
+    },
+    "p_chase_P5": {
+      "mean": 0.26961007701681966,
+      "std": 0.08181814863110719,
+      "fill": 0.0
+    },
+    "p_zone_P5": {
+      "mean": 0.46157631006794514,
+      "std": 0.12351423934049624,
+      "fill": 0.0
+    },
+    "p_contact_P5": {
+      "mean": 0.7045965003518705,
+      "std": 0.18745611808696916,
+      "fill": 0.0
+    },
+    "p_whiff_std": {
+      "mean": 0.23477140458414744,
+      "std": 0.07747038438437612,
+      "fill": 0.0
+    },
+    "p_swstr_std": {
+      "mean": 0.11146859758047849,
+      "std": 0.03823136505500318,
+      "fill": 0.0
+    },
+    "p_chase_std": {
+      "mean": 0.2694473633227736,
+      "std": 0.0790721213566605,
+      "fill": 0.0
+    },
+    "p_zone_std": {
+      "mean": 0.4615549338770624,
+      "std": 0.12231630777092768,
+      "fill": 0.0
+    },
+    "p_contact_std": {
+      "mean": 0.7045083790663476,
+      "std": 0.1858068658346211,
+      "fill": 0.0
+    },
+    "log_pa_curr": {
+      "mean": 4.93529233935554,
+      "std": 1.558091676362278,
+      "fill": 0.0
+    },
+    "log_pa_prior": {
+      "mean": 0.0,
+      "std": 1e-09,
+      "fill": 0.0
+    },
+    "park_k": {
+      "mean": 1.0008946313260625,
+      "std": 0.07908267412888517,
+      "fill": 0.0
+    },
+    "rest": {
+      "mean": 6.89636096218627,
+      "std": 2.97497598141681,
+      "fill": 0.0
+    },
+    "debut": {
+      "mean": 0.06072021634957537,
+      "std": 0.23881639841865118,
+      "fill": 0.0
+    },
+    "trip_eq_2": {
+      "mean": 0.0,
+      "std": 1.0,
+      "fill": 0.0
+    },
+    "trip_eq_3": {
+      "mean": 0.0,
+      "std": 1.0,
+      "fill": 0.0
+    },
+    "trip_ge_4": {
+      "mean": 0.0,
+      "std": 1.0,
+      "fill": 0.0
+    },
+    "spi_over_9": {
+      "mean": 0.0,
+      "std": 1.0,
+      "fill": 0.0
+    }
+  },
+  "prediction_context": "ACTUAL_BATTER_PREGAME_FEATURES"
+}

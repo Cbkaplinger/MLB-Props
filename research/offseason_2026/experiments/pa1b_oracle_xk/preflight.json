@@ -1,0 +1,15 @@
+{
+  "gates": {
+    "card": "PASS",
+    "hashes": "PASS",
+    "reconciliation": "PASS (4,711/4,711 exact, official K == sum is_k, BF == n_rows)",
+    "frozen_comparator": "STOPPED for 2024 primary (see frozen_comparator_validity.json)"
+  },
+  "deviations": [
+    {
+      "when": "2026-09-30T18:18:37.279686+00:00",
+      "finding": "Phase 5 completeness.json (4,514 exact) superseded by verified 4,711/4,711 exact; split PAs never entered the table; PA-1A population purity confirmed (100% official starters).",
+      "classification": "NON-SUBSTANTIVE (correction of prior measurement error; population definition unchanged)"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "card_sha256": "95b9627d435134b4e980e266047c14e2f40b810b29ed27f903de79346bc87315",
+  "inputs": [
+    {
+      "path": "research/offseason_2026/datasets/pa_table_2023_2024.parquet",
+      "sha256": "f933e207e8ea8440fe738e966ec809034b3b3fc20005ef26f389be6bc68e0783"
+    },
+    {
+      "path": "data/processed/pitcher_games.parquet",
+      "sha256": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d"
+    },
+    {
+      "path": "data/processed/pitcher_rolling.parquet",
+      "sha256": "eac7ea807c8bf8a67965a4cde570a2abc1312c780f0af77dc5ae426c200ccdac"
+    },
+    {
+      "path": "data/processed/park_factors.parquet",
+      "sha256": "b38b232a3be361c92cb3b93e7eef7ed15d8b90ce6d95119b168d438a01f1305d"
+    },
+    {
+      "path": "data/processed/batter_games.parquet",
+      "sha256": "691e104b04e1261cf24a905648421a11756e17e286002d6dcfbf212f4798acee"
+    },
+    {
+      "path": "research/offseason_2026/experiments/logistic_pa/pa_predictions.parquet",
+      "sha256": "8b797c04e5d167541c809680b95dd7096344dfafc3dd8b267b695def89e23889"
+    },
+    {
+      "path": "research/offseason_2026/experiments/logistic_pa/bundle/model_bundle.json",
+      "sha256": "01211d7afd07d31e07823d1f0b572259876d419b6bd728c6d0ce4000e5c687ee"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pitcher_prior/pa_predictions.parquet",
+      "sha256": "8751f8312df52e8a2cdfa434da6fc42f2637f83e406391b6e1eb75c52c76b76b"
+    }
+  ]
+}

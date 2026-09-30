@@ -1,0 +1,121 @@
+{
+  "experiment_id": "PITCHER-PRIOR-P",
+  "label": "Pitcher cold-start repair research; development only",
+  "timestamp_utc": "2026-09-30T15:50:04.214629+00:00",
+  "git": {
+    "dirty_paths": 109,
+    "head": "bb1ea6b292cdd16a3782b3203aa93086dae80712"
+  },
+  "inputs": [
+    {
+      "path": "research/offseason_2026/datasets/pa_table_2023_2024.parquet",
+      "sha256": "f933e207e8ea8440fe738e966ec809034b3b3fc20005ef26f389be6bc68e0783"
+    },
+    {
+      "path": "data/processed/pitcher_games.parquet",
+      "sha256": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/per_pa.parquet",
+      "sha256": "3052654e21a73e1c599e16cd1cbbf2970878942f4c3013457a182fff75a9fb37"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/card.json",
+      "sha256": "4392e9058542c781b07c2431fd88a7f3aaadb4da55ed912ca68f9ef11b7545c1"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/attribution_reconciliation.json",
+      "sha256": "4245cf5e0d0e6b7fa74c2868242bf87219d17f56d1f9ba673089cc3e208bcc25"
+    }
+  ],
+  "bootstrap": {
+    "primary": {
+      "cluster": "game_date",
+      "B": 2000,
+      "seed": 0,
+      "ci": "percentile 95"
+    },
+    "sensitivity": {
+      "cluster": "game_pk"
+    },
+    "fav_convention": "% replicates favoring challenger; negative deltas favor second arm"
+  },
+  "clip": "[1e-6, 1-1e-6] on all arm outputs; no tuning",
+  "prohibited": [
+    "2025/2026 scoring",
+    "projected lineups",
+    "count distributions (PB)",
+    "calibration fitting for prediction",
+    "policy/ROI/CLV/Sharpe",
+    "trained models (logistic/LGBM/CatBoost/hierarchical/neural)",
+    "frozen-TBF use",
+    "production modification",
+    "dataset modification",
+    "PA-1A output modification",
+    "post-hoc variant addition",
+    "git state changes"
+  ],
+  "league_prior": "0.223813 (ratified; used as shrinkage target and fallback in ALL P arms for comparability)",
+  "arms": {
+    "P0": "p = coalesce(k_rate_std, 0.223813) [identical to PA-1A M1]",
+    "P1": {
+      "formula": "p = (K_prior_season + 200*lg)/(PA_prior_season + 200)",
+      "prior_source": "pitcher_games 2023 rows (>=9-PA appearances) aggregated per pitcher",
+      "fallback": "0.223813 when PA_prior_season==0 (no prior season / prior role below eligibility)",
+      "known_limitation": "prior includes any >=9-PA appearance (mixed roles inseparable historically); relief-only priors not separable; disclosed"
+    },
+    "P2": {
+      "formula": "p = (K_curr + m*lg)/(PA_curr + m)",
+      "m_selection": "m in {100,200,300} selected by 2023-only pitcher-only logloss (two chronological 2023 blocks pooled), NEVER on 2024 E1/E2",
+      "selected_m": 100,
+      "selection_detail": {
+        "m=100": {
+          "logloss_2023_pooled": 0.524611
+        },
+        "m=200": {
+          "logloss_2023_pooled": 0.524769
+        },
+        "m=300": {
+          "logloss_2023_pooled": 0.52501
+        }
+      },
+      "fallback": "0.223813 when PA_curr==0"
+    },
+    "P3": {
+      "formula": "p = (K_prior_season + K_curr + m_sel*lg)/(PA_prior_season + PA_curr + m_sel)",
+      "m_sel": 100,
+      "fallback": "0.223813 when total history == 0"
+    },
+    "P4": "OMITTED before hashing: no exact pre-registered short-deviation formulation exists in repo evidence"
+  },
+  "forms": "each arm evaluated pitcher-only AND in log5 with the unchanged PA-1A batter component (b_k_rate_std_shrunk)",
+  "evaluation": {
+    "blocks": "E1 2024-03-28..06-30 (n=55,815); E2 2024-07-01..09-30 (n=50,252); primary population = PA-1A primary 2024 rows, identical rows across arms",
+    "metrics": "logloss primary; brier, CITL, alpha/beta, ECE-20bin secondary; paired date-cluster bootstrap; game_pk sensitivity",
+    "slices": [
+      "month",
+      "pitcher_history_bucket(prior-season PA: none/1-49/50-149/150+)",
+      "rookie_status(no prior season AND PA_curr==0)",
+      "prior_season_availability",
+      "pitcher handedness",
+      "batter_history_bucket",
+      "matchup_number",
+      "official-starter vs bulk9 sensitivity"
+    ]
+  },
+  "selection_rule": "at most one arm promoted for development; qualifies only if: improves M2 logloss in BOTH blocks; brier not materially worse in either; improves early-season buckets; no late-season material degradation; calibration not materially worse; not confined to one month/subset; pregames reproducible; deterministic. Order: both-block logloss stability > early-season gain > brier > calibration > simplicity > fallback dependence. Pooled never decisive.",
+  "outputs": [
+    "card.json",
+    "hashes.json",
+    "prep.json",
+    "pitcher_identity_resolution.json",
+    "pa_predictions.parquet",
+    "metrics.json",
+    "paired_comparisons.json",
+    "calibration.json",
+    "slices.json",
+    "bootstrap.json",
+    "deviations.md",
+    "report.md"
+  ]
+}

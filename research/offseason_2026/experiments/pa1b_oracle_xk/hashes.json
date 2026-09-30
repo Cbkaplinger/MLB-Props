@@ -1,0 +1,25 @@
+{
+  "card_sha256": "650917c322994510d4490530d1423df62493d2cd650cf6fbb045988bf68f2328",
+  "inputs": [
+    {
+      "path": "research/offseason_2026/datasets/pa_table_2023_2024.parquet",
+      "sha256": "f933e207e8ea8440fe738e966ec809034b3b3fc20005ef26f389be6bc68e0783"
+    },
+    {
+      "path": "data/processed/pitcher_games.parquet",
+      "sha256": "c694b6f4d5b27ee83592cbb5f00c0768ce197afb9877628a05e52a227ae6153d"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/per_pa.parquet",
+      "sha256": "3052654e21a73e1c599e16cd1cbbf2970878942f4c3013457a182fff75a9fb37"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/card.json",
+      "sha256": "4392e9058542c781b07c2431fd88a7f3aaadb4da55ed912ca68f9ef11b7545c1"
+    },
+    {
+      "path": "research/offseason_2026/experiments/pa1a_raw_pa/attribution_reconciliation.json",
+      "sha256": "4245cf5e0d0e6b7fa74c2868242bf87219d17f56d1f9ba673089cc3e208bcc25"
+    }
+  ]
+}
