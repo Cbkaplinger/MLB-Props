@@ -204,3 +204,11 @@ Phase charts (keep separate; do not collapse into one mega-flowchart):
 - Legacy freeze registries (184/180/185/248 lineage) remain available for
   auditability; active deployment follows sparse-set governance lanes.
 - Historical 2025 cannot serve as a pristine final test.
+
+## PA-grain development baseline (pointer only; game-level claims above unchanged)
+
+- Frozen PA baseline: L3 ridge logistic (F1-F5 + trip/index over P3-log5 prior).
+- Tree challenger killed 2026-09-30 (ties L3; stop rule applied).
+- Lineage: `docs/reference/pa_feature_lineage_2026-09-30.md`; truth sync:
+  `docs/reference/reports/phase8_5_truth_sync_2026-09-30.md`; cards under
+  `research/offseason_2026/experiments/`.

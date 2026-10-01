@@ -20,7 +20,7 @@ Shared domain language for agents. Read this before any model, experiment, or ar
 | Ledger | `artifacts/odds_log/ledger.parquet`. Canonical money = `dedupe_ledger_props` (one slip per signal at best edge). |
 | Board | `production/odds/odds_board.py` output (`recommendations.parquet`). Open polling is parity-locked via `--from-recommendations`. |
 | Open / close / morning | Friend open (commence -12h/-6h, ends 2026-07-10) / paid morning (commence -5h request, vendor ts governs) / paid close (commence -5min request). Live = SharpAPI; historical lake = Odds API. Never mix. |
-| PA overhaul | 2026 offseason program rebuilding the K signal at PA grain: PA-1A (batter tendency, done) -> PA-1B aggregation -> trained ladder M3-M5. Comparison contract specified; build unauthorized until backlog approves. |
+| PA overhaul | 2026 offseason program rebuilding the K signal at PA grain: PA-1A (batter tendency) -> P3-log5 promoted baseline -> L3 ridge logistic = frozen development PA baseline -> tree challenger KILLED (ties L3; stop rule applied, 2026-09-30). Verified: full feature lineage in `docs/reference/reports/phase8_5_truth_sync_2026-09-30.md`. Next frontier: count-distribution experiment (Poisson-binomial vs Poisson), then 2025 validation lanes A-D. |
 | 2023-24 / 2025 / 2026 locked / 2027 | Train seasons (2023-24 only) / historical benchmark, never pristine / locked retrospective, never tuned / future free-forward set (SharpAPI + Kalshi keyless + Novig). |
 
 ## Lifecycle
