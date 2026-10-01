@@ -1,7 +1,17 @@
 # ADR-0007: Research-only MLflow tracking mirror
 
-- **Status:** Proposed
+- **Status:** Accepted (owner decision 2026-09-30; implementation NOT STARTED)
 - **Date:** 2026-09-30
+- **Acceptance record:** Owner approved the research-mirror boundary as specified;
+  implementation remains separately gated (no install, adapter, import, or rerun
+  authorized by this ADR). Filename retained as `PROPOSED-mlflow-research-mirror.md`
+  because the backlog Session Snapshot, FORWARD item, and the Phase 8.5 truth-sync
+  report already reference this path; renaming would churn three cross-session
+  references for no semantic gain. Production status: NOT USED. Promotion
+  authority: NONE. Canonical evidence remains outside MLflow. Next gate: separately
+  approved implementation card. Known specification gap carried to implementation:
+  same card-and-arm re-import idempotency is implied by the run-identity scheme but
+  not stated as an explicit rule (see truth-sync report).
 - **Context:** The PA-overhaul program (Phases 4–8) produced seven experiment families tracked
   exclusively through immutable cards, manifests, hashes, predictions, deviations, and durable
   reports. Comparisons are valid but manual: answering "which arm beat which baseline on which
@@ -87,3 +97,50 @@
   `research/offseason_2026/mlflow_mirror/`).
 - **Related experiments:** PA-OVERHAUL Phases 4–8; all future experiment families
   (count-distribution, 2025 validation) would log natively.
+
+## Amendment A1 (Phase 8.7, owner-ordered): acceptance modifications
+
+### Deterministic run identity
+
+Canonical run identity = `sha256(program | card_id | arm_id | dataset_manifest_hash |
+split_definition_hash | feature_manifest_hash | model_spec_hash)[:16]`, rendered as
+`<card_short_sha>-<arm_id>` for display. All seven fields must be present; any missing
+field fails the import closed (no run created). The identity is recomputable by any
+session from canonical artifacts alone.
+
+### Duplicate-import idempotency
+
+Importing an identity that already exists must create no duplicate logical run: return
+the existing mirrored record after re-verifying its hashes (no-op reconciliation). If
+canonical hashes disagree with the stored mirror, fail closed with an explicit
+mismatch report — never overwrite conflicting data silently.
+
+### Read-only historical imports
+
+Historical import reads canonical artifacts only. It never runs training, scoring,
+bootstrap, calibration, aggregation, or policy code. Every historical run carries
+`run_origin=historical_import`, `execution_replayed=false`, `promotion_eligible=false`.
+No historical import may create, modify, or delete any file under an experiment
+directory — violations fail the import.
+
+### Canonical reconciliation command
+
+The implementation must expose one reconciliation entry point (adapter function or CLI)
+that, per mirrored run, checks: run identity recomputation, card hash, all manifest
+hashes, logged params vs card, logged metrics vs metrics files, artifact references vs
+paths+hashes on disk, import metadata completeness. Output: PASS/FAIL per check with
+the offending digest on failure. No implementation path is invented here; the interface
+above is the requirement the implementation card must satisfy.
+
+### Portable export format
+
+Export = one JSON document per run (schema version `mlflow-mirror-export/v1`): run
+identity, tags, params, metrics, canonical artifact references (path + sha256),
+import metadata, export timestamp, exporter version. Export is a disaster-recovery and
+audit convenience; it does not replace canonical experiment artifacts and must never
+be re-imported as a substitute for them.
+
+Status after amendment: **ACCEPTED (implementation NOT STARTED; production usage NONE;
+registry authority NONE; promotion authority NONE).** This ADR must not be marked
+IMPLEMENTED until the mirror passes import, reconciliation, and export tests on a
+metadata-only smoke run.

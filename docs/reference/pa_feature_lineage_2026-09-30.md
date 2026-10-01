@@ -112,3 +112,17 @@ pre-registered card not conditioned on 2024. Never: more leaves/depth/rounds/see
 - Tree: `research/offseason_2026/experiments/tree_pa/` (card, metrics, predictions, report)
 - Validation lanes: `research/offseason_2026/experiments/logistic_pa/validation_lanes.md`
 - Durable record: `docs/reference/reports/pa_overhaul_phase4_5_record_2026-09-29.md`
+
+## 7. Relation to the companion Phase 8.5 record (C8 cross-link, 2026-09-30)
+
+- This document = detailed feature provenance and inheritance analysis (inputs,
+  windows, selection funnel, inert-feature proof).
+- `docs/reference/reports/phase8_5_truth_sync_2026-09-30.md` = concise current-state
+  reconciliation (arm verdicts, doc-update queue, MLflow mapping).
+- Neither supersedes the other; neither is deleted or obsolete. Entry point for
+  "what does the model consume": this file. Entry point for "where do we stand":
+  the truth-sync record. Known precision debt in the companion record (owned by the
+  concurrent session, correction queued not applied): residual correlation 0.9965 is
+  the P3-log5-OOF proxy pair only, and the 2.2e-16 reproduction belongs to L3 bundle
+  reconstruction, not the tree run — see `pa_split_provenance_correction_2026-09-30.md`
+  conventions for how execution actually behaved.
