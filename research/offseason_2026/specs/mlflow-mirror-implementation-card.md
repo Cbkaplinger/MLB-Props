@@ -29,27 +29,67 @@ artifacts; any missing input fails the import closed. Never substitute the older
 
 Normalization and serialization rules (deterministic across machines; all hashes are
 lowercase hex digests of bytes):
-- `program`: literal ASCII string (e.g. `PA-OVERHAUL`), no whitespace folding.
-- `card_id`: full SHA-256 of the canonical card file bytes (e.g. `tree_pa/card.json`).
-- `arm_id`: literal arm token from the card (e.g. `T1`); case-sensitive.
-- `dataset_manifest`: full SHA-256 of the dataset manifest file bytes
-  (e.g. `datasets/pa_dataset_manifest.json`).
-- `split_def`: SHA-256 of the card's split-definition subsection serialized as
-  canonical JSON (`sort_keys=True`, `separators=(',',':')`, UTF-8).
-- `feature_manifest`: full SHA-256 of the feature-manifest file bytes
-  (e.g. `logistic_pa/bundle/feature_manifest.json`).
+- `program`: literal ASCII string (e.g. `PA-OVERHAUL`), additionally constrained by
+  the token rule below; no whitespace folding.
+- `card_id`: full SHA-256 of the canonical card's committed Git blob bytes at the
+  recorded source commit (see cross-platform rule), NOT working-tree bytes.
+- `arm_id`: literal arm token from the card (e.g. `T1`); case-sensitive; constrained
+  by the token rule below.
+- `dataset_manifest`: full SHA-256 of the dataset manifest's committed blob bytes.
+- `split_def`: SHA-256 of the card's split-definition subsection decoded as UTF-8,
+  validated as JSON, and serialized as canonical JSON (`sort_keys=True`,
+  `separators=(',',':')`, UTF-8).
+- `feature_manifest`: full SHA-256 of the feature manifest's committed blob bytes.
 - `model_spec`: SHA-256 of the frozen arm specification (hyperparameters, coefficients
-  reference, seed, determinism flags) as canonical JSON with the same rules.
+  reference, seed, determinism flags) decoded as UTF-8, validated as JSON, and
+  serialized with the same canonical-JSON rule.
 - Join the seven strings with single `|` (U+007C), encode UTF-8, SHA-256, take the
   first 16 hex characters. Display short = first 12 hex chars of `card_id`.
 
-Worked example (computed 2026-09-30 from committed files, recomputable):
-`TREE-PA-T / T1` → identity `5e021b6da4344aaa`, display `95b9627d4351-T1`.
-Inputs: program `PA-OVERHAUL`; card sha `95b9627d43…` (`tree_pa/card.json`);
-dataset manifest `fcf8603e55…` (`datasets/pa_dataset_manifest.json`); split-def hash
-of `fold_design_2023` canonical JSON; feature manifest `faf585df76…`
-(`logistic_pa/bundle/feature_manifest.json`); model-spec hash of the frozen T1
-configuration (best grid point + lr 0.05 + 200 rounds + seed 0).
+## Cross-platform source-content rule (B1)
+
+File-backed identity inputs (`card_id`, `dataset_manifest`, `feature_manifest`) MUST
+come from the committed Git object at the recorded source commit, never from
+checkout-transformed working-tree bytes:
+- Resolve each tracked source as `<source_commit>:<repo_path>` (e.g.
+  `d311b75:research/offseason_2026/experiments/tree_pa/card.json`) and hash the
+  committed blob content exactly. `core.autocrlf`, platform checkout rules,
+  filesystem encoding, and local line endings must not alter identity.
+- JSON sources: decode blob bytes as UTF-8 (invalid encoding fails the import
+  closed), validate JSON, re-serialize per the canonical-JSON rule, then hash.
+- Non-JSON text sources, if ever admitted: hash committed blob bytes exactly (no
+  CRLF/CR-to-LF folding). One rule, no per-platform variants.
+- Unavailable source commit or blob, or a dirty working tree presented as canonical
+  input, fails the requested import closed. Dirty state may be imported only under
+  an explicitly separate, never-promotable draft identity scheme defined at
+  implementation authorization — never silently as canonical.
+- Record `source_commit` per mirrored run; reconciliation re-resolves the same
+  `<source_commit>:<repo_path>` pairs.
+
+Worked example (recomputed under the blob-content rule from source commit `d311b75`;
+recomputable via `git cat-file -p <source_commit>:<path>` plus the rules above):
+`TREE-PA-T / T1` → identity `3a56013e33bc53ec`, display `c5c5041d8f78-T1`.
+Inputs: program `PA-OVERHAUL`; card blob sha `c5c5041d8f78…`; dataset manifest blob
+`fc2ecaad94b9…`; split-def hash of `fold_design_2023` canonical JSON (unchanged by
+checkout: `8d75ae66…`); feature manifest blob `4374fbe5fd…`; model-spec hash of the
+frozen T1 configuration (best grid point + lr 0.05 + 200 rounds + seed 0).
+Superseded pre-B1 value `5e021b6da4344aaa` (computed from working-tree bytes) must
+not be used; it demonstrates exactly the checkout dependence B1 removes.
+
+## Token constraints (B2)
+
+The ADR formula is unchanged. Delimiter collisions are prevented by constraining the
+two free-form tokens before hashing; invalid tokens fail the import closed:
+- `program` must match `^[A-Za-z0-9][A-Za-z0-9_-]*$`.
+- `arm_id` must match `^[A-Za-z0-9][A-Za-z0-9_-]*$`.
+- Empty values are invalid. Values containing `|`, whitespace, path separators,
+  control characters, non-ASCII, or Unicode lookalikes are invalid (the character
+  class above already excludes all of them; validation is explicit, not incidental).
+- `card_id` is digest-valued: it must be exactly 64 lowercase hexadecimal characters
+  (full SHA-256 of the card blob). The same 64-lowercase-hex rule validates
+  `dataset_manifest`, `split_def`, `feature_manifest`, and `model_spec`.
+- Validation runs before hashing; no normalization (trimming, folding, escaping) is
+  ever applied to make an invalid token pass.
 
 ## Idempotency
 
@@ -112,6 +152,19 @@ Stable identity · same-import no-op · digest-mismatch fail-closed · duplicate
 prevention · read-only filesystem guard · forbidden-function/import guard · mapping ·
 reconciliation PASS · reconciliation FAIL naming digest · deterministic export ·
 nonfatal MLflow-unavailable · gitignore enforcement · no-PA-artifact-change proof.
+B1 tests: same source commit yields identical identity under Windows-CRLF and
+Linux-LF checkout configurations · CRLF/LF checkout difference leaves blob-rule
+identity unchanged (regression: working-tree-byte identity `5e021b6da4344aaa` vs
+blob-rule identity `3a56013e33bc53ec` for the same source commit) · dirty working
+tree presented as canonical input fails closed · unavailable source commit or blob
+fails closed · invalid (non-UTF-8) JSON source fails closed. B2 tests: allowed
+tokens (`PA-OVERHAUL`, `T1`, `L3`, `arm-2_x`) accepted · empty `program`/`arm_id`
+rejected · `|` in either token rejected · whitespace, `/`, `\`, control characters
+rejected · formerly ambiguous pair rejected, not collided: (`program=A|B`, `arm=C`)
+and (`program=A`, `arm=B|C`) must both fail validation (they would have serialized
+identically under the bare join) · (`program='T1 '`, `arm=X`) and (`program='T1'`,
+`arm=X`) — the former rejected, so no silent equivalence · non-64-hex or
+uppercase `card_id` rejected.
 
 ## Rollback
 
