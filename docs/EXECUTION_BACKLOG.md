@@ -563,7 +563,7 @@ Enforcement (owner 2026-09-17): gates ship ENFORCING by default, with a tested, 
 | Asym over-floor live promote | SHADOW ONLY | Shadow-green but may impute stakes; narrower 4.5 veto is first live move. | Weekly pack + **real** stakes support it; user signs off |
 | Hard-veto all overs ≤3.5 | PARKED | Starves learning; bootstrap wide. | Pre-registered n + CI gates + user ask |
 | Broader model retrain / count-layer 4.5 fix | PARKED | Only if weekly pack says **probs** (not selection) remain the bind after veto. | User asks **or** over Brier skill stays deeply negative with veto on |
-| MLflow v2 / W&B | PARKING LOT | After Item 13 only. | Item 13 done + multi-run train loop exists |
+| MLflow v2 / W&B | PARKING LOT | After ADR-0007 implementation card approved. [C3 correction 2026-09-30: was "After Item 13 only"; ADR-0007 ACCEPTED with Amendment A1, implementation NOT STARTED.] | Implementation card approved + multi-run train loop exists |
 | SSAC future-work 9–13 | PARKED | Post-abstract depth; not ops path. | After abstract / user ask |
 
 **Anti-patterns (agent must refuse unless user overrides):**

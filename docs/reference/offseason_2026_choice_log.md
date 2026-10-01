@@ -95,3 +95,33 @@ after 2026 exposure.
 No-2026 guard: selection harness MUST assert max panel game_date < 2026-01-01
 and log the assertion firing before any metric is computed. Any 2026 read voids
 the run.
+## 2026-09-30 — PHASE 7 VERDICT: PROMOTE L3 AS PA DEVELOPMENT BASELINE [C5]
+
+Decision: retain/promote L3 (contextual ridge logistic, beta_logitP3 0.92 +
+20 family coefficients + 4 trip/index terms) as the PA development baseline.
+Selection basis: registered 2023 fold evidence only (F1/F2 chronological folds;
+C grid + family ablations + coefficient stability). Evaluation: 2024 E1/E2 used
+once (executed string-date masks; see pa_split_provenance_correction_2026-09-30.md
+for the registered-vs-executed count note — symmetric across arms, paired claims
+unaffected). Baseline P3-log5 (pitcher prior m=100, 2023-selected; transparent
+rollback target). L1 recalibration marginal; L2 smaller contribution; F6 rest
+rejected (fold ablation ~zero). Fixed-offset contextual candidate NEVER RUN — no
+performance estimate exists; earlier bound conjecture withdrawn. Actual historical
+TBF and realized batter order were oracle-only diagnostics. Frozen production
+comparator disqualified on 2024 (train overlap). No production, market, ROI, CLV,
+or profitability conclusion follows. Card: experiments/logistic_pa/card.json
+(sha 489b892b…); bundle reproducible to 2.2e-16 (intercept recovered, see
+bundle/provenance_sidecar.md).
+
+## 2026-09-30 — PHASE 8 VERDICT: RETAIN L3, STOP TREE SEARCH [C5]
+
+Decision: retain L3; the registered tree search is CLOSED. T1 (LightGBM leaves 7 /
+depth 3 / min_data 500 / ff 0.8 / L2 1.0, selected on 2023 folds) effectively tied
+L3 on the once-only 2024 evaluation (E1 +0.000022, E2 -0.000042, both paired CIs
+straddle 0) and did not clear the promotion requirement. T2 monotone dropped on
+2023 development evidence (0.517279 vs 0.516918). T3 blend gate failed (2023-OOF
+residual correlation 0.9965 vs the P3-log5 proxy; fold-fitted L3 not serialized).
+Stop rule applied as registered. Same registered periods and baseline discipline;
+2024 evaluation once-only; actual TBF and realized sequence remained oracle-only.
+No market or profitability conclusion follows. Card:
+experiments/tree_pa/card.json (sha 95b9627d…).

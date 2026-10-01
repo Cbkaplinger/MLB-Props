@@ -8,7 +8,9 @@ read as evidence; PA-thread files not modified.
 ## 1. Exact L3 (PA development baseline) feature list
 
 Source of truth: `research/offseason_2026/experiments/logistic_pa/bundle/feature_manifest.json`
-(24 columns declared; 21 active model inputs) + `logistic_pa/card.json` families.
+(24 columns declared and consumed by L3; `log_pa_prior` verified inert post-fit: constant-zero
+input and fitted coefficient exactly 0.0) + `logistic_pa/card.json` families.
+[C2 precision 2026-09-30: was "21 active model inputs", which matches no stored count.]
 
 | Family | Columns (exact) | Window / construction |
 |---|---|---|
@@ -19,9 +21,10 @@ Source of truth: `research/offseason_2026/experiments/logistic_pa/bundle/feature
 | F5 park (1) | `park_k` | prior-season EB park factor (500 PA prior), keyed (season, home_team) |
 | F6 rest (2) | `rest`, `debut` | EXCLUDED from the next-PA-K manifest (Phase 7 2023-fold ablation ~zero); kept eligible for opportunity/TBF research |
 | L3 interactions (4) | `trip_eq_2`, `trip_eq_3`, `trip_ge_4`, `spi_over_9` | per-PA-within-game: through-order trip dummies + starter_pa_index/9 linear |
-| Baseline input (1) | `logit(P3)` | P3-log5 prior (M2 odds-form, pitcher EB x batter EB / league) as fixed-structure offset input |
+| Baseline input (1) | `logit(P3)` | P3-log5 prior (pitcher prior + batter EB / league) as a baseline input column with an estimated coefficient (L3 beta; NOT a fixed offset — the fixed-offset arm was never run) |
 
-Model: L2 ridge logistic (offset = logit(P0) with b estimated) + the 4 trip/index terms.
+Model: L3 ridge logistic (logit(P3) baseline input with estimated coefficient + 20 family
+coefficients + 4 trip/index terms). [C2 precision 2026-09-30: was labeled "L2".]
 Imputation: nan_to_num(0) except `b_hand_rate`->league, `park_k`->1.0, `rest`->15.0.
 Reproduction: L3 bundle reconstruction reproduces stored L3 predictions to 2.2e-16
 (logistic_pa/bundle/; see also bundle/provenance_sidecar.md). [C2 correction 2026-09-30:
@@ -167,3 +170,14 @@ Durable statement (manifest + code evidence, no reruns):
   after calibration/policy work.
 - OPS-1 may run as a separate thread once this report is checkpointed; path ownership
   is disjoint (src/Python/odds_ledger.py + tests vs research/docs).
+
+## 12. Companion-record cross-link (C8 reciprocal, 2026-09-30)
+
+- This record = concise current-state reconciliation (arm verdicts, doc-update queue,
+  MLflow mapping, close-out notes).
+- `docs/reference/pa_feature_lineage_2026-09-30.md` = detailed feature provenance and
+  inheritance analysis (inputs, windows, selection funnel, inert-feature proof); see
+  its section 7 for the forward link.
+- `docs/reference/pa_split_provenance_correction_2026-09-30.md` = executed-vs-
+  registered population reconciliation (C1/C7) — the authoritative count record.
+- Neither record supersedes or duplicates the other; none is deleted or obsolete.
