@@ -25,8 +25,8 @@ flowchart TB
 
   TUNE["11.A Estimator tuning<br/>HPO flat vs defaults"]:::built
   WF["Historical baseline lane<br/>legacy expected_K benchmarks"]:::built
-  CAL["Calibration lane<br/>legacy baseline + isotonic in production"]:::built
-  PCAL["Post-hoc Platt p_over<br/>prod pointer 2026-08-03"]:::built
+  CAL["Calibration lane<br/>WS1c live (isotonic lineage)"]:::built
+  PCAL["Post-hoc Platt p_over<br/>WS1c live 2026-09-10"]:::built
   PHD["11.D Phase D interim policy<br/>~3.5% excluded; role labels open"]:::partial
   ANOM["Exit-anomaly governance<br/>shipped in ops + reports"]:::built
   ANOMEFF["WF impact under current tags<br/>neutral (low historical density)"]:::risk
@@ -81,7 +81,7 @@ flowchart TB
 | Post-hoc `p_over_*` calibration | **Done** — Platt production pointer; raw retained (`docs/research/prob_calibration_findings.md`) |
 | Phase D opener/piggyback | **Interim policy** — role labels still open |
 | Live assembly | **Shipped** — `production/` refresh → log → grade (`docs/reference/live_assembly_plan.md`) |
-| Paper trading / CLV | **Shipped ops; sample building** — edge floor **12%** + ⅛ Kelly (frozen 2026-08-06) + tip closes (`docs/reference/market_clv_gates.md`) |
+| Paper trading / CLV | **Shipped ops; sample building** — edge floor **12%** + 1/16-Kelly live, flat $50u realized (`docs/reference/market_clv_gates.md`) |
 | CLV skill suite (dashboard) | **Shipped 2026-08-06** — `production/notebooks/results_dashboard.ipynb` §11-20: reliability, residual decomposition, chrono recalibration test, and daily scorecard (`docs/research/notebook_change_log.md`) |
 | Focused monitor split | **Shipped 2026-08-11** — `results_kpi_monitor`, `results_calibration_lab`, `results_pnl_clv`; `results_gate_policy` **retired 2026-09-17** into `results_bettable_cohort` |
 | Policy simulator CLI | **Shipped 2026-08-11** — `production/ops/policy_simulator.py` writing scenario artifacts |
@@ -157,3 +157,5 @@ to “best available predictor / richer market check”:
 
 Do **not** reopen frozen production feature sets for these without a new
 nested outer protocol and a pristine post-freeze holdout.
+
+> Verified 2026-09-30: calibration lane now reads WS1c-live (was isotonic-era text); Kelly rows aligned to 1/16-Kelly live. Deployed settings not inferred from source.

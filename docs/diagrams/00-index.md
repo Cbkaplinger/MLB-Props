@@ -81,3 +81,5 @@ flowchart TB
 - **Lineup:** training uses first-9-by-PA proxy; live uses announced RG order;
   ID resolve `active → 40Man → fullSeason` — `docs/reference/lineup_train_serve.md`.
 - Do not reuse scored 2025 for selection or “final” metrics.
+
+> Verified 2026-09-30: snapshot above retained as the 2026-09-11 replay-era record; current live claims defer to the backlog Session Snapshot + `docs/reference/golden_metrics.md`.

@@ -13,8 +13,8 @@ flowchart TB
 
     CRON["5 Modal crons (NY-local)<br/>03:00 settle · 05:30 drift · 08:00 morning<br/>09–22 hourly · q5m sweeps 12–22"]:::built
 
-    MORN["Morning chain<br/>heal → refresh L1/L2 → log_projections<br/>→ board → poll(open) → Kalshi → Novig probe<br/>→ edge-watch → alert(always fires)"]:::built
-    HOUR["Hourly chain<br/>same, minus refresh<br/>alert flips-only (quiet when green)"]:::built
+    MORN["Morning chain<br/>refresh → log_projections → heal → board<br/>→ poll(open) → Kalshi → Novig probe<br/>→ alert(always fires)"]:::built
+    HOUR["Hourly chain<br/>heal → log → board → poll → edge-watch<br/>alert flips-only (quiet when green)"]:::built
     SWEEP["Close sweeps<br/>urgency gate T-45 · burst 60s inside T-6<br/>T+5 stop · one slip per signal"]:::built
     SETTLE["Settle 03:00<br/>MLB API finals · void PPD-24h<br/>auto-settle-api"]:::built
     DRIFT["Drift 05:30<br/>8 checks · exit 0/1/2 = GREEN/YELLOW/RED"]:::built
@@ -91,3 +91,4 @@ flowchart TB
   and write reports; no arrow points back into policy without owner orders.
 - Season end 2026-09-27: `season.postseason = hold_all_no_bets` in policy.
 - Cron cap: 5 Modal schedules — new jobs fold in as steps, never schedules.
+- Chain order verified 2026-09-30 against `production/cloud/modal_app.py` (morning ~137-157, hourly ~163-196): heal runs after log_projections; edge-watch runs in hourly only, not morning. Deployed Modal settings not inferred from source.

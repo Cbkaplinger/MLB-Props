@@ -53,3 +53,5 @@ flowchart TB
 - Gate changes are policy-controlled (`production/ops/kpi_policy.json`) and
   validated through scenario sweeps (`production/ops/policy_simulator.py`) plus
   focused monitor notebooks under `production/notebooks/`.
+
+> Verified 2026-09-30 against `docs/reference/model-card.md` leakage policy; no discrepancies found.
