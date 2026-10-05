@@ -9,6 +9,8 @@ import numpy as np
 import polars as pl
 import pytest
 
+from conftest import artifact_path  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "research/offseason_2026"))
 from contracts.pa_contracts import (  # noqa: E402
@@ -82,7 +84,7 @@ def test_g4_population_reconcile_pass_and_fail():
 def test_g5_p3_reproduction_against_canonical_counts():
     pa = pl.read_parquet(REPO / "research/offseason_2026/datasets/pa_table_2023_2024.parquet")
     d24 = pa.filter(pl.col("season") == 2024)
-    pg = pl.read_parquet(REPO / "data/processed/pitcher_games.parquet")
+    pg = pl.read_parquet(artifact_path("data/processed/pitcher_games.parquet"))
     prior23 = pg.filter(pl.col("season") == 2023).group_by("pitcher").agg(
         pl.col("K").sum().alias("K_prior"), pl.col("PA").sum().alias("PA_prior"))
     pg24 = pg.filter(pl.col("season") == 2024).sort(["pitcher", "game_date", "game_pk"]).with_columns(
