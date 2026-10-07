@@ -301,7 +301,9 @@ def _join_age_features(frame: pl.DataFrame) -> pl.DataFrame:
     ).select(["_agekey", "_dob"]).unique(subset=["_agekey"], keep="first")
     out = frame.with_columns(
         pl.col("player_name").map_elements(_age_key, return_dtype=pl.Utf8).alias("_agekey"),
-        pl.col("game_date").cast(pl.Date).alias("_gdate"),
+        # dtype-agnostic: newer polars rejects lazy cast(str -> Date);
+        # route through Utf8 so String and Date columns both parse.
+        pl.col("game_date").cast(pl.Utf8).str.to_date().alias("_gdate"),
     ).join(dim, on="_agekey", how="left").with_columns(
         ((pl.col("_gdate") - pl.col("_dob")).dt.total_days() / 365.25).alias("pitcher_age"),
     ).with_columns(
@@ -361,10 +363,10 @@ def _join_kadj_features(
 
     pt = (
         pitch_type_games.filter(pl.col("Pitches") > 0)
-        .with_columns(pl.col("game_date").cast(pl.Date))
+        .with_columns(pl.col("game_date").cast(pl.Utf8).str.to_date())
         .sort(["game_date", "game_pk"])
     )
-    fr = frame.with_columns(pl.col("game_date").cast(pl.Date))
+    fr = frame.with_columns(pl.col("game_date").cast(pl.Utf8).str.to_date())
     if fr.select("game_pk", "pitcher").is_duplicated().any():
         raise ValueError("frame contains duplicate (game_pk, pitcher) keys")
 

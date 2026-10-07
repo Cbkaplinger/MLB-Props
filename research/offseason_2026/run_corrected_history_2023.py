@@ -115,6 +115,14 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def _hash_external(path: Path) -> str:
+    """Hash a preserved external dependency if present; otherwise an
+    honest unavailable marker (CI checkouts lack the preserved worktree)."""
+    if path.is_file():
+        return sha256_file(path)
+    return "external-preserved (not available on this machine)"
+
+
 def verify_input(path: Path, expected_sha: str | None, label: str) -> dict:
     if expected_sha is None:
         raise MechanicalFailure(
@@ -1222,11 +1230,14 @@ def _manifest(sources, verified, fallback, seasons, pop,
         "preregistration_sha256": sha256_file(prereg_path),
         "runner_sha256": sha256_file(Path(__file__).resolve()),
         "dependency_hashes": {
-            "tbf_reconstruct.py": sha256_file(
+            # Preserved external files (distribution-spec worktree): hash
+            # when locally available; on machines without the preserved
+            # worktree (e.g. CI checkouts) record their status honestly.
+            "tbf_reconstruct.py": _hash_external(
                 Path("C:/Users/ckaplinger/Downloads/Personal-Projects/"
                      "MLB-Props-worktrees/distribution-spec/research/"
                      "offseason_2026/tbf_reconstruct.py")),
-            "tbf_nonoracle.py": sha256_file(
+            "tbf_nonoracle.py": _hash_external(
                 Path("C:/Users/ckaplinger/Downloads/Personal-Projects/"
                      "MLB-Props-worktrees/distribution-spec/research/"
                      "offseason_2026/tbf_nonoracle.py")),
