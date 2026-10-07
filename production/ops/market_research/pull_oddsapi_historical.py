@@ -177,7 +177,19 @@ def _snapshot_ts(commence_iso: str, which: str) -> str:
         dt = dt - timedelta(minutes=5)  # last pre-commence snapshot
     elif which == "morning":
         dt = dt - timedelta(hours=5)
-    else:  # open: first-seen line, ~30h before first pitch
+    elif which in ("board", "board_2023_24"):
+        # production board clock: 08:00 America/New_York on the ET game
+        # date, implemented as fixed UTC-4 (all regular-season games EDT;
+        # documented edge: Nov postseason EST games and the 2025-26
+        # postseason board path used different actual clocks - the true
+        # returned ts is always recoverable from raw payload "timestamp").
+        et_day = (dt - timedelta(hours=4)).date()
+        return "%sT12:00:00Z" % et_day.isoformat()
+    elif which == "open18":
+        # earliest USEFUL pregame snapshot: vendor has no books before ~T-18h
+        # (open-clock probes 2026-09: T-24h/T-30h return 0 books or 404).
+        dt = dt - timedelta(hours=18)
+    else:  # open: first-seen line, ~30h before first pitch (legacy; dead per probe)
         dt = dt - timedelta(hours=30)
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -280,32 +292,56 @@ def normalize(args) -> pl.DataFrame:
         # 2026-09-09: no timestamp key in payload). Reconstruct the exact
         # requested ts deterministically: commence - 5min/5h/30h by snapshot.
         ts = ""
+        commence = ""
         try:
-            if isinstance(payload, dict) and payload.get("commence_time"):
-                ts = _snapshot_ts(str(payload["commence_time"]), snap)
+            if isinstance(payload, dict):
+                commence = str(payload.get("commence_time", ""))
+                if commence:
+                    ts = _snapshot_ts(commence, snap)
         except Exception:
             ts = ""
+        game_date = commence[:10] if len(commence) >= 10 else ""
+        # season_type from UTC game date. Exact MLB postseason start dates
+        # (Wild Card round): 2023-10-03, 2024-10-01, 2025-09-30, 2026-09-29.
+        # The research rule "postseason stays separate from regular season"
+        # is enforced by filtering this column.
+        PS_START = {"2023": "2023-10-03", "2024": "2024-10-01",
+                    "2025": "2025-09-30", "2026": "2026-09-29"}
+        season_type = "regular"
+        if game_date:
+            cutoff = PS_START.get(game_date[:4])
+            if cutoff and game_date >= cutoff:
+                season_type = "postseason"
         for bk in books:
             book = bk.get("key", "")
             for mk in bk.get("markets", []):
+                mkey = mk.get("key", "")
                 for oc in mk.get("outcomes", []):
-                    rows.append({
-                        "event_id": (payload.get("id", "") if isinstance(payload, dict) else ""),
-                        "snapshot": snap,
-                        "snapshot_ts": ts,
-                        "book": book,
-                        "market": mk.get("key", ""),
-                        "player": oc.get("description") or oc.get("participant") or "",
-                        "player_norm": norm_player_name(
-                            oc.get("description") or oc.get("participant") or ""),
-                        "line": oc.get("point"),
-                        "side": str(oc.get("name", "")).lower(),
-                        "price": oc.get("price"),
-                    })
+                    desc = oc.get("description") or oc.get("participant") or ""
+                    rows.append((
+                        (payload.get("id", "") if isinstance(payload, dict) else ""),
+                        snap, ts, game_date, season_type, book, mkey,
+                        desc, norm_player_name(desc), oc.get("point"),
+                        str(oc.get("name", "")).lower(), oc.get("price"),
+                    ))
     if not rows:
         print("normalized rows: 0 (nothing pulled yet)")
         return pl.DataFrame()
-    frame = pl.DataFrame(rows)
+    schema = {"event_id": pl.String, "snapshot": pl.String,
+              "snapshot_ts": pl.String, "game_date": pl.String,
+              "season_type": pl.String, "book": pl.String,
+              "market": pl.String, "player": pl.String,
+              "player_norm": pl.String, "line": pl.Float64,
+              "side": pl.String, "price": pl.Int64}
+    frame = pl.DataFrame(rows, schema=schema, orient="row")
+    del rows
+    dedup_key = ["event_id", "snapshot", "snapshot_ts", "book", "market",
+                 "player_norm", "line", "side", "price"]
+    n_before = frame.height
+    frame = frame.unique(subset=dedup_key).sort(
+        ["snapshot_ts", "market", "book", "player_norm", "line", "side"])
+    if n_before - frame.height:
+        print("exact duplicates removed: %d" % (n_before - frame.height))
     for bucket in ("pitcher", "batter", "other"):
         if bucket == "pitcher":
             m = pl.col("market").is_in(PITCHER_MARKETS)
