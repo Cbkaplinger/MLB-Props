@@ -80,3 +80,23 @@ WR 0.429) is why all-books < DK+FD. Do not promote from 2026.
 > panel, retained for lineage; cite the resim for current work. Champion
 > selection/judge truth is 2025 n=505 +11.0% LCB +3.0% → 2026 n=460 +8.8%
 > LCB +0.2% (White p=0.0075); 9/11 n=558/n=485 +15.5%/+15.6% superseded.
+
+## G. Developmental workload diagnostics (not comparable to above)
+
+Retrospective BF-forecast diagnostics on all-first-pitcher starts.
+Populations, contracts, and information sets differ from every frozen
+benchmark row above; never substitute these scores for them.
+
+| Experiment | Population | n | Challenger MAE | Trailing MAE | Paired diff [95% CI] | Exposure |
+|---|---|---:|---:|---:|---|---|
+| Corrected-history 2023 (Jul-Sep origins) | 2023 first-pitcher BF>=1 | 2,400 | 3.010 | 3.336 | -0.327 [-0.416,-0.240] | Development diagnostic; retrospective identity; no transfer |
+| April extension (2023-04-15) | same, Apr window | 452 | 2.729 | 2.955 | -0.226 [-0.335,-0.111] | Same limits; single April window |
+| 2024 transfer (Jul-Sep origins) | 2024 first-pitcher BF>=1 | 2,333 | 2.816 | 3.039 | -0.223 [-0.305,-0.142] | Non-pristine developmental transfer; 2024 inspected before |
+
+Bias convention: prediction-minus-observed (positive =
+overprediction). Full manifests, metric tables, and limitations in
+the run directories under `C:\Users\ckaplinger\MLB-Props-Research\`
+(`workload-corrected-history-20261005_215556`,
+`workload-early-season-20261006_133656`,
+`workload-transfer-2024-20261006_151530`). Reference-free runs are
+diagnostic only; independent reconstruction validation NOT passed.
