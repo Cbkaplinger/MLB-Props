@@ -249,7 +249,8 @@ def build_season_features(fp_label: pl.DataFrame,
     # per game (pa-k 4,860-appearance semantics); a game_pk-only join would
     # attach the other starter's snapshot to every PA row (2x duplication).
     rows = fp_label.filter(pl.col("pa_class") == sc.CLASS_COMPLETED).select(
-        "game_pk", "game_date", "at_bat_number", "pitcher", "batter", "y")
+        "game_pk", "game_date", "at_bat_number", "pitcher", "batter", "y",
+        "stand", "p_throws")
     bcut = rows.select(pl.col("batter"),
                        pl.col("game_date").alias("cutoff_date")).unique()
     btab = batter_rate_priors_fast(pooled_label, bcut).join(
