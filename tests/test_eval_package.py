@@ -95,3 +95,69 @@ def test_write_report_and_metrics(tmp_path):
     assert (tmp_path / "metrics.json").exists()
     txt = (tmp_path / "report.md").read_text(encoding="utf-8")
     assert "Arm A" in txt and "By origin" in txt
+
+
+def synth_slices_run(tmp_path, n=120, seed=9):
+    rng = np.random.default_rng(seed)
+    rows, pkA = [], []
+    for i in range(n):
+        pa = int(rng.integers(5, 32))
+        pk_a = rkc.point_exposure_pmf(pa, 0.22)
+        kk = int(rng.choice(24, p=pk_a / pk_a.sum()))
+        pkA.append(pk_a)
+        month = "04" if i % 3 == 0 else ("09" if i % 3 == 1 else "07")
+        rows.append({
+            "origin": "2024-04-15" if i < n // 2 else "2024-09-01",
+            "game_pk": 2000 + i, "pitcher": 700 + (i % 11),
+            "game_date": "2024-%s-%02d" % (month, 1 + i % 28),
+            "PA": pa, "K": kk,
+            "prior_n_pitcher": [0, 10, 200][(i // 11) % 3],
+            "rps_A": kc.count_rps(pk_a, kk),
+            "mean_A": 0.22 * pa, "EN60": float(pa),
+        })
+    d = tmp_path
+    d.mkdir(parents=True, exist_ok=True)
+    pl.DataFrame(rows).write_csv(d / "predictions.csv")
+    pl.DataFrame(np.vstack(pkA),
+                 schema=["pkA_%02d" % i for i in range(24)]
+                 ).write_parquet(d / "pmfs.parquet")
+    return d / "predictions.csv", d / "pmfs.parquet"
+
+
+def test_evaluate_slices_membership_and_metrics(tmp_path):
+    pc, pp = synth_slices_run(tmp_path)
+    s = ev.evaluate_slices(pc, pp, ["A"], mean_cols={"A": "mean_A"})
+    assert s["n"] == 120
+    assert s["skipped"] == []
+    assert s["april"]["A"]["n"] == 40
+    assert s["september"]["A"]["n"] == 40
+    assert s["career_debut"]["A"]["n"] > 30
+    assert s["sparse_history"]["A"]["n"] > 30
+    assert s["returning_prior_season"]["A"]["n"] > 30
+    assert s["short_outing_lt9"]["A"]["n"] > 0
+    a = s["april"]["A"]
+    assert abs(a["bf_bias"]) < 0.01
+    assert a["mean_pred_var"] > 0
+    assert sum(a["pit_hist"]) == 40
+    for name in ("career_debut", "sparse_history",
+                 "returning_prior_season", "season_debut"):
+        assert s[name]["A"]["n"] > 0
+
+
+def test_evaluate_slices_skips_without_columns(tmp_path):
+    pc, pp = synth_run(tmp_path)
+    s = ev.evaluate_slices(pc, pp, ["A"])
+    assert any("prior_n" in x for x in s["skipped"])
+    assert any("bf metrics" in x for x in s["skipped"])
+    assert "april" in s and "upper_milestone_ge12" in s
+    assert "career_debut" not in s
+
+
+def test_write_report_with_slices(tmp_path):
+    pc, pp = synth_slices_run(tmp_path)
+    m = ev.evaluate(pc, pp, ["A"], mean_cols={"A": "mean_A"})
+    s = ev.evaluate_slices(pc, pp, ["A"], mean_cols={"A": "mean_A"})
+    ev.write_report(m, tmp_path / "report.md", "Slice report",
+                    slices=s)
+    txt = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "Permanent slices" in txt and "career_debut" in txt
