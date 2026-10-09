@@ -13,28 +13,32 @@ Mermaid-compatible viewer.
 
 | Style | Meaning |
 |---|---|
-| Green / `built` | Implemented on the production research path |
+| Green / `built` | EXISTING or RESEARCH-BUILT (see file header for which) |
 | Amber / `partial` | Partial (shipped but sample/ops still building) |
 | Red / `missing` | Not built or blocked |
-| Purple / `risk` | Open methodological risk |
-| Blue / `research` | Research-only proposal (not production gate) |
+| Purple / `risk` | Open methodological risk / UNRESOLVED |
+| Blue / `research` or `proposed` / `next` | PROPOSED or PENDING-INTEGRATION (dashed edge; not production) |
 
 Flow rules:
 
 - Training pipelines read **top → bottom**.
 - Live inference is a **side branch** and never feeds Level 3 historical training.
-- Dashed edges mean future / not yet complete (e.g. CLV skill bar).
-- Keep the four phase diagrams separate; do not collapse into one mega-chart.
+- Training and pregame inference are separate lanes; forecast cutoff marked per file.
+- Solid edges = verified implemented paths; dashed edges = proposals.
+- Research never feeds production automatically; REJECTED stays listed, never live.
+- Keep the phase diagrams separate; do not collapse into one mega-chart.
+  The three coordinated views map onto them (do not create a competing set).
 
 ## Diagrams
 
-| File | Purpose |
-|---|---|
-| [00-index.md](00-index.md) | Map of the four phases |
-| [01-architecture.md](01-architecture.md) | As-built data → model artifact path |
-| [02-leakage-and-risks.md](02-leakage-and-risks.md) | Leakage gates, priors, population risks |
-| [03-modeling-and-evaluation.md](03-modeling-and-evaluation.md) | Splits, baselines, Steps 1–9 → Step 12 consensus freeze, TBF/counts |
-| [04-roadmap.md](04-roadmap.md) | Paper CLV shipped; focused monitor split + policy simulator; pristine needs roles |
+| File | Purpose | Coordinated view |
+|---|---|---|
+| [00-index.md](00-index.md) | Map + evidence/lessons table + verified-vs-unresolved | Map for A/B/C |
+| [01-architecture.md](01-architecture.md) | As-built data → model artifact path | View A (operational) |
+| [02-leakage-and-risks.md](02-leakage-and-risks.md) | Leakage gates, priors, population risks | Constraints for A/B/C |
+| [03-modeling-and-evaluation.md](03-modeling-and-evaluation.md) | Splits, baselines, Steps 1–9 → Step 12 consensus freeze, TBF/counts + research chain | View B (built research) |
+| [04-roadmap.md](04-roadmap.md) | Paper CLV shipped; focused monitor split + policy simulator; pristine needs roles + View C | View C (proposed) |
+| [05-live-prediction-flow.md](05-live-prediction-flow.md) | Daily side branch (crons → board → ledger → grading) | View A companion |
 
 Canonical prose: `docs/reference/model-card.md`, `docs/reference/dev-notes.md`,
 `docs/reference/market_clv_gates.md`, `docs/reference/live_assembly_plan.md`,
