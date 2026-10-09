@@ -23,8 +23,8 @@ Use this as the canonical notebook routing map.
 - `results_calibration_lab.ipynb`
   - Where calibration/workload errors concentrate.
   - Includes all-vs-core decomposition comparison.
-- `results_gate_policy.ipynb`
-  - Threshold and policy simulation details.
+- `results_bettable_cohort.ipynb`
+  - Threshold and policy simulation details (hosts retired gate-policy audit).
 
 ## Archive / Reference
 
@@ -40,7 +40,7 @@ Use this as the canonical notebook routing map.
   `production/odds/poll_odds.py --snapshot open --roi-mode conservative --from-recommendations`.
 - Live k-rate scoring now uses the ensemble config at
   `production/ops/live_krate_ensemble.json` (single-model fallback retained).
-- Keep threshold sweeps in `results_gate_policy.ipynb`.
+- Keep threshold sweeps in `results_bettable_cohort.ipynb` (hosts retired gate-policy audit).
 - Keep profile-level go/no-go decisions in `results_bettable_cohort.ipynb`.
 - Keep daily slate view in `daily_projections.ipynb` concise and execution-focused.
 - Use `EXCLUDE_EXIT_ANOMALIES_FOR_PROCESS` in calibration/cohort notebooks to

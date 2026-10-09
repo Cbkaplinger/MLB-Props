@@ -44,7 +44,7 @@ Timing: `ws6_timing_decay.py` (bet-at-open doctrine). Floors: `ws7_floor_gate.py
 (challenger dead — live policy stands). kAdj: `ws8_kadj_probe.py`,
 `kadj_l3_parity.py`, `ledger_gate_kadj.py` (both vehicles dead).
 Matchups: `ws9_famvuln_probe.py` (dead). Tails: `tail_recal.py` (healthy),
-`nb_tbf_mixture.py` (dead). Command: `command_optionA_retest.py` (dead).
+`nb_tbf_mixture.py` (dead). Command: `models/Strikeout-Model/research/command_optionA_retest.py` (dead).
 Slots: `ws5b_poisson_binomial.py`, `ws5b_blend_fit.py` (dead, w=0).
 Retrain ablations: `models/Strikeout-Model/research/` (age/command/combined60/
 walkforward — path EXHAUSTED, spec section 7).

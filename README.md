@@ -173,7 +173,7 @@ Daily analysis loop:
    - `analysis/model_results/model_results_story.ipynb` (fast action queue)
    - `production/notebooks/results_kpi_monitor.ipynb` (fast health gate)
    - `production/notebooks/results_calibration_lab.ipynb` (matchup/rest pockets)
-   - `production/notebooks/results_gate_policy.ipynb` (edge-floor simulations)
+   - `production/notebooks/results_bettable_cohort.ipynb` (edge-floor simulations; hosts retired gate-policy audit)
    - `production/notebooks/results_pnl_clv.ipynb` (bankroll + CLV trend)
    - `production/notebooks/results_dashboard.ipynb` (deep-dive verification)
 4. Chrono recalibration winner selection is only promoted when Section 19 has

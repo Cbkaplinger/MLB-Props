@@ -5,7 +5,7 @@ This file tracks substantial monitoring-surface changes:
 - `production/notebooks/results_dashboard.ipynb` (deep-dive)
 - `production/notebooks/results_kpi_monitor.ipynb`
 - `production/notebooks/results_calibration_lab.ipynb`
-- `production/notebooks/results_gate_policy.ipynb`
+- `production/notebooks/results_bettable_cohort.ipynb` (hosts retired gate-policy audit)
 - `production/notebooks/results_pnl_clv.ipynb`
 
 and support modules they rely on (`src/Python/skill_stats.py`,

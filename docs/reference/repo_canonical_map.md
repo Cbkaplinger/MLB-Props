@@ -44,7 +44,7 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
 - `production/notebooks/daily_projections.ipynb` (today board and gate diagnostics)
 - `production/notebooks/results_kpi_monitor.ipynb` (10-second health check)
 - `production/notebooks/results_calibration_lab.ipynb` (matchup/rest miss pockets)
-- `production/notebooks/results_gate_policy.ipynb` (BET/HOLD scenario tuning)
+- `production/notebooks/results_bettable_cohort.ipynb` (operating profile + frozen-policy simulator audit; hosts retired `results_gate_policy`)
 - `production/notebooks/results_pnl_clv.ipynb` (bankroll + CLV progress)
 
 ## Deep-dive but non-canonical daily reads
