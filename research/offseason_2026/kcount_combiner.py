@@ -18,7 +18,7 @@ Conventions (frozen):
 from __future__ import annotations
 
 import numpy as np
-from math import comb
+from math import lgamma
 
 KCOUNT_CAP = 60
 N_MAX = 36
@@ -73,10 +73,13 @@ def bf_pmf_from_37(bf_pmf37: np.ndarray, cap: int = KCOUNT_CAP
         hs.append(min(max(h, 0.0), 1.0))
         surv -= pmf37[n - 1]
     tail_h = float(np.mean(hs[-6:]))
-    shape = np.array([(1 - tail_h) ** (n - 37) * tail_h
-                      for n in range(37, cap + 1)])
-    shape = shape / shape.sum()
-    out[36:] = overflow * shape
+    if overflow > 0.0 and tail_h > 0.0:
+        shape = np.array([(1 - tail_h) ** (n - 37) * tail_h
+                          for n in range(37, cap + 1)])
+        shape = shape / shape.sum()
+        out[36:] = overflow * shape
+    else:
+        out[36:] = 0.0  # zero overflow or zero tail hazard: nothing to place
     assert abs(out.sum() - 1.0) < 1e-9, "BF PMF does not sum to 1"
     return out
 
@@ -98,7 +101,10 @@ def binom_pmf(k_support: np.ndarray, n: int, p: float) -> np.ndarray:
     for i, k in enumerate(ks):
         if k > n:
             continue
-        out[i] = np.exp(np.log(comb(n, k)) + k * np.log(p)
+        # log-space binomial coefficient (lgamma): math.comb overflows
+        # int64 for n > ~66 and numpy then fails on object dtype
+        log_coef = (lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1))
+        out[i] = np.exp(log_coef + k * np.log(p)
                         + (n - k) * log1m)
     return out
 
@@ -168,3 +174,72 @@ def milestone_brier(p_k: np.ndarray, k: int, milestones=(6, 7, 8, 9, 10, 12)
         y = 1.0 if k >= m else 0.0
         out["ge%d" % m] = (p_ge - y) ** 2
     return out
+
+
+def expected_bf(bf_pmf_ext: np.ndarray) -> float:
+    """E[N] under a BF PMF over 1..cap (extended vector, index 0 = BF 1)."""
+    bf = np.asarray(bf_pmf_ext, dtype=float)
+    return float((np.arange(1, len(bf) + 1) * bf).sum())
+
+
+def point_exposure_n(bf_pmf37: np.ndarray) -> int:
+    """C1 point exposure: E[N] from the EXTENDED BF PMF (overflow
+    redistributed over 37..60 first), rounded to the nearest integer
+    (ties away from zero), floored at 1. Frozen convention."""
+    ext = bf_pmf_from_37(bf_pmf37)
+    e = expected_bf(ext)
+    n = int(np.floor(e + 0.5))  # round-half-up, deterministic
+    return max(1, n)
+
+
+def reassign_overflow(bf_pmf37: np.ndarray, lo: int, hi: int,
+                      weights: np.ndarray) -> np.ndarray:
+    """I5 deep-tail challenger: move the overflow mass P(N>=37)
+    (index 36) into the prespecified exact-position interval
+    [lo, hi] using the given weights (normalized internally).
+
+    Frozen semantics (i5 prereg): body mass at BF 1..(hi) is RETAINED
+    (the reassignment ADDS mass on top of existing body mass at the
+    receiving positions); overflow beyond `hi` becomes zero. weights
+    must have length hi - lo + 1; slots with zero weight receive no
+    mass; the result sums to 1 and stays nonnegative. This is an
+    ESTIMATED transformation (weights estimated from strictly
+    pre-origin training data), not fit-free."""
+    pmf37 = np.asarray(bf_pmf37, dtype=float)
+    if pmf37.shape != (37,):
+        raise ValueError("expected 37-category BF PMF")
+    if not (1 <= lo <= hi <= 36):
+        raise ValueError("interval must satisfy 1 <= lo <= hi <= 36")
+    w = np.asarray(weights, dtype=float)
+    if w.shape != (hi - lo + 1,):
+        raise ValueError("weights must have length hi - lo + 1")
+    if bool((w < 0).any()):
+        raise ValueError("weights must be nonnegative")
+    if w.sum() <= 0:
+        raise ValueError("weights must sum to a positive mass")
+    w = w / w.sum()
+    out = np.array(pmf37, dtype=float)
+    overflow = float(out[36])
+    out[36] = 0.0
+    for k, slot in enumerate(range(lo, hi + 1)):
+        out[slot - 1] += overflow * w[k]
+    assert abs(out.sum() - 1.0) < 1e-9, "mass not conserved"
+    assert bool((out >= -1e-15).all()), "negative PMF entry"
+    return out
+
+
+def validate_provenance(provenance: dict) -> None:
+    """Scored-run guard: every dependency provenance entry must be a real
+    64-char sha256. The CI 'external-preserved (not available)' marker is
+    NOT acceptable scientific provenance - a scored run with it fails."""
+    if not isinstance(provenance, dict) or not provenance:
+        raise ValueError(
+            "scored-run provenance missing entirely: mandatory scientific "
+            "evidence blocks the run")
+    for name, entry in provenance.items():
+        if (not isinstance(entry, str) or len(entry) != 64
+                or any(c not in "0123456789abcdef" for c in entry.lower())):
+            raise ValueError(
+                "scored-run provenance invalid for %r: %r (missing "
+                "mandatory scientific evidence blocks the run)"
+                % (name, entry))

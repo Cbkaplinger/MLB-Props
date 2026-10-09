@@ -30,6 +30,11 @@ Data/Savant-Data/
 # normalized parquet). Vendor data is re-downloadable; never commit it.
 data/Odds-Historical/
 Data/Odds-Historical/
+
+# Retrosheet event archives + Chadwick register (I4 acquisition; raw = source of truth, never committed)
+data/Retrosheet/
+Data/Retrosheet/
+Data/Odds-Historical/
 # Open-command CV data (HF tomdoyo/open-command; CC BY-NC-SA 4.0 research only).
 # Re-downloadable; per-pitch layer ~250MB/season. Never commit.
 data/Open-Command/

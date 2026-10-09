@@ -14,6 +14,17 @@ sys.path.insert(0, str(HERE / "research" / "offseason_2026"))
 import kcount_combiner as kc  # noqa: E402
 
 
+
+
+def flat_hazard_pmf(h=0.06):
+    pmf37 = np.empty(37)
+    surv = 1.0
+    for n in range(36):
+        pmf37[n] = surv * h
+        surv *= 1 - h
+    pmf37[36] = surv
+    return pmf37
+
 def flat_hazard(h=0.055, n=36):
     return np.full(n, h)
 
@@ -118,3 +129,140 @@ def test_milestone_brier_structure():
     mb = kc.milestone_brier(pk, 6)
     assert set(mb) == {"ge6", "ge7", "ge8", "ge9", "ge10", "ge12"}
     assert all(0 <= v <= 1 for v in mb.values())
+
+
+# ---------- final readiness conventions (owner round, 2026-10-07) ------
+
+
+def test_point_exposure_n_round_convention():
+    # inputs are 37-category PMFs (index i = BF i+1); E[N]=24 exactly -> 24
+    def pmf37_for_mean(vals):
+        # deterministic two-point distribution over BF 24/25
+        pmf = np.zeros(37)
+        pmf[23] = vals[0]
+        pmf[24] = vals[1]
+        pmf[36] = 0.0
+        return pmf / (pmf.sum() if pmf.sum() > 0 else 1.0)
+    assert kc.point_exposure_n(pmf37_for_mean((1.0, 0.0))) == 24
+    assert kc.point_exposure_n(pmf37_for_mean((0.4, 0.6))) == 25  # E=24.6
+    assert kc.point_exposure_n(pmf37_for_mean((0.6, 0.4))) == 24  # E=24.4
+    assert kc.point_exposure_n(pmf37_for_mean((0.5, 0.5))) == 25  # tie -> up
+    assert kc.point_exposure_n(pmf37_for_mean((1.0, 0.0))) >= 1
+
+
+def test_point_exposure_uses_extended_not_truncated_mean():
+    # a heavy-overflow PMF must include redistributed tail mass in E[N]
+    h = np.full(36, 0.055)
+    pmf37 = np.empty(37)
+    surv = 1.0
+    for n in range(36):
+        pmf37[n] = surv * h[n]
+        surv *= 1 - h[n]
+    pmf37[36] = surv  # large overflow (~13%)
+    ext = kc.bf_pmf_from_37(pmf37)
+    e_ext = kc.expected_bf(ext)
+    e_trunc = float((np.arange(1, 37) * pmf37[:36]).sum())
+    assert e_ext > e_trunc  # tail mass raises the mean
+    assert kc.point_exposure_n(pmf37) == max(1, int(np.floor(e_ext + 0.5)))
+
+
+def test_beyond_60_is_impossible_after_redistribution():
+    h = np.full(36, 0.055)
+    pmf37 = np.empty(37)
+    surv = 1.0
+    for n in range(36):
+        pmf37[n] = surv * h[n]
+        surv *= 1 - h[n]
+    pmf37[36] = surv
+    ext = kc.bf_pmf_from_37(pmf37, cap=60)
+    assert ext.shape == (60,)
+    assert abs(ext.sum() - 1.0) < 1e-9  # nothing lives beyond the cap
+    # sensitivity diagnostic hook: cap-120 mean is computable
+    ext120 = kc.bf_pmf_from_37(pmf37, cap=120)
+    assert kc.expected_bf(ext120) >= kc.expected_bf(ext)
+
+
+def test_validate_provenance_blocks_marker_and_garbage():
+    good = {"a": "b" * 64}
+    kc.validate_provenance(good)  # must not raise
+    with pytest.raises(ValueError):
+        kc.validate_provenance({"a": "external-preserved "
+                                      "(not available on this machine)"})
+    with pytest.raises(ValueError):
+        kc.validate_provenance({"a": "abc123"})
+    with pytest.raises(ValueError):
+        kc.validate_provenance({"a": 12345})
+    with pytest.raises(ValueError):
+        kc.validate_provenance({})
+
+
+def test_provenance_marker_rejected_even_uppercase():
+    with pytest.raises(ValueError):
+        kc.validate_provenance({"dep": "EXTERNAL-PRESERVED " + "x" * 37})
+
+
+
+# ---------- I5 deep-tail reassignment (owner round, 2026-10-08) --------
+
+
+def test_reassign_overflow_mass_and_nonnegativity():
+    h = np.full(36, 0.055)
+    pmf37 = np.empty(37)
+    surv = 1.0
+    for n in range(36):
+        pmf37[n] = surv * h[n]
+        surv *= 1 - h[n]
+    pmf37[36] = surv
+    w = np.array([4.0, 2.0, 1.0, 0.5])  # interval 30..33
+    out = kc.reassign_overflow(pmf37, 30, 33, w)
+    assert abs(out.sum() - 1.0) < 1e-12
+    assert (out >= 0).all()
+    assert out[36] == 0.0
+    # receiving positions gained exactly overflow * normalized weight
+    ov = surv
+    for k, slot in enumerate(range(30, 34)):
+        assert out[slot - 1] == pytest.approx(
+            pmf37[slot - 1] + ov * (w[k] / w.sum()), abs=1e-12)
+    # body 1..29 untouched
+    assert np.allclose(out[:29], pmf37[:29])
+
+
+def test_reassign_overflow_cdf_monotone_and_en_drop():
+    pmf37 = flat_hazard_pmf(0.06)
+    out = kc.reassign_overflow(pmf37, 30, 33, np.array([3.0, 2.0, 1.0,
+                                                        0.5]))
+    cdf_before = np.cumsum(kc.bf_pmf_from_37(pmf37))
+    cdf_after = np.cumsum(kc.bf_pmf_from_37(out))
+    assert (np.diff(cdf_after) >= -1e-12).all()
+    # E[N] must DROP (mass moved from 37..60 down to 30..33)
+    assert kc.expected_bf(kc.bf_pmf_from_37(out)) < \
+        kc.expected_bf(kc.bf_pmf_from_37(pmf37))
+    # expected-value change is finite and bounded by the cap spread
+    drop = kc.expected_bf(kc.bf_pmf_from_37(pmf37)) - \
+        kc.expected_bf(kc.bf_pmf_from_37(out))
+    assert 0 < drop < 30
+
+
+def test_reassign_overflow_rejects_bad_weights_and_interval():
+    pmf37 = flat_hazard_pmf(0.06)
+    with pytest.raises(ValueError):
+        kc.reassign_overflow(pmf37, 30, 33, np.array([0.0, 0.0, 0.0,
+                                                      0.0]))
+    with pytest.raises(ValueError):
+        kc.reassign_overflow(pmf37, 30, 33, np.array([1.0, -1.0, 1.0,
+                                                      1.0]))
+    with pytest.raises(ValueError):
+        kc.reassign_overflow(pmf37, 30, 37, np.ones(8))
+    with pytest.raises(ValueError):
+        kc.reassign_overflow(pmf37, 30, 33, np.ones(3))
+
+
+def test_reassign_overflow_ladder_monotone_decrease():
+    # moving mass DOWN the BF axis cannot increase any exceedance
+    pmf37 = flat_hazard_pmf(0.06)
+    out = kc.reassign_overflow(pmf37, 30, 33, np.array([4.0, 3.0, 2.0,
+                                                        1.0]))
+    for m in (10, 12, 20, 30, 37):
+        before = kc.bf_pmf_from_37(pmf37)[m - 1:].sum()
+        after = kc.bf_pmf_from_37(out)[m - 1:].sum()
+        assert after <= before + 1e-12

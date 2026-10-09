@@ -1,8 +1,16 @@
-# DRAFT prereg — K-count integration (2026-10-07)
+# FROZEN prereg - K-count integration (frozen 2026-10-08)
 
-> **Status: DRAFT.** Not frozen, not authorized, not scored. Frozen prereg
-> authored from this draft only after owner authorization. Origin: owner
-> order 2026-10-07 ("K-Count Integration + Challenger Roadmap").
+> **Status: FROZEN 2026-10-08** (owner-authorized ONE scored diagnostic run).
+> Authored from the 2026-10-07 draft + pre-freeze owner round 2; all 12
+> conventions frozen before scoring. Origin: owner order 2026-10-07 and
+> authorization 2026-10-08.
+> **Pre-scoring clarification (2026-10-08, before any scoring):** the
+> K-count support wording below originally read "support 0..24 with an
+> absorbing >=24 bucket"; the frozen combiner
+> (`kcount_combiner.combine_count`, committed + tested BEFORE this
+> prereg) implements 24 categories = exact K=0..22 plus ONE absorbing
+> bucket "K>=23". The implementation is the frozen contract; wording
+> corrected here, no convention changed.
 
 ## Question
 
@@ -29,9 +37,6 @@ P(K=k | X) = sum_n P(N=n | X) * BinomPMF(k; n, p_bar)
   - **L2 opposing-team aggregate:** p_b = opposing team's shrunk K rate
     (roster-level, strictly prior; team identity from the spine keys'
     home/away + is_home). Also fully deployable.
-- **K-count support (clarified 2026-10-08 to match the frozen
-  combiner):** 24 categories = exact K=0..22 plus ONE absorbing bucket
-  "K>=23".
 - **Independence:** PAs conditionally independent given inputs — declared
   v1 approximation; dispersion checked diagnostically (variance ratio
   vs binomial), never tuned on eval outcomes.
