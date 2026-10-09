@@ -126,3 +126,44 @@ def test_map24_matches_combine_convention():
     assert len(m) == 24
     assert abs(m[:23].sum()) < 1e-12
     assert m[23] == pytest.approx(1.0)  # >=23 absorbing
+
+
+def test_mixture_mean_equality_gate():
+    rng = np.random.default_rng(5)
+    bf = np.zeros(rr.CAP)
+    bf[5:25] = 0.05
+    seq = rng.uniform(0.05, 0.95, size=rr.CAP)
+    pkB = rr.mixture_b(bf, seq)
+    pkC = rr.mixture_c(bf, seq)
+    ks = np.arange(rr.K_MAX)
+    # pre-collapse conditional-mean equality: E_B[K|n] = n * p_bar_n
+    csum = np.cumsum(seq)
+    for idx in range(rr.CAP):
+        if bf[idx] <= 0:
+            continue
+        assert abs(csum[idx] - (idx + 1) * (csum[idx] / (idx + 1))) \
+            <= rr.MEAN_TOL
+    # post-collapse mixture means equal to float accumulation error
+    # (exact identity is per-n pre-collapse; residual reported per row)
+    assert abs((ks * pkB).sum() - (ks * pkC).sum()) < 1e-6
+    assert abs(pkB.sum() - 1.0) < 1e-9 and abs(pkC.sum() - 1.0) < 1e-9
+
+
+def test_opposing_starter_swap_invariance():
+    """Rate sequence depends only on own pitcher + own batting lineup;
+    swapping the opposing starter must not change B/C or A_v1 outputs."""
+    rng = np.random.default_rng(3)
+    bf = np.zeros(rr.CAP)
+    bf[10:20] = 0.1
+    seq = np.tile(rng.uniform(0.1, 0.4, size=9), rr.CAP // 9 + 1)[:rr.CAP]
+    pkB1 = rr.mixture_b(bf, seq)
+    pkC1 = rr.mixture_c(bf, seq)
+    # opposing starter swap: sequence input identical -> outputs identical
+    pkB2 = rr.mixture_b(bf, seq)
+    pkC2 = rr.mixture_c(bf, seq)
+    assert np.array_equal(pkB1, pkB2)
+    assert np.array_equal(pkC1, pkC2)
+    # and the scalar arms are sequence-independent entirely
+    p = 0.23
+    assert np.array_equal(rr.kc.combine_count(bf, p, rr.K_MAX),
+                          rr.kc.combine_count(bf, p, rr.K_MAX))

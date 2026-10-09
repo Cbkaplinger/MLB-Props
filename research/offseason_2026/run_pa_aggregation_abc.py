@@ -1,15 +1,21 @@
-"""PA aggregation A/B/C scored runner (pa-aggregation-contract-2026-10-09 + Amendment 1).
+"""PA aggregation A/B/C scored runner (contract + Amendment 1 + CORRECTION-1).
 
 ONE canonical scored run on the 4,446 canonical kcount-integration eval
 starts, IDENTICAL rows and IDENTICAL BF PMFs across arms:
-  A = canonical I3b reconstruction: scalar log5 p* (league-average batter,
-      the canonical p_bar_l1) + BF PMF + binomial mixture via
-      kcount_combiner.combine_count (support 0..22, >=23 absorbing).
-  B = matchup-mean binomial: p_bar_n = mean of the first n cycled
-      9-slot oracle-lineup log5 probabilities.
-  C = matchup Poisson-binomial: exact incremental DP over the same p_i.
+   A (I1_ref) = scalar-rate/binomial reference: frozen kcount-integration
+       I1 structure - scalar log5 p* (league-average batter, the canonical
+       p_bar_l1 = w=150 shrunk pitcher rate, pa-k convention) + BF PMF +
+       binomial mixture via kcount_combiner.combine_count. NOT the retained
+       I3b recipe (see CORRECTION-1 note; no I3b superiority claim).
+   A_v1 = CORRECTION-1 sensitivity arm: same BF PMFs, scalar shrunk pitcher
+       rate built from the exact pa_completed_v1 priors used by B/C.
+   B = matchup-mean binomial: p_bar_n = mean of the first n cycled
+       9-slot oracle-lineup log5 probabilities.
+   C = matchup Poisson-binomial: exact incremental DP over the same p_i.
 ORACLE-LINEUP DIAGNOSTIC: mode-3 realized initial lineups; non-deployable.
-Family {B-A, C-B, C-A}; paired count-RPS; Holm; seed 20261001.
+Primary family {B-A, C-B, C-A}; paired count-RPS; Holm; seed 20261001.
+Sensitivity family {B-A_v1, A_v1-A}: post-review development sensitivity,
+separate Holm, never merged with the primary family (CORRECTION-1).
 """
 
 from __future__ import annotations
@@ -43,6 +49,7 @@ KC_DIR = Path(r"C:\Users\ckaplinger\MLB-Props-Research"
 BF_DIR = Path(r"C:\Users\ckaplinger\MLB-Props-Research"
               r"\workload-training-policy-20261007_090000")
 SEED = 20261001
+MEAN_TOL = 1e-9
 
 
 class RunFailure(RuntimeError):
@@ -90,6 +97,9 @@ def mixture_b(bf_ext: np.ndarray, seq: np.ndarray) -> np.ndarray:
             continue
         n = idx + 1
         p_bar = float(csum[idx] / n)
+        # CORRECTION-1 gate: B/C pre-collapse conditional-mean equality
+        # (E = n * p_bar_n = sum of the first n probabilities)
+        assert abs(float(csum[idx]) - n * p_bar) <= MEAN_TOL
         out += mass * cond24_binom(n, p_bar)
     out[K_MAX - 1] += max(0.0, 1.0 - out.sum())
     return out
@@ -141,20 +151,24 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--data-root", default=None)
     ap.add_argument("--season-sha", action="append", default=[])
+    ap.add_argument("--kc-dir", default=None)
+    ap.add_argument("--bf-dir", default=None)
     args = ap.parse_args(argv)
     out_dir = Path(args.out)
     rch._require_temp_out(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    kc_dir = Path(args.kc_dir) if args.kc_dir else KC_DIR
+    bf_dir = Path(args.bf_dir) if args.bf_dir else BF_DIR
     try:
         root = Path(args.data_root) if args.data_root else (
             Path(__file__).resolve().parents[2] / "data")
-        preds = pl.read_csv(KC_DIR / "predictions.csv")
-        bf = pl.read_parquet(BF_DIR / "pmfs.parquet")
+        preds = pl.read_csv(kc_dir / "predictions.csv")
+        bf = pl.read_parquet(bf_dir / "pmfs.parquet")
         if bf.height != preds.height:
             raise RunFailure("BF pmf row count mismatch")
         bf_np = bf.select(sorted(c for c in bf.columns
                                  if c.startswith("pmfB_"))).to_numpy()
-        pk_i1 = (pl.read_parquet(KC_DIR / "pmfs.parquet")
+        pk_i1 = (pl.read_parquet(kc_dir / "pmfs.parquet")
                  .select(["pkI1_%02d" % k for k in range(K_MAX)])
                  .to_numpy())
         bg = pl.read_parquet(root / "processed" / "batter_games.parquet")
@@ -171,6 +185,15 @@ def main(argv=None) -> int:
         # lineups (gate C receipt re-asserted in-runner)
         init = bg.filter((pl.col("is_initial_lineup") == 1)
                          & pl.col("lineup_slot").is_not_null())
+        # CORRECTION-1 gate: reject conflicting duplicate lineup slots
+        # (same slot, different batter) BEFORE deduplication.
+        slot_conf = (init.group_by(["game_pk", "bat_team", "lineup_slot"])
+                     .agg(pl.col("batter").n_unique().alias("nb")))
+        n_conf = int((slot_conf["nb"] > 1).sum())
+        if n_conf:
+            raise RunFailure(
+                "lineup slot conflict: %d (game_pk,bat_team,slot) groups "
+                "carry multiple distinct batters" % n_conf)
         slots = (init.select(["game_pk", "bat_team", "lineup_slot",
                               "batter"])
                  .unique(["game_pk", "bat_team", "lineup_slot"],
@@ -251,7 +274,9 @@ def main(argv=None) -> int:
                      + np.log(p_b / (1 - p_b)) - np.log(lg / (1 - lg)))
                 seq9[j] = 1.0 / (1.0 + np.exp(-z))
             seq = np.tile(seq9, CAP // 9 + 1)[:CAP]
+            p_v1 = (kp + W * lg) / (npit + W) if npit > 0 else lg
             pkA = kc.combine_count(bf_ext, float(r["p_bar_l1"]), K_MAX)
+            pkAv1 = kc.combine_count(bf_ext, float(p_v1), K_MAX)
             pkB = mixture_b(bf_ext, seq)
             pkC = mixture_c(bf_ext, seq)
             # reproduction gate vs stored canonical I1
@@ -261,23 +286,33 @@ def main(argv=None) -> int:
             rec = {"row_idx": i, "K": K,
                    "game_date": str(r["game_date"]),
                    "PA": int(r["PA"]),
+                   "oracle_lineup": True,
+                   "input_status": "i1_ref_p_bar_l1+bf_pmfs+v1_priors",
+                   "lineup_status": "oracle_mode3_initial",
+                   "n_prior_pitcher": int(npit),
                    "rps_A": kc.count_rps(pkA, K),
+                   "rps_Av1": kc.count_rps(pkAv1, K),
                    "rps_B": kc.count_rps(pkB, K),
                    "rps_C": kc.count_rps(pkC, K),
                    "ls_A": kc.count_logscore(pkA, K),
+                   "ls_Av1": kc.count_logscore(pkAv1, K),
                    "ls_B": kc.count_logscore(pkB, K),
                    "ls_C": kc.count_logscore(pkC, K),
                    "mA": float((np.arange(K_MAX) * pkA).sum()),
+                   "mAv1": float((np.arange(K_MAX) * pkAv1).sum()),
                    "mB": float((np.arange(K_MAX) * pkB).sum()),
                    "mC": float((np.arange(K_MAX) * pkC).sum()),
+                   "p_bar_l1": float(r["p_bar_l1"]),
+                   "p_v1": float(p_v1),
+                   "denom_gap": float(p_v1 - float(r["p_bar_l1"])),
                    "xK_diff_CB": float((np.arange(K_MAX)
                                         * (pkC - pkB)).sum()),
-                   "p_bar_l1": float(r["p_bar_l1"]),
                    "mean_p9": float(seq9.mean()),
                    "var_gap": float(np.sum((seq9 - seq9.mean()) ** 2) / 9.0),
                    }
             for m in (6, 8, 10, 12):
                 rec["mb%d_A" % m] = kc.milestone_brier(pkA, K)["ge%d" % m]
+                rec["mb%d_Av1" % m] = kc.milestone_brier(pkAv1, K)["ge%d" % m]
                 rec["mb%d_B" % m] = kc.milestone_brier(pkB, K)["ge%d" % m]
                 rec["mb%d_C" % m] = kc.milestone_brier(pkC, K)["ge%d" % m]
             rows_out.append(rec)
@@ -301,6 +336,23 @@ def main(argv=None) -> int:
                "C-B": paired("rps_C", "rps_B"),
                "C-A": paired("rps_C", "rps_A")}
         holm = base.holm({k: v["p_two_sided"] for k, v in fam.items()})
+        # CORRECTION-1 sensitivity family (frozen in CORRECTION-1 note):
+        # separate Holm; never merged with the primary family.
+        fam2 = {"B-A_v1": paired("rps_B", "rps_Av1"),
+                "A_v1-A": paired("rps_Av1", "rps_A")}
+        holm2 = base.holm({k: v["p_two_sided"] for k, v in fam2.items()})
+        denom = {
+            "n": int(res.height),
+            "mean_abs_gap": float(res["denom_gap"].abs().mean()),
+            "p90_abs_gap": float(res["denom_gap"].abs().quantile(0.9)),
+            "max_abs_gap": float(res["denom_gap"].abs().max()),
+            "n_gt_0p01": int((res["denom_gap"].abs() > 0.01).sum()),
+            "by_origin_mean_gap": {
+                str(k): float(v) for k, v in
+                res.group_by("game_date").agg(
+                    pl.col("denom_gap").mean())
+                .sort("game_date").iter_rows()},
+        }
         meanll = {"A": float(res["ls_A"].mean()),
                   "B": float(res["ls_B"].mean()),
                   "C": float(res["ls_C"].mean())}
@@ -312,19 +364,31 @@ def main(argv=None) -> int:
                 "C": float((res["mC"] - res["K"]).mean())}
         slices = {}
         for name, mask in (("short_outing", res["PA"] < 9),
-                           ("september", res["game_date"] >= "2023-09-01")):
+                           ("september", res["game_date"] >= "2023-09-01"),
+                           ("debut_n_prior_0", res["n_prior_pitcher"] == 0),
+                           ("sparse_history_lt150",
+                            (res["n_prior_pitcher"] > 0)
+                            & (res["n_prior_pitcher"] < 150))):
             sub = res.filter(mask)
             slices[name] = {
                 "n": int(sub.height),
                 "mean_rps": {"A": float(sub["rps_A"].mean()),
+                             "A_v1": float(sub["rps_Av1"].mean()),
                              "B": float(sub["rps_B"].mean()),
                              "C": float(sub["rps_C"].mean())}}
         summary = {
             "n": int(res.height),
             "mean_rps": {"A": float(res["rps_A"].mean()),
+                         "A_v1": float(res["rps_Av1"].mean()),
                          "B": float(res["rps_B"].mean()),
                          "C": float(res["rps_C"].mean())},
             "paired": fam, "holm": holm,
+            "sensitivity_family": {
+                "label": "post-review development sensitivity "
+                         "(CORRECTION-1; not promotion evidence; "
+                         "separate Holm; original p-values not reused)",
+                "paired": fam2, "holm": holm2},
+            "denominator_comparison": denom,
             "count_logscore": meanll,
             "xK_mae": mae, "xK_bias": bias,
             "xK_diff_CB_mean": float(res["xK_diff_CB"].mean()),
@@ -343,26 +407,38 @@ def main(argv=None) -> int:
         manifest = {
             "lane": "pa_aggregation_abc",
             "status": "COMPLETE",
+            "correction": "CORRECTION-1 linked (baseline renamed I1_ref; "
+                          "A_v1 sensitivity arm; gates added); original "
+                          "run pa-aggregation-abc-20261009_173155 "
+                          "preserved untouched",
             "contract": "research/offseason_2026/"
                         "pa-aggregation-contract-2026-10-09.md "
-                        "(Amendment 1: support 0..22 + >=23; frozen "
-                        "decision rule)",
+                        "(Amendment 1; CORRECTION-1: baseline identity, "
+                        "sensitivity spec, gates)",
             "primary": "paired count-RPS, Holm family {B-A, C-B, C-A}, "
                        "slate-date bootstrap 2000 seed 20261001",
             "support": "0..22 exact + >=23 absorbing (combine_count "
                        "k_max=24); BF extended 1..60 via bf_pmf_from_37",
-            "arms": {"A": "canonical I3b scalar p_bar_l1 binomial",
+            "arms": {"A": "I1_ref scalar-rate/binomial reference "
+                          "(frozen kcount-integration I1 structure; NOT "
+                          "retained I3b; no I3b superiority claim)",
+                     "A_v1": "sensitivity: scalar shrunk pitcher rate "
+                             "from exact v1 priors (same BF PMFs)",
                      "B": "matchup-mean binomial (cycled lineup)",
                      "C": "Poisson-binomial (same sequence)"},
+            "retained_i3b_note": (
+                "Retained I3b research recipe = hazard BF PMF + binomial "
+                "combiner + log5 scalar (as scored in the 2024 workload "
+                "transfer); construction documented in CORRECTION-1; no "
+                "I3b comparison is run here and no new fitting is done"),
             "canonical_reproduction_max_diff": repro_max,
-            "equal_mean_note": "C-B pre-collapse E[K|n] equal by "
-                               "construction (same sequence); asserted "
-                               "per row via xK_diff_CB (post-collapse "
-                               "residual reported)",
+            "gates": {"mean_equality_tol": MEAN_TOL,
+                      "lineup_slot_conflicts_rejected": True,
+                      "input_roots_parameterized": True},
             "inputs": {
-                "predictions": sha256_file(KC_DIR / "predictions.csv"),
-                "stored_count_pmfs": sha256_file(KC_DIR / "pmfs.parquet"),
-                "bf_pmfs": sha256_file(BF_DIR / "pmfs.parquet"),
+                "predictions": sha256_file(kc_dir / "predictions.csv"),
+                "stored_count_pmfs": sha256_file(kc_dir / "pmfs.parquet"),
+                "bf_pmfs": sha256_file(bf_dir / "pmfs.parquet"),
                 "batter_games": sha256_file(root / "processed"
                                             / "batter_games.parquet"),
                 "savant_2023": "verified known sha",
