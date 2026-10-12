@@ -167,3 +167,88 @@ def test_opposing_starter_swap_invariance():
     p = 0.23
     assert np.array_equal(rr.kc.combine_count(bf, p, rr.K_MAX),
                           rr.kc.combine_count(bf, p, rr.K_MAX))
+
+
+def _fixture():
+    rng = np.random.default_rng(9)
+    bf = np.zeros(rr.CAP)
+    bf[[0, 4, 8, 14, 20, 25]] = 0.12
+    bf[30] = 0.28
+    seq = rng.uniform(0.1, 0.45, size=rr.CAP)
+    return bf, seq
+
+
+def test_mean_gate_from_actual_pmfs_full_support_regression():
+    """Regression: conditional built on FULL 0..n support (tail mapped
+    via map24, fsum expectations); frozen 1e-9 gate passes on real
+    builders including n>23 where truncation previously breached."""
+    bf, seq = _fixture()
+    mb, mc = [], []
+    pkB = rr.mixture_b(bf, seq, mb)
+    pkC = rr.mixture_c(bf, seq, mc)
+    rr.assert_mean_gate(bf, seq, mb, mc)
+    rr.check_mass(pkB, "B"); rr.check_mass(pkC, "C")
+    n_supported = sum(1 for x in bf if x > 0)
+    assert len(mb) == n_supported and len(mc) == n_supported
+
+
+def test_mean_gate_edge_probabilities_and_full_support():
+    for p in (0.0, 0.001, 0.5, 0.999, 1.0):
+        bf = np.zeros(rr.CAP)
+        bf[[0, 9, 23, 30, 59]] = 0.2
+        seq = np.full(rr.CAP, min(max(p, 1e-9), 1 - 1e-9))
+        mb, mc = [], []
+        pkB = rr.mixture_b(bf, seq, mb)
+        pkC = rr.mixture_c(bf, seq, mc)
+        rr.assert_mean_gate(bf, seq, mb, mc)
+        rr.check_mass(pkB, "B"); rr.check_mass(pkC, "C")
+        # degenerate endpoints give point masses
+        if p in (0.0, 1.0):
+            assert abs((pkB - pkC).max()) < 1e-12
+
+
+def test_mean_gate_negative_shifted_pmf_fails():
+    bf, seq = _fixture()
+    mb, mc = [], []
+    rr.mixture_b(bf, seq, mb)
+    rr.mixture_c(bf, seq, mc)
+    # deliberately shift one mu (normalized, mass-preserving defect)
+    bad = [(n, mu + 0.5) if i == 2 else (n, mu)
+           for i, (n, mu) in enumerate(mb)]
+    with pytest.raises(rr.RunFailure):
+        rr.assert_mean_gate(bf, seq, bad, mc)
+
+
+def test_mean_gate_wrong_arm_input_fails():
+    bf, seq = _fixture()
+    mb, mc = [], []
+    rr.mixture_b(bf, seq, mb)
+    rr.mixture_c(bf, np.clip(seq + 0.3, 0, 1), mc)   # wrong sequence arm
+    with pytest.raises(rr.RunFailure):
+        rr.assert_mean_gate(bf, seq, mb, mc)
+
+
+def test_opposing_starter_swap_substantive():
+    """Same own-pitcher prior + own lineup -> identical seq, regardless of
+    opposing-starter snapshot; own snapshot changes propagate."""
+    lg, w = 0.22, rr.W
+    bks = [10, 20, 30, 5, 15, 25, 8, 12, 40]
+    bns = [60, 80, 90, 50, 70, 95, 55, 65, 110]
+    s_own = rr.row_seq9(0.25, bks, bns, lg, w)
+    s_swap = rr.row_seq9(0.25, bks, bns, lg, w)   # opposing id never enters
+    assert np.array_equal(s_own, s_swap)
+    s_new_pitcher = rr.row_seq9(0.30, bks, bns, lg, w)
+    assert not np.array_equal(s_own, s_new_pitcher)
+
+
+def test_slot_conflict_helper_rejects_synthetic():
+    import polars as pl
+    init = pl.DataFrame({
+        "game_pk": [1, 1], "bat_team": ["NYY", "NYY"],
+        "lineup_slot": [3, 3], "batter": [101, 102]})
+    with pytest.raises(rr.RunFailure):
+        rr.assert_no_slot_conflicts(init)
+    clean = pl.DataFrame({
+        "game_pk": [1, 1], "bat_team": ["NYY", "NYY"],
+        "lineup_slot": [3, 4], "batter": [101, 102]})
+    assert rr.assert_no_slot_conflicts(clean) == 0

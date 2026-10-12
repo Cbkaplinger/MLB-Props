@@ -53,9 +53,27 @@ On the SAME 4,46-row authorized historical cohort, identical BF PMFs:
   fetch) rejected BEFORE deduplication.
 - Opposing-starter swap invariance test runnable at unit level.
 - Debut (n_prior=0) and sparse-history (n_prior<150) slices reported.
-- External input roots parameterized (--kc-dir/--bf-dir/--bf-training-dir).
+- External input roots parameterized (--kc-dir/--bf-dir).
 - Exported prediction rows carry oracle/input-status flags
   (oracle_lineup=true, i1_ref source flag, lineup_status).
+- Gate A (corrected 2026-10-09b): per supported n, mu_B and mu_C are
+  computed from the arms' ACTUAL uncollapsed conditional PMFs and must
+  agree with each other and with sum(p_1..p_n) at the frozen 1e-9
+  tolerance, via explicit RunFailure exceptions; probability mass is
+  checked separately (never normalized away); negative tests prove the
+  gate fails on shifted/wrong-input PMFs. Diagnosis found B's conditional
+  was truncated at k=23 for n>23 (expectation short by the tail, ~e-9
+  scale); corrected to full 0..n support with map24 tail mapping and
+  math.fsum expectations. Elementwise evidence: (i) the support-mapping
+  identity map24(full 0..n binomial) == truncated-24 + residual-to-bucket-23
+  verified over the operational support (n=1..60 x 37-point p grid), max
+  abs diff 4.7e-14; (ii) all 38 exported numeric prediction columns x
+  4,446 rows agree to max abs diff 7.3e-14 (float64 rounding; boolean
+  flags identical) - per-row RPS prints bit-equal at CSV precision. All
+  historical scores stand unchanged with the corrected builder; the
+  failed first validation attempt is preserved
+  (pa-gateA-validation-20261009a) alongside the passing full-row run
+  (pa-gateA-validation-20261009b).
 
 ## 3b. Post-collapse residual accounting (clarification, nothing erased)
 

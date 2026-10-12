@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 from datetime import date
 from pathlib import Path
@@ -88,7 +89,8 @@ def map24(dist: np.ndarray) -> np.ndarray:
     return out
 
 
-def mixture_b(bf_ext: np.ndarray, seq: np.ndarray) -> np.ndarray:
+def mixture_b(bf_ext: np.ndarray, seq: np.ndarray,
+              means_out: list | None = None) -> np.ndarray:
     out = np.zeros(K_MAX)
     csum = np.cumsum(seq)
     for idx in range(CAP):
@@ -97,15 +99,22 @@ def mixture_b(bf_ext: np.ndarray, seq: np.ndarray) -> np.ndarray:
             continue
         n = idx + 1
         p_bar = float(csum[idx] / n)
-        # CORRECTION-1 gate: B/C pre-collapse conditional-mean equality
-        # (E = n * p_bar_n = sum of the first n probabilities)
-        assert abs(float(csum[idx]) - n * p_bar) <= MEAN_TOL
-        out += mass * cond24_binom(n, p_bar)
+        # full conditional on 0..n (no truncation); tail mapped to the
+        # >=23 absorbing bucket by map24, matching C's construction.
+        # n=0 unreachable (idx>=0 -> n>=1); p=0/1 handled by the builder.
+        full = kc.binom_pmf(np.arange(n + 1), n, p_bar)
+        if means_out is not None:
+            # gate A: expectation from the ACTUAL uncollapsed conditional
+            # via fsum (acc summation error removed)
+            means_out.append((n, math.fsum(
+                (np.arange(n + 1) * full).tolist())))
+        out += mass * map24(full)
     out[K_MAX - 1] += max(0.0, 1.0 - out.sum())
     return out
 
 
-def mixture_c(bf_ext: np.ndarray, seq: np.ndarray) -> np.ndarray:
+def mixture_c(bf_ext: np.ndarray, seq: np.ndarray,
+              means_out: list | None = None) -> np.ndarray:
     out = np.zeros(K_MAX)
     dist = np.zeros(CAP + 1)
     dist[0] = 1.0
@@ -117,9 +126,74 @@ def mixture_c(bf_ext: np.ndarray, seq: np.ndarray) -> np.ndarray:
         dist[:idx + 2] = new
         mass = bf_ext[idx]
         if mass > 0.0:
+            if means_out is not None:
+                # gate A: expectation from the ACTUAL uncollapsed DP state
+                # (before tail mapping), support 0..n
+                ks = np.arange(idx + 2)
+                means_out.append((idx + 1, float((ks * dist[:idx + 2]).sum())))
             out += mass * map24(dist[:idx + 2])
     out[K_MAX - 1] += max(0.0, 1.0 - out.sum())
     return out
+
+
+def assert_mean_gate(bf_ext: np.ndarray, seq: np.ndarray,
+                     means_b: list, means_c: list,
+                     tol: float = MEAN_TOL) -> None:
+    """Gate A: per supported n (including coverage of every n with BF
+    mass), mu_B and mu_C (computed from the actual uncollapsed PMFs) must
+    agree with each other and with sum(p_1..p_n). Explicit exceptions,
+    never silent; probability mass is checked separately and never
+    normalized away."""
+    csum = np.cumsum(seq)
+    n_supported = {int(i) + 1 for i in range(CAP) if bf_ext[i] > 0.0}
+    if len(means_b) != len(n_supported) or len(means_c) != len(n_supported):
+        raise RunFailure("mean gate: supported-n coverage mismatch "
+                         "(%d/%d checked vs %d supported)"
+                         % (len(means_b), len(means_c), len(n_supported)))
+    for (nb, mu_b), (nc, mu_c) in zip(means_b, means_c):
+        if nb != nc or nb not in n_supported:
+            raise RunFailure("mean gate: n mismatch %d/%d" % (nb, nc))
+        target = float(csum[nb - 1])
+        if abs(mu_b - target) > tol or abs(mu_c - target) > tol \
+                or abs(mu_b - mu_c) > tol:
+            raise RunFailure(
+                "mean gate failed at n=%d: mu_B=%.12f mu_C=%.12f "
+                "sum_p=%.12f" % (nb, mu_b, mu_c, target))
+
+
+def check_mass(pmf: np.ndarray, label: str) -> None:
+    """Separate mass check: never normalize away errors."""
+    if abs(float(np.asarray(pmf).sum()) - 1.0) > 1e-9:
+        raise RunFailure("mass check failed for %s: sum=%r"
+                         % (label, float(np.asarray(pmf).sum())))
+
+
+def row_seq9(p_p: float, bks: list, bns: list, lg: float,
+             w: float = W) -> np.ndarray:
+    """Factored rate-sequence construction (own pitcher prior + own
+    lineup batters + league rate only; opposing-starter identity cannot
+    enter)."""
+    seq9 = np.zeros(9)
+    for j in range(9):
+        kb, nb = int(bks[j]), int(bns[j])
+        p_b = (kb + w * lg) / (nb + w) if nb > 0 else lg
+        z = (np.log(p_p / (1 - p_p))
+             + np.log(p_b / (1 - p_b)) - np.log(lg / (1 - lg)))
+        seq9[j] = 1.0 / (1.0 + np.exp(-z))
+    return seq9
+
+
+def assert_no_slot_conflicts(init: pl.DataFrame) -> int:
+    """Gate: reject conflicting duplicate lineup slots (same slot,
+    different batter) BEFORE deduplication; returns conflict count (0)."""
+    slot_conf = (init.group_by(["game_pk", "bat_team", "lineup_slot"])
+                 .agg(pl.col("batter").n_unique().alias("nb")))
+    n_conf = int((slot_conf["nb"] > 1).sum())
+    if n_conf:
+        raise RunFailure(
+            "lineup slot conflict: %d (game_pk,bat_team,slot) groups "
+            "carry multiple distinct batters" % n_conf)
+    return n_conf
 
 
 def cond24_binom(n: int, p: float) -> np.ndarray:
@@ -186,14 +260,8 @@ def main(argv=None) -> int:
         init = bg.filter((pl.col("is_initial_lineup") == 1)
                          & pl.col("lineup_slot").is_not_null())
         # CORRECTION-1 gate: reject conflicting duplicate lineup slots
-        # (same slot, different batter) BEFORE deduplication.
-        slot_conf = (init.group_by(["game_pk", "bat_team", "lineup_slot"])
-                     .agg(pl.col("batter").n_unique().alias("nb")))
-        n_conf = int((slot_conf["nb"] > 1).sum())
-        if n_conf:
-            raise RunFailure(
-                "lineup slot conflict: %d (game_pk,bat_team,slot) groups "
-                "carry multiple distinct batters" % n_conf)
+        # (same slot, different batter) BEFORE deduplication (helper C).
+        assert_no_slot_conflicts(init)
         slots = (init.select(["game_pk", "bat_team", "lineup_slot",
                               "batter"])
                  .unique(["game_pk", "bat_team", "lineup_slot"],
@@ -266,19 +334,18 @@ def main(argv=None) -> int:
             p_p = (kp + W * lg) / (npit + W) if npit > 0 else lg
             bks = r["bks"]
             bns = r["bns"]
-            seq9 = np.zeros(9)
-            for j in range(9):
-                kb, nb = int(bks[j]), int(bns[j])
-                p_b = (kb + W * lg) / (nb + W) if nb > 0 else lg
-                z = (np.log(p_p / (1 - p_p))
-                     + np.log(p_b / (1 - p_b)) - np.log(lg / (1 - lg)))
-                seq9[j] = 1.0 / (1.0 + np.exp(-z))
+            seq9 = row_seq9(p_p, bks, bns, lg, W)
             seq = np.tile(seq9, CAP // 9 + 1)[:CAP]
             p_v1 = (kp + W * lg) / (npit + W) if npit > 0 else lg
             pkA = kc.combine_count(bf_ext, float(r["p_bar_l1"]), K_MAX)
             pkAv1 = kc.combine_count(bf_ext, float(p_v1), K_MAX)
-            pkB = mixture_b(bf_ext, seq)
-            pkC = mixture_c(bf_ext, seq)
+            means_b, means_c = [], []
+            pkB = mixture_b(bf_ext, seq, means_b)
+            pkC = mixture_c(bf_ext, seq, means_c)
+            # Gate A: real PMF expectations vs sum(p_1..p_n), explicit
+            assert_mean_gate(bf_ext, seq, means_b, means_c)
+            check_mass(pkA, "A"); check_mass(pkAv1, "A_v1")
+            check_mass(pkB, "B"); check_mass(pkC, "C")
             # reproduction gate vs stored canonical I1
             stored = pk_i1[i]
             repro_max = max(repro_max, float(np.abs(pkA - stored).max()))
