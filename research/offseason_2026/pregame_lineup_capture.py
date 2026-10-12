@@ -24,9 +24,10 @@ ACCEPTANCE POLICY (explicit; never chosen from observed outcomes):
   no older-revision substitution (older-snapshot fallback would be a
   separate policy with explicit staleness controls; not implemented).
   `forecast_cutoff` tz-awareness is validated BEFORE any UTC coercion.
-- unknown/invalid team codes return REASON_UNKNOWN_TEAM (distinct from
-  a genuinely missing snapshot); canonical codes normalized via an
-  explicit alias map at the caller boundary.
+- team codes are normalized via the production-canonical
+  `canonical_team_code` function (src/Python/daily_lineups.py) at the
+  caller boundary; unknown codes return REASON_UNKNOWN_TEAM, distinct
+  from a genuinely missing snapshot.
 """
 
 from __future__ import annotations

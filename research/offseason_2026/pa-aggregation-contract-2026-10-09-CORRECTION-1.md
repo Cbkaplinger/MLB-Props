@@ -51,11 +51,23 @@ On the SAME 4,46-row authorized historical cohort, identical BF PMFs:
   support n with mass (tolerance 1e-9; fail loud).
 - Conflicting duplicate lineup slots (same slot, different batter, same
   fetch) rejected BEFORE deduplication.
-- Opposing-starter swap invariance test runnable at unit level.
+- Opposing-starter swap invariance: helper-level by-construction test
+  (see gate list for the disclosed limitation).
 - Debut (n_prior=0) and sparse-history (n_prior<150) slices reported.
 - External input roots parameterized (--kc-dir/--bf-dir).
 - Exported prediction rows carry oracle/input-status flags
   (oracle_lineup=true, i1_ref source flag, lineup_status).
+- Opposing-starter invariance: guaranteed **by construction** (the
+  factored rate helper's inputs are the own-pitcher prior, own lineup
+  batter priors, and league rate only; opposing-starter identity has no
+  input path). Residual test limitation disclosed: no existing runner
+  fixture exercises a genuine two-pitcher swap end-to-end, so the test
+  verifies the helper-level construction rather than a substantive swap.
+  A dummy parameter was deliberately NOT added to manufacture a test.
+- Atomic-write provenance (lineup captures): **unverified** — the
+  production writer's single-fetch atomicity is documented but not
+  independently proven; the ingestion-verified/raw-hash-unverified
+  qualification stands.
 - Gate A (corrected 2026-10-09b): per supported n, mu_B and mu_C are
   computed from the arms' ACTUAL uncollapsed conditional PMFs and must
   agree with each other and with sum(p_1..p_n) at the frozen 1e-9
