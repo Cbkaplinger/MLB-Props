@@ -108,6 +108,19 @@ def lineup_receipts(snaps: pl.DataFrame) -> dict:
         "fetch_span_utc": [str(fa["mn"][0]), str(fa["mx"][0])],
         "capture_cadence": "6 fetch dates across ~4 weeks (INTERMITTENT; "
                            "production capture not confirmed daily)",
+        "coverage_basis_d1": "counts are TEAM-GAME LINEUPS from the "
+                             "captures, NOT the eligible pitcher-forecast "
+                             "count (each game contributes two lineup "
+                             "rows but one forecast pitcher per arm); "
+                             "the eligible-forecast population is fixed "
+                             "only at sealing",
+        "cutoff_basis_d1": "max_fetch_per_team_game: coverage below uses "
+                           "each team-game's maximum fetch time as its "
+                           "cutoff, so counts are a status/completeness "
+                           "AVAILABILITY UPPER BOUND, not real "
+                           "forecast-cutoff usability; actual "
+                           "declared-cutoff coverage is reported "
+                           "separately at sealing",
     }
 
 

@@ -36,6 +36,11 @@ from pathlib import Path
 
 import polars as pl
 
+sys_path = Path(__file__).resolve().parents[2] / "src"
+import sys  # noqa: E402
+sys.path.insert(0, str(sys_path))
+from Python.daily_lineups import canonical_team_code  # noqa: E402
+
 SLOT_COUNT = 9
 STATUS_CONFIRMED = "confirmed"
 
@@ -49,32 +54,8 @@ REASON_LATE_ONLY = "all_snapshots_after_cutoff"
 REASON_NOT_9_SLOTS = "not_9_unique_slots"
 REASON_PROJECTED_ONLY = "full_projected_confirmed_only_mode"
 REASON_UNKNOWN_TEAM = "unknown_team_code"
-
-# Explicit alias map (caller-boundary normalization; no inference).
-TEAM_ALIASES = {
-    "ana": "LAA", "laa": "LAA",
-    "ari": "ARI", "az": "ARI",
-    "atl": "ATL", "bal": "BAL", "bos": "BOS",
-    "cha": "CWS", "cws": "CWS", "chw": "CWS", "chc": "CHC",
-    "cin": "CIN", "cle": "CLE", "col": "COL",
-    "det": "DET", "hou": "HOU", "kc": "KC", "kan": "KC",
-    "la": "LAA", "lad": "LAD", "mia": "MIA", "fla": "MIA",
-    "mil": "MIL", "min": "MIN", "nym": "NYM", "nyy": "NYY",
-    "oak": "ATH", "ath": "ATH", "phi": "PHI",
-    "pit": "PIT", "sd": "SD", "sdp": "SD",
-    "sea": "SEA", "sf": "SF", "sfg": "SF",
-    "stl": "STL", "tb": "TB", "tamp": "TB",
-    "tex": "TEX", "tor": "TOR", "wsh": "WSH", "was": "WSH",
-}
-
-
-def normalize_team(code: str) -> str:
-    """Explicit canonical team code; raises ValueError on unknown input
-    (callers map that to REASON_UNKNOWN_TEAM)."""
-    key = str(code).strip().lower()
-    if key not in TEAM_ALIASES:
-        raise ValueError("unknown team code: %r" % (code,))
-    return TEAM_ALIASES[key]
+REASON_MIXED_STATUS = "mixed_lineup_status_latest_snapshot"
+REASON_MALFORMED_TIMESTAMP = "malformed_fetched_at"
 
 
 def _aware_utc(dt: datetime) -> datetime:
@@ -92,13 +73,6 @@ def load_snapshots(paths: list[Path]) -> pl.DataFrame:
     return pl.concat(frames, how="diagonal_relaxed")
 
 
-def _receipt(ok: bool, reason: str, snaps: pl.DataFrame | None,
-             status_col: str = "lineup_status") -> dict:
-    return {"ok": ok, "reason": reason,
-            "batters": None, "status": None, "fetched_at": None} \
-        if not ok and snaps is None else {}
-
-
 def select_pregame_lineup(snaps: pl.DataFrame, game_pk: int, team: str,
                           forecast_cutoff: datetime,
                           mode: str = MODE_CONFIRMED_ONLY) -> dict:
@@ -112,7 +86,7 @@ def select_pregame_lineup(snaps: pl.DataFrame, game_pk: int, team: str,
         raise ValueError("unknown mode: %r" % (mode,))
     cutoff = _aware_utc(forecast_cutoff)
     try:
-        team_c = normalize_team(team)
+        team_c = canonical_team_code(str(team).strip().upper())
     except ValueError:
         return {"ok": False, "reason": REASON_UNKNOWN_TEAM,
                 "batters": None, "status": None, "fetched_at": None}
@@ -122,10 +96,23 @@ def select_pregame_lineup(snaps: pl.DataFrame, game_pk: int, team: str,
         return {"ok": False, "reason": REASON_MISSING, "batters": None,
                 "status": None, "fetched_at": None}
     dt = g.schema["fetched_at"]
+    # D4: stored-naive timestamps are interpreted as UTC per the
+    # documented writer contract; unparseable values raise an explicit
+    # fallback (never silently dropped).
     if dt == pl.String:
-        g = g.with_columns(pl.col("fetched_at")
-                           .str.to_datetime(time_zone="UTC",
-                                            strict=False).alias("fetched_at"))
+        try:
+            g = g.with_columns(
+                pl.col("fetched_at")
+                .str.to_datetime(time_zone="UTC", strict=False)
+                .alias("fetched_at"))
+        except Exception:
+            # D4: unparseable timestamps must NOT silently disappear
+            # under strict=False; explicit fallback instead.
+            return {"ok": False, "reason": REASON_MALFORMED_TIMESTAMP,
+                    "batters": None, "status": None, "fetched_at": None}
+        if g["fetched_at"].null_count() > 0:
+            return {"ok": False, "reason": REASON_MALFORMED_TIMESTAMP,
+                    "batters": None, "status": None, "fetched_at": None}
     elif isinstance(dt, pl.Datetime) and dt.time_zone is None:
         g = g.with_columns(pl.col("fetched_at")
                            .dt.replace_time_zone("UTC").alias("fetched_at"))
@@ -142,16 +129,25 @@ def select_pregame_lineup(snaps: pl.DataFrame, game_pk: int, team: str,
     # (older-snapshot fallback would be a separate policy with explicit
     # staleness controls; not implemented).
     latest = g.sort("fetched_at")["fetched_at"][-1]
-    slots = (g.filter(pl.col("fetched_at") == latest)
-             .unique(["batting_order", "batter"], keep="last"))
+    snap = g.filter(pl.col("fetched_at") == latest)
+    # D3: mixed statuses inside one latest snapshot -> explicit fallback
+    # (status is a snapshot-level property; per-row conflict is a defect)
+    statuses = {s.strip().lower() for s in snap["lineup_status"].to_list()
+                if s is not None}
+    if len(statuses) > 1:
+        return {"ok": False, "reason": REASON_MIXED_STATUS,
+                "batters": None, "status": "|".join(sorted(statuses)),
+                "fetched_at": latest}
+    slots = snap.unique(["batting_order", "batter"], keep="last")
     n_slots = slots["batting_order"].n_unique()
     n_players = slots["batter"].n_unique()
     if n_slots != SLOT_COUNT or n_players != SLOT_COUNT:
-        last = g.filter(pl.col("fetched_at") == latest).row(0, named=True)
+        last = snap.row(0, named=True)
         return {"ok": False, "reason": REASON_NOT_9_SLOTS,
                 "batters": None, "status": last.get("lineup_status"),
                 "fetched_at": latest}
-    status = (slots.row(0, named=True).get("lineup_status") or "").strip().lower()
+    status = (snap.row(0, named=True).get("lineup_status")
+              or "").strip().lower()
     if mode == MODE_CONFIRMED_ONLY and status != STATUS_CONFIRMED:
         return {"ok": False, "reason": REASON_PROJECTED_ONLY,
                 "batters": None, "status": status, "fetched_at": latest}

@@ -144,14 +144,22 @@ def test_naive_cutoff_rejected_aware_timezones_equivalent():
     assert a == b
 
 
-def test_team_normalization_and_unknown_code():
-    assert pc.normalize_team("NYY") == "NYY"
-    assert pc.normalize_team("chW") == "CWS"
+def test_team_normalization_canonical_parity_and_unknown_code():
+    from Python.daily_lineups import canonical_team_code
+    assert pc.canonical_team_code is canonical_team_code  # D2 parity
     r = pc.select_pregame_lineup(
         snaps(full_lineup(1, "NYY", CUTOFF)), 1, "XYZ", CUTOFF)
     assert not r["ok"] and r["reason"] == pc.REASON_UNKNOWN_TEAM
     r2 = pc.select_pregame_lineup(snaps([]), 1, "NYY", CUTOFF)
     assert r2["reason"] == pc.REASON_MISSING
+
+
+def test_mixed_status_snapshot_explicit_fallback():
+    rows = full_lineup(1, "NYY", CUTOFF)
+    rows[4] = (1, "NYY", 5, 1004, CUTOFF, "projected")
+    r = pc.select_pregame_lineup(snaps(rows), 1, "NYY", CUTOFF)
+    assert not r["ok"] and r["reason"] == pc.REASON_MIXED_STATUS
+    assert "confirmed|projected" in r["status"]
 
 
 def test_no_older_revision_substitution_latest_partial_fallback():
@@ -179,3 +187,51 @@ def test_adapter_invoked_by_research_runner():
     src = inspect.getsource(runner)
     assert "pc.select_pregame_lineup" in src
     assert "MODE_CONFIRMED_ONLY" in src
+
+
+def test_d2_canonical_code_behavior():
+    from Python.daily_lineups import canonical_team_code
+    canonical = ["ATH", "BAL", "BOS", "CHC", "CWS", "CIN", "CLE", "COL",
+                 "DET", "HOU", "KC", "LAA", "LAD", "MIA", "MIL", "MIN",
+                 "NYM", "NYY", "PHI", "PIT", "SD", "SEA", "SF", "STL",
+                 "TB", "TEX", "TOR", "WSH", "ATL", "ARI"]
+    for c in canonical:  # all 30 writer-emitted codes: self-mapped
+        assert pc.select_pregame_lineup(
+            snaps(full_lineup(1, c, CUTOFF)), 1, c, CUTOFF)["ok"]
+    assert canonical_team_code_canonicality(canonical)
+
+
+def canonical_team_code_canonicality(canonical):
+    from Python.daily_lineups import canonical_team_code
+    return all(canonical_team_code(c) == c for c in canonical)
+
+
+def test_d3_mixed_status_row_order_invariant_no_older_substitution():
+    ts = datetime(2026, 8, 21, 15, 0, tzinfo=timezone.utc)
+    rows = full_lineup(1, "NYY", ts)
+    rows[4] = (1, "NYY", 5, 1004, ts, "projected")  # same fetch, mixed
+    r1 = pc.select_pregame_lineup(snaps(rows), 1, "NYY", CUTOFF)
+    import random
+    shuffled = rows[:]
+    random.Random(3).shuffle(shuffled)
+    r2 = pc.select_pregame_lineup(snaps(shuffled), 1, "NYY", CUTOFF)
+    assert r1 == r2 and r1["reason"] == pc.REASON_MIXED_STATUS
+    # no substitution of an older uniform snapshot
+    older = full_lineup(1, "NYY", datetime(2026, 8, 21, 14, 0,
+                                           tzinfo=timezone.utc))
+    r3 = pc.select_pregame_lineup(snaps(older + rows), 1, "NYY", CUTOFF)
+    assert not r3["ok"] and r3["reason"] == pc.REASON_MIXED_STATUS
+
+
+def test_d4_unparseable_timestamp_explicit_fallback():
+    rows = [(1, "NYY", i + 1, 1000 + i, "garbage-time", "confirmed")
+            for i in range(9)]
+    r = pc.select_pregame_lineup(
+        pl.DataFrame(rows, schema={"game_pk": pl.Int64, "team": pl.String,
+                                   "batting_order": pl.Int64,
+                                   "batter": pl.Int64,
+                                   "fetched_at": pl.String,
+                                   "lineup_status": pl.String},
+                     orient="row"),
+        1, "NYY", CUTOFF)
+    assert not r["ok"] and r["reason"] == pc.REASON_MALFORMED_TIMESTAMP
