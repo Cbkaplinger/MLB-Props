@@ -601,8 +601,14 @@ def _load_heal_mod():
 
 def test_heal_stale_slate_thresholds(tmp_path, monkeypatch) -> None:
     import datetime
+    import datetime as dt
     import json
     heal_mod = _load_heal_mod()
+    # Fixture must use the production clock (ET baseball-local date via
+    # et_today), not the local UTC date: CI runs near UTC midnight showed
+    # stale_days 4 vs the UTC-based fixture's 5 (owner-authorized test-
+    # only repair 2026-10-13).
+    from Python.odds_ledger import et_today
     fake_log = tmp_path / "last_log.json"
     monkeypatch.setattr(heal_mod, "LAST_LOG", fake_log)
     # Missing log -> unknown freshness, board decides (never blocks).
@@ -610,12 +616,14 @@ def test_heal_stale_slate_thresholds(tmp_path, monkeypatch) -> None:
     ok, _ = heal_mod.heal(threshold=1)
     assert ok is True
     # 5-day stale log reads back as 5.
-    old = (datetime.date.today() - datetime.timedelta(days=5)).isoformat()
+    old = (dt.date.fromisoformat(et_today())
+           - datetime.timedelta(days=5)).isoformat()
     fake_log.write_text(json.dumps({"build_meta": {"rolling_max_date": old}}),
                         encoding="utf-8")
     assert heal_mod.stale_days() == 5
     # Fresh log -> no subprocess traffic at all.
-    fresh = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    fresh = (dt.date.fromisoformat(et_today())
+             - datetime.timedelta(days=1)).isoformat()
     fake_log.write_text(json.dumps({"build_meta": {"rolling_max_date": fresh}}),
                         encoding="utf-8")
     calls: list = []
