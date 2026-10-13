@@ -74,3 +74,20 @@
 - Note: missing-file raises OSError (hash-read) rather than
   MechanicalFailure; the production guard was not changed (runner-logic
   change not authorized).
+
+## CI evidence closure (2026-10-13, dated - observed results only)
+
+- Reporting-enabled revision b0540143909c11696d756c6d4c9ea3dae9a70350
+  (branch review/pa-remediation-2026-10-09, pushed; event pull_request,
+  attempt 1) - run 38340106215, job test-and-validate: success.
+- Node results from JUnit artifact (sha
+  ca766f67a28b93f6df5159cf9ae6584820cb78122455362b454a16a3feaff815):
+  test_bundle_guard_missing_file_rejected PASSED;
+  test_bundle_guard_wrong_bytes_rejected PASSED;
+  test_bundle_guard_approved_bundle_positive SKIPPED (external approved
+  bundle absent on CI runner - positive integration leg only; negative
+  legs unconditional). Totals: 748 passed, 10 skipped.
+- Earlier statement corrected: only the approved-positive leg is
+  skip-gated; negative bundle-guard tests ran unconditionally in CI.
+- Seal package binding advanced from 0e8ab7b to b054014 (reporting-only
+  workflow edit); producing-code and artifact identities preserved.
