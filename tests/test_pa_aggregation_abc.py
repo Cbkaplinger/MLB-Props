@@ -351,6 +351,9 @@ def test_bundle_identity_guard(tmp_path):
     import shutil
     approved = Path(r"C:\Users\ckaplinger\MLB-Props-Research"
                     r"\bf-bundle-2026-corr-20261012_132811")
+    if not (approved / "bf_bundle.pkl").is_file():
+        pytest.skip("external approved BF bundle not present on this "
+                    "machine (artifact lives outside the repo)")
     # omission: missing bundle file -> explicit failure, no load
     with pytest.raises(Exception):
         frun.verify_bundle_identity(tmp_path)
