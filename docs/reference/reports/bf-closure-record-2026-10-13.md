@@ -91,3 +91,31 @@
   skip-gated; negative bundle-guard tests ran unconditionally in CI.
 - Seal package binding advanced from 0e8ab7b to b054014 (reporting-only
   workflow edit); producing-code and artifact identities preserved.
+
+## v3 scoring correction delivered (2026-10-13, dated)
+
+- v3 corrected scoring report DELIVERED:
+  `C:\Users\ckaplinger\MLB-Props-Research\bf-ab-score-2026-v3\scoring_report_v3.json`,
+  full sha256
+  `26c0a24744f491872ccf1b622c1e131ced46b6ee294bd077c43c7faf9efbc192`;
+  producing runner committed at
+  `7d0e8c860101d178ad2f17c5e17f3ae1f4fe785f`
+  ("research(bf): v3 corrected scoring report - RMSE + milestone Brier both
+  views, complete pitcher-game actual_K, correction note").
+- Shared handoff copy created at
+  `C:\Users\ckaplinger\MLB-Props-Research\handoff-v3\`
+  (scoring_report_v3.json + run_bf_ab_score_v3.py + MANIFEST.txt with
+  artifact | path | sha256 | status for v1/v2/v3; copies byte-identical to
+  canonicals, hashes verified on both).
+- 55-row correction CONFIRMED: v3's actual_K population is the complete
+  pitcher-game set; v1 (DELIVERED-suspected) and v2 (DELIVERED-superseded)
+  are superseded, statuses recorded in MANIFEST.txt.
+- Metric omissions DISCLOSED, fixed in v3: v1/v2 omitted RMSE and
+  milestone Brier (both views); v3 adds both.
+- Calibration check NOT performed: none of v1/v2/v3 includes a calibration
+  check (e.g. reliability/ECE on the scored population); this is a known
+  omission, disclosed rather than backfilled.
+- Provenance limitation: pre-fix runner history is UNAVAILABLE - the v1 and
+  v2 scoring runs were not version-controlled at execution time (v2 exists
+  only as an unversioned archive copy), so the exact pre-fix code paths
+  cannot be reproduced; only their delivered reports remain.
