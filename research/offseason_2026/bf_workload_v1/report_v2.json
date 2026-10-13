@@ -1,0 +1,637 @@
+{
+ "card": "bf-workload-v1",
+ "correction_version": 2,
+ "created": "2026-10-13",
+ "labeling": {
+  "bf_forecast": "Pregame point-in-time: BF PMF uses only starts strictly before game_date (lineup-free empirical + w=50 shrunk mean; own prior dist if prior_n>=10 else league).",
+  "pa_probability_conditioning": "DIAGNOSTIC ONLY, NOT a pregame K-count forecast: per-PA K probabilities exist only for REALIZED PAs, so the conditional K distribution for exposure n uses the mean of the start's first n ordered (by at_bat_number) REALIZED PA probabilities (mean over all realized PAs for n beyond the realized count). This conditions on the realized PA sequence and ordering; it compares PA probability quality under a shared, honestly-pregame BF PMF."
+ },
+ "arms": {
+  "h3": "pred_H3_cal (P1 H3 logistic, calibrated)",
+  "log5": "pred_LOG5_cal (cumulative log5 reference, calibrated)"
+ },
+ "shared": "identical BF PMF per start; arms differ only in PA probs",
+ "window": [
+  "2024-07-01",
+  "2025-12-31"
+ ],
+ "blocks": [
+  "block_2024H2",
+  "block_2025H1",
+  "confirm_2025H2"
+ ],
+ "variants": {
+  "base": "37-cat add-one empirical BF PMF (own if n>=10 else league)",
+  "sensa": "point exposure = point_exposure_n(BF PMF), fixed-n binomial",
+  "sensb": "doubled-variance: 50/50 count mix (source, league) + add-one"
+ },
+ "k_max": 24,
+ "milestones": [
+  6,
+  8,
+  10,
+  12
+ ],
+ "n_starts": 7194,
+ "n_starts_dropped_no_preds": 0,
+ "n_starts_dropped_bf_mismatch": 0,
+ "n_slate_dates": 272,
+ "bootstrap": {
+  "n": 2000,
+  "seed": 20261001,
+  "unit": "slate-date (game_date)"
+ },
+ "correction": {
+  "reason": "v1 milestone Brier used CDF-tail summation (cdf[m:].sum() over k>=m) instead of the PMF-tail exceedance P(K>=m) = 1 - CDF(m-1) = sum_{k>=m} P(K=k) (kcount_combiner.exceedance). Buggy per-start values could exceed 1, inflating all brier_ge6/8/10/12 by ~3 orders of magnitude. RPS, log score and mean-K RMSE are unaffected.",
+  "formula": "P(K>=m) = 1 - CDF(m-1); Brier = (P(K>=m) - 1{K>=m})^2 per start",
+  "aggregation": "milestone aggregates are MEANS over starts",
+  "supersedes": [
+   "report.json aggregate.*.brier_ge* (original preserved unmodified)",
+   "summary.md milestone paragraph (original preserved unmodified)"
+  ],
+  "unchanged_metrics": [
+   "count-RPS, count log score, mean-K RMSE point estimates and all 95% slate-date bootstrap CIs (recomputed bit-identical, asserted in-script and in tests)"
+  ]
+ },
+ "milestone_blocks": {
+  "v1": {
+   "source": "report.json 'aggregate' brier_* fields (original file preserved unmodified)",
+   "aggregation_label_in_v1": "'summed over starts' (summary.md) - incorrect label; v1 aggregates were means of buggy per-start values",
+   "values": {
+    "base": {
+     "h3": {
+      "rps": 1.29477338635123,
+      "logscore": 2.2554322751192797,
+      "rmse_mean_k": 2.2981995016425305,
+      "brier_ge6": 291.76650547268815,
+      "brier_ge8": 245.80461037587554,
+      "brier_ge10": 193.57202247037097,
+      "brier_ge12": 143.5306836057194
+     },
+     "l5": {
+      "rps": 1.300603434226289,
+      "logscore": 2.2593680045470053,
+      "rmse_mean_k": 2.3083198802338125,
+      "brier_ge6": 291.63160531036914,
+      "brier_ge8": 245.7257589131617,
+      "brier_ge10": 193.53830513159974,
+      "brier_ge12": 143.51921742953763
+     }
+    },
+    "sensa": {
+     "h3": {
+      "rps": 1.295925012578503,
+      "logscore": 2.26950662512296,
+      "rmse_mean_k": 2.300931214900628,
+      "brier_ge6": 299.18084087309256,
+      "brier_ge8": 249.37523061155375,
+      "brier_ge10": 194.71716043451417,
+      "brier_ge12": 143.8041116045898
+     },
+     "l5": {
+      "rps": 1.3021967801434717,
+      "logscore": 2.27598615732348,
+      "rmse_mean_k": 2.310966619106243,
+      "brier_ge6": 299.0501206931434,
+      "brier_ge8": 249.34201517812534,
+      "brier_ge10": 194.7134505363965,
+      "brier_ge12": 143.80391167078363
+     }
+    },
+    "sensb": {
+     "h3": {
+      "rps": 1.281646718897664,
+      "logscore": 2.226678828295931,
+      "rmse_mean_k": 2.2935383638819236,
+      "brier_ge6": 294.15701288194964,
+      "brier_ge8": 247.44956861840626,
+      "brier_ge10": 194.25036017263264,
+      "brier_ge12": 143.72938679131886
+     },
+     "l5": {
+      "rps": 1.2885633137594186,
+      "logscore": 2.2321445337117516,
+      "rmse_mean_k": 2.3056036491975496,
+      "brier_ge6": 293.97427054865835,
+      "brier_ge8": 247.3681691767396,
+      "brier_ge10": 194.22906353132032,
+      "brier_ge12": 143.7255787240664
+     }
+    }
+   },
+   "note": "SUPERSEDED: milestone values computed with the CDF-tail summation bug; do not cite. See correction_note.md and the v2 block."
+  },
+  "v2": {
+   "source": "this report; corrected metrics_for using kcount_combiner.exceedance",
+   "aggregation": "mean over starts",
+   "values": {
+    "base": {
+     "h3": {
+      "brier_ge6": 0.2081270573469822,
+      "brier_ge8": 0.11294915939999679,
+      "brier_ge10": 0.03524824891123264,
+      "brier_ge12": 0.007700793628069898
+     },
+     "l5": {
+      "brier_ge6": 0.2090538407044198,
+      "brier_ge8": 0.1133816965183757,
+      "brier_ge10": 0.03555076527312249,
+      "brier_ge12": 0.007747396384178462
+     }
+    },
+    "sensa": {
+     "h3": {
+      "brier_ge6": 0.21046915687473636,
+      "brier_ge8": 0.11668745167163169,
+      "brier_ge10": 0.03596742170342246,
+      "brier_ge12": 0.007683657995950889
+     },
+     "l5": {
+      "brier_ge6": 0.21163795096138038,
+      "brier_ge8": 0.11681319031393,
+      "brier_ge10": 0.03610408104157284,
+      "brier_ge12": 0.007688797564114495
+     }
+    },
+    "sensb": {
+     "h3": {
+      "brier_ge6": 0.20815431685658908,
+      "brier_ge8": 0.1137667070165923,
+      "brier_ge10": 0.035356921423832566,
+      "brier_ge12": 0.007629536758313458
+     },
+     "l5": {
+      "brier_ge6": 0.2096195885098339,
+      "brier_ge8": 0.11428120928808233,
+      "brier_ge10": 0.03559945643352001,
+      "brier_ge12": 0.007648316818079733
+     }
+    }
+   },
+   "note": "SUPERSEDED (marker applied per versioned-correction protocol): this is the corrected PMF-tail block and it supersedes the v1 block; it remains open to a future versioned correction. Current canonical pointer: correction_note.md."
+  }
+ },
+ "definitions": {
+  "support": {
+   "bf_pmf_categories": 37,
+   "category_mapping": "index 0..35 = P(BF=1..36); index 36 = P(BF>=37) overflow mass; overflow is NEVER read as BF=37",
+   "smoothing": "add-one (Laplace) empirical baseline over 37 categories",
+   "extension_to_k_support": "bf_pmf_from_37 maps the 37-vector to a PMF over exposures 1..60 (KCOUNT_CAP=60); overflow mass redistributed over 37..60 with a geometric tail whose per-step ratio is 1 minus the mean implied hazard of the last six body categories; assertion |sum-1|<1e-9",
+   "overflow_cap": 60,
+   "k_count_support": "k_max=24: exact categories 0..23; the last bucket absorbs K>=23"
+  },
+  "truncation": {
+   "history_pool_start": "2023-01-01 (2022 is warm-up only, never fitted or scored)",
+   "excluded_seasons": "2026 excluded (0 rows anywhere)",
+   "same_date_lookahead": "same-date starts never in prior; pools update AFTER all starts of that date are forecast (incl. doubleheaders)",
+   "empty_league_pool": "first date(s) with no league history get no PMF: 30 of 14,574 total forecast rows; 0 in the assessment window (asserted)",
+   "assessment_window": "2024-07-01..2025-12-31",
+   "drop_rules": "start dropped if preds have no (game_pk, pitcher) group, or realized PA count != realized_bf (both 0 in this run)"
+  },
+  "eligibility": {
+   "grain": "first pitcher of record per (game_pk, side), opener-inclusive, no starter filter",
+   "bf_definition": "completed PAs where that pitcher was pitcher of record; >=1 BF asserted",
+   "pmf_source_rule": "own 37-cat counts if prior_n>=10 (OWN_DIST_MIN_N=10) else pooled league counts; point mean shrunk toward league mean with W_SHRINK=50 regardless of prior_n",
+   "cold_start": "cold_start = int(prior_n == 0); cold starts still get the league-based PMF",
+   "low_history_counts_assessment_window": {
+    "prior_n_lt_10": 1135,
+    "prior_n_eq_0_cold": 169,
+    "note": "corrects summary.md caveat that conflated prior_n<10 with n=169"
+   }
+  },
+  "substitutions": {
+   "rule": "realized PA sequence includes PAs against substitute batters; per-PA probabilities are the arms' probabilities for the actual (substitute) batters faced; the target definition already includes them"
+  },
+  "feature_cutoff": {
+   "source": "pred_H3_cal / pred_LOG5_cal from overnight-p2 checkpointed preds parquets (P1 harness, strictly-prior discipline)",
+   "rule": "every 2023+ PA's features use observations strictly before its game_date; 2022 (182,051 PAs) is feature-history warm-up only; fixed 0.2245 pooled prior removed entirely in v3",
+   "cold_start_fallback": "league rate at cutoff (source_type league_prior_no_entity_history)",
+   "clipping": "both arms clipped to [1e-9, 1-1e-9] before use"
+  },
+  "milestone_exceedance_v2": {
+   "definition": "P(K>=m) = 1 - CDF(m-1) = PMF tail sum over k>=m (kcount_combiner.exceedance)",
+   "bug_v1": "v1 used cdf[m:].sum() (sum of CDF values over k>=m), which can exceed 1",
+   "aggregation": "milestone Brier aggregates are MEANS over starts (corrects the 'summed over starts' wording)"
+  }
+ },
+ "low_history_counts": {
+  "prior_n_lt_10": 1135,
+  "prior_n_eq_0_cold": 169,
+  "correction": "summary.md caveat 'sens_b for cold pitchers (prior_n<10, n=169 starts)' conflated the two slices: prior_n<10 = 1,135 assessment starts; prior_n==0 (cold) = 169. The sens_b league-with-league note applies to all prior_n<10 starts."
+ },
+ "aggregate": {
+  "base": {
+   "h3": {
+    "rps": 1.29477338635123,
+    "logscore": 2.2554322751192797,
+    "rmse_mean_k": 2.2981995016425305,
+    "brier_ge6": 0.2081270573469822,
+    "brier_ge8": 0.11294915939999679,
+    "brier_ge10": 0.03524824891123264,
+    "brier_ge12": 0.007700793628069898
+   },
+   "l5": {
+    "rps": 1.300603434226289,
+    "logscore": 2.2593680045470053,
+    "rmse_mean_k": 2.3083198802338125,
+    "brier_ge6": 0.2090538407044198,
+    "brier_ge8": 0.1133816965183757,
+    "brier_ge10": 0.03555076527312249,
+    "brier_ge12": 0.007747396384178462
+   }
+  },
+  "sensa": {
+   "h3": {
+    "rps": 1.295925012578503,
+    "logscore": 2.26950662512296,
+    "rmse_mean_k": 2.300931214900628,
+    "brier_ge6": 0.21046915687473636,
+    "brier_ge8": 0.11668745167163169,
+    "brier_ge10": 0.03596742170342246,
+    "brier_ge12": 0.007683657995950889
+   },
+   "l5": {
+    "rps": 1.3021967801434717,
+    "logscore": 2.27598615732348,
+    "rmse_mean_k": 2.310966619106243,
+    "brier_ge6": 0.21163795096138038,
+    "brier_ge8": 0.11681319031393,
+    "brier_ge10": 0.03610408104157284,
+    "brier_ge12": 0.007688797564114495
+   }
+  },
+  "sensb": {
+   "h3": {
+    "rps": 1.281646718897664,
+    "logscore": 2.226678828295931,
+    "rmse_mean_k": 2.2935383638819236,
+    "brier_ge6": 0.20815431685658908,
+    "brier_ge8": 0.1137667070165923,
+    "brier_ge10": 0.035356921423832566,
+    "brier_ge12": 0.007629536758313458
+   },
+   "l5": {
+    "rps": 1.2885633137594186,
+    "logscore": 2.2321445337117516,
+    "rmse_mean_k": 2.3056036491975496,
+    "brier_ge6": 0.2096195885098339,
+    "brier_ge8": 0.11428120928808233,
+    "brier_ge10": 0.03559945643352001,
+    "brier_ge12": 0.007648316818079733
+   }
+  }
+ },
+ "bootstrap_results": {
+  "base_h3_rps_point": 1.29477338635123,
+  "base_h3_rps_ci95": [
+   1.2733006488138807,
+   1.3164083205652948
+  ],
+  "base_h3_logscore_point": 2.2554322751192797,
+  "base_h3_logscore_ci95": [
+   2.2415574018550117,
+   2.269171533606684
+  ],
+  "base_h3_rmse_mean_k_point": 2.2981995016425305,
+  "base_h3_rmse_mean_k_ci95": [
+   2.2584707054536866,
+   2.337510856539871
+  ],
+  "base_h3_brier_ge6_point": 0.2081270573469822,
+  "base_h3_brier_ge6_ci95": [
+   0.20431850951739508,
+   0.2119558451743886
+  ],
+  "base_h3_brier_ge8_point": 0.11294915939999679,
+  "base_h3_brier_ge8_ci95": [
+   0.10747247244339528,
+   0.11806576860061083
+  ],
+  "base_h3_brier_ge10_point": 0.03524824891123264,
+  "base_h3_brier_ge10_ci95": [
+   0.03163238050071877,
+   0.03880612226494005
+  ],
+  "base_h3_brier_ge12_point": 0.007700793628069898,
+  "base_h3_brier_ge12_ci95": [
+   0.00581566804821646,
+   0.009540465132078294
+  ],
+  "base_l5_rps_point": 1.300603434226289,
+  "base_l5_rps_ci95": [
+   1.2793624591942814,
+   1.3222534050275547
+  ],
+  "base_l5_logscore_point": 2.2593680045470053,
+  "base_l5_logscore_ci95": [
+   2.245365145356776,
+   2.2735185231365507
+  ],
+  "base_l5_rmse_mean_k_point": 2.3083198802338125,
+  "base_l5_rmse_mean_k_ci95": [
+   2.26789020725452,
+   2.347543130178053
+  ],
+  "base_l5_brier_ge6_point": 0.2090538407044198,
+  "base_l5_brier_ge6_ci95": [
+   0.20539958972217892,
+   0.21282625623881402
+  ],
+  "base_l5_brier_ge8_point": 0.1133816965183757,
+  "base_l5_brier_ge8_ci95": [
+   0.10788393018408071,
+   0.11850634106571939
+  ],
+  "base_l5_brier_ge10_point": 0.03555076527312249,
+  "base_l5_brier_ge10_ci95": [
+   0.0318689434772779,
+   0.03916782720601676
+  ],
+  "base_l5_brier_ge12_point": 0.007747396384178462,
+  "base_l5_brier_ge12_ci95": [
+   0.005858854773551622,
+   0.009611109693481506
+  ],
+  "base_diff_rps_h3_minus_l5_point": -0.00583004787505903,
+  "base_diff_rps_ci95": [
+   -0.00874964843404118,
+   -0.0030621958912238037
+  ],
+  "base_diff_rps_share_resamples_h3_better": 1.0,
+  "base_diff_logscore_h3_minus_l5_point": -0.003935729427725576,
+  "base_diff_logscore_ci95": [
+   -0.00589804138703152,
+   -0.00211463555088672
+  ],
+  "base_diff_logscore_share_resamples_h3_better": 1.0,
+  "base_diff_rmse_mean_k_h3_minus_l5_point": -0.010120378591282009,
+  "base_diff_rmse_mean_k_ci95": [
+   -0.015457757945898976,
+   -0.0050630383438215265
+  ],
+  "base_diff_rmse_mean_k_share_resamples_h3_better": 1.0,
+  "base_diff_brier_ge6_h3_minus_l5_point": -0.0009267833574375939,
+  "base_diff_brier_ge6_ci95": [
+   -0.0016157842872079845,
+   -0.00026212714083879036
+  ],
+  "base_diff_brier_ge6_share_resamples_h3_better": 0.996,
+  "base_diff_brier_ge8_h3_minus_l5_point": -0.00043253711837890063,
+  "base_diff_brier_ge8_ci95": [
+   -0.0008495661312625685,
+   -2.525368053942883e-05
+  ],
+  "base_diff_brier_ge8_share_resamples_h3_better": 0.9815,
+  "base_diff_brier_ge10_h3_minus_l5_point": -0.00030251636188984715,
+  "base_diff_brier_ge10_ci95": [
+   -0.00044953340780597086,
+   -0.000155917055890504
+  ],
+  "base_diff_brier_ge10_share_resamples_h3_better": 1.0,
+  "base_diff_brier_ge12_h3_minus_l5_point": -4.6602756108563535e-05,
+  "base_diff_brier_ge12_ci95": [
+   -9.139818009232949e-05,
+   7.107400282463934e-06
+  ],
+  "base_diff_brier_ge12_share_resamples_h3_better": 0.961,
+  "sensa_h3_rps_point": 1.295925012578503,
+  "sensa_h3_rps_ci95": [
+   1.271250610143596,
+   1.3209936479582245
+  ],
+  "sensa_h3_logscore_point": 2.26950662512296,
+  "sensa_h3_logscore_ci95": [
+   2.2464837422781834,
+   2.2941301995622836
+  ],
+  "sensa_h3_rmse_mean_k_point": 2.300931214900628,
+  "sensa_h3_rmse_mean_k_ci95": [
+   2.260864321012713,
+   2.3401870478472935
+  ],
+  "sensa_h3_brier_ge6_point": 0.21046915687473636,
+  "sensa_h3_brier_ge6_ci95": [
+   0.20584053335129623,
+   0.21528225770218223
+  ],
+  "sensa_h3_brier_ge8_point": 0.11668745167163169,
+  "sensa_h3_brier_ge8_ci95": [
+   0.11022509655610857,
+   0.12261518453503477
+  ],
+  "sensa_h3_brier_ge10_point": 0.03596742170342246,
+  "sensa_h3_brier_ge10_ci95": [
+   0.0319384781376243,
+   0.03997460681769244
+  ],
+  "sensa_h3_brier_ge12_point": 0.007683657995950889,
+  "sensa_h3_brier_ge12_ci95": [
+   0.005713088872077406,
+   0.009625492825054078
+  ],
+  "sensa_l5_rps_point": 1.3021967801434717,
+  "sensa_l5_rps_ci95": [
+   1.2780889036611867,
+   1.3274500297276972
+  ],
+  "sensa_l5_logscore_point": 2.27598615732348,
+  "sensa_l5_logscore_ci95": [
+   2.252353910685884,
+   2.3003807135063843
+  ],
+  "sensa_l5_rmse_mean_k_point": 2.310966619106243,
+  "sensa_l5_rmse_mean_k_ci95": [
+   2.2702433722213438,
+   2.3497031413199476
+  ],
+  "sensa_l5_brier_ge6_point": 0.21163795096138038,
+  "sensa_l5_brier_ge6_ci95": [
+   0.2071968165234125,
+   0.21629379223601233
+  ],
+  "sensa_l5_brier_ge8_point": 0.11681319031393,
+  "sensa_l5_brier_ge8_ci95": [
+   0.11033243378776694,
+   0.12282328901155182
+  ],
+  "sensa_l5_brier_ge10_point": 0.03610408104157284,
+  "sensa_l5_brier_ge10_ci95": [
+   0.032082651320673984,
+   0.040091017432293485
+  ],
+  "sensa_l5_brier_ge12_point": 0.007688797564114495,
+  "sensa_l5_brier_ge12_ci95": [
+   0.005716153414128935,
+   0.009631520067060629
+  ],
+  "sensa_diff_rps_h3_minus_l5_point": -0.006271767564968833,
+  "sensa_diff_rps_ci95": [
+   -0.009643000748573076,
+   -0.0030976808322086685
+  ],
+  "sensa_diff_rps_share_resamples_h3_better": 1.0,
+  "sensa_diff_logscore_h3_minus_l5_point": -0.006479532200520222,
+  "sensa_diff_logscore_ci95": [
+   -0.009701621182435543,
+   -0.0033591617586903938
+  ],
+  "sensa_diff_logscore_share_resamples_h3_better": 1.0,
+  "sensa_diff_rmse_mean_k_h3_minus_l5_point": -0.010035404205614995,
+  "sensa_diff_rmse_mean_k_ci95": [
+   -0.015310677570576626,
+   -0.0049887726076897
+  ],
+  "sensa_diff_rmse_mean_k_share_resamples_h3_better": 1.0,
+  "sensa_diff_brier_ge6_h3_minus_l5_point": -0.001168794086644026,
+  "sensa_diff_brier_ge6_ci95": [
+   -0.0019969070746607724,
+   -0.0003733502936035685
+  ],
+  "sensa_diff_brier_ge6_share_resamples_h3_better": 0.999,
+  "sensa_diff_brier_ge8_h3_minus_l5_point": -0.000125738642298312,
+  "sensa_diff_brier_ge8_ci95": [
+   -0.0005656491636377778,
+   0.0002916593322838196
+  ],
+  "sensa_diff_brier_ge8_share_resamples_h3_better": 0.7045,
+  "sensa_diff_brier_ge10_h3_minus_l5_point": -0.00013665933815038,
+  "sensa_diff_brier_ge10_ci95": [
+   -0.00025242965160192273,
+   -1.67618871495196e-05
+  ],
+  "sensa_diff_brier_ge10_share_resamples_h3_better": 0.9865,
+  "sensa_diff_brier_ge12_h3_minus_l5_point": -5.139568163606799e-06,
+  "sensa_diff_brier_ge12_ci95": [
+   -2.6310496261261313e-05,
+   2.5172148909804896e-05
+  ],
+  "sensa_diff_brier_ge12_share_resamples_h3_better": 0.6885,
+  "sensb_h3_rps_point": 1.281646718897664,
+  "sensb_h3_rps_ci95": [
+   1.2591973244135288,
+   1.304629130959104
+  ],
+  "sensb_h3_logscore_point": 2.226678828295931,
+  "sensb_h3_logscore_ci95": [
+   2.2101703896191043,
+   2.243958889683888
+  ],
+  "sensb_h3_rmse_mean_k_point": 2.2935383638819236,
+  "sensb_h3_rmse_mean_k_ci95": [
+   2.2550255530905656,
+   2.331477480348311
+  ],
+  "sensb_h3_brier_ge6_point": 0.20815431685658908,
+  "sensb_h3_brier_ge6_ci95": [
+   0.20432558145747653,
+   0.21207929461633548
+  ],
+  "sensb_h3_brier_ge8_point": 0.1137667070165923,
+  "sensb_h3_brier_ge8_ci95": [
+   0.10800309191352936,
+   0.11911633637130618
+  ],
+  "sensb_h3_brier_ge10_point": 0.035356921423832566,
+  "sensb_h3_brier_ge10_ci95": [
+   0.03154782386932351,
+   0.0390685086458582
+  ],
+  "sensb_h3_brier_ge12_point": 0.007629536758313458,
+  "sensb_h3_brier_ge12_ci95": [
+   0.005689220734203153,
+   0.009526977173117073
+  ],
+  "sensb_l5_rps_point": 1.2885633137594186,
+  "sensb_l5_rps_ci95": [
+   1.2663758165799066,
+   1.3117734222922237
+  ],
+  "sensb_l5_logscore_point": 2.2321445337117516,
+  "sensb_l5_logscore_ci95": [
+   2.215503212068241,
+   2.2497903125523053
+  ],
+  "sensb_l5_rmse_mean_k_point": 2.3056036491975496,
+  "sensb_l5_rmse_mean_k_ci95": [
+   2.2662162445492595,
+   2.344059257190166
+  ],
+  "sensb_l5_brier_ge6_point": 0.2096195885098339,
+  "sensb_l5_brier_ge6_ci95": [
+   0.20581353175736497,
+   0.2135437129567266
+  ],
+  "sensb_l5_brier_ge8_point": 0.11428120928808233,
+  "sensb_l5_brier_ge8_ci95": [
+   0.10851905950659946,
+   0.11972694168873584
+  ],
+  "sensb_l5_brier_ge10_point": 0.03559945643352001,
+  "sensb_l5_brier_ge10_ci95": [
+   0.03176981529649036,
+   0.039390935891674264
+  ],
+  "sensb_l5_brier_ge12_point": 0.007648316818079733,
+  "sensb_l5_brier_ge12_ci95": [
+   0.005710044205685423,
+   0.009565379935316885
+  ],
+  "sensb_diff_rps_h3_minus_l5_point": -0.006916594861754666,
+  "sensb_diff_rps_ci95": [
+   -0.01013371618988357,
+   -0.0038805352704555157
+  ],
+  "sensb_diff_rps_share_resamples_h3_better": 1.0,
+  "sensb_diff_logscore_h3_minus_l5_point": -0.0054657054158204765,
+  "sensb_diff_logscore_ci95": [
+   -0.007907504646696891,
+   -0.003183370597894317
+  ],
+  "sensb_diff_logscore_share_resamples_h3_better": 1.0,
+  "sensb_diff_rmse_mean_k_h3_minus_l5_point": -0.012065285315626006,
+  "sensb_diff_rmse_mean_k_ci95": [
+   -0.0175752495967449,
+   -0.0067870242844022995
+  ],
+  "sensb_diff_rmse_mean_k_share_resamples_h3_better": 1.0,
+  "sensb_diff_brier_ge6_h3_minus_l5_point": -0.0014652716532448096,
+  "sensb_diff_brier_ge6_ci95": [
+   -0.0022581203579981122,
+   -0.0007091989082004009
+  ],
+  "sensb_diff_brier_ge6_share_resamples_h3_better": 1.0,
+  "sensb_diff_brier_ge8_h3_minus_l5_point": -0.0005145022714900249,
+  "sensb_diff_brier_ge8_ci95": [
+   -0.0009820219447617348,
+   -6.444237065353046e-05
+  ],
+  "sensb_diff_brier_ge8_share_resamples_h3_better": 0.9865,
+  "sensb_diff_brier_ge10_h3_minus_l5_point": -0.00024253500968744734,
+  "sensb_diff_brier_ge10_ci95": [
+   -0.00039048859506853815,
+   -9.436377806526527e-05
+  ],
+  "sensb_diff_brier_ge10_share_resamples_h3_better": 0.999,
+  "sensb_diff_brier_ge12_h3_minus_l5_point": -1.8780059766274754e-05,
+  "sensb_diff_brier_ge12_ci95": [
+   -5.579538386476518e-05,
+   3.274752243751594e-05
+  ],
+  "sensb_diff_brier_ge12_share_resamples_h3_better": 0.824
+ },
+ "inputs_sha256": {
+  "bf_forecasts.parquet": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
+  "overnight-p2/preds_block_2024H2.parquet": "a311f4429457ced383b8ef834846978b4682b912e53bb46319107efc0cd980d3",
+  "overnight-p2/preds_block_2025H1.parquet": "6187d232e8917ce40b481feda5521cecefa0ce8418741ef65aff7dfc8702cbd7",
+  "overnight-p2/preds_confirm_2025H2.parquet": "e60b5aa306dcd5e2157d0de61392681c287a190607330461b98cf91701c88d2a",
+  "helpers/kcount_combiner.py": "c852b5cf14956942a2a9d67d7e076b758dbbca75a6983ba55cdfe6906f7264e5",
+  "helpers/bf_distribution.py": "621f6e854a33470c0fedbe066dcde0bc9f14837b21befe3dc590d26968902a36",
+  "scripts/build_bf_forecasts.py": "8893918b3d001f2e3d481eae40e000b32a3968545e37b84f4ba82ba9f7708ef6",
+  "scripts/run_kcount_comparison.py": "4fc547ed036e0c2a2e2b290cf2eb540af6700084bf1f1df50303deca5375a1fa",
+  "scripts/run_kcount_correction_v2.py": "af37880c3dfb7be983ac331eec3c6ead42a51eb452a7b7f3f448694274fdc2ff"
+ },
+ "preserved_v1_outputs_sha256": {
+  "report.json": "d2ade6d60f70f504aff99b5049afe779120c29c3747d1fff8490b66ee68404b8",
+  "data/start_metrics.parquet": "6b1bc76690734357a3cf80fd794d73baeddd89dda1791d488df9f791dd859c9e"
+ }
+}
