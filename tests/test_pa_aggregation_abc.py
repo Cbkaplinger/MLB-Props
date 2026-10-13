@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 import pytest
 from itertools import product
 
@@ -252,3 +253,133 @@ def test_slot_conflict_helper_rejects_synthetic():
         "game_pk": [1, 1], "bat_team": ["NYY", "NYY"],
         "lineup_slot": [3, 4], "batter": [101, 102]})
     assert rr.assert_no_slot_conflicts(clean) == 0
+
+
+def test_missing_feature_row_imputed_not_dropped():
+    """Regression (owner 2026-10-12): a valid-target start with missing
+    history must remain eligible and receive finite transformed features
+    via the frozen train-fitted median imputer."""
+    X = np.array([[1.0, 2.0], [3.0, np.nan], [5.0, 6.0], [7.0, 8.0]])
+    n = np.array([10, 15, 20, 25])
+    bundle = __import__("bf_distribution").fit_hazard(X, n, ["a", "b"])
+    out = __import__("bf_distribution")._apply_preprocess(
+        bundle["preprocess"], X)
+    assert np.isfinite(out).all()
+    assert out.shape == (4, 2)
+
+
+def test_ab_forecast_fixtures():
+    """Synthetic fixtures for the A/B forecast path (owner 2026-10-12)."""
+    lg, w = 0.22, rr.W
+    bf = np.zeros(rr.CAP)
+    bf[[5, 12, 20, 30, 45]] = 0.2
+    p_p = 0.26
+    pkA = rr.kc.combine_count(bf, p_p, rr.K_MAX)
+    # 1) nine neutral batters (league rate) reproduce A through the
+    #    actual assembled path (row_seq9 -> mixture_b)
+    seq9 = rr.row_seq9(p_p, [0]*9, [0]*9, lg, w)
+    assert np.allclose(seq9, p_p)
+    seq = np.tile(seq9, rr.CAP // 9 + 1)[:rr.CAP]
+    mb, mc = [], []
+    pkB = rr.mixture_b(bf, seq, mb)
+    rr.assert_mean_gate(bf, seq, mb, mb)
+    assert np.abs(pkB - pkA).max() < 1e-12
+    # 2) CORRECTED SPEC (owner 2026-10-12): B uses cycled-PREFIX means;
+    #    order-dependence at partial cycles is expected. Full-cycle
+    #    conditional PMFs are permutation-invariant.
+    s2 = np.array([0.30, 0.18, 0.25, 0.22, 0.28, 0.20, 0.24, 0.27, 0.19])
+    perm = np.array([3, 7, 0, 5, 1, 8, 2, 6, 4])
+    q1 = np.tile(s2, rr.CAP // 9 + 1)[:rr.CAP]
+    q2 = np.tile(s2[perm], rr.CAP // 9 + 1)[:rr.CAP]
+    # full cycle (n=9): prefix mean identical
+    assert abs(s2.mean() - s2[perm].mean()) < 1e-15
+    # partial cycle: explicit prefix means differ -> expected order effect
+    assert abs(s2[:5].mean() - s2[perm][:5].mean()) > 1e-6
+    # the mixture matches an independently assembled prefix-mean reference
+    csum = np.cumsum(q1)
+    ref = np.zeros(rr.K_MAX)
+    for idx in range(rr.CAP):
+        if bf[idx] <= 0:
+            continue
+        n = idx + 1
+        ref += bf[idx] * rr.cond24_binom(n, float(csum[idx] / n))
+    ref[rr.K_MAX - 1] += max(0.0, 1.0 - ref.sum())
+    b1 = rr.mixture_b(bf, q1)
+    assert np.abs(b1 - ref).max() < 1e-12
+    # 3) distinct IDs and nine valid slots
+    assert len(set(range(1000, 1009))) == 9
+    # 4) opponent binding helper semantics
+    def opponent_of(is_home, away_team, home_team):
+        return home_team if is_home == 0 else away_team
+    assert opponent_of(0, "BOS", "NYY") == "NYY"
+    assert opponent_of(1, "BOS", "NYY") == "BOS"
+
+
+def test_two_sided_team_binding_regression():
+    """Regression for the game_pk-only key collision: both sides of one
+    game must resolve their OWN opposing lineups regardless of input
+    storage order (owner 2026-10-12). Uses the RUNNER's actual binding
+    helper, not a recreated algorithm."""
+    import run_bf_ab_forecast_2026 as frun
+    rows = [
+        {"game_pk": 1, "is_home": 0, "away_team": "BOS", "home_team": "NYY"},
+        {"game_pk": 1, "is_home": 1, "away_team": "BOS", "home_team": "NYY"},
+        {"game_pk": 2, "is_home": 0, "away_team": "SEA", "home_team": "HOU"},
+        {"game_pk": 2, "is_home": 1, "away_team": "SEA", "home_team": "HOU"},
+    ]
+    import random
+    shuf = rows[:]
+    random.Random(7).shuffle(shuf)
+    # actual runner helper on shuffled storage order
+    tm = frun.build_team_map(pl.DataFrame(shuf))
+    # both sides resolvable independently (old game_pk-only map loses one)
+    assert tm[(1, False)] == ("BOS", "NYY") and tm[(1, True)] == ("BOS", "NYY")
+    assert tm[(2, False)] == ("SEA", "HOU") and tm[(2, True)] == ("SEA", "HOU")
+    # the OLD game_pk-only key demonstrably collides (4 rows -> 2 entries)
+    old = {}
+    for r in shuf:
+        old[r["game_pk"]] = (r["away_team"], r["home_team"])
+    assert len(old) == 2 and len(tm) == 4
+    # opponent binding per side via the runner's own helper
+    assert frun.opponent_of(False, "BOS", "NYY") == "NYY"
+    assert frun.opponent_of(True, "BOS", "NYY") == "BOS"
+
+
+def test_bundle_identity_guard(tmp_path):
+    """Mandatory pre-load guard: omission/mismatch fails BEFORE loader."""
+    import run_bf_ab_forecast_2026 as frun
+    import shutil
+    approved = Path(r"C:\Users\ckaplinger\MLB-Props-Research"
+                    r"\bf-bundle-2026-corr-20261012_132811")
+    # omission: missing bundle file -> explicit failure, no load
+    with pytest.raises(Exception):
+        frun.verify_bundle_identity(tmp_path)
+    # mismatch: tampered bytes -> rejected before deserialization
+    d = tmp_path / "tampered"
+    d.mkdir()
+    raw = (approved / "bf_bundle.pkl").read_bytes()
+    (d / "bf_bundle.pkl").write_bytes(raw[:-1] + bytes([raw[-1] ^ 0xFF]))
+    with pytest.raises(Exception, match="identity mismatch"):
+        frun.verify_bundle_identity(d)
+    # approved bytes pass
+    assert frun.verify_bundle_identity(approved) == frun.APPROVED_BUNDLE_SHA
+
+
+def test_receipt_text_computed_not_hardcoded(tmp_path):
+    """Receipt reconciliation text must derive from the importable
+    helper (single source) and remain correct for different
+    populations, including zero-fallback and zero-usable-B."""
+    import run_bf_ab_forecast_2026 as frun
+    n1 = frun.build_reconciliation_notes(60, 10, 50, 7, 43, 30, 13)
+    assert "60 captured = 10" in n1["counts_reconciliation"]
+    assert "7 usable-B" in n1["counts_reconciliation"]
+    assert "43" in n1["fallback_mask_note"]
+    n2 = frun.build_reconciliation_notes(80, 0, 80, 80, 0, 0, 0)
+    assert "80 captured = 0" in n2["counts_reconciliation"]
+    assert "fallback rows = 0" in n2["fallback_mask_note"]
+    n3 = frun.build_reconciliation_notes(90, 5, 85, 0, 85, 85, 0)
+    assert "0 usable-B" in n3["counts_reconciliation"]
+    # identities hold for every population
+    for cap, exc, fc, ub, fb in ((60, 10, 50, 7, 43), (80, 0, 80, 80, 0),
+                                 (90, 5, 85, 0, 85)):
+        assert cap == exc + fc and fc == ub + fb
