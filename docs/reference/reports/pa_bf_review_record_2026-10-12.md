@@ -112,3 +112,12 @@ hash confirmation on request; documentation updates as receipts arrive.
   findings: stale notebook pointers (repaired by `20c2724`), operator
   script invocation issue (ops lane), duplicate-name prune tools
   (documented), devig/implied-prob pairs (retain + document)).
+
+## Provenance update (2026-10-13, post-CI)
+
+- Reviewed/executed working-byte hashes: forecast runner 921f7e5e...13c35, test file 0e0607ac...9f64f (original pins PRESERVED as historical evidence).
+- LF-normalized committed-content hashes at b212ffb: forecast runner 7f1baac9..., test file dd3316c7... (mechanically verified: committed == working reviewed bytes with CRLF->LF only; 373 CRLFs, zero CRs remain).
+- Source commits: b212ffbbb741c29bc9a1981ff6d85c8978c3c019 (BF runners+tests), 56e2799 (skip-guard), 2497391 (odds-board ET-clock fixture repair, owner-authorized test-only; production stale_days verified correct). CI: test-and-validate PASS on 2497391 (run 38334351105).
+- Docs source commit: 0ddb050408cb0e75db1cefdc4d73178ac223e862; integrated via cherry-pick -x (only the two declared documentation paths changed).
+- Process deviation recorded plainly: local commit b212ffb was created before the hash discrepancy was resolved; push was correctly held until verification.
+- Ruling: option (a) accepted - LF normalization is content-equivalent; a future .gitattributes change should use text eol=lf (not -text).
