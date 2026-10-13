@@ -14,6 +14,7 @@ HERE = Path(__file__).resolve().parents[1] / "research" / "offseason_2026"
 sys.path.insert(0, str(HERE))
 
 import kcount_combiner as kc  # noqa: E402
+import run_corrected_history_2023 as rch  # noqa: E402
 import run_pa_aggregation_abc as rr  # noqa: E402
 
 
@@ -345,27 +346,40 @@ def test_two_sided_team_binding_regression():
     assert frun.opponent_of(True, "BOS", "NYY") == "BOS"
 
 
-def test_bundle_identity_guard(tmp_path):
-    """Mandatory pre-load guard: omission/mismatch fails BEFORE loader."""
+def test_bundle_guard_missing_file_rejected(tmp_path):
+    """Guard rejects a missing bundle file before any deserialization
+    (self-contained; always runs)."""
     import run_bf_ab_forecast_2026 as frun
-    import shutil
+    # missing file fails at the hash-read stage: explicit OSError before
+    # any deserialization can occur (loader is never invoked)
+    with pytest.raises(OSError):
+        frun.verify_bundle_identity(tmp_path)
+
+
+def test_bundle_guard_wrong_bytes_rejected(tmp_path):
+    """Guard rejects synthetic non-approved bytes with the specific
+    MechanicalFailure identity-mismatch message (always runs)."""
+    import run_bf_ab_forecast_2026 as frun
+    d = tmp_path / "synthetic"
+    d.mkdir()
+    # synthetic non-approved bytes (never the approved artifact)
+    (d / "bf_bundle.pkl").write_bytes(b"not-the-approved-bundle-bytes")
+    with pytest.raises(rch.MechanicalFailure, match="identity mismatch"):
+        frun.verify_bundle_identity(d)
+
+
+def test_bundle_guard_approved_bundle_positive(tmp_path):
+    """Positive check against the external approved bundle; conditional
+    skip only when the artifact is absent (integration test)."""
+    import run_bf_ab_forecast_2026 as frun
     approved = Path(r"C:\Users\ckaplinger\MLB-Props-Research"
                     r"\bf-bundle-2026-corr-20261012_132811")
     if not (approved / "bf_bundle.pkl").is_file():
         pytest.skip("external approved BF bundle not present on this "
                     "machine (artifact lives outside the repo)")
-    # omission: missing bundle file -> explicit failure, no load
-    with pytest.raises(Exception):
-        frun.verify_bundle_identity(tmp_path)
-    # mismatch: tampered bytes -> rejected before deserialization
-    d = tmp_path / "tampered"
-    d.mkdir()
-    raw = (approved / "bf_bundle.pkl").read_bytes()
-    (d / "bf_bundle.pkl").write_bytes(raw[:-1] + bytes([raw[-1] ^ 0xFF]))
-    with pytest.raises(Exception, match="identity mismatch"):
-        frun.verify_bundle_identity(d)
-    # approved bytes pass
     assert frun.verify_bundle_identity(approved) == frun.APPROVED_BUNDLE_SHA
+
+
 
 
 def test_receipt_text_computed_not_hardcoded(tmp_path):
