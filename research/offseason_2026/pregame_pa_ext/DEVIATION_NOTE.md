@@ -70,3 +70,71 @@ This fix is in the repo copy of the card code. The lake copy
 (`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v1\scripts\score_pa_ext.py`)
 is byte-identical to the PRE-fix version and still carries the defect; sync
 it from the repo before any re-run launched from the lake tree.
+
+## PROVENANCE CORRECTION - manifest `paext_core.py` hash (recorded 2026-10-14)
+
+**Summary:** `manifest.json` `inputs_sha256["scripts/paext_core.py"]` records
+`982782bcf2d82d3622e35f3b047b6374933fe007b7fee9ee7774d7eedb250dd7`, but the
+actual reviewed lake file hashes
+`e193cd180a29ae3d434b0f545f66ab609a51a00bc750b0f5f2e671deec5bcdde`
+(17,851 bytes, LF-only, 410 lines). Reason: the manifest captured a STALE
+hash of an earlier working-tree draft of `paext_core.py` and was not
+refreshed after the file's final save. This entry is superseded for that
+one key; the actual build-time module is proven to be the current
+`e193cd18...` file (evidence below). The frozen payload is unaffected.
+
+| item | value |
+| --- | --- |
+| originally recorded hash (manifest) | `982782bcf2d82d3622e35f3b047b6374933fe007b7fee9ee7774d7eedb250dd7` |
+| actual hash (lake + repo + git) | `e193cd180a29ae3d434b0f545f66ab609a51a00bc750b0f5f2e671deec5bcdde` |
+| reason | stale hash capture of a pre-final-save draft; not refreshed at manifest write |
+| old version recoverable? | NO (see recovery search below) |
+| current file produced the frozen payload? | YES (bytecode evidence below) |
+
+### Recovery search (old `982782bc` version NOT recoverable)
+
+- `git rev-list --all --objects` filtered for the path returns exactly ONE
+  blob ever committed for
+  `research/offseason_2026/pregame_pa_ext/scripts/paext_core.py`:
+  `bc7de30ff06adb578cbf8d01966e84e986346262`, whose content hashes
+  `e193cd18...` at BOTH 99a0796 and dfd8f17 and is byte-identical to the
+  lake copy (17,851 bytes, 0 CR, 410 LF).
+- `git fsck --unreachable` (12 unreachable blobs, all hashed): no blob
+  matches `982782bc...`. No backup/lake path holds a second version.
+- Line-ending artifact excluded: the CRLF variant of the current file
+  hashes `7769a0fe64cad412ac3dca676b8a62a3b3899430c788c3dda7e3f8a0568e5c74`
+  (18,261 bytes), not `982782bc...`. So the recorded hash corresponds to a
+  genuinely different (edited) draft, not a newline re-encoding.
+
+### Equivalence evidence (current file IS the build-time module)
+
+- Build-time bytecode
+  `lake/scripts/__pycache__/paext_core.cpython-311.pyc` embeds source
+  mtime 1792002142 (= 2026-10-14 18:22:22 UTC) and source size 17,851 --
+  both matching the current lake file exactly.
+- A fresh `compile()` of the current lake `paext_core.py` produces a
+  marshaled code object BYTE-IDENTICAL to the code object stored in that
+  build-time `.pyc`. Therefore the module imported/executed during the
+  payload build was exactly the current `e193cd18...` file.
+- Timeline: the source file was last saved 18:22:22 UTC; the manifest was
+  written 18:26:50 UTC but carried the earlier draft's hash -- the hash was
+  captured before the final save and not refreshed.
+- Build path logic matches the current file: `build_pa_ext.py` (hash
+  `d35ad47e08526d9171fd166cf81e7fc7c5a1d7243389bc3e20e813f65384d9d1`,
+  matching the manifest) does `import paext_core as core` and copies
+  `scripts/paext_core.py` into the build workdir (line 246).
+- Frozen payload re-verified untouched:
+  `data/predictor_payload.parquet` = `19511a492767ca061f216bf0a1679e94a77706b2737aea4cf1ab93c312b58a96`
+  (matches manifest).
+- Side observation (out of scope, no action): the build-time
+  `build_pa_ext.cpython-311.pyc` records source size 18,541 vs the current
+  18,585-byte file, i.e. that script was also touched after the build; its
+  manifest hash matches the CURRENT file and the payload hash re-verifies,
+  so no payload-provenance impact is claimed from it.
+
+### Preservation
+
+The original `manifest.json` and the full_run-1 failure log
+(`outputs/full_run/scoring_run_log.txt`, sha256
+`07410807694f61bd4129ac4ed000164c2c24aa86578968861d333fe0428fcf6f`) are
+preserved unmodified. NO payload rebuild was performed.
