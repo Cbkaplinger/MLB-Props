@@ -1,0 +1,946 @@
+{
+ "manifest_id": "pilot134-pinned",
+ "pinned_from": "bf-2026-predictor-seal-v1/row_keys.json",
+ "pinned_source_sha256": "cece35faae57c04b91be3a86601bed81f633d394bd940249f7c7acb1314cba14",
+ "n_rows": 134,
+ "row_keys": [
+  {
+   "game_pk": 822699,
+   "pitcher": 676917,
+   "forecast_cutoff": "2026-08-07 22:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822699,
+   "pitcher": 695534,
+   "forecast_cutoff": "2026-08-07 22:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822703,
+   "pitcher": 669456,
+   "forecast_cutoff": "2026-07-28 22:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822703,
+   "pitcher": 676917,
+   "forecast_cutoff": "2026-07-28 22:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822780,
+   "pitcher": 543243,
+   "forecast_cutoff": "2026-08-10 23:07:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822780,
+   "pitcher": 592791,
+   "forecast_cutoff": "2026-08-10 23:07:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822857,
+   "pitcher": 669022,
+   "forecast_cutoff": "2026-08-22 00:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822857,
+   "pitcher": 672282,
+   "forecast_cutoff": "2026-08-22 00:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822861,
+   "pitcher": 594798,
+   "forecast_cutoff": "2026-08-21 00:05:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822861,
+   "pitcher": 674841,
+   "forecast_cutoff": "2026-08-21 00:05:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822863,
+   "pitcher": 543135,
+   "forecast_cutoff": "2026-08-08 00:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822863,
+   "pitcher": 669358,
+   "forecast_cutoff": "2026-08-08 00:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822934,
+   "pitcher": 669456,
+   "forecast_cutoff": "2026-08-20 17:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822934,
+   "pitcher": 693855,
+   "forecast_cutoff": "2026-08-20 17:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822946,
+   "pitcher": 663556,
+   "forecast_cutoff": "2026-07-30 16:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822946,
+   "pitcher": 668390,
+   "forecast_cutoff": "2026-07-30 16:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 822949,
+   "pitcher": 643377,
+   "forecast_cutoff": "2026-07-28 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823018,
+   "pitcher": 690928,
+   "forecast_cutoff": "2026-08-10 23:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823018,
+   "pitcher": 691725,
+   "forecast_cutoff": "2026-08-10 23:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823023,
+   "pitcher": 665871,
+   "forecast_cutoff": "2026-07-30 18:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823023,
+   "pitcher": 669467,
+   "forecast_cutoff": "2026-07-30 18:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823024,
+   "pitcher": 663372,
+   "forecast_cutoff": "2026-08-08 00:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823024,
+   "pitcher": 681517,
+   "forecast_cutoff": "2026-08-08 00:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823026,
+   "pitcher": 607067,
+   "forecast_cutoff": "2026-07-28 23:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823101,
+   "pitcher": 571510,
+   "forecast_cutoff": "2026-08-22 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823101,
+   "pitcher": 676106,
+   "forecast_cutoff": "2026-08-22 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823103,
+   "pitcher": 656876,
+   "forecast_cutoff": "2026-08-08 01:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823103,
+   "pitcher": 669302,
+   "forecast_cutoff": "2026-08-08 01:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823189,
+   "pitcher": 669713,
+   "forecast_cutoff": "2026-08-11 01:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823189,
+   "pitcher": 694918,
+   "forecast_cutoff": "2026-08-11 01:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823191,
+   "pitcher": 664141,
+   "forecast_cutoff": "2026-08-08 02:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823191,
+   "pitcher": 672456,
+   "forecast_cutoff": "2026-08-08 02:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823193,
+   "pitcher": 694738,
+   "forecast_cutoff": "2026-07-29 01:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823193,
+   "pitcher": 701656,
+   "forecast_cutoff": "2026-07-29 01:45:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823262,
+   "pitcher": 687570,
+   "forecast_cutoff": "2026-08-22 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823265,
+   "pitcher": 663554,
+   "forecast_cutoff": "2026-08-11 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823265,
+   "pitcher": 701656,
+   "forecast_cutoff": "2026-08-11 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823266,
+   "pitcher": 592662,
+   "forecast_cutoff": "2026-08-08 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823266,
+   "pitcher": 669854,
+   "forecast_cutoff": "2026-08-08 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823275,
+   "pitcher": 547179,
+   "forecast_cutoff": "2026-07-29 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823275,
+   "pitcher": 650633,
+   "forecast_cutoff": "2026-07-29 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823349,
+   "pitcher": 669387,
+   "forecast_cutoff": "2026-08-07 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823349,
+   "pitcher": 804267,
+   "forecast_cutoff": "2026-08-07 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823350,
+   "pitcher": 694297,
+   "forecast_cutoff": "2026-07-28 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823350,
+   "pitcher": 696149,
+   "forecast_cutoff": "2026-07-28 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823420,
+   "pitcher": 666200,
+   "forecast_cutoff": "2026-08-21 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823428,
+   "pitcher": 554430,
+   "forecast_cutoff": "2026-08-07 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823428,
+   "pitcher": 667755,
+   "forecast_cutoff": "2026-08-07 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823510,
+   "pitcher": 689254,
+   "forecast_cutoff": "2026-08-21 23:05:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823510,
+   "pitcher": 693645,
+   "forecast_cutoff": "2026-08-21 23:05:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823515,
+   "pitcher": 608331,
+   "forecast_cutoff": "2026-08-07 23:05:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823515,
+   "pitcher": 641816,
+   "forecast_cutoff": "2026-08-07 23:05:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823598,
+   "pitcher": 519242,
+   "forecast_cutoff": "2026-07-28 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823598,
+   "pitcher": 681035,
+   "forecast_cutoff": "2026-07-28 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823674,
+   "pitcher": 641927,
+   "forecast_cutoff": "2026-07-30 17:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823674,
+   "pitcher": 702070,
+   "forecast_cutoff": "2026-07-30 17:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823675,
+   "pitcher": 665152,
+   "forecast_cutoff": "2026-08-10 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823675,
+   "pitcher": 669432,
+   "forecast_cutoff": "2026-08-10 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823676,
+   "pitcher": 607625,
+   "forecast_cutoff": "2026-07-28 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823676,
+   "pitcher": 671737,
+   "forecast_cutoff": "2026-07-28 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823746,
+   "pitcher": 519242,
+   "forecast_cutoff": "2026-08-21 20:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823746,
+   "pitcher": 694819,
+   "forecast_cutoff": "2026-08-21 20:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823747,
+   "pitcher": 669923,
+   "forecast_cutoff": "2026-08-20 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823747,
+   "pitcher": 688107,
+   "forecast_cutoff": "2026-08-20 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823750,
+   "pitcher": 675660,
+   "forecast_cutoff": "2026-08-07 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823750,
+   "pitcher": 805673,
+   "forecast_cutoff": "2026-08-07 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823830,
+   "pitcher": 687473,
+   "forecast_cutoff": "2026-08-21 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823830,
+   "pitcher": 695418,
+   "forecast_cutoff": "2026-08-21 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823836,
+   "pitcher": 663969,
+   "forecast_cutoff": "2026-08-07 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823836,
+   "pitcher": 691946,
+   "forecast_cutoff": "2026-08-07 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823838,
+   "pitcher": 605400,
+   "forecast_cutoff": "2026-07-28 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823838,
+   "pitcher": 645261,
+   "forecast_cutoff": "2026-07-28 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823911,
+   "pitcher": 696149,
+   "forecast_cutoff": "2026-08-22 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823911,
+   "pitcher": 808967,
+   "forecast_cutoff": "2026-08-22 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823918,
+   "pitcher": 669373,
+   "forecast_cutoff": "2026-08-11 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823918,
+   "pitcher": 702070,
+   "forecast_cutoff": "2026-08-11 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823921,
+   "pitcher": 693433,
+   "forecast_cutoff": "2026-07-31 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823921,
+   "pitcher": 808963,
+   "forecast_cutoff": "2026-07-31 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823923,
+   "pitcher": 622491,
+   "forecast_cutoff": "2026-07-29 02:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823998,
+   "pitcher": 669022,
+   "forecast_cutoff": "2026-08-11 01:38:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 823998,
+   "pitcher": 672282,
+   "forecast_cutoff": "2026-08-11 01:38:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824003,
+   "pitcher": 663567,
+   "forecast_cutoff": "2026-07-29 01:38:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824003,
+   "pitcher": 672282,
+   "forecast_cutoff": "2026-07-29 01:38:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824072,
+   "pitcher": 675512,
+   "forecast_cutoff": "2026-08-22 00:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824072,
+   "pitcher": 702070,
+   "forecast_cutoff": "2026-08-22 00:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824074,
+   "pitcher": 677976,
+   "forecast_cutoff": "2026-08-20 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824074,
+   "pitcher": 695611,
+   "forecast_cutoff": "2026-08-20 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824081,
+   "pitcher": 663738,
+   "forecast_cutoff": "2026-08-08 00:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824152,
+   "pitcher": 669372,
+   "forecast_cutoff": "2026-08-22 00:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824152,
+   "pitcher": 669713,
+   "forecast_cutoff": "2026-08-22 00:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824153,
+   "pitcher": 663567,
+   "forecast_cutoff": "2026-08-21 00:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824153,
+   "pitcher": 680570,
+   "forecast_cutoff": "2026-08-21 00:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824243,
+   "pitcher": 665152,
+   "forecast_cutoff": "2026-07-28 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824243,
+   "pitcher": 675512,
+   "forecast_cutoff": "2026-07-28 22:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824317,
+   "pitcher": 676282,
+   "forecast_cutoff": "2026-08-22 00:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824317,
+   "pitcher": 685299,
+   "forecast_cutoff": "2026-08-22 00:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824395,
+   "pitcher": 668909,
+   "forecast_cutoff": "2026-08-20 17:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824395,
+   "pitcher": 694738,
+   "forecast_cutoff": "2026-08-20 17:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824474,
+   "pitcher": 663903,
+   "forecast_cutoff": "2026-08-20 16:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824474,
+   "pitcher": 700241,
+   "forecast_cutoff": "2026-08-20 16:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824489,
+   "pitcher": 668909,
+   "forecast_cutoff": "2026-07-28 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824490,
+   "pitcher": 677944,
+   "forecast_cutoff": "2026-07-28 17:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824490,
+   "pitcher": 695505,
+   "forecast_cutoff": "2026-07-28 17:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824559,
+   "pitcher": 640455,
+   "forecast_cutoff": "2026-08-21 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824559,
+   "pitcher": 680732,
+   "forecast_cutoff": "2026-08-21 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824566,
+   "pitcher": 702273,
+   "forecast_cutoff": "2026-08-07 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824566,
+   "pitcher": 800048,
+   "forecast_cutoff": "2026-08-07 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824568,
+   "pitcher": 677960,
+   "forecast_cutoff": "2026-07-30 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824568,
+   "pitcher": 680732,
+   "forecast_cutoff": "2026-07-30 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824569,
+   "pitcher": 543037,
+   "forecast_cutoff": "2026-07-28 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824569,
+   "pitcher": 641743,
+   "forecast_cutoff": "2026-07-28 23:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824589,
+   "pitcher": 641743,
+   "forecast_cutoff": "2026-08-20 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824589,
+   "pitcher": 656550,
+   "forecast_cutoff": "2026-08-20 18:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824721,
+   "pitcher": 543243,
+   "forecast_cutoff": "2026-08-21 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824721,
+   "pitcher": 657277,
+   "forecast_cutoff": "2026-08-21 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824727,
+   "pitcher": 678022,
+   "forecast_cutoff": "2026-08-07 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824727,
+   "pitcher": 801139,
+   "forecast_cutoff": "2026-08-07 23:10:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824800,
+   "pitcher": 642547,
+   "forecast_cutoff": "2026-08-21 23:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824800,
+   "pitcher": 669432,
+   "forecast_cutoff": "2026-08-21 23:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824802,
+   "pitcher": 543037,
+   "forecast_cutoff": "2026-08-20 22:35:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824802,
+   "pitcher": 680694,
+   "forecast_cutoff": "2026-08-20 22:35:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824887,
+   "pitcher": 681035,
+   "forecast_cutoff": "2026-08-10 23:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824887,
+   "pitcher": 693821,
+   "forecast_cutoff": "2026-08-10 23:15:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824969,
+   "pitcher": 642547,
+   "forecast_cutoff": "2026-08-11 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824969,
+   "pitcher": 682052,
+   "forecast_cutoff": "2026-08-11 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824974,
+   "pitcher": 543243,
+   "forecast_cutoff": "2026-07-31 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824976,
+   "pitcher": 687562,
+   "forecast_cutoff": "2026-07-29 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 824976,
+   "pitcher": 695611,
+   "forecast_cutoff": "2026-07-29 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 825045,
+   "pitcher": 593958,
+   "forecast_cutoff": "2026-08-22 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 825045,
+   "pitcher": 666157,
+   "forecast_cutoff": "2026-08-22 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 825048,
+   "pitcher": 647336,
+   "forecast_cutoff": "2026-08-11 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 825048,
+   "pitcher": 687312,
+   "forecast_cutoff": "2026-08-11 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 825051,
+   "pitcher": 518876,
+   "forecast_cutoff": "2026-08-08 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  },
+  {
+   "game_pk": 825051,
+   "pitcher": 808963,
+   "forecast_cutoff": "2026-08-08 01:40:00+00:00",
+   "arm_B_status": "ok_confirmed",
+   "arm_B_equals_A": false
+  }
+ ]
+}
