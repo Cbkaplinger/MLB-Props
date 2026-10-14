@@ -335,3 +335,65 @@ def test_score_flag_runs_end_to_end(tmp_path, capsys):
     assert rc == 0
     assert (out / "score_summary.json").exists()
     assert "wrote score outputs" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# C3 regression: block-stratified, row-weighted slate-date bootstrap
+# ---------------------------------------------------------------------------
+
+
+def test_slate_bootstrap_block_stratified_row_weighted():
+    """Regression for the unstratified-pool bootstrap scale bug (C3).
+
+    Fixture: block b1 has one 100-row date (value 1.0) and one 1-row date
+    (value 1.0); block b2 has one 1-row date (value 0.0). The repair requires
+    every replicate to draw b1's 2 dates from b1 and b2's 1 date from b2 and
+    to combine row-weighted, so the pooled resample mean can only take the
+    values {2/3, 101/102, 200/201}. The old unstratified pooled multinomial
+    (a) divided per-date sums by the date count (per-date scale, not per-row
+    scale -> values up to 100.0 with unequal date row counts) and (b) let a
+    replicate drop an entire block.
+    """
+    from datetime import date as _date
+    d1, d2, d3 = _date(2025, 5, 1), _date(2025, 5, 2), _date(2025, 5, 3)
+    dates = [d1] * 100 + [d2] + [d3]
+    blocks = ["b1"] * 101 + ["b2"]
+    values = {
+        "h3": [1.0] * 101 + [0.0],
+        "market": [0.0] * 102,
+    }
+    boot = me._slate_bootstrap(values, dates, blocks, n_boot=2000, seed=20261001)
+    assert boot["h3"]["point"] == pytest.approx(101.0 / 102.0)
+    assert boot["market"]["point"] == pytest.approx(0.0)
+    # every replicate stays on the per-row scale (old code could reach 100.0)
+    assert boot["h3"]["p97.5"] == pytest.approx(200.0 / 201.0)
+    assert boot["h3"]["p2.5"] == pytest.approx(2.0 / 3.0)
+    # block b2 can never be dropped by a replicate (stratification)
+    assert boot["h3"]["p2.5"] > 0.0
+    assert boot["h3_minus_market"]["p97.5"] == pytest.approx(200.0 / 201.0)
+    assert boot["h3_minus_market"]["p2.5"] == pytest.approx(2.0 / 3.0)
+    # determinism under the same seed
+    boot2 = me._slate_bootstrap(values, dates, blocks, n_boot=2000, seed=20261001)
+    assert boot == boot2
+
+
+def test_roi_bootstrap_block_stratified():
+    """Regression for the unstratified-pool ROI bootstrap (C3).
+
+    Block b1: one bet (pnl +1.0). Block b2: two dates, one bet each
+    (pnl -1.0). Stratified: every replicate draws 1 date from b1 and 2 dates
+    from b2, so ROI is exactly (1 - 1 - 1) / 3 = -1/3 in EVERY replicate.
+    The old unstratified pool let a replicate draw b1's date three times
+    (ROI = +1.0) or drop b1 entirely (ROI = -1.0).
+    """
+    from datetime import date as _date
+    d1, d2, d3 = _date(2025, 5, 1), _date(2025, 5, 2), _date(2025, 5, 3)
+    dates = [d1, d2, d3]
+    blocks = ["b1", "b2", "b2"]
+    pnl = [1.0, -1.0, -1.0]
+    boot = me._roi_bootstrap(pnl, dates, blocks, n_boot=2000, seed=20261001)
+    assert boot["point"] == pytest.approx(-1.0 / 3.0)
+    assert boot["p2.5"] == pytest.approx(-1.0 / 3.0)
+    assert boot["p97.5"] == pytest.approx(-1.0 / 3.0)
+    boot2 = me._roi_bootstrap(pnl, dates, blocks, n_boot=2000, seed=20261001)
+    assert boot == boot2

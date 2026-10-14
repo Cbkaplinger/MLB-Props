@@ -1157,29 +1157,53 @@ def _outcome_frame(matched: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _slate_bootstrap(values: dict, dates: list, n_boot: int, seed: int) -> dict:
-    """Paired slate-date bootstrap.
+def _slate_bootstrap(values: dict, dates: list, blocks: list, n_boot: int,
+                     seed: int) -> dict:
+    """Paired slate-date bootstrap, BLOCK-STRATIFIED (C3 repair, matching
+    run_paired_uncertainty.py).
 
-    Resampling unit = slate date (game_date); ONE draw of date counts per
-    resample is shared across ALL competitors (identical resample indices).
-    values: name -> per-row metric array aligned with `dates` (per-row slate).
+    Defect fixed: the original pooled bootstrap drew n_dates dates from ONE
+    unstratified pool, so a replicate could draw arbitrary date counts per
+    development block AND divided per-date sums by the date count, which is
+    not on the per-row scale of the point estimate when dates carry unequal
+    row counts. Repair: within each block the replicate draws exactly that
+    block's original slate-date count of dates (with replacement), then
+    blocks are combined ROW-WEIGHTED (numerator = sum of the per-row metric
+    over sampled-date rows, denominator = count of sampled rows) so every
+    replicate is on the same scale as the point estimate and block weights
+    cannot shift.
+
+    Resampling unit = slate date (game_date); ONE draw of date indices per
+    block per resample is shared across ALL competitors (identical resample
+    indices). values: name -> per-row metric array aligned with `dates` and
+    `blocks` (per-row slate + development block).
     Returns percentiles per name plus pairwise diffs named 'a_minus_b'.
     """
     import numpy as np
-    uniq = sorted(set(dates))
-    idx_of = {d: i for i, d in enumerate(uniq)}
-    d_idx = np.array([idx_of[d] for d in dates], dtype=np.int64)
-    n_dates = len(uniq)
     rng = np.random.default_rng(seed)
     names = list(values)
     mat = np.vstack([np.asarray(values[n], dtype=np.float64) for n in names])
-    # date-level sums via bincount per metric
-    date_sums = np.zeros((mat.shape[0], n_dates), dtype=np.float64)
-    for m in range(mat.shape[0]):
-        date_sums[m] = np.bincount(d_idx, weights=mat[m], minlength=n_dates)
-    draws = rng.multinomial(n_dates, np.full(n_dates, 1.0 / n_dates), size=n_boot)
-    # resampled metric: weighted mean per row metric
-    res = draws @ date_sums.T / n_dates  # (n_boot, n_metrics) mean per draw
+    blocks_arr = np.asarray(blocks, dtype=object)
+    num = np.zeros((n_boot, mat.shape[0]), dtype=np.float64)
+    den = np.zeros(n_boot, dtype=np.float64)
+    for b in sorted(set(blocks)):
+        mask = np.array([x == b for x in blocks], dtype=bool)
+        row_idx = np.nonzero(mask)[0]
+        b_dates = sorted(set(dates[i] for i in row_idx))
+        idx_of = {d: i for i, d in enumerate(b_dates)}
+        d_idx = np.array([idx_of[dates[i]] for i in row_idx], dtype=np.int64)
+        n_dates_b = len(b_dates)
+        b_sums = np.vstack([
+            np.bincount(d_idx, weights=mat[m][mask], minlength=n_dates_b)
+            for m in range(mat.shape[0])
+        ])
+        b_counts = np.bincount(d_idx, minlength=n_dates_b).astype(np.float64)
+        draws = rng.multinomial(
+            n_dates_b, np.full(n_dates_b, 1.0 / n_dates_b), size=n_boot
+        )
+        num += draws @ b_sums.T
+        den += draws @ b_counts
+    res = num / den[:, None]
     out = {}
     for j, n in enumerate(names):
         v = res[:, j]
@@ -1261,6 +1285,7 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
     n_push = int(obs["y_push"].sum())
     n_rows = obs.height
     slates = obs["game_date"].to_list()
+    slate_blocks = obs["block"].to_list()
     boot_vals = {}
     for a in ("h3", "l5", "market"):
         pw, pp, pl_ = _side_probs(obs, a)
@@ -1273,7 +1298,7 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
                    .then(pl.col("y_under_win")).otherwise(pl.col("y_over_win"))) ** 2
             ).alias("_b")
         )["_b"].to_numpy()
-    boot_skill = _slate_bootstrap(boot_vals, slates, n_boot, seed)
+    boot_skill = _slate_bootstrap(boot_vals, slates, slate_blocks, n_boot, seed)
 
     per_tier = {}
     for t in obs["tier"].unique().to_list():
@@ -1355,8 +1380,9 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
     }
 
     bet_dates = ledger["game_date"].to_list()
+    bet_blocks = ledger["block"].to_list()
     pnl_arr = ledger["pnl_units"].to_numpy()
-    bet_boot = _roi_bootstrap(pnl_arr, bet_dates, n_boot, seed)
+    bet_boot = _roi_bootstrap(pnl_arr, bet_dates, bet_blocks, n_boot, seed)
 
     # ---- outputs ------------------------------------------------------------
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1393,6 +1419,7 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
         json.dumps(skill_out, indent=2), encoding="utf-8")
     (out_dir / "bootstrap.json").write_text(json.dumps({
         "params": {"seed": seed, "n_boot": n_boot, "unit": "slate date",
+                   "block_stratified": True,
                    "identical_indices_across_competitors": True},
         "brier": boot_skill,
         "brier_skill_vs_market_ci": {
@@ -1432,21 +1459,34 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
     return summary
 
 
-def _roi_bootstrap(pnl: "np.ndarray", dates: list, n_boot: int, seed: int) -> dict:
-    """Slate-date bootstrap of paper ROI (sum pnl / n bets), ratio estimator.
+def _roi_bootstrap(pnl: "np.ndarray", dates: list, blocks: list,
+                   n_boot: int, seed: int) -> dict:
+    """Slate-date bootstrap of paper ROI (sum pnl / n bets), ratio estimator,
+    BLOCK-STRATIFIED (C3 repair matching _slate_bootstrap): each replicate
+    draws exactly each block's original slate-date count of dates within the
+    block, then combines per-block numerators/denominators, so block weights
+    cannot shift across replicates.
     Separate draw stream from the skill bootstrap (same seed, documented)."""
     import numpy as np
-    uniq = sorted(set(dates))
-    idx_of = {d: i for i, d in enumerate(uniq)}
-    d_idx = np.array([idx_of[d] for d in dates], dtype=np.int64)
-    n_dates = len(uniq)
-    s = np.bincount(d_idx, weights=pnl, minlength=n_dates)
-    c = np.bincount(d_idx, minlength=n_dates).astype(np.float64)
+    pnl = np.asarray(pnl, dtype=np.float64)
     rng = np.random.default_rng(seed + 1)
-    draws = rng.multinomial(n_dates, np.full(n_dates, 1.0 / n_dates), size=n_boot)
-    num = draws @ s
-    den = draws @ c
-    roi = np.where(den > 0, num / np.maximum(den, 1), np.nan)
+    num = np.zeros(n_boot, dtype=np.float64)
+    den = np.zeros(n_boot, dtype=np.float64)
+    for b in sorted(set(blocks)):
+        mask = np.array([x == b for x in blocks], dtype=bool)
+        row_idx = np.nonzero(mask)[0]
+        b_dates = sorted(set(dates[i] for i in row_idx))
+        idx_of = {d: i for i, d in enumerate(b_dates)}
+        d_idx = np.array([idx_of[dates[i]] for i in row_idx], dtype=np.int64)
+        n_dates_b = len(b_dates)
+        s = np.bincount(d_idx, weights=pnl[mask], minlength=n_dates_b)
+        c = np.bincount(d_idx, minlength=n_dates_b).astype(np.float64)
+        draws = rng.multinomial(
+            n_dates_b, np.full(n_dates_b, 1.0 / n_dates_b), size=n_boot
+        )
+        num += draws @ s
+        den += draws @ c
+    roi = np.where(den > 0, num / np.maximum(den, 1.0), np.nan)
     return {
         "point": float(np.sum(pnl) / len(pnl)) if len(pnl) else 0.0,
         "p2.5": float(np.nanpercentile(roi, 2.5)),
