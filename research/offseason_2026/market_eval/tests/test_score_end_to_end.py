@@ -61,6 +61,37 @@ def test_payout_units_known_values():
         me.payout_units("nonsense", 2.0)
 
 
+def test_settlement_half_line_never_pushes_and_integer_push_refunds():
+    """F-3: pinned settlement semantics across a full K sweep.
+    Half line: over wins at K >= ceil(L), under wins at K <= floor(L);
+    NO K value may settle to push (there is no integer at a half line).
+    Integer line: K == L settles to push for BOTH sides and refunds the
+    full stake exactly (payout 0.0); over wins at K >= L+1, under at
+    K <= L-1."""
+    L = 5.5
+    for k in range(0, 21):
+        assert me.settle_result(L, "over", k) == ("win" if k >= 6 else "lose")
+        assert me.settle_result(L, "under", k) == ("win" if k <= 5 else "lose")
+        assert me.settle_result(L, "over", k) != "push"
+        assert me.settle_result(L, "under", k) != "push"
+    for k in range(0, 21):
+        if k == 5:
+            assert me.settle_result(5.0, "over", k) == "push"
+            assert me.settle_result(5.0, "under", k) == "push"
+            assert me.payout_units("push", 2.2) == 0.0  # stake refunded
+        elif k >= 6:
+            assert me.settle_result(5.0, "over", k) == "win"
+            assert me.settle_result(5.0, "under", k) == "lose"
+        else:
+            assert me.settle_result(5.0, "over", k) == "lose"
+            assert me.settle_result(5.0, "under", k) == "win"
+    # invalid side / negative K fail loud
+    with pytest.raises(ValueError):
+        me.settle_result(5.5, "middle", 6)
+    with pytest.raises(ValueError):
+        me.settle_result(5.5, "over", -1)
+
+
 def test_mc_brier_row_hand_values():
     # perfect one-hot prediction -> 0; uniform thirds on one-hot -> 2/3
     assert me.mc_brier_row(1.0, 0.0, 0.0, 1, 0, 0) == pytest.approx(0.0)
