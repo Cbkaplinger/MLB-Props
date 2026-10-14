@@ -1618,7 +1618,25 @@ def main(argv=None) -> int:
                          "computes the PIN skill metrics + bootstrap. Code is "
                          "IMPLEMENTED (correction C2); execution remains gated "
                          "on owner approval and has NOT been run here.")
+    ap.add_argument("--i-accept-outcome-scoring", action="store_true",
+                    help="F-4 HARD OPT-IN GATE: --score REFUSES to run "
+                         "without this explicit authorization flag naming "
+                         "the outcome-scoring gate. Passing it does NOT "
+                         "constitute owner authorization; the canonical "
+                         "scoring run stays owner-gated separately.")
     args = ap.parse_args(argv)
+    if args.score and not args.i_accept_outcome_scoring:
+        # F-4 hard opt-in gate: refuse BEFORE touching any input.
+        print(
+            "REFUSED: outcome scoring is gated. --score requires the "
+            "explicit opt-in flag --i-accept-outcome-scoring "
+            "(outcome-scoring gate). No inputs were read and no outputs "
+            "were written. Passing the flag confirms you intend to join "
+            "realized outcomes; the authorized canonical scoring run "
+            "additionally requires on-record owner approval.",
+            file=sys.stderr,
+        )
+        return 2
     if args.score:
         summary = run_score(
             args.prep_dir, args.start_metrics, args.score_dir,

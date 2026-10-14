@@ -722,9 +722,28 @@ def test_score_implemented_but_requires_inputs(capsys, tmp_path):
     default scoring directory."""
     with pytest.raises(me.ScoreReadError):
         me.main([
-            "--score", "--prep-dir", str(tmp_path / "nope"),
+            "--score", "--i-accept-outcome-scoring",
+            "--prep-dir", str(tmp_path / "nope"),
             "--score-dir", str(tmp_path / "score"),
         ])
+
+
+def test_score_refused_without_explicit_opt_in_flag(capsys, tmp_path):
+    """F-4 hard opt-in gate: --score REFUSES to run without the explicit
+    --i-accept-outcome-scoring flag; the refusal names the gate, nothing is
+    read or written, and the process exits nonzero. This gate fires BEFORE
+    any prep-hash check, so even a valid prep dir stays untouched."""
+    rc = me.main([
+        "--score",
+        "--prep-dir", str(tmp_path / "does-not-exist"),
+        "--score-dir", str(tmp_path / "score"),
+    ])
+    assert rc == 2
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "--i-accept-outcome-scoring" in combined
+    assert "gated" in combined.lower()
+    assert not (tmp_path / "score").exists()
 
 
 def test_load_quotes_pooled_market_two_pitcher_collision(tmp_path):

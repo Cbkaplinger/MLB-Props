@@ -356,11 +356,13 @@ def test_score_end_to_end(tmp_path):
 
 
 def test_score_flag_runs_end_to_end(tmp_path, capsys):
-    """The literal --score command path works on the synthetic fixture."""
+    """The literal --score command path works on the synthetic fixture
+    (with the F-4 explicit opt-in flag present)."""
     prep, sm_path = _write_synth(tmp_path)
     out = tmp_path / "score_cli"
     rc = me.main([
-        "--score", "--prep-dir", str(prep), "--start-metrics", str(sm_path),
+        "--score", "--i-accept-outcome-scoring",
+        "--prep-dir", str(prep), "--start-metrics", str(sm_path),
         "--score-dir", str(out), "--n-boot", "50",
     ])
     assert rc == 0

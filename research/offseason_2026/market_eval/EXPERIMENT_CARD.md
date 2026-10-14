@@ -215,11 +215,14 @@ python verify_ledger.py          # writes outputs\verification\; updates
 
 SCORING RUN (code COMPLETE under C2; EXECUTION NOT AUTHORIZED — requires
 owner approval; the command below has never been run against the frozen
-prep):
+prep). F-4 hard opt-in gate: `--score` REFUSES to run without the explicit
+`--i-accept-outcome-scoring` flag (the refusal names the gate, reads no
+inputs, writes nothing, exits 2). Passing the flag confirms intent to join
+realized outcomes; it does NOT by itself constitute owner authorization:
 
 ```
 cd C:\Users\ckaplinger\MLB-Props-Research\market-eval-v1
-python market_eval.py --score --prep-dir outputs\prep_v2 --start-metrics "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet" --score-dir outputs\score_v2 --seed 20261001 --n-boot 2000
+python market_eval.py --score --i-accept-outcome-scoring --prep-dir outputs\prep_v2 --start-metrics "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet" --score-dir outputs\score_v2 --seed 20261001 --n-boot 2000
 ```
 
 It verifies prep hashes (fail loud on mismatch), joins realized K, settles
