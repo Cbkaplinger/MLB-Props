@@ -341,6 +341,24 @@ def test_latest_per_side_no_fanout_same_ts_distinct_labels():
     ).n_unique() == 2
 
 
+def test_choose_eval_pairs_book_name_tiebreak_deterministic():
+    """C3 regression: two books outside BOOK_PRIORITY tie on priority index,
+    total decimal, and pair_ts; the book-name tiebreak must make the
+    one-pair-per-(start, line) choice deterministic (lexicographically
+    first book wins)."""
+    base = {"game_pk": 1, "pitcher": 10, "line": 5.5,
+            "pair_ts": ts("2025-05-01T18:00:00Z"),
+            "d_over": 2.0, "d_under": 2.0}
+    paired = pl.DataFrame([
+        dict(base, book="zeta_book"),
+        dict(base, book="alpha_book"),
+    ])
+    for _ in range(5):
+        chosen = me.choose_eval_pairs(paired)
+        assert chosen.height == 1
+        assert chosen["book"].item() == "alpha_book"
+
+
 # ---------------------------------------------------------------------------
 # end-to-end prep on synthetic parquet fixtures
 # ---------------------------------------------------------------------------

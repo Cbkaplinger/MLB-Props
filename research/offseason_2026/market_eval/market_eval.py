@@ -598,7 +598,9 @@ def pair_sides(quotes: pl.DataFrame) -> pl.DataFrame:
 
 def choose_eval_pairs(paired: pl.DataFrame) -> pl.DataFrame:
     """Registered observation selection: ONE pair per (start, line) by
-    max total decimal, then book priority, then latest ts."""
+    max total decimal, then book priority, then latest ts, then book name
+    (C3: two books can tie on all three keys when both are outside
+    BOOK_PRIORITY; the name tiebreak makes the choice deterministic)."""
     if paired.height == 0:
         return paired
     prio_map = {b: i for i, b in enumerate(BOOK_PRIORITY)}
@@ -609,7 +611,8 @@ def choose_eval_pairs(paired: pl.DataFrame) -> pl.DataFrame:
     ).with_columns(
         (pl.col("d_over") + pl.col("d_under")).alias("_total_dec")
     ).sort(
-        ["_total_dec", "_prio", "pair_ts"], descending=[True, False, True]
+        ["_total_dec", "_prio", "pair_ts", "book"],
+        descending=[True, False, True, False],
     )
     return ranked.unique(subset=["game_pk", "pitcher", "line"], keep="first",
                          maintain_order=True).drop(
