@@ -621,14 +621,20 @@ def build_prob_table(payload: pl.DataFrame, lines: list) -> pl.DataFrame:
         exprs = []
         for model, pre in (("h3", "pmf_h3_raw_"), ("l5", "pmf_l5_raw_")):
             def cdf(k: int) -> pl.Expr:
+                if k < 0:
+                    return pl.lit(0.0)
                 ks = range(0, min(k, PMF_SUPPORT - 1) + 1)
                 return pl.sum_horizontal([pl.col(pre + str(i)) for i in ks])
 
             if float(L).is_integer():
+                # C3: no li >= 1 special case - cdf(-1) = 0 covers line 0.0,
+                # whose push mass P(K = 0) was previously dropped (push and
+                # under forced to 0.0), breaking the registered
+                # pmf_contract_probs semantics (push = P(K = L)).
                 li = int(L)
-                push = (cdf(li) - cdf(li - 1)).clip(0.0, 1.0) if li >= 1 else pl.lit(0.0)
+                push = (cdf(li) - cdf(li - 1)).clip(0.0, 1.0)
                 over = (1.0 - cdf(li)).clip(0.0, 1.0)
-                under = cdf(li - 1).clip(0.0, 1.0) if li >= 1 else pl.lit(0.0)
+                under = cdf(li - 1).clip(0.0, 1.0)
             else:
                 fl = math.floor(L)
                 push = pl.lit(0.0)

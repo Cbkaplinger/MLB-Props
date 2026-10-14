@@ -79,6 +79,32 @@ def test_pmf_contract_probs_zero_line_integer():
     assert (p_over, p_under, p_push) == (0.0, 0.0, 1.0)
 
 
+def test_build_prob_table_zero_integer_line_push():
+    """C3 regression: build_prob_table dropped the push mass at integer line
+    0.0 (push and under were forced to 0.0); registered
+    pmf_contract_probs semantics are push = P(K = L) for any integer line,
+    including L = 0."""
+    payload = _payload_frame([
+        {"game_pk": 1, "pitcher": 1, "game_date": date(2025, 5, 1),
+         "pmf_h3": {0: 0.3, 1: 0.7}, "pmf_l5": {0: 1.0}},
+    ])
+    probs = me.build_prob_table(payload, [0.0, 0.5])
+    row0 = probs.filter(pl.col("line") == 0.0).row(0, named=True)
+    assert row0["p_h3_push"] == pytest.approx(0.3)   # P(K = 0); was 0.0
+    assert row0["p_h3_over"] == pytest.approx(0.7)
+    assert row0["p_h3_under"] == pytest.approx(0.0)
+    assert (row0["p_h3_push"] + row0["p_h3_over"]
+            + row0["p_h3_under"]) == pytest.approx(1.0)
+    # identical to the registered pure-helper semantics
+    assert row0["p_h3_push"] == me.pmf_contract_probs({0: 0.3, 1: 0.7}, 0.0)[2]
+    assert row0["p_l5_push"] == pytest.approx(1.0)   # degenerate at K = 0
+    # half line is unchanged by the fix
+    row05 = probs.filter(pl.col("line") == 0.5).row(0, named=True)
+    assert row05["p_h3_push"] == 0.0
+    assert row05["p_h3_over"] == pytest.approx(0.7)
+    assert row05["p_h3_under"] == pytest.approx(0.3)
+
+
 def test_devig_proportional():
     p_o, p_u = me.devig_proportional(*[me.to_decimal(-110)] * 2)
     assert p_o == pytest.approx(0.5)
