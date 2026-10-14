@@ -25,6 +25,24 @@ seal-dir payload. Score mode performs the gated realized-K join exactly
 as the canonical scorer does; 2026 outcome scoring remains forbidden
 until the owner seals the payload.
 
+MEMBERSHIP ENFORCEMENT (2026-10-14, closes the Chat 2 finding that the
+executed scorer trusted payload arm flags / out-of-band staging):
+  - `--membership-file` is REQUIRED in score mode and optional-but-
+    enforced in validate mode; it must point at the ORIGINAL pilot
+    membership row_keys (the PILOT package, e.g.
+    seal-package-preflight/row_keys.json), never at the seal re-stamps;
+  - the executed path re-derives the usable-B mask from a one-to-one
+    (game_pk, pitcher) join against that membership file and FAILS
+    LOUD on duplicate keys, missing keys, unexpected extra keys,
+    unknown arm_B_status values (unexpected population), or a
+    partition that is not exactly 134 total / 11 usable-B / 123
+    fallback (when --expect-usable-b 11 is pinned);
+  - payload arm_B_status / arm_B_equals_A re-stamps are NEVER read as
+    membership; the report records them as ignored;
+  - PMF values are never modified: the arm matrices are loaded
+    read-only from the payload and the report records the sha256 of
+    every payload file actually scored.
+
 Lineage: b2fef02 (vendored v2) -> this file (additive).
 """
 from __future__ import annotations
@@ -38,6 +56,13 @@ import numpy as np
 import polars as pl
 
 HERE = Path(__file__).resolve().parent
+
+EXPECTED_PILOT_USABLE_B = 11
+KNOWN_PILOT_STATUSES = {
+    "ok_confirmed",
+    "A_fallback_full_projected_confirmed_only_mode",
+    "A_fallback_all_snapshots_after_cutoff",
+}
 
 V2_PIN_SHA256 = ("6b8cecf24a2463463d98e94e84b0bdab146d55cb6d29382c4955eb"
                  "4cdb24bc4a")
@@ -73,6 +98,89 @@ def verify_vendored_v2() -> dict:
             "COHORT-SCORER BLOCKER: vendored v2 hash mismatch: %s vs pin %s"
             % (got, V2_PIN_SHA256))
     return {"run_bf_ab_score_v2_sha256_lf": got, "matches_pin": ok}
+
+
+def enforce_pilot_membership(membership_path: Path, payload_keys: list,
+                             expected_total: int) -> dict:
+    """One-to-one membership join against the ORIGINAL pilot package.
+
+    Fail loud (SystemExit) on any violation:
+      - duplicate (game_pk, pitcher) keys inside the membership file or
+        the manifest-validated payload key set (one-to-one violated;
+        never silently last-wins);
+      - key-set mismatch (missing payload keys or unexpected extra
+        membership keys);
+      - membership total != expected_total (the pinned manifest's
+        n_rows; 134 for the pilot diagnostic, enforced with SystemExit
+        by validate_payload);
+      - arm_B_status values outside the known pilot status set
+        (unexpected population).
+
+    Returns the joined flag mapping keyed (game_pk, pitcher). Payload
+    arm flags are never consulted; PMFs are never touched here. The
+    usable-B partition assert (exactly 11 usable-B / 123 fallback for
+    the pilot) is pinned by the caller via --expect-usable-b.
+    """
+    memb = json.loads(Path(membership_path).read_text(encoding="ascii"))
+    pkey = lambda r: (int(r["game_pk"]), int(r["pitcher"]))
+
+    def one_to_one(rows, label):
+        seen = {}
+        dupes = []
+        for r in rows:
+            k = pkey(r)
+            if k in seen:
+                dupes.append(k)
+            seen[k] = r
+        if dupes:
+            raise SystemExit(
+                "MEMBERSHIP BLOCKER: duplicate (game_pk, pitcher) keys "
+                "in %s break the one-to-one join: %s"
+                % (label, sorted(dupes)[:3]))
+        return seen
+
+    mmap = one_to_one(memb, "membership file")
+    pmap = one_to_one(payload_keys, "manifest-validated payload keys")
+    if len(memb) != expected_total:
+        raise SystemExit(
+            "MEMBERSHIP BLOCKER: membership total is %d; expected "
+            "exactly %d" % (len(memb), expected_total))
+    missing = sorted(set(pmap) - set(mmap))
+    extra = sorted(set(mmap) - set(pmap))
+    if missing or extra:
+        raise SystemExit(
+            "MEMBERSHIP BLOCKER: membership key set != payload key set "
+            "(missing=%s unexpected=%s)"
+            % (missing[:3], extra[:3]))
+    bad_status = sorted({r["arm_B_status"] for r in memb
+                         if r["arm_B_status"] not in KNOWN_PILOT_STATUSES})
+    if bad_status:
+        raise SystemExit(
+            "MEMBERSHIP BLOCKER: unexpected arm_B_status values in the "
+            "membership file (unexpected population): %s" % bad_status)
+    usable = sorted(k for k, r in mmap.items()
+                    if not str(r["arm_B_status"]).startswith("A_fallback"))
+    fallback = sorted(k for k, r in mmap.items()
+                      if str(r["arm_B_status"]).startswith("A_fallback"))
+    return {
+        "membership_file": str(membership_path),
+        "membership_sha256": sha256_file(membership_path),
+        "n_total": len(memb),
+        "n_usable_B": len(usable),
+        "n_fallback": len(fallback),
+        "usable_B_keys": usable,
+        "checks": {
+            "one_to_one_unique_membership_keys": True,
+            "one_to_one_unique_payload_keys": True,
+            "no_missing_payload_keys": True,
+            "no_unexpected_membership_keys": True,
+            "known_pilot_statuses_only": True,
+            "total_matches_pinned_manifest_n_rows": True,
+        },
+        "note": ("usable-B mask re-derived from the ORIGINAL pilot "
+                 "membership by one-to-one (game_pk, pitcher) join; "
+                 "payload arm_B_status/arm_B_equals_A re-stamps ignored"),
+    }
 
 
 def load_manifest(path: Path) -> dict:
@@ -180,11 +288,12 @@ def validate_payload(seal_dir: Path, manifest: dict) -> dict:
 
 
 def compute_stats_cohort(seal_dir: Path, data_root: Path,
-                         manifest: dict) -> dict:
+                         manifest: dict, membership: dict) -> dict:
     """Verbatim vendored-v2 compute_stats with the cohort gate replaced
     by the pinned manifest (n + key set validated by validate_payload
-    before this runs). Metric/bootstrap code UNCHANGED: same
-    kc.count_rps, same 2,000-resample slate-date bootstrap, seed
+    before this runs) and the usable-B mask re-derived from the
+    ENFORCED pilot membership join. Metric/bootstrap code UNCHANGED:
+    same kc.count_rps, same 2,000-resample slate-date bootstrap, seed
     20261001, same secondaries, same (game_pk, pitcher) keying."""
     import kcount_combiner as kc
     import run_bf_ab_score_v2 as s2
@@ -193,6 +302,10 @@ def compute_stats_cohort(seal_dir: Path, data_root: Path,
     A = np.load(seal / "arm_A_pmf.npy")
     B = np.load(seal / "arm_B_pmf.npy")
     keys = json.loads((seal / "row_keys.json").read_text(encoding="ascii"))
+    usable_keys = set(membership["usable_B_keys"])
+    payload_file_sha256 = {
+        name: sha256_file(seal / name)
+        for name in ("row_keys.json", "arm_A_pmf.npy", "arm_B_pmf.npy")}
     raw = pl.read_parquet(
         Path(data_root) / "Savant-Data" / "regular" / "2026"
         / "statcast_2026_regular.parquet")
@@ -214,7 +327,10 @@ def compute_stats_cohort(seal_dir: Path, data_root: Path,
     rpsA = np.array([kc.count_rps(A[i], K[i]) for i in range(n)])
     rpsB = np.array([kc.count_rps(B[i], K[i]) for i in range(n)])
     dates = np.array([k["forecast_cutoff"][:10] for k in keys])
-    fb = np.array([k["arm_B_status"].startswith("A_fallback") for k in keys])
+    # membership gate: usable-B mask from the enforced pilot membership
+    # join ONLY; payload arm_B_status re-stamps are deliberately ignored
+    fb = np.array([(int(k["game_pk"]), int(k["pitcher"]))
+                   not in usable_keys for k in keys])
 
     def boot(mask):
         d = rpsB[mask] - rpsA[mask]
@@ -249,10 +365,16 @@ def compute_stats_cohort(seal_dir: Path, data_root: Path,
         "unmatched": unmatched,
         "n_rows": n,
         "usable_B_n": int(usable.sum()),
-        "note": ("usable-B membership from payload arm_B_status flags; "
-                 "for the pilot-reproduction payload the registered "
-                 "usable-B view (11 rows) comes from the PILOT package "
-                 "(see CLASSIFICATION.md)"),
+        "payload_file_sha256": payload_file_sha256,
+        "membership_enforcement": {
+            "source": membership["membership_file"],
+            "source_sha256": membership["membership_sha256"],
+            "n_total": membership["n_total"],
+            "n_usable_B": membership["n_usable_B"],
+            "n_fallback": membership["n_fallback"],
+            "payload_arm_flags_ignored": True,
+            "pmf_values_modified": False,
+        },
     }
 
 
@@ -263,6 +385,14 @@ def main() -> int:
                     help="pinned row-key manifest JSON (n + exact keys)")
     ap.add_argument("--data-root", default=None,
                     help="required for --mode score; omit for validate")
+    ap.add_argument("--membership-file", default=None,
+                    help="ORIGINAL pilot membership row_keys.json (PILOT "
+                         "package, e.g. seal-package-preflight); REQUIRED "
+                         "for --mode score; one-to-one (game_pk, pitcher) "
+                         "join is enforced with fail-loud checks")
+    ap.add_argument("--expect-usable-b", type=int, default=None,
+                    help="fail loud unless the membership partition has "
+                         "exactly this many usable-B rows (pilot pin: 11)")
     ap.add_argument("--mode", choices=("validate", "score"),
                     default="validate")
     ap.add_argument("--label-source-note", default=None,
@@ -272,26 +402,64 @@ def main() -> int:
     args = ap.parse_args()
     if args.mode == "score" and not args.data_root:
         ap.error("--mode score requires --data-root")
+    if args.mode == "score" and not args.membership_file:
+        ap.error("--mode score requires --membership-file (the executed "
+                 "path must enforce pilot membership; see CLASSIFICATION"
+                 ".md - payload arm flags are re-stamps, not membership)")
     vendored = verify_vendored_v2()
     manifest = load_manifest(Path(args.manifest))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
     validation = validate_payload(Path(args.seal_dir), manifest)
+    membership = None
+    if args.membership_file:
+        membership = enforce_pilot_membership(
+            Path(args.membership_file), manifest["row_keys"],
+            manifest["n_rows"])
+        if args.expect_usable_b is not None:
+            if membership["n_usable_B"] != args.expect_usable_b:
+                raise SystemExit(
+                    "MEMBERSHIP BLOCKER: usable-B count %d != pinned "
+                    "--expect-usable-b %d"
+                    % (membership["n_usable_B"], args.expect_usable_b))
+            if (membership["n_fallback"]
+                    != manifest["n_rows"] - args.expect_usable_b):
+                raise SystemExit(
+                    "MEMBERSHIP BLOCKER: fallback count %d != expected "
+                    "%d" % (membership["n_fallback"],
+                            manifest["n_rows"] - args.expect_usable_b))
+        validation["membership_enforcement"] = membership
+    else:
+        validation["membership_enforcement"] = {
+            "enforced": False,
+            "note": "no --membership-file given; payload arm flags are "
+                    "re-stamps under the new builder's arm identities "
+                    "and must never be read as pilot membership",
+        }
     rep = {
-        "version": "cohort-aware-1",
+        "version": "cohort-aware-2",
         "lineage": {
             "vendored_v2_commit": "b2fef02",
             "vendored_v2": vendored,
             "metric_changes": "none (verbatim v2 metric/bootstrap code)",
             "gate_change": "hardcoded 134 -> pinned manifest n + exact "
                            "key set + cutoff equality",
+            "membership_enforcement": "score mode re-derives the "
+                                      "usable-B mask from a one-to-one "
+                                      "join against the ORIGINAL pilot "
+                                      "membership file (fail loud on "
+                                      "duplicates/missing/unexpected "
+                                      "keys, unknown statuses, wrong "
+                                      "partition); payload re-stamped "
+                                      "arm flags ignored",
         },
         **validation,
     }
     if args.mode == "score":
         stats = compute_stats_cohort(Path(args.seal_dir),
-                                     Path(args.data_root), manifest)
+                                     Path(args.data_root), manifest,
+                                     membership)
         rep["mode"] = "score"
         rep["label_source_note"] = args.label_source_note
         rep["stats"] = stats

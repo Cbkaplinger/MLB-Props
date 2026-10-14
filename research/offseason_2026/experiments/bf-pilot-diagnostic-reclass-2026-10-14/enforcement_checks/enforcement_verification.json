@@ -1,0 +1,122 @@
+{
+ "mode": "membership enforcement verification (validate mode; no outcomes read; no labels touched)",
+ "date": "2026-10-14",
+ "scorer": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\main-active\\research\\offseason_2026\\run_bf_ab_score_cohort.py",
+ "membership_source": "C:\\Users\\ckaplinger\\MLB-Props-Research\\seal-package-preflight\\row_keys.json",
+ "tests": {
+  "P_positive_control": {
+   "exit": 0,
+   "passed": true,
+   "enforcement_block": {
+    "membership_file": "C:\\Users\\ckaplinger\\MLB-Props-Research\\seal-package-preflight\\row_keys.json",
+    "membership_sha256": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f",
+    "n_total": 134,
+    "n_usable_B": 11,
+    "n_fallback": 123,
+    "usable_B_keys": [
+     [
+      822946,
+      663556
+     ],
+     [
+      822946,
+      668390
+     ],
+     [
+      823023,
+      665871
+     ],
+     [
+      823023,
+      669467
+     ],
+     [
+      823674,
+      641927
+     ],
+     [
+      823674,
+      702070
+     ],
+     [
+      823921,
+      693433
+     ],
+     [
+      823921,
+      808963
+     ],
+     [
+      824568,
+      677960
+     ],
+     [
+      824568,
+      680732
+     ],
+     [
+      824974,
+      543243
+     ]
+    ],
+    "checks": {
+     "one_to_one_unique_membership_keys": true,
+     "one_to_one_unique_payload_keys": true,
+     "no_missing_payload_keys": true,
+     "no_unexpected_membership_keys": true,
+     "known_pilot_statuses_only": true,
+     "total_matches_pinned_manifest_n_rows": true
+    },
+    "note": "usable-B mask re-derived from the ORIGINAL pilot membership by one-to-one (game_pk, pitcher) join; payload arm_B_status/arm_B_equals_A re-stamps ignored"
+   }
+  },
+  "T1_score_mode_requires_membership_file": {
+   "exit": 2,
+   "refused": true,
+   "message": "run_bf_ab_score_cohort.py: error: --mode score requires --membership-file (the executed path must enforce pilot membership; see CLASSIFICATION.md - payload arm flags are re-stamps, not membership)"
+  },
+  "T2_duplicate_membership_key": {
+   "exit": 1,
+   "failed_loud": true,
+   "message": [
+    "MEMBERSHIP BLOCKER: duplicate (game_pk, pitcher) keys in membership file break the one-to-one join: [(822699, 676917)]"
+   ]
+  },
+  "T3_missing_membership_key": {
+   "exit": 1,
+   "failed_loud": true,
+   "message": [
+    "MEMBERSHIP BLOCKER: membership total is 133; expected exactly 134"
+   ]
+  },
+  "T4_unexpected_extra_key": {
+   "exit": 1,
+   "failed_loud": true,
+   "message": [
+    "MEMBERSHIP BLOCKER: membership total is 135; expected exactly 134"
+   ]
+  },
+  "T4b_swapped_extra_vs_missing_key": {
+   "exit": 1,
+   "failed_loud": true,
+   "message": [
+    "MEMBERSHIP BLOCKER: membership key set != payload key set (missing=[(822699, 676917)] unexpected=[(999999999, 676917)])"
+   ]
+  },
+  "T5_unknown_status_unexpected_population": {
+   "exit": 1,
+   "failed_loud": true,
+   "message": [
+    "MEMBERSHIP BLOCKER: unexpected arm_B_status values in the membership file (unexpected population): ['some_unknown_status']"
+   ]
+  },
+  "T6_wrong_partition_vs_expect_pin": {
+   "exit": 1,
+   "failed_loud": true,
+   "message": [
+    "MEMBERSHIP BLOCKER: usable-B count 12 != pinned --expect-usable-b 11"
+   ]
+  }
+ },
+ "all_negative_tests_fail_loud": true
+}

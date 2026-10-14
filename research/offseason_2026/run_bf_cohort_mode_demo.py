@@ -86,6 +86,14 @@ def write_manifest(path: Path, manifest_id: str, keys: list,
     }, indent=1), encoding="ascii")
 
 
+def write_membership(path: Path, keys: list) -> Path:
+    """SYNTHETIC membership file (score mode enforces a membership join;
+    demo payloads are fully usable-B, matching their all-ok_confirmed
+    arm stamps)."""
+    path.write_text(json.dumps(keys, indent=1), encoding="ascii")
+    return path
+
+
 def write_synth_labels(data_root: Path, keys: list, seed: int) -> Path:
     d26 = data_root / "Savant-Data" / "regular" / "2026"
     d26.mkdir(parents=True)
@@ -176,6 +184,7 @@ def main() -> int:
     man2 = tmp2 / "manifest_synth134.json"
     write_manifest(man2, "synthetic-134-demo", keys2, "demo-generated",
                    sha256_file(seal2 / "row_keys.json"))
+    memb2 = write_membership(tmp2 / "membership_synth134.json", keys2)
     out_v3 = tmp2 / "out_v3"
     out_coh = tmp2 / "out_coh"
     p_v3 = run_py(V3, ["--seal-dir", str(seal2), "--data-root",
@@ -183,6 +192,7 @@ def main() -> int:
     assert p_v3.returncode == 0, p_v3.stderr
     p_coh = run_py(COHORT, ["--seal-dir", str(seal2),
                             "--manifest", str(man2),
+                            "--membership-file", str(memb2),
                             "--data-root", str(data2),
                             "--mode", "score", "--out", str(out_coh),
                             "--label-source-note",
@@ -225,9 +235,11 @@ def main() -> int:
     man3 = tmp3 / "manifest_synth40.json"
     write_manifest(man3, "synthetic-40-demo", keys3, "demo-generated",
                    sha256_file(seal3 / "row_keys.json"))
+    memb3 = write_membership(tmp3 / "membership_synth40.json", keys3)
     out3 = tmp3 / "out"
     p_coh3 = run_py(COHORT, ["--seal-dir", str(seal3),
                              "--manifest", str(man3),
+                             "--membership-file", str(memb3),
                              "--data-root", str(data3),
                              "--mode", "score", "--out", str(out3),
                              "--label-source-note",
