@@ -10,20 +10,27 @@ commits 2-3 are not printable here; read them from `git log --oneline -3`.
 - **Repo:** `Cbkaplinger/MLB-Props` - **PUBLIC** (determinable; treat as such
   when committing: no keys, no large data).
 - **Worktree:** `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\main-active`, branch `main`.
-- **Remote status (measured 2026-10-13):**
-  - `git rev-list --left-right --count origin/main...main` = `0 25` -
-    main is 25 ahead of origin/main, 0 behind (unpushed; the "22" in
-    earlier drafts was stale at write time).
+- **Remote status (measured 2026-10-13 at the pre-repair final checkpoint,
+  HEAD = `b28c58b5056b9615d7eaf7ac47c6d8339d6d2101`; compared SHAs recorded,
+  no hardcoded stale counts):**
+  - vs `origin/main` @ `31e9891e88842680f5cddc07c7ea841cabf29425`:
+    `git rev-list --left-right --count origin/main...main` = `0 28` -
+    main is 28 ahead of origin/main, 0 behind (unpushed).
   - **Local review-branch push source:** branch `main` @
-    `b0897c0c7e06f74e1d74118acb3c475121201efe` (= HEAD). There is NO local
-    branch named `review/pa-remediation-2026-10-09`; the push maps
-    `main:review/pa-remediation-2026-10-09`.
+    `b28c58b5056b9615d7eaf7ac47c6d8339d6d2101` (= HEAD at measurement).
+    There is NO local branch named `review/pa-remediation-2026-10-09`; the
+    push maps `main:review/pa-remediation-2026-10-09`.
   - **Origin review-branch tip:**
     `origin/review/pa-remediation-2026-10-09` @
     `3b7fe3421dc6549f8fc695efb37962eda293f92a`.
   - `git rev-list --left-right --count origin/review/pa-remediation-2026-10-09...main`
-    = `0 2` - main is 2 ahead of the origin review tip, 0 behind, so the
+    = `0 5` - main is 5 ahead of the origin review tip, 0 behind, so the
     push is a fast-forward.
+  - The doc-accuracy and repair commits dated 2026-10-13 (this commit and
+    the following repair commits) land AFTER this checkpoint and increment
+    the ahead counts by their number with 0 behind. Re-measure before
+    pushing:
+    `git rev-list --left-right --count origin/main...main; git rev-list --left-right --count origin/review/pa-remediation-2026-10-09...main`
   **Push destination: origin `review/pa-remediation-2026-10-09` + PR #1**
   ("PA research closure: aggregation remediation + adapter + BF
   reconstruction/preflight/A-B forecast runners", DRAFT).
@@ -49,7 +56,9 @@ commits 2-3 are not printable here; read them from `git log --oneline -3`.
 `scripts/__pycache__/`, `src/**/__pycache__/`, `tests/__pycache__/`
 
 ### Recent commit head (for the preservation record)
-`b0897c0` docs(bf): v3 scoring correction delivered ... (= HEAD; measured 2026-10-13: 25 commits ahead of origin/main)
+`b28c58b` research(logging): prospective-logging-v1 append-only hash-chain
+logger (= HEAD at the 2026-10-13 final-checkpoint measurement; the
+inventory above was taken at `b0897c0`, which was HEAD at that time).
 
 ## 2. External deliverable inventory (`C:\Users\ckaplinger\MLB-Props-Research\`)
 
@@ -64,7 +73,7 @@ exists; S = seal receipt; - = no independent review record found.
 | bf-ab-score-2026 | same | 0.01 MB | scoring_report.json | `93b4338d2608` | scored against b054014 lineage | superseded by v2/v3 |
 | bf-ab-score-2026-v2 | same | 0.01 MB | scoring_report_v2.json | `b5bf8dd5880c` | - | superseded by v3 |
 | bf-ab-score-2026-v3 | same | 0.01 MB | scoring_report_v3.json | `26c0a24744f4` | runner committed in repo @ b0897c0 | R (v3 review) |
-| overnight-p1 | same | 0.10 MB | morning_report.md | `1cd86ec9dfcc` | - | R (s0/s5/s6 scripts) |
+| overnight-p1 | same | 0.10 MB | morning_report.md | `1cd86ec9dfcc` | - | self-reported only: S0/S5/S6 outputs are the run's own morning_report.md/scripts; no independent reviewer record exists |
 | overnight-p2 | same | 56.81 MB | morning_report_v2.md + fit_ledger.json | `a295214add2c` / `485b29e11300` | run_identity frozen in recipe | R (p2_review, p2_attrib) |
 | p0-data-card | same | 0.04 MB | data_card_v2.json | `2798a03d657b` | - | - |
 | p1-harness (v1) | same | 20.39 MB | EVIDENCE_PACKET.md | `e1ce0ab0312d` | p1 lane | R (p1_revised) |
@@ -82,10 +91,13 @@ v1/v2 scoring runners whose external archives exist at
 ## 3. Proposed commits (NOT executed)
 
 ### Naming mappings (flagged)
-- **"bf-closure-record"**: RESOLVED - the canonical closure record exists
-  in-repo and is already committed at b0897c0 as
+- **"bf-closure-record"**: RESOLVED - the canonical closure record EXISTS
+  in-repo and is committed at b0897c0 as
   `docs/reference/reports/bf-closure-record-2026-10-13.md` (it carries the
-  v1/v2 scoring supersession statuses). The external root
+  v1/v2 scoring supersession statuses in its "v3 scoring correction
+  delivered" section: v1 DELIVERED-suspected, v2 DELIVERED-superseded).
+  Review status per the record itself: a dated point-in-time documentation
+  record, not an independent review verdict. The external root
   `correction_note.md` (BF workload + pregame milestone-Brier v2 correction
   receipt) stays external-only, hash-recorded in the inventory above; no
   in-repo duplicate is created.
