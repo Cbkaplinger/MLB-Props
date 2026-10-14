@@ -375,6 +375,96 @@ def test_latest_per_side_no_fanout_same_ts_distinct_labels():
     ).n_unique() == 2
 
 
+def test_pair_sides_multi_label_same_ts_one_pair_per_book():
+    """F-2 regression: two different closing snapshot labels can share ONE
+    quote_ts for the same key with DIFFERENT prices; the exact-duplicate
+    unique() cannot collapse them, so pair_sides must collapse at_pair to
+    ONE row per (start, line, book, side) FIRST - otherwise closing_refs
+    carries duplicate (start, line, book) reference keys with two different
+    de-vig benchmarks. The collapse must be deterministic (full-column
+    sort: lexicographically first snapshot label wins, here 'close')."""
+    fp = ts("2025-05-01T23:00:00Z")
+    base = {
+        "game_pk": 1, "pitcher": 10, "line": 5.5, "book": "dk",
+        "tier": me.TIER_A, "first_pitch_ts": fp, "predictor_available_ts": PA,
+        "event_id": "e1", "pitcher_key": "a alice",
+        "game_date": date(2025, 5, 1), "block": "b", "pitch_half": "Top",
+        "vendor_game_date": date(2025, 5, 1), "market": "pitcher_strikeouts",
+    }
+    rows = [
+        dict(base, side="over", snapshot="close",
+             quote_ts=ts("2025-05-01T22:55:00Z"), price=-110),
+        dict(base, side="over", snapshot="late_close",
+             quote_ts=ts("2025-05-01T22:55:00Z"), price=-112),
+        dict(base, side="under", snapshot="close",
+             quote_ts=ts("2025-05-01T22:55:00Z"), price=-110),
+        dict(base, side="under", snapshot="late_close",
+             quote_ts=ts("2025-05-01T22:55:00Z"), price=-115),
+    ]
+    jf = _joined_frame(rows)
+    paired = me.pair_sides(me.closing_eligible(jf))
+    assert paired.height == 1  # ONE pair per (start, line, book), not 4
+    assert paired["pair_ts"].item() == ts("2025-05-01T22:55:00Z")
+    assert paired["price_over"].item() == -110   # 'close' label sorts first
+    assert paired["price_under"].item() == -110
+    # determinism across repeated calls
+    assert paired.equals(me.pair_sides(me.closing_eligible(jf)))
+
+
+def test_build_paper_bets_fan_out_guard_on_duplicate_closing_refs():
+    """F-2 join-cardinality guard: if closing_side_refs ever carries two
+    rows for one (start, line, book, side) key, the paper-bet CLV join
+    would multiply the bet into duplicate paper bets at the contract key
+    (start, line, side). build_paper_bets must fail loud instead."""
+    payload = _payload_frame([
+        {"game_pk": 1, "pitcher": 1, "game_date": date(2025, 5, 1),
+         "pmf_h3": {3: 0.1, 4: 0.1, 5: 0.8}, "pmf_l5": {5: 1.0}},
+    ])
+    probs = me.build_prob_table(payload, [4.5])
+    eval_pairs = pl.DataFrame({
+        "game_pk": [1], "pitcher": [1], "pitcher_key": ["a alice"],
+        "game_date": [date(2025, 5, 1)], "block": ["b"], "tier": [me.TIER_A],
+        "first_pitch_ts": [ts("2025-05-01T23:00:00Z")], "line": [4.5],
+        "event_id": ["e1"], "book": ["draftkings"],
+        "pair_ts": [ts("2025-05-01T18:00:00Z")],
+        "price_over": [-200], "price_under": [200],
+        "d_over": [1.5], "d_under": [3.0],
+    })
+    good_close = pl.DataFrame(schema={
+        "game_pk": pl.Int64, "pitcher": pl.Int64, "line": pl.Float64,
+        "book": pl.String, "side": pl.String,
+        "quote_ts": pl.Datetime("us", "UTC"), "price": pl.Int64,
+    })
+    bets = me.build_paper_bets(eval_pairs, probs, good_close)
+    assert bets.height == 1  # sane path: one bet per (start, line, side)
+    # duplicate the closing reference for the bet's own key -> must raise
+    dup_close = pl.DataFrame([
+        {"game_pk": 1, "pitcher": 1, "line": 4.5, "book": "draftkings",
+         "side": "over", "quote_ts": ts("2025-05-01T22:55:00Z"),
+         "price": -180},
+        {"game_pk": 1, "pitcher": 1, "line": 4.5, "book": "draftkings",
+         "side": "over", "quote_ts": ts("2025-05-01T22:55:00Z"),
+         "price": -190},
+    ], schema={
+        "game_pk": pl.Int64, "pitcher": pl.Int64, "line": pl.Float64,
+        "book": pl.String, "side": pl.String,
+        "quote_ts": pl.Datetime("us", "UTC"), "price": pl.Int64,
+    })
+    with pytest.raises(me.JoinCardinalityError):
+        me.build_paper_bets(eval_pairs, probs, dup_close)
+
+
+def test_assert_unique_fails_loud_with_duplicates():
+    """F-2: the _assert_unique guard fires on any duplicated key and is
+    silent on unique frames."""
+    df = pl.DataFrame({
+        "a": [1, 1, 2], "b": ["x", "x", "y"], "v": [1.0, 2.0, 3.0],
+    })
+    with pytest.raises(me.JoinCardinalityError):
+        me._assert_unique(df, ["a", "b"], "test_frame")
+    me._assert_unique(df.filter(pl.col("a") == 2), ["a", "b"], "test_frame")
+
+
 def test_choose_eval_pairs_book_name_tiebreak_deterministic():
     """C3 regression: two books outside BOOK_PRIORITY tie on priority index,
     total decimal, and pair_ts; the book-name tiebreak must make the

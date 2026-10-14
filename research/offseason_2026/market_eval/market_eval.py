@@ -111,6 +111,29 @@ class MissingColumnsError(ValueError):
     """Raised when an input frame lacks required columns (fail loud)."""
 
 
+class JoinCardinalityError(RuntimeError):
+    """Raised when a reference/join table is not unique at its contract key
+    (fail loud instead of silently multiplying downstream rows)."""
+
+
+def _assert_unique(df: pl.DataFrame, keys: list, name: str) -> None:
+    """F-2 join-cardinality guard: fail loud if `df` carries more than one
+    row per `keys`. Every reference table joined into contracts or paper
+    bets must be unique at its key so no join can multiply rows."""
+    n = df.height
+    n_unique = df.select(keys).n_unique() if n else 0
+    if n != n_unique:
+        dups = (
+            df.group_by(keys).agg(pl.len().alias("_n")).filter(pl.col("_n") > 1)
+            .sort(keys)
+            .head(5)
+        )
+        raise JoinCardinalityError(
+            "%s is not unique at %s: %d rows vs %d distinct keys; first "
+            "duplicates:\n%s" % (name, keys, n, n_unique, dups)
+        )
+
+
 # ---------------------------------------------------------------------------
 # Small pure helpers (unit-tested)
 # ---------------------------------------------------------------------------
@@ -498,6 +521,13 @@ def split_actionable_closing(joined: pl.DataFrame) -> tuple:
         )
         return pre, empty_side, pre
     closing_side = latest_per_side(pre)
+    # F-2 join-cardinality guard: the closing reference must be unique at
+    # (start, line, book, side) or the actionable-exclusion join below
+    # multiplies rows of the affected keys.
+    _assert_unique(
+        closing_side, ["game_pk", "pitcher", "line", "book", "side"],
+        "closing_side_refs",
+    )
     keys = ["game_pk", "pitcher", "line", "book", "side"]
     clo_ts = closing_side.select(
         keys + [pl.col("quote_ts").alias("closing_ts")]
@@ -570,6 +600,16 @@ def pair_sides(quotes: pl.DataFrame) -> pl.DataFrame:
         quotes.join(pair_ts, on=keys, how="inner")
         .filter(pl.col("quote_ts") == pl.col("pair_ts"))
     )
+    # F-2: distinct snapshot labels (or prices) can share ONE quote_ts, so
+    # at_pair can hold several rows per (start, line, book, side); the
+    # full-duplicate unique() below cannot collapse rows that differ in
+    # price. Collapse to ONE row per side first, deterministically
+    # (full-column sort + first), then assert one pair per
+    # (start, line, book) so closing_refs / paired actionable rows can
+    # never carry duplicate reference keys.
+    at_pair = at_pair.sort(list(at_pair.columns)).unique(
+        subset=keys + ["side"], keep="first", maintain_order=True
+    )
     ov = (
         at_pair.filter(pl.col("side") == "over")
         .drop("side", "snapshot", "quote_ts", "market")
@@ -588,6 +628,8 @@ def pair_sides(quotes: pl.DataFrame) -> pl.DataFrame:
         paired = paired.unique(keep="first", maintain_order=True)
     if paired.height == 0:
         return paired
+    # F-2 join-cardinality guard: one pair row per (start, line, book)
+    _assert_unique(paired, keys, "pair_sides result")
     inv_o = 1.0 / pl.col("d_over")
     inv_u = 1.0 / pl.col("d_under")
     return paired.with_columns(
@@ -729,6 +771,14 @@ def build_paper_bets(eval_pairs: pl.DataFrame, probs: pl.DataFrame,
     """
     if eval_pairs.height == 0:
         return eval_pairs.clear()
+    # F-2 join-cardinality guards: the contract key for ONE paper bet is
+    # (start, line, side) - the CLV join below must pull the bet book's own
+    # closing side reference, which must therefore be unique at
+    # (start, line, book, side) or the join multiplies bets.
+    _assert_unique(
+        closing_side_refs, ["game_pk", "pitcher", "line", "book", "side"],
+        "closing_side_refs (paper-bet CLV join)",
+    )
     base_cols = [
         "game_pk", "pitcher", "pitcher_key", "game_date", "block", "tier",
         "first_pitch_ts", "line", "event_id",
@@ -801,6 +851,10 @@ def build_paper_bets(eval_pairs: pl.DataFrame, probs: pl.DataFrame,
             .otherwise(None)
             .alias("clv_pct")
         )
+    )
+    # F-2 contract-key invariant: exactly ONE bet per (start, line, side)
+    _assert_unique(
+        bets, ["game_pk", "pitcher", "line", "side"], "paper_bets"
     )
     return bets
 
@@ -995,6 +1049,30 @@ def run_prep(book_lines: Path, envelope: Path, payload_path: Path,
         }
     else:
         summary["paper_bets"]["bets"] = 0
+
+    # --- F-2 output invariants (fail loud BEFORE any write) ------------------
+    # Contract grains: matched_contracts one row per (start, line, side);
+    # actionable_pairs / closing_refs one row per (start, line, book);
+    # paper_bets one row per (start, line, side). No duplicate reference
+    # keys may reach the frozen outputs.
+    if matched.height:
+        _assert_unique(
+            matched, ["game_pk", "pitcher", "line", "side"], "matched_contracts"
+        )
+    if paired_all.height:
+        _assert_unique(
+            paired_all, ["game_pk", "pitcher", "line", "book"],
+            "actionable_pairs",
+        )
+    if closing_refs.height:
+        _assert_unique(
+            closing_refs, ["game_pk", "pitcher", "line", "book"],
+            "closing_refs",
+        )
+    if bets.height:
+        _assert_unique(
+            bets, ["game_pk", "pitcher", "line", "side"], "paper_bets"
+        )
 
     # --- write-once outputs --------------------------------------------------
     out_dir.mkdir(parents=True, exist_ok=True)
