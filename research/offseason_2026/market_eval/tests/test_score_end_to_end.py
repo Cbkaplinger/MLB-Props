@@ -377,6 +377,80 @@ def test_slate_bootstrap_block_stratified_row_weighted():
     assert boot == boot2
 
 
+def test_slate_bootstrap_hand_calculated_unequal_slate_sizes():
+    """F-1 regression: hand-calculated expected results on UNEQUAL slate
+    sizes (2 dates with 3 and 30 rows), independently derived without
+    running the estimator.
+
+    Case A (one block, two dates d1=3 rows @ 2.0, d2=30 rows @ 0.0):
+    every replicate draws exactly n_dates_b = 2 dates (multinomial over the
+    block's dates, p = 1/2 each) and combines ROW-WEIGHTED, so the resample
+    mean is (3*2*k1) / (3*k1 + 30*(2-k1)) for k1 = #times d1 drawn:
+        k1=0 -> 0.0    (P = 1/4)
+        k1=1 -> 6/33   (P = 1/2)
+        k1=2 -> 2.0    (P = 1/4)
+    With 2000 resamples the 2.5/97.5 percentiles land strictly inside the
+    k1=0 and k1=2 regions (each holds ~25% of replicates >> 2.5%), so they
+    are EXACTLY 0.0 and 2.0. The point estimate 6/33 is a flat row mean and
+    the interval endpoint 2.0 is on the same per-row scale; we do NOT assert
+    that every interval brackets the point estimate in general.
+
+    Case B (pooled = combined row-weighted across two blocks):
+    b1 = d1 (3 rows @ 2.0) + d2 (30 rows @ 0.0); b2 = d3 (6 rows @ 1.0).
+    b1 draws exactly 2 of ITS dates, b2 exactly 1 of ITS dates, so the only
+    free draw is again k1:
+        res = (3*2*k1 + 6*1) / (3*k1 + 30*(2-k1) + 6)
+            = (6*k1 + 6) / (66 - 27*k1)
+        k1=0 -> 6/66 = 1/11  (P = 1/4)
+        k1=1 -> 12/39 = 4/13 (P = 1/2)
+        k1=2 -> 18/12 = 1.5  (P = 1/4)
+    The pooled point estimate is the combined row-weighted mean
+    (3*2 + 30*0 + 6*1)/39 = 12/39 = 4/13 - NOT the mean of date means
+    ((2+0+1)/3 = 1.0) and NOT the mean of block means. An estimator that
+    averaged per-date means would return 0.5 at k1=1, not 4/13.
+    """
+    from datetime import date as _date
+    d1, d2, d3 = _date(2025, 5, 1), _date(2025, 5, 2), _date(2025, 5, 3)
+
+    # ---- case A: single block, 2 dates, 3 and 30 rows ----
+    dates = [d1] * 3 + [d2] * 30
+    blocks = ["b"] * 33
+    boot = me._slate_bootstrap(
+        {"h3": [2.0] * 3 + [0.0] * 30, "market": [0.0] * 33},
+        dates, blocks, n_boot=2000, seed=20261001,
+    )
+    assert boot["h3"]["point"] == pytest.approx(6.0 / 33.0)
+    assert boot["h3"]["p2.5"] == pytest.approx(0.0)
+    assert boot["h3"]["p97.5"] == pytest.approx(2.0)
+    # paired diff vs an all-zero competitor has the same exact endpoints
+    assert boot["h3_minus_market"]["point"] == pytest.approx(6.0 / 33.0)
+    assert boot["h3_minus_market"]["p2.5"] == pytest.approx(0.0)
+    assert boot["h3_minus_market"]["p97.5"] == pytest.approx(2.0)
+    boot_a2 = me._slate_bootstrap(
+        {"h3": [2.0] * 3 + [0.0] * 30, "market": [0.0] * 33},
+        dates, blocks, n_boot=2000, seed=20261001,
+    )
+    assert boot == boot_a2  # deterministic under the same seed
+
+    # ---- case B: pooled = combined row-weighted across two blocks ----
+    dates = [d1] * 3 + [d2] * 30 + [d3] * 6
+    blocks = ["b1"] * 33 + ["b2"] * 6
+    boot = me._slate_bootstrap(
+        {"h3": [2.0] * 3 + [0.0] * 30 + [1.0] * 6, "market": [0.0] * 39},
+        dates, blocks, n_boot=2000, seed=20261001,
+    )
+    assert boot["h3"]["point"] == pytest.approx(12.0 / 39.0)
+    assert boot["h3"]["p2.5"] == pytest.approx(1.0 / 11.0)
+    assert boot["h3"]["p97.5"] == pytest.approx(1.5)
+    assert boot["h3_minus_market"]["p2.5"] == pytest.approx(1.0 / 11.0)
+    assert boot["h3_minus_market"]["p97.5"] == pytest.approx(1.5)
+    boot_b2 = me._slate_bootstrap(
+        {"h3": [2.0] * 3 + [0.0] * 30 + [1.0] * 6, "market": [0.0] * 39},
+        dates, blocks, n_boot=2000, seed=20261001,
+    )
+    assert boot == boot_b2
+
+
 def test_roi_bootstrap_block_stratified():
     """Regression for the unstratified-pool ROI bootstrap (C3).
 
