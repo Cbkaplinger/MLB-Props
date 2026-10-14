@@ -740,6 +740,7 @@ def build_paper_bets(eval_pairs: pl.DataFrame, probs: pl.DataFrame,
         d = "d_over" if side == "over" else "d_under"
         price = "price_over" if side == "over" else "price_under"
         p_win = "p_h3_over" if side == "over" else "p_h3_under"
+        p_lose = "p_h3_under" if side == "over" else "p_h3_over"
         rows.append(
             cand.select(
                 base_cols
@@ -750,6 +751,7 @@ def build_paper_bets(eval_pairs: pl.DataFrame, probs: pl.DataFrame,
                     pl.col(price).alias("price"),
                     pl.col(d).alias("decimal_odds"),
                     pl.col(p_win).alias("p_h3_win"),
+                    pl.col(p_lose).alias("p_h3_lose"),
                     pl.col("book")
                     .replace_strict(prio_map, default=len(BOOK_PRIORITY), return_dtype=pl.Int64)
                     .alias("_prio"),
@@ -776,7 +778,7 @@ def build_paper_bets(eval_pairs: pl.DataFrame, probs: pl.DataFrame,
         .with_columns(
             (
                 pl.col("p_h3_win") * (pl.col("decimal_odds") - 1.0)
-                - (1.0 - pl.col("p_h3_win"))
+                - pl.col("p_h3_lose")
             ).alias("ev_h3")
         )
         .join(

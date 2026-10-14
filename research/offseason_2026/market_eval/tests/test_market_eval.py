@@ -105,6 +105,40 @@ def test_build_prob_table_zero_integer_line_push():
     assert row05["p_h3_under"] == pytest.approx(0.3)
 
 
+def test_paper_bet_ev_uses_p_h3_lose_not_one_minus_win():
+    """C3 regression: paper-bet EV used (1 - p_h3_win) as the lose
+    probability, wrongly charging the PUSH mass against EV. With refund
+    semantics EV = p_win*(d-1) - p_h3_lose; at integer line 0.0 with
+    push = P(K = 0) = 0.3 and under = 0.0, the over EV must be
+    0.7*(2.0 - 1) - 0.0 = 0.7 (the old code returned 0.4)."""
+    payload = _payload_frame([
+        {"game_pk": 1, "pitcher": 1, "game_date": date(2025, 5, 1),
+         "pmf_h3": {0: 0.3, 1: 0.7}, "pmf_l5": {0: 1.0}},
+    ])
+    probs = me.build_prob_table(payload, [0.0])
+    eval_pairs = pl.DataFrame({
+        "game_pk": [1], "pitcher": [1], "pitcher_key": ["a alice"],
+        "game_date": [date(2025, 5, 1)], "block": ["b"], "tier": [me.TIER_A],
+        "first_pitch_ts": [ts("2025-05-01T23:00:00Z")], "line": [0.0],
+        "event_id": ["e1"], "book": ["draftkings"],
+        "pair_ts": [ts("2025-05-01T18:00:00Z")],
+        "price_over": [-100], "price_under": [100],
+        "d_over": [2.0], "d_under": [2.0],
+    })
+    closing_empty = pl.DataFrame(schema={
+        "game_pk": pl.Int64, "pitcher": pl.Int64, "line": pl.Float64,
+        "book": pl.String, "side": pl.String,
+        "quote_ts": pl.Datetime("us", "UTC"), "price": pl.Int64,
+    })
+    bets = me.build_paper_bets(eval_pairs, probs, closing_empty)
+    assert bets.height == 1
+    bet = bets.row(0, named=True)
+    assert bet["side"] == "over"
+    assert bet["p_h3_win"] == pytest.approx(0.7)
+    assert bet["p_h3_lose"] == pytest.approx(0.0)   # push mass NOT in lose
+    assert bet["ev_h3"] == pytest.approx(0.7 * (2.0 - 1.0) - 0.0)
+
+
 def test_devig_proportional():
     p_o, p_u = me.devig_proportional(*[me.to_decimal(-110)] * 2)
     assert p_o == pytest.approx(0.5)
