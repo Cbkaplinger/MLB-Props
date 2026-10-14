@@ -1,0 +1,112 @@
+{
+ "card": "bf-2026-cohort-enumeration-2026-10-14",
+ "method": "eligibility metadata only per PREREGISTRATION_2026.md section 1.2; frozen builders imported unchanged; NO outcome reads (events used only for completed-PA / truncated_pa eligibility, no label column created)",
+ "season_window": {
+  "data_min_game_date": "2026-03-25",
+  "data_max_game_date": "2026-09-27",
+  "n_slate_dates": 184
+ },
+ "full_season_cohort": {
+  "first_pitcher_of_record_starts": 4858,
+  "unknown_opp_team": 0,
+  "nine_distinct_failures_excluded": 0,
+  "eligible_rows_after_exclusions": 4858,
+  "bf_inputs_available_rows": 4858,
+  "league_history_available_rows": 4858,
+  "bf_cold_start_rows": 59,
+  "bf_own_dist_rows_prior_n_ge10": 4465,
+  "pa_state_available_rows": 4858,
+  "n_prior_team_games_lt7_rows": 0,
+  "rows_with_fallback_slot": 57,
+  "eligible_with_captured_pregame_cutoff": 134,
+  "eligible_without_captured_pregame_cutoff": 4724
+ },
+ "captured_cohort": {
+  "captured_team_games": 142,
+  "captured_lineup_dates": [
+   "2026-07-28",
+   "2026-07-30",
+   "2026-08-07",
+   "2026-08-10",
+   "2026-08-20",
+   "2026-08-21"
+  ],
+  "null_probable_pitcher_excluded": 8,
+  "captured_rows_with_pregame_cutoff": 134,
+  "captured_nine_distinct_failures": 0,
+  "captured_eligible_rows": 134
+ },
+ "exclusions_by_reason": {
+  "full_season_nine_distinct_failures": {
+   "n": 0,
+   "registered_reason": "insufficient_distinct_prior_batters"
+  },
+  "captured_null_probable_pitcher": {
+   "n": 8
+  },
+  "captured_nine_distinct_failures": {
+   "n": 0
+  },
+  "unknown_opp_team": {
+   "n": 0
+  },
+  "missing_bf_inputs": {
+   "n": 0
+  }
+ },
+ "pilot_overlap": {
+  "seal_keys_n": 134,
+  "pilot_keys_n": 134,
+  "key_sets_identical": true,
+  "pilot_rows_in_full_season_enumeration": 134,
+  "pilot_usable_B_11_in_enumeration": 11,
+  "membership_source_note": "pilot usable-B membership (11 usable-B / 123 fallback) comes from the PILOT package row_keys.json; the seal payload re-stamps all 134 rows ok_confirmed and is NOT a membership source (see CLASSIFICATION.md)"
+ },
+ "prior_exposure_groups": {
+  "pilot_134_rows": {
+   "n": 134,
+   "reason": "sealed 2026 A/B pilot replay population; outcomes already observed (DEV_STANDARD_RECIPE 9.4.1); excluded from confirmation/pooling"
+  },
+  "captured_team_games_pilot_replay_inputs": {
+   "n": 142,
+   "reason": "142 captured team-games touched as pilot replay inputs (bf-bundle-2026 lineage)"
+  },
+  "captured_lineup_slate_dates": {
+   "dates": [
+    "2026-07-28",
+    "2026-07-30",
+    "2026-08-07",
+    "2026-08-10",
+    "2026-08-20",
+    "2026-08-21"
+   ],
+   "n_rows_on_those_slate_dates": 148,
+   "reason": "6 captured 2026 lineup dates flagged by registration section 8"
+  },
+  "p1_harness_2026_contact": {
+   "eval_rows_with_2026_dates": 0,
+   "reason": "p1-harness EVAL split reserves 2026 rows at definition level only; eval_predictions contain 0 rows dated 2026 (verified); no 2026 row was scored by the harness"
+  },
+  "rows_outside_all_groups": {
+   "n": 4708,
+   "note": "full-season rows with no recorded development contact; state inputs were rebuilt strictly-prior by this metadata-only enumeration"
+  }
+ },
+ "builder_hashes": {
+  "build_projected_lineups.py": "f247b4b78da3cfd592b9f95f451d7d4ce4c02755319a8ab39e04ff55ea53f72d",
+  "build_projected_lineups_variant_v2.py": "dba328627cbdd3aa2b94b1b64ecac1e8a7a5b0e808324c5870094ce055bf6c9d",
+  "preregistration_variant_v2.json": "0983d6aecff9689f67c5032ca240a8d6beb982c1534415d74f90b3a0d94b7303"
+ },
+ "inputs": {
+  "savant_root": "<external-repo>\\data\\Savant-Data\\regular",
+  "processed_root": "<external-repo>\\data\\processed",
+  "lake": "<external-lake>"
+ },
+ "outcome_boundary": {
+  "label_columns_created": 0,
+  "k_events_used": false,
+  "events_column_use": "completed-PA determination + truncated_pa exclusion only",
+  "realized_bf_use": "exposure count (completed PAs per pitcher-game), strictly-prior state only",
+  "scoring_performed": false
+ }
+}

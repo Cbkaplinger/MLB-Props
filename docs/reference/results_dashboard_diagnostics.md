@@ -57,7 +57,7 @@ Interpretation:
 1. Run focused monitors first:
    - `production/notebooks/results_kpi_monitor.ipynb`
    - `production/notebooks/results_calibration_lab.ipynb`
-   - `production/notebooks/results_gate_policy.ipynb`
+   - `production/notebooks/results_bettable_cohort.ipynb`
 2. Run `production/notebooks/results_dashboard.ipynb` through section 20 only when
    deep-dive verification is needed.
 2. Confirm artifacts updated:

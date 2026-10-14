@@ -1,5 +1,8 @@
 # 05 — Live prediction flow (production, as of 2026-09-24)
 
+> Verified base: committed `31e9891`. Later bridge/WF work is reported-only
+> (see `00-index.md`) and is not drawn here.
+
 How a slate becomes money (or paper) tracking, end to end. Research-era
 training is `03`; this file is the thing that runs every day.
 
@@ -87,6 +90,11 @@ flowchart TB
 
 ## Notes
 
+- View A companion: this file is the daily side branch. Code path EXISTING;
+  deployment currently paused (postseason HOLD; season ended 2026-09-27; app
+  STOPPED). Research sims read the ledger and never write back to policy
+  without owner orders. Forecast cutoff: board uses only pre-first-pitch
+  features and quotes.
 - Research sims (ladder v2, monte-carlo v1, Kalshi panels) read the ledger
   and write reports; no arrow points back into policy without owner orders.
 - Season end 2026-09-27: `season.postseason = hold_all_no_bets` in policy.

@@ -8,6 +8,7 @@ When a report’s ops guidance is superseded (e.g. shadow stance after a live pr
 
 ## Index (recent)
 
+- `pa_bf_review_record_2026-10-12.md` — independent review arc record: PA aggregation + BF forecast findings/closures, byte pins, quarantined execution claims, approval pipeline
 - `live_policy_promotion_2026-09-01.md` — 4.5-over veto promoted live
 - `interim_live_skip_rules_2026-09-01.md` — promoted rule card
 - `interim_postfreeze_ops_stance_2026-09-01.md` — **SUPERSEDED** shadow rationale

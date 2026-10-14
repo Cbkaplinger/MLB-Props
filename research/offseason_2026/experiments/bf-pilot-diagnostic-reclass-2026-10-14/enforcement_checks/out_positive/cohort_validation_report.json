@@ -1,0 +1,96 @@
+{
+ "version": "cohort-aware-2",
+ "lineage": {
+  "vendored_v2_commit": "b2fef02",
+  "vendored_v2": {
+   "run_bf_ab_score_v2_sha256_lf": "6b8cecf24a2463463d98e94e84b0bdab146d55cb6d29382c4955eb4cdb24bc4a",
+   "matches_pin": true
+  },
+  "metric_changes": "none (verbatim v2 metric/bootstrap code)",
+  "gate_change": "hardcoded 134 -> pinned manifest n + exact key set + cutoff equality",
+  "membership_enforcement": "score mode re-derives the usable-B mask from a one-to-one join against the ORIGINAL pilot membership file (fail loud on duplicates/missing/unexpected keys, unknown statuses, wrong partition); payload re-stamped arm flags ignored"
+ },
+ "mode": "validate",
+ "seal_dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-pilot-diagnostic-v1\\payload",
+ "manifest": {
+  "manifest_id": "pilot134-pinned",
+  "n_rows": 134,
+  "source": "bf-2026-predictor-seal-v1/row_keys.json",
+  "source_sha256": "cece35faae57c04b91be3a86601bed81f633d394bd940249f7c7acb1314cba14"
+ },
+ "n_rows": 134,
+ "checks": {
+  "n_matches_manifest": true,
+  "unique_keys_payload": true,
+  "unique_keys_manifest": true,
+  "key_set_matches_manifest": true,
+  "cutoffs_match_manifest": true,
+  "identical_arm_populations": true,
+  "pmf_support_buckets": 24,
+  "pmf_valid": true
+ },
+ "fail_loud": "all violations raise SystemExit; nothing is silently dropped",
+ "arm_flags_note": "arm_B_status/arm_B_equals_A not manifest-validated (pilot membership lives in the pilot package; see CLASSIFICATION.md)",
+ "membership_enforcement": {
+  "membership_file": "C:\\Users\\ckaplinger\\MLB-Props-Research\\seal-package-preflight\\row_keys.json",
+  "membership_sha256": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f",
+  "n_total": 134,
+  "n_usable_B": 11,
+  "n_fallback": 123,
+  "usable_B_keys": [
+   [
+    822946,
+    663556
+   ],
+   [
+    822946,
+    668390
+   ],
+   [
+    823023,
+    665871
+   ],
+   [
+    823023,
+    669467
+   ],
+   [
+    823674,
+    641927
+   ],
+   [
+    823674,
+    702070
+   ],
+   [
+    823921,
+    693433
+   ],
+   [
+    823921,
+    808963
+   ],
+   [
+    824568,
+    677960
+   ],
+   [
+    824568,
+    680732
+   ],
+   [
+    824974,
+    543243
+   ]
+  ],
+  "checks": {
+   "one_to_one_unique_membership_keys": true,
+   "one_to_one_unique_payload_keys": true,
+   "no_missing_payload_keys": true,
+   "no_unexpected_membership_keys": true,
+   "known_pilot_statuses_only": true,
+   "total_matches_pinned_manifest_n_rows": true
+  },
+  "note": "usable-B mask re-derived from the ORIGINAL pilot membership by one-to-one (game_pk, pitcher) join; payload arm_B_status/arm_B_equals_A re-stamps ignored"
+ }
+}

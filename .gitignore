@@ -69,3 +69,6 @@ tmp_nb_figs/
 # L3 pipeline is the live source). Kept on disk; never commit again.
 data/DailyPitcherModelTrainingData.csv
 data/Pitcher-Starts-2023-2025-Data/
+
+# Private-lake drop-ins for integration-lane tests (never commit)
+research/offseason_2026/bf_workload_v1/data/

@@ -8,7 +8,7 @@ This checklist tracks low-value surface area and safe cleanup opportunities.
 - **Legacy production root shims:** no active root-level shim scripts detected in `production/`.
 - **Notebook output bloat risk:** keep outputs out of commits when possible; rely on artifacts for persistent metrics.
 - **Docs drift risk:** policy text should link to canonical docs instead of duplicating long rationale.
-- **Dashboard sprawl risk:** deep-dive cells are now complemented by focused monitors (`results_kpi_monitor`, `results_calibration_lab`, `results_gate_policy`, `results_pnl_clv`).
+- **Dashboard sprawl risk:** deep-dive cells are now complemented by focused monitors (`results_kpi_monitor`, `results_calibration_lab`, `results_bettable_cohort`, `results_pnl_clv`).
 - **2026-08-11 dependency audit:** every `production/notebooks/*.ipynb` and `production/ops/*.py` file is still referenced by docs/scripts/notebooks; no safe deletions in those folders yet.
 - **2026-08-18 quality passthrough:** `keep/hold/delete` workflow formalized in `.cursor/skills/repo-quality-passthrough/`; canonical casing policy set to lowercase references (`data`, `models`, `artifacts`) with staged migration only.
 

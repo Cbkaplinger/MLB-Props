@@ -125,7 +125,7 @@ Use these focused notebooks for repeatable, lower-latency monitoring:
 
 - `production/notebooks/results_kpi_monitor.ipynb` (daily KPI/WARN scan)
 - `production/notebooks/results_calibration_lab.ipynb` (matchup/rest pockets)
-- `production/notebooks/results_gate_policy.ipynb` (edge-floor policy simulation)
+- `production/notebooks/results_bettable_cohort.ipynb` (edge-floor policy simulation; hosts retired gate-policy audit)
 - `production/notebooks/results_pnl_clv.ipynb` (bankroll + CLV trend)
 
 Keep `production/notebooks/results_dashboard.ipynb` as the deep-dive archive view.

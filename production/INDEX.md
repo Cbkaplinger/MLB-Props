@@ -92,7 +92,7 @@ Quick routing: "I need to do X -> run Y".
 - Focused monitors:
   - `production/notebooks/results_kpi_monitor.ipynb`
   - `production/notebooks/results_calibration_lab.ipynb`
-  - `production/notebooks/results_gate_policy.ipynb`
+  - `production/notebooks/results_bettable_cohort.ipynb`
   - `production/notebooks/results_pnl_clv.ipynb`
   - `production/notebooks/results_recommendation_audit.ipynb`
   - `production/notebooks/results_bettable_cohort.ipynb`

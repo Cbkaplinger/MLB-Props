@@ -286,6 +286,30 @@ juiced v2, 5-min ticks, −30h K open (~47k), Streamlit, MLflow, retrains,
 global floor sweeps, panel-aware notebooks (they still read SharpAPI
 `ledger.parquet`).
 
+### 2b. 2026 predictor-seal lane (added 2026-10-14 — bounded prep complete, scoring still gated)
+
+Parallel research lane (not the betting desk). State:
+
+- Seal payload `bf-2026-predictor-seal-v1` (external lake) is
+  **PREPARED-NOT-SEALED** and now classified **PILOT-REPRODUCTION**
+  (`CLASSIFICATION.md` in the seal dir, mirrored at
+  `research/offseason_2026/bf-2026-predictor-seal-v1/`). Pilot usable-B
+  membership (11/123) comes from the PILOT package, never the seal's
+  re-stamped arm flags.
+- **2026 outcome scoring remains FORBIDDEN** until the owner seals.
+- Cohort enumeration done (metadata only): full 2026 season = 4,858
+  eligible first-pitcher-of-record rows, 0 exclusions, but only 134
+  have captured pregame cutoffs. Card:
+  `research/offseason_2026/experiments/bf-2026-cohort-enumeration-2026-10-14/`.
+- Scoring path generalized: `run_bf_ab_score_cohort.py` pins cohort
+  size/keys via a manifest instead of the hardcoded 134 (metric code
+  verbatim from vendored v2 b2fef02; parity + non-134 demos PASS).
+  Card: `research/offseason_2026/experiments/bf-cohort-scorer-mode-2026-10-14/`.
+- Registered-fit feasibility: `READY_BRIEF.md` (seal dir + mirror) —
+  the single fit through 2025-12-31 (calibration ending 2025-09-28) is
+  a deterministic execution of the registered recipe; decisions D1-D6
+  must be pinned before execution.
+
 ---
 
 ## 3. Vision — freeze / work / product

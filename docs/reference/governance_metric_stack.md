@@ -5,7 +5,7 @@ This is the canonical metric set for model + policy governance tracking.
 Use this stack to keep monitoring consistent across:
 
 - `production/notebooks/model_governance.ipynb`
-- `production/notebooks/results_gate_policy.ipynb`
+- `production/notebooks/results_bettable_cohort.ipynb`
 - `production/notebooks/results_kpi_monitor.ipynb`
 - `production/notebooks/results_recommendation_audit.ipynb`
 

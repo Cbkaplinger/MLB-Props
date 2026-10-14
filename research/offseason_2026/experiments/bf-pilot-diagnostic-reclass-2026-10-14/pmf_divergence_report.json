@@ -1,0 +1,81 @@
+{
+ "mode": "predictor-only PMF divergence (no outcomes read)",
+ "date": "2026-10-14",
+ "packages": {
+  "original_pilot": {
+   "dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\seal-package-preflight",
+   "row_keys_sha256": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f",
+   "arm_A_pmf_sha256": "16c31bfba35f755b9183c5161053e132e0143df8a61886c7dc25372b21f0f116",
+   "arm_B_pmf_sha256": "ceb1dca34e58f66237d0943001e2d79f83522c16b738c035b7d8a901f3759e1d"
+  },
+  "rebuilt_seal": {
+   "dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-predictor-seal-v1",
+   "row_keys_sha256": "cece35faae57c04b91be3a86601bed81f633d394bd940249f7c7acb1314cba14",
+   "arm_A_pmf_sha256": "ae6b754bb7a931e92a4bd164ed06cafeef2a79bedccab1b93474b89304b99119",
+   "arm_B_pmf_sha256": "2cd2fecb50bfb8a35e4fbcb4949f18d6a7600d80ae93d2969f3e26fb3d30b349"
+  }
+ },
+ "alignment": {
+  "n_rows": 134,
+  "row_order_identical": true,
+  "key_set_identical": true,
+  "forecast_cutoffs_identical": true
+ },
+ "pilot_membership_structure": {
+  "usable_B": 11,
+  "fallback": 123,
+  "pilot_fallback_B_equals_A_bitwise": true,
+  "rebuilt_rows_where_B_equals_A_bitwise": 0
+ },
+ "divergence": [
+  {
+   "arm": "arm_A",
+   "max_abs_pmf_diff_134keys": 0.2766163601804735,
+   "mean_abs_cell_diff": 0.012787087949252497,
+   "per_row_max_abs_diff": {
+    "min": 0.012076180522530858,
+    "median": 0.04484233077517151,
+    "max": 0.2766163601804735
+   },
+   "usable_B_rows_11": {
+    "max_abs_pmf_diff": 0.06563630775413762,
+    "mean_abs_cell_diff": 0.009547967270202969
+   },
+   "fallback_rows_123": {
+    "max_abs_pmf_diff": 0.2766163601804735,
+    "mean_abs_cell_diff": 0.013076765408354488
+   },
+   "n_rows_diff_gt_0.01": 134,
+   "n_rows_diff_gt_0.10": 2
+  },
+  {
+   "arm": "arm_B",
+   "max_abs_pmf_diff_134keys": 0.27560646275086986,
+   "mean_abs_cell_diff": 0.013028151405943218,
+   "per_row_max_abs_diff": {
+    "min": 0.005849713589274025,
+    "median": 0.046598780055924445,
+    "max": 0.27560646275086986
+   },
+   "usable_B_rows_11": {
+    "max_abs_pmf_diff": 0.0629601139434342,
+    "mean_abs_cell_diff": 0.01014137662885197
+   },
+   "fallback_rows_123": {
+    "max_abs_pmf_diff": 0.27560646275086986,
+    "mean_abs_cell_diff": 0.013286318255926988
+   },
+   "n_rows_diff_gt_0.01": 133,
+   "n_rows_diff_gt_0.10": 3
+  }
+ ],
+ "construction_differences_applied_to_every_row": [
+  "PA checkpoint for 2026 dates: rebuild uses the confirm_2025H2 frozen ladder checkpoint (train through 2025-06-30); the pilot-era forecast used the pilot-time PA machinery (no confirm_2025H2 block existed then) - seal_prep_report.json pa_source_lineage_deviation",
+  "CAL column usage: rebuild emits per-block sigmoid-CALibrated ladder columns (DEV_STANDARD_RECIPE section 5); the pilot forecast path predates CAL columns in the arm output",
+  "projected-batter-state v2 (strictly-prior projected lineups, unique-batter v2 assignment) vs the pilot's realized lineup captures (oracle batter identities from the 6 capture dates)",
+  "BF source: rebuild uses the BASE add-one empirical BF pool (bf-workload-v1 machinery); pilot used the approved pickle bundle bf-bundle-2026-corr-20261012_132811",
+  "arm definitions: rebuild arm_A = cumulative log5 ladder LOG5 arm, arm_B = H3 8-feature logistic (checkpoint-verified deterministic refit); pilot arm_A = scalar I1_ref path on reconstructed BF, pilot arm_B = lineup-mean mixture on the 11 usable-B rows and A bitwise on the 123 fallback rows"
+ ],
+ "unexpected_mismatch": null,
+ "unexpected_mismatch_note": "every row diverges (min per-row max diff 0.0121 arm_A / 0.0059 arm_B), which is exactly what the five documented construction differences predict since each applies to all 134 rows; the largest per-row divergences concentrate in the fallback partition where the pilot's B carried no challenger information (B==A bitwise) while the rebuild's B is the H3 refit; no divergence source outside the documented list was found, so no STOP condition triggered"
+}

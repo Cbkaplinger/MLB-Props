@@ -1,0 +1,261 @@
+{
+ "card": "bf-workload-v1",
+ "created": "2026-10-13",
+ "labeling": {
+  "bf_forecast": "Pregame point-in-time: BF PMF uses only starts strictly before game_date (lineup-free empirical + w=50 shrunk mean; own prior dist if prior_n>=10 else league).",
+  "pa_probability_conditioning": "DIAGNOSTIC ONLY, NOT a pregame K-count forecast: per-PA K probabilities exist only for REALIZED PAs, so the conditional K distribution for exposure n uses the mean of the start's first n ordered (by at_bat_number) REALIZED PA probabilities (mean over all realized PAs for n beyond the realized count). This conditions on the realized PA sequence and ordering; it compares PA probability quality under a shared, honestly-pregame BF PMF."
+ },
+ "arms": {
+  "h3": "pred_H3_cal (P1 H3 logistic, calibrated)",
+  "log5": "pred_LOG5_cal (cumulative log5 reference, calibrated)"
+ },
+ "shared": "identical BF PMF per start; arms differ only in PA probs",
+ "window": [
+  "2024-07-01",
+  "2025-12-31"
+ ],
+ "blocks": [
+  "block_2024H2",
+  "block_2025H1",
+  "confirm_2025H2"
+ ],
+ "variants": {
+  "base": "37-cat add-one empirical BF PMF (own if n>=10 else league)",
+  "sensa": "point exposure = point_exposure_n(BF PMF), fixed-n binomial",
+  "sensb": "doubled-variance: 50/50 count mix (source, league) + add-one"
+ },
+ "k_max": 24,
+ "milestones": [
+  6,
+  8,
+  10,
+  12
+ ],
+ "n_starts": 7194,
+ "n_starts_dropped_no_preds": 0,
+ "n_starts_dropped_bf_mismatch": 0,
+ "n_slate_dates": 272,
+ "bootstrap": {
+  "n": 2000,
+  "seed": 20261001,
+  "unit": "slate-date (game_date)"
+ },
+ "aggregate": {
+  "base": {
+   "h3": {
+    "rps": 1.29477338635123,
+    "logscore": 2.2554322751192797,
+    "rmse_mean_k": 2.2981995016425305,
+    "brier_ge6": 291.76650547268815,
+    "brier_ge8": 245.80461037587554,
+    "brier_ge10": 193.57202247037097,
+    "brier_ge12": 143.5306836057194
+   },
+   "l5": {
+    "rps": 1.300603434226289,
+    "logscore": 2.2593680045470053,
+    "rmse_mean_k": 2.3083198802338125,
+    "brier_ge6": 291.63160531036914,
+    "brier_ge8": 245.7257589131617,
+    "brier_ge10": 193.53830513159974,
+    "brier_ge12": 143.51921742953763
+   }
+  },
+  "sensa": {
+   "h3": {
+    "rps": 1.295925012578503,
+    "logscore": 2.26950662512296,
+    "rmse_mean_k": 2.300931214900628,
+    "brier_ge6": 299.18084087309256,
+    "brier_ge8": 249.37523061155375,
+    "brier_ge10": 194.71716043451417,
+    "brier_ge12": 143.8041116045898
+   },
+   "l5": {
+    "rps": 1.3021967801434717,
+    "logscore": 2.27598615732348,
+    "rmse_mean_k": 2.310966619106243,
+    "brier_ge6": 299.0501206931434,
+    "brier_ge8": 249.34201517812534,
+    "brier_ge10": 194.7134505363965,
+    "brier_ge12": 143.80391167078363
+   }
+  },
+  "sensb": {
+   "h3": {
+    "rps": 1.281646718897664,
+    "logscore": 2.226678828295931,
+    "rmse_mean_k": 2.2935383638819236,
+    "brier_ge6": 294.15701288194964,
+    "brier_ge8": 247.44956861840626,
+    "brier_ge10": 194.25036017263264,
+    "brier_ge12": 143.72938679131886
+   },
+   "l5": {
+    "rps": 1.2885633137594186,
+    "logscore": 2.2321445337117516,
+    "rmse_mean_k": 2.3056036491975496,
+    "brier_ge6": 293.97427054865835,
+    "brier_ge8": 247.3681691767396,
+    "brier_ge10": 194.22906353132032,
+    "brier_ge12": 143.7255787240664
+   }
+  }
+ },
+ "bootstrap_results": {
+  "base_h3_rps_point": 1.29477338635123,
+  "base_h3_rps_ci95": [
+   1.2733006488138807,
+   1.3164083205652948
+  ],
+  "base_h3_logscore_point": 2.2554322751192797,
+  "base_h3_logscore_ci95": [
+   2.2415574018550117,
+   2.269171533606684
+  ],
+  "base_h3_rmse_mean_k_point": 2.2981995016425305,
+  "base_h3_rmse_mean_k_ci95": [
+   2.2584707054536866,
+   2.337510856539871
+  ],
+  "base_l5_rps_point": 1.300603434226289,
+  "base_l5_rps_ci95": [
+   1.2793624591942814,
+   1.3222534050275547
+  ],
+  "base_l5_logscore_point": 2.2593680045470053,
+  "base_l5_logscore_ci95": [
+   2.245365145356776,
+   2.2735185231365507
+  ],
+  "base_l5_rmse_mean_k_point": 2.3083198802338125,
+  "base_l5_rmse_mean_k_ci95": [
+   2.26789020725452,
+   2.347543130178053
+  ],
+  "base_diff_rps_h3_minus_l5_point": -0.00583004787505903,
+  "base_diff_rps_ci95": [
+   -0.00874964843404118,
+   -0.0030621958912238037
+  ],
+  "base_diff_rps_share_resamples_h3_better": 1.0,
+  "base_diff_logscore_h3_minus_l5_point": -0.003935729427725576,
+  "base_diff_logscore_ci95": [
+   -0.00589804138703152,
+   -0.00211463555088672
+  ],
+  "base_diff_logscore_share_resamples_h3_better": 1.0,
+  "base_diff_rmse_mean_k_h3_minus_l5_point": -0.010120378591282009,
+  "base_diff_rmse_mean_k_ci95": [
+   -0.015457757945898976,
+   -0.0050630383438215265
+  ],
+  "base_diff_rmse_mean_k_share_resamples_h3_better": 1.0,
+  "sensa_h3_rps_point": 1.295925012578503,
+  "sensa_h3_rps_ci95": [
+   1.271250610143596,
+   1.3209936479582245
+  ],
+  "sensa_h3_logscore_point": 2.26950662512296,
+  "sensa_h3_logscore_ci95": [
+   2.2464837422781834,
+   2.2941301995622836
+  ],
+  "sensa_h3_rmse_mean_k_point": 2.300931214900628,
+  "sensa_h3_rmse_mean_k_ci95": [
+   2.260864321012713,
+   2.3401870478472935
+  ],
+  "sensa_l5_rps_point": 1.3021967801434717,
+  "sensa_l5_rps_ci95": [
+   1.2780889036611867,
+   1.3274500297276972
+  ],
+  "sensa_l5_logscore_point": 2.27598615732348,
+  "sensa_l5_logscore_ci95": [
+   2.252353910685884,
+   2.3003807135063843
+  ],
+  "sensa_l5_rmse_mean_k_point": 2.310966619106243,
+  "sensa_l5_rmse_mean_k_ci95": [
+   2.2702433722213438,
+   2.3497031413199476
+  ],
+  "sensa_diff_rps_h3_minus_l5_point": -0.006271767564968833,
+  "sensa_diff_rps_ci95": [
+   -0.009643000748573076,
+   -0.0030976808322086685
+  ],
+  "sensa_diff_rps_share_resamples_h3_better": 1.0,
+  "sensa_diff_logscore_h3_minus_l5_point": -0.006479532200520222,
+  "sensa_diff_logscore_ci95": [
+   -0.009701621182435543,
+   -0.0033591617586903938
+  ],
+  "sensa_diff_logscore_share_resamples_h3_better": 1.0,
+  "sensa_diff_rmse_mean_k_h3_minus_l5_point": -0.010035404205614995,
+  "sensa_diff_rmse_mean_k_ci95": [
+   -0.015310677570576626,
+   -0.0049887726076897
+  ],
+  "sensa_diff_rmse_mean_k_share_resamples_h3_better": 1.0,
+  "sensb_h3_rps_point": 1.281646718897664,
+  "sensb_h3_rps_ci95": [
+   1.2591973244135288,
+   1.304629130959104
+  ],
+  "sensb_h3_logscore_point": 2.226678828295931,
+  "sensb_h3_logscore_ci95": [
+   2.2101703896191043,
+   2.243958889683888
+  ],
+  "sensb_h3_rmse_mean_k_point": 2.2935383638819236,
+  "sensb_h3_rmse_mean_k_ci95": [
+   2.2550255530905656,
+   2.331477480348311
+  ],
+  "sensb_l5_rps_point": 1.2885633137594186,
+  "sensb_l5_rps_ci95": [
+   1.2663758165799066,
+   1.3117734222922237
+  ],
+  "sensb_l5_logscore_point": 2.2321445337117516,
+  "sensb_l5_logscore_ci95": [
+   2.215503212068241,
+   2.2497903125523053
+  ],
+  "sensb_l5_rmse_mean_k_point": 2.3056036491975496,
+  "sensb_l5_rmse_mean_k_ci95": [
+   2.2662162445492595,
+   2.344059257190166
+  ],
+  "sensb_diff_rps_h3_minus_l5_point": -0.006916594861754666,
+  "sensb_diff_rps_ci95": [
+   -0.01013371618988357,
+   -0.0038805352704555157
+  ],
+  "sensb_diff_rps_share_resamples_h3_better": 1.0,
+  "sensb_diff_logscore_h3_minus_l5_point": -0.0054657054158204765,
+  "sensb_diff_logscore_ci95": [
+   -0.007907504646696891,
+   -0.003183370597894317
+  ],
+  "sensb_diff_logscore_share_resamples_h3_better": 1.0,
+  "sensb_diff_rmse_mean_k_h3_minus_l5_point": -0.012065285315626006,
+  "sensb_diff_rmse_mean_k_ci95": [
+   -0.0175752495967449,
+   -0.0067870242844022995
+  ],
+  "sensb_diff_rmse_mean_k_share_resamples_h3_better": 1.0
+ },
+ "inputs_sha256": {
+  "bf_forecasts.parquet": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
+  "overnight-p2/preds_block_2024H2.parquet": "a311f4429457ced383b8ef834846978b4682b912e53bb46319107efc0cd980d3",
+  "overnight-p2/preds_block_2025H1.parquet": "6187d232e8917ce40b481feda5521cecefa0ce8418741ef65aff7dfc8702cbd7",
+  "overnight-p2/preds_confirm_2025H2.parquet": "e60b5aa306dcd5e2157d0de61392681c287a190607330461b98cf91701c88d2a",
+  "helpers/kcount_combiner.py": "c852b5cf14956942a2a9d67d7e076b758dbbca75a6983ba55cdfe6906f7264e5",
+  "helpers/bf_distribution.py": "621f6e854a33470c0fedbe066dcde0bc9f14837b21befe3dc590d26968902a36",
+  "scripts/build_bf_forecasts.py": "8893918b3d001f2e3d481eae40e000b32a3968545e37b84f4ba82ba9f7708ef6",
+  "scripts/run_kcount_comparison.py": "4fc547ed036e0c2a2e2b290cf2eb540af6700084bf1f1df50303deca5375a1fa"
+ }
+}

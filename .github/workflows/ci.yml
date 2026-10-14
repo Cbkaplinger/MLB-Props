@@ -35,4 +35,10 @@ jobs:
 
       - name: Run full test suite
         run: |
-          python -m pytest -q
+          python -m pytest -q -rs --junitxml=pytest_report.xml
+      - name: Upload pytest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: pytest_report.xml

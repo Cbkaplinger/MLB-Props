@@ -1,0 +1,52 @@
+{
+ "demonstrations": {
+  "demo1_parity_on_seal_fixture": {
+   "result": "PASS",
+   "description": "real bf-2026-predictor-seal-v1 payload accepted by the cohort-aware validation against the pinned pilot-134 manifest; checks identical to the canonical scorer's gating (n=134 via manifest pin, unique keys, identical arm populations, 24-bucket PMF validity) plus manifest key-set + cutoff equality",
+   "n_rows": 134,
+   "checks": {
+    "n_matches_manifest": true,
+    "unique_keys_payload": true,
+    "unique_keys_manifest": true,
+    "key_set_matches_manifest": true,
+    "cutoffs_match_manifest": true,
+    "identical_arm_populations": true,
+    "pmf_support_buckets": 24,
+    "pmf_valid": true
+   },
+   "outcome_reads": 0
+  },
+  "demo2_metric_parity_synth134": {
+   "result": "PASS",
+   "description": "canonical run_bf_ab_score_v3.py and the cohort-aware scorer produce EXACTLY equal population_all / population_usable_B / secondary statistics on the same synthetic 134-row payload + synthetic labels (float equality on every statistic)",
+   "compared_blocks": [
+    "population_all",
+    "population_usable_B",
+    "secondary"
+   ],
+   "synthetic_seal_sha256": {
+    "row_keys.json": "15b6bf18d222dfb6eeb59d9e1efcc512fe11dbe3479f4ada0199aa6038d61a83",
+    "arm_A_pmf.npy": "ac55fcf75a6d15b689dfda755ed9b2f679fed4fc6669894897290ec60e7ec2ca",
+    "arm_B_pmf.npy": "661545fac23ad31b5d69b7d1add9bf8b9d78432faab543897aafe7cef5a588c8"
+   },
+   "synthetic_labels_sha256": "4b40f1f71a07662dbd1870ac29aa41872fbb9255e0dcb86c9d5658033b197d9b",
+   "label_source": "SYNTHETIC (rng 20261015); no 2026 outcomes"
+  },
+  "demo3_non134_acceptance": {
+   "result": "PASS",
+   "description": "synthetic 40-row payload ACCEPTED and scored by the cohort-aware mode under its own pinned 40-row manifest (n=40), while canonical v3 (hardcoded 134) fails loudly on the same payload - canonical historical behavior preserved",
+   "cohort_mode_n_rows": 40,
+   "canonical_v3_returncode": 1,
+   "canonical_v3_stderr_excerpt": "AssertionError",
+   "label_source": "SYNTHETIC (rng 20261017); no 2026 outcomes"
+  }
+ },
+ "vendored_lineage_check": {
+  "note": "run_bf_ab_score_cohort.verify_vendored_v2() hash-verifies the vendored v2 against pin 6b8cecf2... on every invocation (all three demos passed it)"
+ },
+ "outcome_boundary": {
+  "real_data_root_touched": false,
+  "synthetic_labels_only": true,
+  "real_2026_outcome_scoring": "NOT performed (forbidden until seal approval)"
+ }
+}

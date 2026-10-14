@@ -45,7 +45,7 @@ odds/CLV tracking, and holdout monitoring.
 - Concise narrative view: `analysis/model_results/model_results_story.ipynb`
 - KPI monitor (fast daily scan): `production/notebooks/results_kpi_monitor.ipynb`
 - Calibration pocket monitor: `production/notebooks/results_calibration_lab.ipynb`
-- Gate policy simulator view: `production/notebooks/results_gate_policy.ipynb`
+- Gate policy simulator view: `production/notebooks/results_bettable_cohort.ipynb` (hosts retired gate-policy audit)
 - PnL + CLV progress monitor: `production/notebooks/results_pnl_clv.ipynb`
 - Recommendation audit (all contexts, weak points): `production/notebooks/results_recommendation_audit.ipynb`
 - Bettable cohort (filtered execution slice): `production/notebooks/results_bettable_cohort.ipynb`

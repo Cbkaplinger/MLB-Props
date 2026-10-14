@@ -27,7 +27,7 @@ It is intentionally smaller and more narrative than
 4. Open focused ops monitors for faster triage when needed:
    - `production/notebooks/results_kpi_monitor.ipynb`
    - `production/notebooks/results_calibration_lab.ipynb`
-   - `production/notebooks/results_gate_policy.ipynb`
+   - `production/notebooks/results_bettable_cohort.ipynb`
    - `production/notebooks/results_pnl_clv.ipynb`
 5. Promote chrono recalibration winner only after `>=15` distinct settled dates.
 6. Use daily action helper for next-step focus:

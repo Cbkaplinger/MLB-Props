@@ -1,0 +1,32 @@
+{
+ "changed_scripts": {
+  "run_bf_ab_score_cohort.py (worktree)": "d8e26eefb50181e56e9eb27d09047d2e1a8840bdba1d0fcc5af67e2ced22b53a",
+  "run_bf_cohort_mode_demo.py (worktree)": "5c5277c6aa4328dca30bcb3ae4fc2dd31a0ae03732ee2a7930c1f1fdba41761a",
+  "pilot_membership_join.py (seal dir)": "3805776062e4dc53102c16cecb261da94f9659c4c2a6262f86410dd541270e33"
+ },
+ "pins": {
+  "pinned_manifest_pilot134.json": "8e455146f8a06ed8486a4be0564a7c62881ef80ce59f71a911780f7eaa18a708",
+  "membership (pilot row_keys.json)": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f"
+ },
+ "staged_payload": {
+  "row_keys.json": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f",
+  "arm_A_pmf.npy": "ae6b754bb7a931e92a4bd164ed06cafeef2a79bedccab1b93474b89304b99119",
+  "arm_B_pmf.npy": "2cd2fecb50bfb8a35e4fbcb4949f18d6a7600d80ae93d2969f3e26fb3d30b349",
+  "staging_receipt.json": "9df7e4cf07e8de58c6aaee05e0ca191cfb8c9b628b8c913098a806e2a0966e8b"
+ },
+ "card_artifacts": {
+  "demo_rerun_after_enforcement\\demo_report.json": "656e90195e38c144b6798d84d19614d8c2da3cd4194379fdb914e1319a5c6925",
+  "demo_rerun_after_enforcement\\pinned_manifest_pilot134.json": "8e455146f8a06ed8486a4be0564a7c62881ef80ce59f71a911780f7eaa18a708",
+  "enforcement_checks\\enforcement_verification.json": "064763c8ea8d66b5bb903ee753436e0a348668abd5e0888f766e1298ff71d639",
+  "enforcement_checks\\membership_badstatus.json": "f6a09e34e5a1ba905e3b379cbc438690b576ee565818b7257529382eb76a0305",
+  "enforcement_checks\\membership_dup.json": "3b05b58f8b3f2b1d63c2573535334cb892a9075808a31ae3cb118f2cbe02c075",
+  "enforcement_checks\\membership_extra.json": "9d46c52e977739882c5df928fc5a40b7cd1c661209eba5807051453807c5c394",
+  "enforcement_checks\\membership_flip.json": "992096666a836fc8552709c4e44d8f4e43d115bccc95a65397e1717b229c26f8",
+  "enforcement_checks\\membership_missing.json": "58785142ecd3779f9bcaa443d6b5f35ccd01e9ac4ce703a8396e458de5ae2284",
+  "enforcement_checks\\membership_swapped.json": "6383f9dc2884dc9889ef7f6d32f5ebd7cb2ae595c47cbc78cb66980a5a725c3d",
+  "enforcement_checks\\out_positive\\cohort_validation_report.json": "bf29c3a766173b9c879a2b6986daf5345a6cf515abd75eb860ce357a920db55b",
+  "pmf_divergence_compare.py": "9bb5636ba176fe3000ebc2e8d8a0b54460daed9a2749146515c847e5f91f8787",
+  "pmf_divergence_report.json": "d6a17eaa5109a9c9506f8deadf760a14e5e91f956a0e87b3f53a252c636e438c",
+  "synthetic_label_run\\cohort_scoring_report.json": "db324df3987a4f9f424898a87385094eb7b7f4337a5fd25ef1c35e57a9346b3c"
+ }
+}

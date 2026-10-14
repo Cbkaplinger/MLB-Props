@@ -1,4 +1,4 @@
-# 04 — Roadmap (decision-quality → live → market)
+# 04 — Roadmap (View C: proposed offseason architecture + decision log)
 
 Research spine is feature-frozen with current sparse-set governance lanes.
 Phase 11.A–C remains historical verification context. Live assembly + paper
@@ -159,3 +159,54 @@ Do **not** reopen frozen production feature sets for these without a new
 nested outer protocol and a pristine post-freeze holdout.
 
 > Verified 2026-09-30: calibration lane now reads WS1c-live (was isotonic-era text); Kelly rows aligned to 1/16-Kelly live. Deployed settings not inferred from source.
+
+## View C — Proposed offseason architecture (PROPOSED; dashed = not built)
+
+> Verified base: committed `31e9891`. No PROPOSED box below was verified as
+> implemented at this base. Newer bridge/WF reports are described in
+> `00-index.md` only, not drawn here.
+
+Do not implement a box to make the picture true. No box below feeds
+production without a gated promotion + revert path. Research never edits live
+scorers, policy JSONs, schedules, or ledgers. Calibration and policy reuse
+are separately fitted/evaluated candidates — neither is automatic.
+
+```mermaid
+flowchart TB
+  classDef proposed fill:#e8eaf6,stroke:#5c6bc0,color:#000,stroke-dasharray:5 5
+  classDef built fill:#1b5e20,stroke:#a5d6a7,color:#fff
+  classDef rejected fill:#fce4ec,stroke:#c62828,color:#000
+
+  HIST["Historical feature snapshots<br/>PROPOSED · rolling-window clocks<br/>input: prior games · output: pregame feature row"]:::proposed
+  PACLASS["PA classifier (binary LightGBM)<br/>PROPOSED · after L3<br/>input: PA matchup row · output: per-PA K prob"]:::proposed
+  BFPMF["BF PMF (workload uncertainty)<br/>PROPOSED for live use · RESEARCH-BUILT offline<br/>input: workload features · output: P(BF=N)"]:::proposed
+  AGG["Poisson-binomial aggregation<br/>PROPOSED · per-PA probs over BF PMF<br/>input: per-PA probs + BF PMF · output: marginal K PMF"]:::proposed
+  RECAL["Recalibration candidate<br/>PROPOSED · separately fitted/evaluated<br/>input: raw K PMF · output: calibrated P(K>=line)"]:::proposed
+  POLMKT["Policy reuse candidate<br/>PROPOSED · not decided<br/>input: candidate probs · output: BET/HOLD + ledger"]:::proposed
+  REJ1["Tail redistribution<br/>REJECTED · degraded upper-K reliability"]:::rejected
+  REJ2["September hazard fix<br/>REJECTED · BF repair real, K degraded"]:::rejected
+  REJ3["Tree blend over L3<br/>REJECTED · corr 0.9965 gate fail"]:::rejected
+
+  HIST -.-> PACLASS
+  HIST -.-> BFPMF
+  PACLASS -.-> AGG
+  BFPMF -.-> AGG
+  AGG -.-> RECAL
+  RECAL -.-> POLMKT
+```
+
+Notes:
+
+- Training vs pregame inference stay separate; every PROPOSED node needs an
+  explicit training contract (target, population, cutoff) before comparison.
+- PA classifier + Poisson-binomial limits: assumes PA flips independent given
+  features; breaks under fatigue/game-state coupling and workload dependence.
+  The authorized chronological WF comparison in the research window holds the
+  comparison design; this diagram prescribes no first-comparison setup.
+- Recalibration is a candidate fitted and evaluated separately after
+  aggregation — not a required stage. Policy reuse is a proposal, not an
+  established architecture decision.
+- Math definitions live once in `00-index.md` (plain-language section);
+  boxes carry no headline numbers.
+- Rejected boxes above are closed branches. Reopen only on new evidence +
+  owner order.

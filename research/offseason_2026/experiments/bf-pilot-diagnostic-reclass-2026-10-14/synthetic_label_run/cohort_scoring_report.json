@@ -1,0 +1,278 @@
+{
+ "version": "cohort-aware-2",
+ "lineage": {
+  "vendored_v2_commit": "b2fef02",
+  "vendored_v2": {
+   "run_bf_ab_score_v2_sha256_lf": "6b8cecf24a2463463d98e94e84b0bdab146d55cb6d29382c4955eb4cdb24bc4a",
+   "matches_pin": true
+  },
+  "metric_changes": "none (verbatim v2 metric/bootstrap code)",
+  "gate_change": "hardcoded 134 -> pinned manifest n + exact key set + cutoff equality",
+  "membership_enforcement": "score mode re-derives the usable-B mask from a one-to-one join against the ORIGINAL pilot membership file (fail loud on duplicates/missing/unexpected keys, unknown statuses, wrong partition); payload re-stamped arm flags ignored"
+ },
+ "mode": "score",
+ "seal_dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-pilot-diagnostic-v1\\payload",
+ "manifest": {
+  "manifest_id": "pilot134-pinned",
+  "n_rows": 134,
+  "source": "bf-2026-predictor-seal-v1/row_keys.json",
+  "source_sha256": "cece35faae57c04b91be3a86601bed81f633d394bd940249f7c7acb1314cba14"
+ },
+ "n_rows": 134,
+ "checks": {
+  "n_matches_manifest": true,
+  "unique_keys_payload": true,
+  "unique_keys_manifest": true,
+  "key_set_matches_manifest": true,
+  "cutoffs_match_manifest": true,
+  "identical_arm_populations": true,
+  "pmf_support_buckets": 24,
+  "pmf_valid": true
+ },
+ "fail_loud": "all violations raise SystemExit; nothing is silently dropped",
+ "arm_flags_note": "arm_B_status/arm_B_equals_A not manifest-validated (pilot membership lives in the pilot package; see CLASSIFICATION.md)",
+ "membership_enforcement": {
+  "membership_file": "C:\\Users\\ckaplinger\\MLB-Props-Research\\seal-package-preflight\\row_keys.json",
+  "membership_sha256": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f",
+  "n_total": 134,
+  "n_usable_B": 11,
+  "n_fallback": 123,
+  "usable_B_keys": [
+   [
+    822946,
+    663556
+   ],
+   [
+    822946,
+    668390
+   ],
+   [
+    823023,
+    665871
+   ],
+   [
+    823023,
+    669467
+   ],
+   [
+    823674,
+    641927
+   ],
+   [
+    823674,
+    702070
+   ],
+   [
+    823921,
+    693433
+   ],
+   [
+    823921,
+    808963
+   ],
+   [
+    824568,
+    677960
+   ],
+   [
+    824568,
+    680732
+   ],
+   [
+    824974,
+    543243
+   ]
+  ],
+  "checks": {
+   "one_to_one_unique_membership_keys": true,
+   "one_to_one_unique_payload_keys": true,
+   "no_missing_payload_keys": true,
+   "no_unexpected_membership_keys": true,
+   "known_pilot_statuses_only": true,
+   "total_matches_pinned_manifest_n_rows": true
+  },
+  "note": "usable-B mask re-derived from the ORIGINAL pilot membership by one-to-one (game_pk, pitcher) join; payload arm_B_status/arm_B_equals_A re-stamps ignored"
+ },
+ "label_source_note": "SYNTHETIC labels only (numpy default_rng seed 20261014; temp parquet under %TEMP%\\opencode\\bf_synthtest; zero real 2026 outcomes read, joined, or stored; diagnostic remains gated for real-outcome scoring)",
+ "stats": {
+  "population_all": {
+   "est": -0.018752156259823682,
+   "lo95": -0.04071196963344074,
+   "hi95": 0.001711503440238043,
+   "n": 134,
+   "n_dates": 11
+  },
+  "population_usable_B": {
+   "est": -0.016347843457748756,
+   "lo95": -0.01803695734862122,
+   "hi95": -0.011843539748755516,
+   "n": 11,
+   "n_dates": 2
+  },
+  "secondary": {
+   "A": {
+    "logscore": 3.8791226411412545,
+    "meanK_mae": 4.540673141514807,
+    "meanK_bias": -3.0936247868198326
+   },
+   "B": {
+    "logscore": 3.8518643397664056,
+    "meanK_mae": 4.526844059141874,
+    "meanK_bias": -3.0394309234725387
+   }
+  },
+  "actual_K": {
+   "822699|676917": 10,
+   "822699|695534": 9,
+   "822703|669456": 2,
+   "822703|676917": 15,
+   "822780|543243": 9,
+   "822780|592791": 5,
+   "822857|669022": 8,
+   "822857|672282": 0,
+   "822861|594798": 8,
+   "822861|674841": 7,
+   "822863|543135": 2,
+   "822863|669358": 12,
+   "822934|669456": 3,
+   "822934|693855": 9,
+   "822946|663556": 7,
+   "822946|668390": 1,
+   "822949|643377": 6,
+   "823018|690928": 1,
+   "823018|691725": 7,
+   "823023|665871": 14,
+   "823023|669467": 14,
+   "823024|663372": 3,
+   "823024|681517": 14,
+   "823026|607067": 5,
+   "823101|571510": 5,
+   "823101|676106": 7,
+   "823103|656876": 10,
+   "823103|669302": 13,
+   "823189|669713": 12,
+   "823189|694918": 15,
+   "823191|664141": 9,
+   "823191|672456": 13,
+   "823193|694738": 2,
+   "823193|701656": 14,
+   "823262|687570": 10,
+   "823265|663554": 10,
+   "823265|701656": 3,
+   "823266|592662": 15,
+   "823266|669854": 8,
+   "823275|547179": 6,
+   "823275|650633": 12,
+   "823349|669387": 3,
+   "823349|804267": 12,
+   "823350|694297": 2,
+   "823350|696149": 10,
+   "823420|666200": 0,
+   "823428|554430": 9,
+   "823428|667755": 0,
+   "823510|689254": 2,
+   "823510|693645": 11,
+   "823515|608331": 12,
+   "823515|641816": 5,
+   "823598|519242": 5,
+   "823598|681035": 10,
+   "823674|641927": 11,
+   "823674|702070": 15,
+   "823675|665152": 6,
+   "823675|669432": 5,
+   "823676|607625": 3,
+   "823676|671737": 7,
+   "823746|519242": 10,
+   "823746|694819": 11,
+   "823747|669923": 11,
+   "823747|688107": 7,
+   "823750|675660": 14,
+   "823750|805673": 12,
+   "823830|687473": 12,
+   "823830|695418": 10,
+   "823836|663969": 4,
+   "823836|691946": 10,
+   "823838|605400": 9,
+   "823838|645261": 10,
+   "823911|696149": 8,
+   "823911|808967": 15,
+   "823918|669373": 5,
+   "823918|702070": 1,
+   "823921|693433": 8,
+   "823921|808963": 5,
+   "823923|622491": 11,
+   "823998|669022": 3,
+   "823998|672282": 3,
+   "824003|663567": 9,
+   "824003|672282": 12,
+   "824072|675512": 15,
+   "824072|702070": 12,
+   "824074|677976": 0,
+   "824074|695611": 9,
+   "824081|663738": 15,
+   "824152|669372": 6,
+   "824152|669713": 11,
+   "824153|663567": 4,
+   "824153|680570": 9,
+   "824243|665152": 1,
+   "824243|675512": 4,
+   "824317|676282": 9,
+   "824317|685299": 4,
+   "824395|668909": 13,
+   "824395|694738": 8,
+   "824474|663903": 12,
+   "824474|700241": 8,
+   "824489|668909": 3,
+   "824490|677944": 5,
+   "824490|695505": 3,
+   "824559|640455": 1,
+   "824559|680732": 10,
+   "824566|702273": 6,
+   "824566|800048": 7,
+   "824568|677960": 13,
+   "824568|680732": 1,
+   "824569|543037": 2,
+   "824569|641743": 15,
+   "824589|641743": 10,
+   "824589|656550": 12,
+   "824721|543243": 5,
+   "824721|657277": 0,
+   "824727|678022": 4,
+   "824727|801139": 9,
+   "824800|642547": 12,
+   "824800|669432": 4,
+   "824802|543037": 3,
+   "824802|680694": 10,
+   "824887|681035": 7,
+   "824887|693821": 4,
+   "824969|642547": 1,
+   "824969|682052": 3,
+   "824974|543243": 10,
+   "824976|687562": 3,
+   "824976|695611": 12,
+   "825045|593958": 10,
+   "825045|666157": 10,
+   "825048|647336": 1,
+   "825048|687312": 11,
+   "825051|518876": 12,
+   "825051|808963": 4
+  },
+  "unmatched": 0,
+  "n_rows": 134,
+  "usable_B_n": 11,
+  "payload_file_sha256": {
+   "row_keys.json": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f",
+   "arm_A_pmf.npy": "ae6b754bb7a931e92a4bd164ed06cafeef2a79bedccab1b93474b89304b99119",
+   "arm_B_pmf.npy": "2cd2fecb50bfb8a35e4fbcb4949f18d6a7600d80ae93d2969f3e26fb3d30b349"
+  },
+  "membership_enforcement": {
+   "source": "C:\\Users\\ckaplinger\\MLB-Props-Research\\seal-package-preflight\\row_keys.json",
+   "source_sha256": "1d4c74965a52f38a7b3b209f3ce0185ba42f961706bd01ed29393a565a95361f",
+   "n_total": 134,
+   "n_usable_B": 11,
+   "n_fallback": 123,
+   "payload_arm_flags_ignored": true,
+   "pmf_values_modified": false
+  }
+ }
+}
