@@ -33,13 +33,18 @@ comparisons referenced columns that do not exist on `lab`.
 
 ## What completed before the crash
 
-The crash preceded ALL output writes; NO metrics were computed or displayed
-from the run. Only the following completed, in memory:
+The crash preceded ALL output writes; NO result artifacts were written.
+The following completed in memory:
 
 - payload sha256 check (PASS, `19511a492767ca06...`, matches manifest);
 - label join (7,194 starts; the 7,194-row height assert implies 0
   exclusions);
-- machinery bit-identity gate vs the accepted v3 uniq arms (PASS).
+- per-start metric computations (count-RPS, log score, mean-K squared
+  error, milestone Briers, for both registered RAW arms);
+- machinery bit-identity gate vs the accepted v3 uniq arms (PASS -- this
+  PASS line is what the preserved log displayed; any other displayed
+  numeric results are disclosed in the preserved log itself, not
+  re-enumerated here).
 
 No `report_scored.json`, `start_metrics_paext.parquet`, or
 `scoring_summary.txt` was produced; the output directories are empty.
@@ -138,3 +143,44 @@ The original `manifest.json` and the full_run-1 failure log
 (`outputs/full_run/scoring_run_log.txt`, sha256
 `07410807694f61bd4129ac4ed000164c2c24aa86578968861d333fe0428fcf6f`) are
 preserved unmodified. NO payload rebuild was performed.
+
+## ATTEMPT-RECORD CORRECTIONS (recorded 2026-10-14, post full_run-2 review)
+
+Two corrections to this note's own attempt records, made during the
+full_run-2 post-run review. Both are documentation-only; no code, payload,
+or output was touched.
+
+### D-A -- what full_run-1 actually completed and displayed
+
+Correction of the earlier "What completed before the crash" section, which
+wrongly said nothing was computed or displayed. Accurate statement:
+
+> Attempt full_run-1 completed the label join, the per-start metric
+> computations, and the machinery bit-identity gate in memory before
+> failing. No result artifacts were written. The log displayed the
+> machinery gate PASS; any other displayed numeric results are disclosed
+> in the preserved log
+> (`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v1\outputs\full_run\scoring_run_log.txt`,
+> sha256 `07410807694f61bd4129ac4ed000164c2c24aa86578968861d333fe0428fcf6f`).
+
+Rule going forward: absence of output files is NOT evidence of absence of
+computation, and "nothing was displayed" must never be claimed without
+reading the preserved log. The body section above has been edited to match
+this statement; the log itself is untouched.
+
+### D-B -- manifest `paext_core.py` stale source hash (already detailed above)
+
+Concise restatement for the attempt record:
+
+> The manifest recorded `paext_core.py` hash
+> `982782bcf2d82d3622e35f3b047b6374933fe007b7fee9ee7774d7eedb250dd7`; the
+> actual reviewed committed/lake bytes hash
+> `e193cd180a29ae3d434b0f545f66ab609a51a00bc750b0f5f2e671deec5bcdde` --
+> a stale source-hash entry. Equivalence checks (pyc size/mtime/compile
+> match, detailed in the PROVENANCE CORRECTION section above) found no
+> payload change. Original manifest preserved (sha256
+> `dbb272e69622e1915873056ac69582aa5dab85ccdefbc9747c96b36a8e499a2e`);
+> full hashes recorded here and in that section.
+
+The stale entry is superseded for that one manifest key only; no other
+manifest hash was implicated.
