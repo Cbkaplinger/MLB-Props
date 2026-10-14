@@ -137,6 +137,8 @@ def test_paper_bet_ev_uses_p_h3_lose_not_one_minus_win():
     assert bet["p_h3_win"] == pytest.approx(0.7)
     assert bet["p_h3_lose"] == pytest.approx(0.0)   # push mass NOT in lose
     assert bet["ev_h3"] == pytest.approx(0.7 * (2.0 - 1.0) - 0.0)
+    # F-5: the paper-bet table carries the push probability per bet
+    assert bet["p_h3_push"] == pytest.approx(0.3)   # P(K = 0) at line 0.0
 
 
 def test_devig_proportional():

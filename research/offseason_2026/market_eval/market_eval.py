@@ -802,6 +802,7 @@ def build_paper_bets(eval_pairs: pl.DataFrame, probs: pl.DataFrame,
                     pl.col(d).alias("decimal_odds"),
                     pl.col(p_win).alias("p_h3_win"),
                     pl.col(p_lose).alias("p_h3_lose"),
+                    pl.col("p_h3_push"),
                     pl.col("book")
                     .replace_strict(prio_map, default=len(BOOK_PRIORITY), return_dtype=pl.Int64)
                     .alias("_prio"),
