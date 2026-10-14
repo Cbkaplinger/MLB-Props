@@ -21,10 +21,14 @@ from pathlib import Path
 import polars as pl
 
 HARNESS = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[4]
 RAW_DIR = Path(
     os.environ.get(
         "P1_RAW_SAVANT_DIR",
-        r"C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular",
+        os.environ.get(
+            "MLB_PROPS_SAVANT_DATA_DIR",
+            str(REPO_ROOT / "data" / "Savant-Data" / "regular"),
+        ),
     )
 )
 OUT_DIR = HARNESS / "data"

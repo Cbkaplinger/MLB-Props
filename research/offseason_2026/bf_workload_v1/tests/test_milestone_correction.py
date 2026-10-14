@@ -14,15 +14,15 @@ from pathlib import Path
 
 import numpy as np
 import polars as pl
+import pytest
 
 WORK = Path(__file__).resolve().parent.parent
-HELPERS = Path(
-    r"C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees"
-    r"\main-active\research\offseason_2026"
-)
+HELPERS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(HELPERS))
 from kcount_combiner import exceedance  # noqa: E402
 
+# Importing the correction module is side-effect-free: the v1 comparison
+# runner is loaded lazily inside its functions, never at import time.
 _spec = importlib.util.spec_from_file_location(
     "run_kcount_correction_v2",
     str(WORK / "scripts" / "run_kcount_correction_v2.py"),
@@ -32,6 +32,7 @@ _spec.loader.exec_module(corr)
 
 MILESTONES = (6, 8, 10, 12)
 K_MAX = 24
+V2_METRICS_PARQUET = WORK / "data" / "start_metrics_v2.parquet"
 
 
 def _random_pmf(rng: np.random.Generator, k_max: int = K_MAX) -> np.ndarray:
@@ -133,9 +134,14 @@ def test_unchanged_metrics_and_changed_brier_vs_v1_report():
 
 
 def test_v2_aggregate_brier_equals_direct_recompute_from_parquet():
+    if not V2_METRICS_PARQUET.exists():
+        pytest.skip(
+            "external artifact bf_workload_v1/data/start_metrics_v2.parquet "
+            "is absent (private lake, never committed; integration lane)"
+        )
     v2_report = json.loads(
         (WORK / "report_v2.json").read_text(encoding="ascii"))
-    met = pl.read_parquet(WORK / "data" / "start_metrics_v2.parquet")
+    met = pl.read_parquet(V2_METRICS_PARQUET)
     for variant in ("base", "sensa", "sensb"):
         for arm in ("h3", "l5"):
             for ms in MILESTONES:

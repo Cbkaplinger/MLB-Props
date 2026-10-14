@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from math import lgamma
 from pathlib import Path
@@ -36,17 +37,19 @@ import numpy as np
 import polars as pl
 
 WORK = Path(__file__).resolve().parent.parent
-HELPERS = Path(
-    r"C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees"
-    r"\main-active\research\offseason_2026"
-)
+HELPERS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(HELPERS))
 from kcount_combiner import (  # noqa: E402
     KCOUNT_CAP, bf_pmf_from_37, count_logscore, count_rps,
     point_exposure_n,
 )
 
-P2_DATA = Path(r"C:\Users\ckaplinger\MLB-Props-Research\overnight-p2\data")
+P2_DATA = Path(
+    os.environ.get(
+        "BF_P2_PREDS_DIR",
+        str(Path.home() / "MLB-Props-Research" / "overnight-p2" / "data"),
+    )
+)
 PREDS = [
     "preds_block_2024H2.parquet",
     "preds_block_2025H1.parquet",

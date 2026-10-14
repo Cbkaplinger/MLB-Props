@@ -31,26 +31,26 @@ import numpy as np
 import polars as pl
 
 WORK = Path(__file__).resolve().parent.parent
-HELPERS = Path(
-    r"C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees"
-    r"\main-active\research\offseason_2026"
-)
+HELPERS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(HELPERS))
 from kcount_combiner import exceedance  # noqa: E402
 
-# Import the v1 comparison module for its EXACT machinery (constants,
-# PMF construction, aggregation helpers). Its buggy metrics_for is NOT used.
+# The v1 comparison module supplies the EXACT machinery (constants, PMF
+# construction, aggregation helpers). Its buggy metrics_for is NOT used.
+# It is loaded LAZILY via _load_v1(): importing this correction module must
+# never execute the comparison runner (pytest collection safety).
 _V1_SCRIPT = WORK / "scripts" / "run_kcount_comparison.py"
-_spec = importlib.util.spec_from_file_location("bf_v1", str(_V1_SCRIPT))
-v1 = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(v1)
+_V1_CACHE: dict = {}
 
-ARMS = v1.ARMS
-VARIANTS = v1.VARIANTS
-MILESTONES = v1.MILESTONES
-BOOT_N = v1.BOOT_N
-BOOT_SEED = v1.BOOT_SEED
-SCORING_METRICS = v1.SCORING_METRICS
+
+def _load_v1():
+    if "mod" not in _V1_CACHE:
+        _spec = importlib.util.spec_from_file_location("bf_v1", str(_V1_SCRIPT))
+        mod = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(mod)
+        _V1_CACHE["mod"] = mod
+    return _V1_CACHE["mod"]
+
 
 OUT_METRICS = WORK / "data" / "start_metrics_v2.parquet"
 OUT_REPORT = WORK / "report_v2.json"
@@ -61,10 +61,11 @@ V1_METRICS = WORK / "data" / "start_metrics.parquet"
 def corrected_metrics_for(p_k: np.ndarray, k_real: int, mean_k: float) -> dict:
     """Corrected milestone Brier: P(K>=m) = PMF tail = 1 - CDF(m-1),
     via kcount_combiner.exceedance. RPS/logscore/RMSE identical to v1."""
+    v1 = _load_v1()
     out = {"rps": v1.count_rps(p_k, k_real),
            "logscore": v1.count_logscore(p_k, k_real),
            "rmse_mean_k": (mean_k - k_real) ** 2}
-    for m in MILESTONES:
+    for m in v1.MILESTONES:
         p_ge = exceedance(p_k, m)
         out[f"brier_ge{m}"] = (p_ge - (1.0 if k_real >= m else 0.0)) ** 2
     return out
@@ -129,6 +130,13 @@ DEFINITIONS = {
 
 
 def main() -> None:
+    v1 = _load_v1()
+    ARMS = v1.ARMS
+    VARIANTS = v1.VARIANTS
+    MILESTONES = v1.MILESTONES
+    BOOT_N = v1.BOOT_N
+    BOOT_SEED = v1.BOOT_SEED
+    SCORING_METRICS = v1.SCORING_METRICS
     v1_report = json.loads(V1_REPORT.read_text(encoding="ascii"))
 
     fc = pl.read_parquet(v1.FORECASTS).filter(

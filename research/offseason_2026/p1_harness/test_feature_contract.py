@@ -10,7 +10,11 @@
 
 (a) and (b) rebuild features from synthetic PA tables using the executed
 builder primitives imported from scripts/build_features.py, mirroring the
-assembly in its main() (lines 156-242) exactly.
+assembly in its main() (lines 226-332: league_daily + strict-prior daily
+cumulatives + shrunk rates + v2 src_type derivation and null-date fill)
+exactly. (c) and (d) need the external-only executed parquets and SKIP
+with an explicit reason when those artifacts are absent; when present they
+must FAIL on malformed data, never skip.
 """
 from __future__ import annotations
 
@@ -19,6 +23,7 @@ from datetime import date
 from pathlib import Path
 
 import polars as pl
+import pytest
 
 HARNESS = Path(__file__).resolve().parent
 sys.path.insert(0, str(HARNESS / "scripts"))
@@ -36,18 +41,13 @@ FEATURE_COLS = [
     "cold_start",
 ]
 KEYS = ["game_pk", "at_bat_number", "batter"]
+FEATURES_PARQUET = HARNESS / "data" / "features.parquet"
+EVAL_PARQUET = HARNESS / "data" / "eval_predictions.parquet"
 
 
 def assemble_features(pa: pl.DataFrame) -> pl.DataFrame:
-    """Mirror build_features.main() feature assembly (lines 156-242)."""
+    """Mirror build_features.main() feature assembly (lines 226-332)."""
     lg = bf.league_daily(pa)
-    lg = lg.with_columns(
-        pl.when(pl.col("lg_n_prior") > 0)
-        .then(pl.col("lg_k_prior") / pl.col("lg_n_prior"))
-        .otherwise(None)
-        .alias("lg_rate")
-    ).with_columns(pl.col("lg_rate").backward_fill())
-
     p_daily = bf.daily_cumulative(pa, "pitcher").rename(
         {"prior_k": "pk", "prior_n": "pn", "src_date": "src_date_pitcher"}
     )
@@ -79,7 +79,7 @@ def assemble_features(pa: pl.DataFrame) -> pl.DataFrame:
         )
         .sort("game_date")
         .join_asof(
-            lg.select("game_date", "lg_rate", "lg_k_prior", "lg_n_prior", "lg_src_date"),
+            lg.select("game_date", "lg_rate", "lg_n_prior", "lg_src_date", "src_type_lg"),
             left_on="game_date",
             right_on="game_date",
             strategy="backward",
@@ -104,9 +104,24 @@ def assemble_features(pa: pl.DataFrame) -> pl.DataFrame:
             .cast(pl.Int8)
             .alias("cold_start")
         )
+        .with_columns(
+            pl.when(pl.col("pn") == 0)
+            .then(pl.lit(bf.SOURCE_TYPE_COLD))
+            .otherwise(pl.lit(bf.SOURCE_TYPE_ENTITY))
+            .alias("src_type_pitcher"),
+            pl.when(pl.col("bn") == 0)
+            .then(pl.lit(bf.SOURCE_TYPE_COLD))
+            .otherwise(pl.lit(bf.SOURCE_TYPE_ENTITY))
+            .alias("src_type_batter"),
+        )
+        .with_columns(
+            pl.col("src_date_pitcher").fill_null(pl.col("lg_src_date")),
+            pl.col("src_date_batter").fill_null(pl.col("lg_src_date")),
+        )
         .rename({"pn": "n_prior_pitcher", "bn": "n_prior_batter"})
         .select(*KEYS, "game_date", *FEATURE_COLS,
-                "src_date_pitcher", "src_date_batter", "lg_src_date")
+                "src_date_pitcher", "src_date_batter", "lg_src_date",
+                "src_type_pitcher", "src_type_batter", "src_type_lg")
     )
     bf.validate_no_future_leakage(feat)
     return feat
@@ -198,7 +213,12 @@ def test_b_future_game_append_cannot_change_earlier_rows() -> None:
 
 def test_c_executed_artifact_source_dates_strictly_precede_game_date() -> None:
     """(c) full-frame strict-prior check on the executed features.parquet."""
-    feat = pl.read_parquet(HARNESS / "data" / "features.parquet")
+    if not FEATURES_PARQUET.exists():
+        pytest.skip(
+            "external artifact p1_harness/data/features.parquet is absent "
+            "(private lake, never committed; integration lane)"
+        )
+    feat = pl.read_parquet(FEATURES_PARQUET)
     for src_col in ["src_date_pitcher", "src_date_batter", "lg_src_date"]:
         with_src = feat.filter(pl.col(src_col).is_not_null())
         assert with_src.height > 0, f"{src_col}: no rows with support"
@@ -208,7 +228,12 @@ def test_c_executed_artifact_source_dates_strictly_precede_game_date() -> None:
 
 def test_d_eval_prediction_key_sets_identical_across_candidates() -> None:
     """(d) reference A, log5, and logistic B share one EVAL key set."""
-    ev = pl.read_parquet(HARNESS / "data" / "eval_predictions.parquet")
+    if not EVAL_PARQUET.exists():
+        pytest.skip(
+            "external artifact p1_harness/data/eval_predictions.parquet is "
+            "absent (private lake, never committed; integration lane)"
+        )
+    ev = pl.read_parquet(EVAL_PARQUET)
     assert ev.height > 0
     pred_cols = {
         "A_reference": "pred_A_reference",

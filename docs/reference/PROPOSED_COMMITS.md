@@ -1,42 +1,58 @@
 # PROPOSED_COMMITS - repository preservation inventory + bounded commit plan (2026-10-13)
 
-**Status:** EXECUTED 2026-10-13 - three bounded LOCAL commits on `main`
-(docs -> research harness -> logger), created by agent in the order below.
+**Status:** EXECUTED 2026-10-13 - bounded LOCAL commits on `main`
+(docs -> research harness -> logger -> accuracy pass -> collection repair ->
+portability lane), created by agent in that order.
 NOT pushed: push happens only after chat 2 clears public-content review
 (command at the end of this file). Recipe/predictions untouched; no large
-parquet/npy/pkl is committed. This file is part of commit 1, so the SHAs of
-commits 2-3 are not printable here; read them from `git log --oneline -3`.
+parquet/npy/pkl is committed.
 
 - **Repo:** `Cbkaplinger/MLB-Props` - **PUBLIC** (determinable; treat as such
-  when committing: no keys, no large data).
-- **Worktree:** `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\main-active`, branch `main`.
-- **Remote status (measured 2026-10-13 at the pre-repair final checkpoint,
-  HEAD = `b28c58b5056b9615d7eaf7ac47c6d8339d6d2101`; compared SHAs recorded,
-  no hardcoded stale counts):**
-  - vs `origin/main` @ `31e9891e88842680f5cddc07c7ea841cabf29425`:
-    `git rev-list --left-right --count origin/main...main` = `0 28` -
-    main is 28 ahead of origin/main, 0 behind (unpushed).
-  - **Local review-branch push source:** branch `main` @
-    `b28c58b5056b9615d7eaf7ac47c6d8339d6d2101` (= HEAD at measurement).
-    There is NO local branch named `review/pa-remediation-2026-10-09`; the
-    push maps `main:review/pa-remediation-2026-10-09`.
-  - **Origin review-branch tip:**
-    `origin/review/pa-remediation-2026-10-09` @
-    `3b7fe3421dc6549f8fc695efb37962eda293f92a`.
-  - `git rev-list --left-right --count origin/review/pa-remediation-2026-10-09...main`
-    = `0 5` - main is 5 ahead of the origin review tip, 0 behind, so the
-    push is a fast-forward.
-  - The doc-accuracy and repair commits dated 2026-10-13 (this commit and
-    the following repair commits) land AFTER this checkpoint and increment
-    the ahead counts by their number with 0 behind. Re-measure before
-    pushing:
-    `git rev-list --left-right --count origin/main...main; git rev-list --left-right --count origin/review/pa-remediation-2026-10-09...main`
-  **Push destination: origin `review/pa-remediation-2026-10-09` + PR #1**
-  ("PA research closure: aggregation remediation + adapter + BF
-  reconstruction/preflight/A-B forecast runners", DRAFT).
-- **External archive:** `C:\Users\ckaplinger\MLB-Props-Research\` (not a git repo; preservation = hashes below + the commits proposed here).
+  when committing: no keys, no large data, no private absolute paths).
+- **Worktree:** the `main-active` worktree of this repo, branch `main`
+  (local path withheld from this public file - it embeds the OS username).
+- **External archive:** the owner-local research archive root
+  (hashes below pin its contents; local path withheld for the same reason).
 
-## 1. Repository inventory (worktree, branch main @ b0897c0)
+## 0. Accuracy record of this file
+
+- 2026-10-13 accuracy pass (commit 36955ff): ahead/behind recomputed at the
+  pre-repair final checkpoint with compared SHAs (hardcoded stale counts
+  removed); overnight-p1 review mark corrected to self-reported-only;
+  bf-closure-record claim confirmed against the committed record.
+- 2026-10-13 repair pass: import/collection repair + private-path scrub +
+  artifact-skip guards landed in the harness/bf-workload files; this file
+  updated to match the exact repaired commands/files (see "Repair pass"
+  under commit 2 and the deviation notes).
+
+## 0a. Remote status (measured 2026-10-13 at the pre-repair final checkpoint,
+HEAD = `b28c58b5056b9615d7eaf7ac47c6d8339d6d2101`; compared SHAs recorded,
+no hardcoded stale counts)
+
+- vs `origin/main` @ `31e9891e88842680f5cddc07c7ea841cabf29425`:
+  `git rev-list --left-right --count origin/main...main` = `0 28` -
+  main is 28 ahead of origin/main, 0 behind (unpushed).
+- **Local review-branch push source:** branch `main` @
+  `b28c58b5056b9615d7eaf7ac47c6d8339d6d2101` (= HEAD at measurement).
+  There is NO local branch named `review/pa-remediation-2026-10-09`; the
+  push maps `main:review/pa-remediation-2026-10-09`.
+- **Origin review-branch tip:**
+  `origin/review/pa-remediation-2026-10-09` @
+  `3b7fe3421dc6549f8fc695efb37962eda293f92a`.
+- `git rev-list --left-right --count origin/review/pa-remediation-2026-10-09...main`
+  = `0 5` - main is 5 ahead of the origin review tip, 0 behind, so the
+  push is a fast-forward.
+- The accuracy/repair commits dated 2026-10-13 land AFTER this checkpoint
+  and increment the ahead counts by their number with 0 behind. Re-measure
+  before pushing:
+  `git rev-list --left-right --count origin/main...main; git rev-list --left-right --count origin/review/pa-remediation-2026-10-09...main`
+
+**Push destination: origin `review/pa-remediation-2026-10-09` + PR #1**
+("PA research closure: aggregation remediation + adapter + BF
+reconstruction/preflight/A-B forecast runners", DRAFT).
+
+## 1. Repository inventory (worktree, branch main @ b0897c0 at inventory time;
+HEAD at the final pre-repair checkpoint = b28c58b)
 
 ### Tracked-modified (1)
 | File | Note |
@@ -47,20 +63,39 @@ commits 2-3 are not printable here; read them from `git log --oneline -3`.
 | File | Proposal |
 |---|---|
 | `docs/reference/mlb-strikeout-forecasting-roadmap.md` | docs commit (1) |
-| `research/offseason_2026/run_bf_ab_score.py` | not proposed (superseded by v2/v3; owner decision) |
-| `research/offseason_2026/run_bf_ab_score_v2.py` | not proposed (v3 already committed at b0897c0; owner decision) |
+| `research/offseason_2026/run_bf_ab_score.py` | not proposed; provenance established 2026-10-13 (see 1a); publication excluded (owner decision) |
+| `research/offseason_2026/run_bf_ab_score_v2.py` | not proposed; provenance established 2026-10-13 (see 1a); publication excluded (owner decision) |
+
+### 1a. Provenance finding: run_bf_ab_score.py / run_bf_ab_score_v2.py (2026-10-13)
+
+Measured against the external archive (bf-ab-score-2026, bf-ab-score-2026-v2)
+and git history:
+
+- `run_bf_ab_score_v2.py` is **byte-identical** to the archived executed
+  runner `bf-ab-score-2026-v2/runner_executed_v2_archive.py`
+  (both sha256 `6b8cecf24a2463463d98e94e84b0bdab146d55cb6d29382c4955eb4cdb24bc4a`).
+  It IS the historical executed v2 source, not a reconstruction.
+- `run_bf_ab_score.py` is **line-for-line identical** to the archived
+  `bf-ab-score-2026/scoring_code_used.txt` ("scoring code used" record,
+  64/64 lines equal modulo trailing whitespace); it differs from that file
+  only in line endings (LF in the working file vs CRLF in the archive txt).
+  The v1 archive contains no runner `.py`, so v1 is historical-source-
+  equivalent by content, with the line-ending caveat recorded.
+- Git evidence: `git log --all -- <both files>` is EMPTY - neither file was
+  ever tracked in any branch's history. The v3 runner
+  (`run_bf_ab_score_v3.py`) was committed at 7d0e8c8 and is byte-identical
+  to `handoff-v3/run_bf_ab_score_v3.py` (verified in the bf-closure-record).
+- Conclusion: both are the historical pre-fix sources (v1 content-equivalent,
+  v2 byte-exact); NOT later reconstructions. Publication status: excluded
+  from the commits (owner decision outstanding); this finding closes the
+  provenance disclosure gap flagged in the 2026-10-13 publication review.
 
 ### Ignored (never commit)
 `.hypothesis/`, `.pytest_cache/`, `artifacts/`, `data/`, `models/*/__pycache__/`,
 `production/**/__pycache__/`, `research/offseason_2026/**/__pycache__/`,
 `scripts/__pycache__/`, `src/**/__pycache__/`, `tests/__pycache__/`
 
-### Recent commit head (for the preservation record)
-`b28c58b` research(logging): prospective-logging-v1 append-only hash-chain
-logger (= HEAD at the 2026-10-13 final-checkpoint measurement; the
-inventory above was taken at `b0897c0`, which was HEAD at that time).
-
-## 2. External deliverable inventory (`C:\Users\ckaplinger\MLB-Props-Research\`)
+## 2. External deliverable inventory (external research archive root)
 
 Preservation table. "Key file sha256" truncated to 12 hex in the table; full
 hex in section 4. Review status: R = chat2-review-overnight-20261013 verdict
@@ -84,11 +119,7 @@ exists; S = seal receipt; - = no independent review record found.
 | bf-workload-v1 | same | 7.82 MB | report_v2.json + DIAGNOSTIC_DEFINITIONS.md | `fb3e6878c890` / `29afdf5bc2eb` | kcount_combiner pinned in recipe | R |
 | (root) correction_note.md | external root | 0.01 MB | itself | (in file) | canonical pointer for the milestone-Brier v2 correction | R |
 
-Untracked repo runners `run_bf_ab_score.py` / `run_bf_ab_score_v2.py` are the
-v1/v2 scoring runners whose external archives exist at
-`bf-ab-score-2026-v2/runner_executed_v2_archive.py`.
-
-## 3. Proposed commits (NOT executed)
+## 3. Proposed commits (executed record)
 
 ### Naming mappings (flagged)
 - **"bf-closure-record"**: RESOLVED - the canonical closure record EXISTS
@@ -110,9 +141,9 @@ v1/v2 scoring runners whose external archives exist at
   extracting only the three v3 tests would require editing their sys.path
   assumptions and duplicates owner-modified code with no owner
   instruction. The tracked-modified `tests/test_pa_aggregation_abc.py`
-  therefore stays OUT of all three commits (left untracked-modified in the
-  working tree); scoring-vs-actual-K coverage ships via the byte-identical
-  `bf-workload-v1/tests/test_milestone_correction.py` instead.
+  therefore stays OUT of all commits (left tracked-modified in the
+  working tree); scoring-vs-actual-K coverage ships via the
+  `bf-workload-v1/tests/test_milestone_correction.py` file.
 - **KNOWN_ISSUES.md**: does not exist under `prospective-logging-v1`. The
   only known-defect disclosure in the external archive is
   `overnight-p2\KNOWN_ISSUES.md` (run-identity and manifest disclosures).
@@ -123,74 +154,60 @@ v1/v2 scoring runners whose external archives exist at
   `LOGGING_SPEC.md`, copied verbatim. Supersession records for the BF
   scoring chain (v1/v2 superseded by v3) live in the committed
   bf-closure-record.
-- **P1 tests live beside the scripts, not in `tests/`:** all three P1 test
-  files use `HARNESS = Path(__file__).parent; sys.path.insert(HARNESS /
-  "scripts")`, so co-locating them with the scripts under
-  `research/offseason_2026/p1_harness/` (as in the external artifact) keeps
-  them runnable with zero content edits and preserves byte hashes for the
-  provenance precondition (DEV_STANDARD_RECIPE 9.1 item 3). They run via
+- **P1 tests live beside the scripts, not in `tests/`:** the three P1 test
+  files resolve `scripts/` relative to their own file location
+  (`HARNESS = Path(__file__).resolve().parent`), so co-locating them with
+  the scripts under `research/offseason_2026/p1_harness/` (as in the
+  external artifact) keeps them runnable and preserves the harness layout
+  from the external artifact. They run via
   `python -m pytest research/offseason_2026/p1_harness`.
 - **Logger** goes to `research/offseason_2026/prospective_logging/`
   (research, non-production; `tools/` does not exist in this repo).
 
 ### Commit 1 - docs (roadmap + overnight-p2 known-issues disclosure + this proposal)
-Executed 2026-10-13 as:
-```powershell
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\overnight-p2\KNOWN_ISSUES.md" "docs\reference\reports\known_issues_overnight_p2_2026-10-13.md"
-git add docs/reference/mlb-strikeout-forecasting-roadmap.md
-git add docs/reference/reports/known_issues_overnight_p2_2026-10-13.md
-git add docs/reference/PROPOSED_COMMITS.md
-git commit -m "docs(preservation): 2026 forecasting roadmap + overnight-p2 known-issues disclosure + executed preservation commit plan (pregame-state-v1: reviewed, remediation pending; local main vs origin review-branch SHAs recorded)"
-```
-The bf-closure-record itself was already committed at b0897c0 and is
-referenced, not duplicated. `correction_note.md` stays external-only.
+Executed 2026-10-13. Two file additions (byte-identical copies from the
+external archive) plus this file; the bf-closure-record itself was already
+committed at b0897c0 and is referenced, not duplicated. `correction_note.md`
+stays external-only. Follow-up accuracy pass landed as commit 36955ff.
 
-### Commit 2 - P1 harness scripts + tests (byte-identical copies, no data)
-Executed 2026-10-13. Two additions beyond the original recipe, both
-byte-identical copies required for the committed tests to run:
-`bf-workload-v1\scripts\run_kcount_comparison.py` (imported at module load
-by `run_kcount_correction_v2.py`) and `bf-workload-v1\report.json` +
-`report_v2.json` (small JSON reports read by the unchanged-metrics test).
-```powershell
-New-Item -ItemType Directory -Force "research\offseason_2026\p1_harness\scripts" | Out-Null
-New-Item -ItemType Directory -Force "research\offseason_2026\bf_workload_v1\scripts","research\offseason_2026\bf_workload_v1\tests" | Out-Null
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\p1-harness-v2\scripts\build_features.py"  "research\offseason_2026\p1_harness\scripts\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\p1-harness-v2\scripts\build_pa_table.py"  "research\offseason_2026\p1_harness\scripts\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\p1-harness-v2\scripts\fit_models.py"      "research\offseason_2026\p1_harness\scripts\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\p1-harness-v2\test_harness_guards.py"     "research\offseason_2026\p1_harness\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\p1-harness-v2\test_log5_identities.py"    "research\offseason_2026\p1_harness\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\p1-harness\test_feature_contract.py"      "research\offseason_2026\p1_harness\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\scripts\run_kcount_comparison.py"     "research\offseason_2026\bf_workload_v1\scripts\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\scripts\run_kcount_correction_v2.py" "research\offseason_2026\bf_workload_v1\scripts\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\report.json"            "research\offseason_2026\bf_workload_v1\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\report_v2.json"         "research\offseason_2026\bf_workload_v1\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\tests\test_milestone_correction.py"  "research\offseason_2026\bf_workload_v1\tests\"
-git add research/offseason_2026/p1_harness research/offseason_2026/bf_workload_v1
-git commit -m "research(p1): durable provenance commit of P1 harness v2 scripts + guard/log5-identity/feature-contract tests + bf-workload-v1 kcount correction runner/tests (byte-identical to external p1-harness-v2 / p1-harness / bf-workload-v1 artifacts; data parquets excluded, stay external)"
-```
-Test state at commit time (python -m pytest, 2026-10-13): guards +
-log5-identity + milestone-correction + logger suites = 67 passed, 1 failed.
-The 1 failure (`test_v2_aggregate_brier_equals_direct_recompute_from_parquet`)
-and all 4 `test_feature_contract.py` cases need the external-only data
-parquets (`bf-workload-v1\data\start_metrics_v2.parquet`,
-`p1-harness-v2\data\*.parquet`), which stay external and are never
-committed - expected, per the provenance precondition. The milestone
-correction test's hardcoded HELPERS path points at the main-active
-worktree `research\offseason_2026` (kcount_combiner import) - documented,
-not edited.
+### Commit 2 - P1 harness scripts + tests (provenance copies, no data)
+Executed 2026-10-13. Committed set (10 files):
+`research/offseason_2026/p1_harness/` = scripts\build_features.py,
+scripts\build_pa_table.py, scripts\fit_models.py, test_harness_guards.py,
+test_log5_identities.py, test_feature_contract.py;
+`research/offseason_2026/bf_workload_v1/` = scripts\run_kcount_comparison.py,
+scripts\run_kcount_correction_v2.py, tests\test_milestone_correction.py,
+report.json + report_v2.json. The two report JSONs (small text) are read by
+the unchanged-metrics test; `run_kcount_comparison.py` supplies the exact
+v1 machinery imported (lazily) by `run_kcount_correction_v2.py`.
 
-### Commit 3 - prospective logger (non-production research tooling)
-Executed 2026-10-13 as:
-```powershell
-New-Item -ItemType Directory -Force "research\offseason_2026\prospective_logging" | Out-Null
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\prospective-logging-v1\logger.py" "research\offseason_2026\prospective_logging\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\prospective-logging-v1\test_logger.py" "research\offseason_2026\prospective_logging\"
-Copy-Item "C:\Users\ckaplinger\MLB-Props-Research\prospective-logging-v1\LOGGING_SPEC.md" "research\offseason_2026\prospective_logging\"
-git add research/offseason_2026/prospective_logging
-git commit -m "research(logging): prospective-logging-v1 append-only hash-chain logger (2027 pregame capture spec; no live calls, no scheduler, no production-path change)"
-```
-`replay_demo.py` was not requested and stays external. Logger suite passes
-in-repo (included in the 67-passed run above).
+**Repair pass (same day, additive commit; supersedes byte-identity for the
+edited files only).** The publication review flagged: import-time execution
+of the v1 comparison runner (guaranteed collection fragility), hardcoded
+`C:\Users\...` helper paths (username disclosure + broken collection on a
+clean checkout), and missing skip guards on data-pinned tests. Repairs
+applied to 5 of the 10 files; the other 5 stay byte-identical to their
+external sources:
+
+| File | Deviation from external source |
+|---|---|
+| `bf_workload_v1/scripts/run_kcount_comparison.py` | HELPERS resolved relative to the file (`parents[2]`); P2 preds dir via `BF_P2_PREDS_DIR` env override with `Path.home()`-based default (no literal username); `import os` added |
+| `bf_workload_v1/scripts/run_kcount_correction_v2.py` | HELPERS resolved relative to the file; v1 comparison module loaded LAZILY via `_load_v1()` (importing the module executes nothing); `main()` binds the v1 constants locally |
+| `bf_workload_v1/tests/test_milestone_correction.py` | HELPERS resolved relative to the file; parquet test skips with explicit reason when the external `data/start_metrics_v2.parquet` is absent; `import pytest` added |
+| `p1_harness/test_feature_contract.py` | STALE v1-era mirror of the feature assembly replaced with the executed v2 `main()` assembly (league_daily fixed-prior semantics, v2 src_type derivation, null-date fills) - (a)/(b) are synthetic and now actually pass; (c)/(d) skip with explicit reason when the external parquets are absent; `import pytest` added |
+| `p1_harness/scripts/build_pa_table.py` | RAW_DIR default resolved repo-relative (`<repo>/data/Savant-Data/regular`), env override chain `P1_RAW_SAVANT_DIR` -> `MLB_PROPS_SAVANT_DATA_DIR` (no literal username) |
+
+Skip-guard convention: skips are granted ONLY for missing external
+artifacts (private-lake parquets), each with an explicit reason naming the
+file; every required file is checked before reading; synthetic guards,
+log5 identities, the (repaired) feature-contract mirror, and logger tests
+run without the private lake; when the artifacts exist, malformed data or
+failed assertions FAIL - never skip.
+
+Commit 3 - prospective logger (non-production research tooling): executed
+2026-10-13 as three byte-identical copies (logger.py, test_logger.py,
+LOGGING_SPEC.md) to `research/offseason_2026/prospective_logging/`.
+`replay_demo.py` was not requested and stays external.
 
 ### Explicitly NOT committed
 - All `.parquet` / `.npy` / `.pkl` / `.pyc` / `.pytest_cache` artifacts
@@ -198,12 +215,32 @@ in-repo (included in the 67-passed run above).
 - `tests/test_pa_aggregation_abc.py` modification (owner-modified; scoring
   tests not separable - see the separability decision above; left
   tracked-modified and unstaged).
-- Untracked `run_bf_ab_score.py` / `run_bf_ab_score_v2.py` (superseded by
-  committed v3 at 7d0e8c8; owner decision required).
+- Untracked `run_bf_ab_score.py` / `run_bf_ab_score_v2.py` (provenance
+  established in section 1a; v2 byte-exact executed source, v1 content-
+  equivalent; superseded by committed v3 at 7d0e8c8; publication excluded
+  pending owner decision).
 - `prospective-logging-v1\replay_demo.py` (not requested).
 - `correction_note.md` (external root; canonical pointer is the committed
   bf-closure-record).
 - Recipe/predictions: no changes anywhere in this plan.
+
+### Test state after the repair pass (python -m pytest, 2026-10-13, focused
+suites: p1_harness + bf_workload_v1 + prospective_logging)
+69 passed, 3 skipped, 0 failed. The 3 skips are exactly the
+external-artifact tests with explicit reasons (features.parquet,
+eval_predictions.parquet, start_metrics_v2.parquet - private lake, never
+committed). Baseline before repair: 67 passed, 5 failed (the stale v1
+feature-contract mirror failed its two synthetic tests; the three
+data-pinned tests failed on absent parquets).
+
+### Portability lane
+- Default lane (CI): synthetic fixtures only must run - harness guards,
+  log5 identities, repaired feature-contract (a)/(b), milestone identity
+  tests, logger suite. Verified green with zero external artifacts.
+- Integration lane (explicit, full-artifact): `pytest -m integration` over
+  the two directories; the three artifact-pinned tests carry the
+  `integration` marker (registered in pyproject) plus their skip guards.
+  No catch-all skipping: a present-but-malformed artifact still FAILS.
 
 ### Push destination (owner runs; never pushed by agents)
 ```powershell
