@@ -1,0 +1,68 @@
+{
+  "card": "pregame-pa-ext-v1",
+  "created": "2026-10-14",
+  "registered_before_scoring": true,
+  "title": "REGISTERED PREGAME PROJECTED-BATTER PER-PA PROBABILITY PAYLOAD EXTENSION",
+  "status": "REGISTERED EXTENSION - one spec, frozen here BEFORE the payload build and BEFORE any label join. No tuning, no threshold search, no new fit (see 'coefficients' below).",
+  "purpose": "Freeze the PER-PA K probabilities of the projected unique-batter-v2 nine-batter sequence for each of the 7,194 bf-workload-v1 cohort starts as a hashed predictor payload (per-PA probs + count PMFs), with explicit per-start forecast cutoffs, a league-rate fallback for uncovered slots, and invariance/leakage tests. The label join (realized K) is DEFERRED to a separate scoring step that runs only after the payload is frozen and hashed. This card extends pregame-state-v1 (accepted unique-batter v2); it does not modify any prior card output.",
+  "standing_rule": "2026 is CLOSED (no-2026-tuning). Everything runs on the existing assessment window 2024-07-01..2025-12-31 only. No 2026 rows are scored or loaded.",
+  "population": {
+    "source": "bf-workload-v1/data/bf_forecasts.parquet assessment rows",
+    "window": ["2024-07-01", "2025-12-31"],
+    "grain": "(game_pk, side, pitcher) first pitcher of record, opener-inclusive; identical to bf-workload-v1 and pregame-state-v1",
+    "expected_n": 7194
+  },
+  "projected_state": {
+    "source": "pregame-state-v1/data/projected_lineups_variant_v2.parquet (accepted unique-batter v2, registered greedy bijection, unchanged)",
+    "slot_order": "u_slot_1..u_slot_9, first-PA-order slot semantics, unchanged",
+    "coverage_note": "accepted v2 coverage on this population is 100% (all 9 slots assigned, nine_distinct==1 for all 7,194 starts); the fallback below is nevertheless implemented and tested"
+  },
+  "forecast_cutoff": {
+    "definition": "per start, the cutoff is the start's scheduled game_date (forecast made before first pitch)",
+    "enforcement": "every feature source date must be non-null and STRICTLY BEFORE the cutoff; the frozen daily-state machinery (pregame-state-v1 entity_daily_state / league_daily_state, G1-verified against overnight-p2 features_v3) excludes same-date rows by construction (shift within entity over daily aggregates)",
+    "provenance": "per projected PA: source dates and source types for pitcher cumulative/EW state, batter cumulative/EW state, and league state are computed and retained for assertion"
+  },
+  "arms": {
+    "h3_raw": "FROZEN H3-raw machinery: features [p_pitcher_prior_w150, p_batter_prior_w150, lg_rate, n_prior_pitcher, n_prior_batter, cold_start, ew_pitcher, ew_batter] (w=150 cumulative shrunk priors, 90d-half-life EW rates, league-rate cold fallbacks) -> block StandardScaler + LogisticRegression(C=1.0, max_iter=1000) -> RAW logistic output (uncalibrated), mirroring overnight-p2 pred_H3_raw",
+    "log5_raw": "corrected league-aware log5 on the SAME projected prior rates: log5(p_pitcher_prior_w150, p_batter_prior_w150, lg_rate) = p*b*(1-lg) / (p*b*(1-lg) + (1-p)*(1-b)*lg), RAW (uncalibrated), mirroring overnight-p2 pred_LOG5_raw",
+    "calibrated_variants": "the block sigmoid-calibrated variants (p_h3_cal, p_l5_cal) are additionally computed and stored per PA for lineage comparability with pregame-state-v1 (whose projected arms were calibrated); the REGISTERED count-PMF arms of this card are the two RAW arms",
+    "frozen_settings": "90-day EW half-life, w=150 cumulative priors, C=1.0 logistic, P_CLIP=1e-9 - FROZEN from overnight-p2 / pregame-state-v1; no half-life search, no retuning"
+  },
+  "coefficients": {
+    "checkpoint": "overnight-p2 frozen checkpoint stores per-PA predictions (pred_H3_raw / pred_H3_cal / pred_LOG5_raw / pred_LOG5_cal on realized assessment rows) and the fit recipe (run_ladder.py + fit_ledger.json); it does NOT store serialized coefficients",
+    "application": "the frozen coefficients are applied to projected-batter features by deterministic reconstruction of the SAME frozen fit (identical blocks, training windows, features, sklearn settings; no new information, no tuning), verified bit-compatibly against the stored preds checkpoints (assert max abs diff <= 1e-8 for pred_H3_raw, pred_H3_cal, pred_LOG5_raw, pred_LOG5_cal) BEFORE any projected-row inference. This is exactly the accepted pregame-state-v1 G2 mechanism. The build ABORTS (STOP) if verification fails.",
+    "what_would_be_missing": "if the stored preds checkpoints were unavailable or verification failed, inference-only application would be impossible from stored artifacts alone and the build would stop and report the missing checkpoint; on this lineage the checkpoints exist and the reconstruction is verified"
+  },
+  "fallback_rule": {
+    "trigger": "a projected slot with no assigned batter (uncovered slot) in the accepted unique-batter v2 lineups",
+    "fill": "league-rate fill: the slot's projected PA uses the league-neutral cold-batter feature state (n_prior_batter=0, p_batter_prior_w150=lg_rate, ew_batter=lg_rate cold fallback, cold_start=1, source date = league source date) - exactly the frame's built-in cold-start fallback, extended with an explicit source_type",
+    "source_type": "slot source_type recorded as 'league_rate_fill_uncovered_slot' (vs 'entity_history' / 'league_prior_no_entity_history' for covered slots)",
+    "expectation": "0 occurrences on this population (asserted and reported); the rule is inert here but required for completeness"
+  },
+  "count_construction": {
+    "bf_pmf": "bf-workload-v1 BASE variant per start (pmf37_0..36, 37-cat add-one empirical), extended to 1..60 via kcount_combiner.bf_pmf_from_37; IDENTICAL PMF for both arms (both arms share the same BF PMF per start)",
+    "cond_sequence": "pbar_n = mean of the projected nine per-PA probabilities CYCLED to n (cond_n = mean of first n of the cycled 9-sequence), n = 1..60; identical to pregame-state-v1",
+    "combine": "P(K=k) = sum_n P(N=n) * Binom(k; n, pbar_n), k = 0..23 (last bucket absorbs >=23); k_max=24; KCOUNT_CAP=60",
+    "mean_k": "E[K] = sum_n n * P(N=n) * pbar_n over the full extended 1..60 support"
+  },
+  "freeze_protocol": {
+    "order": "(1) preregistration frozen; (2) build runs gates G1/G2/G3 and computes the payload from PRIOR-ONLY state; (3) payload parquet written and sha256-hashed; (4) manifest + report record the payload hash; (5) ONLY THEN may the separate scoring step run, and it re-verifies the payload hash before reading labels",
+    "label_exclusion": "the build NEVER reads realized strikeouts or realized BF for payload construction. The overnight-p2 preds files are read ONLY inside gate G2 as a verification oracle for coefficient reconstruction (their y column is used solely to confirm the stored checkpoint reproduces; no y value enters any probability). bf_forecasts realized_bf is never selected.",
+    "payload": "data/predictor_payload.parquet: per start - keys, block, forecast_cutoff, bf 37-cat PMF, nine projected batters with per-slot source types, per-PA probs for all four arm variants, count PMFs for the two registered RAW arms, mean-K, fallback/cold counts, max feature source date"
+  },
+  "tests": [
+    "(a) mutating the current-game outcomes of a target start cannot change its projected PA probabilities (synthetic + real lineage)",
+    "(b) appending future games (game_date after the cohort end) cannot change them (synthetic + real lineage)",
+    "(c) cutoff enforcement: every feature source date strictly < the start's forecast cutoff (synthetic + real lineage)",
+    "(d) 9 distinct projected batters per start where coverage allows (real payload: all 7,194)",
+    "(e) PMF normalization (sum to 1 within 1e-9) + nonnegativity; payload PMFs reproduce from stored per-PA probs + bf PMF",
+    "(f) key uniqueness across the 7,194 starts"
+  ],
+  "scoring_step": {
+    "separate_script": "scripts/score_pa_ext.py",
+    "executed_in_this_card": false,
+    "command": "python scripts/score_pa_ext.py",
+    "does": "verifies the frozen payload sha256; joins realized K (preds grouped by game_pk/pitcher, BF-count checked); per-start count-RPS / log score / mean-K RMSE / milestone Briers (PMF-tail exceedance) for both RAW arms; paired count-RPS / log score / milestone comparisons H3-raw vs LOG5-raw with slate-date bootstrap (2000 resamples, seed 20261001); secondary descriptive comparison vs the accepted pregame-state-v3 uniq calibrated arms (machinery bit-identity gate <= 1e-12)"
+  },
+  "anti_tuning": "ONE registered spec, run once, reported in full including unfavorable results. No re-running with different seeds, windows, fills, or arms. The raw-arm choice, fallback rule, and freeze protocol were fixed in this file before the build."
+}
