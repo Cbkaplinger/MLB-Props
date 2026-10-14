@@ -19,11 +19,23 @@ import numpy as np
 import pytest
 
 HARNESS = Path(__file__).resolve().parent
+REPO_ROOT = HARNESS.parents[2]
 sys.path.insert(0, str(HARNESS / "scripts"))
 
 from fit_models import log5  # noqa: E402
 
 TOL = 1e-12
+
+
+def test_import_resolves_inside_checkout() -> None:
+    """The log5 implementation under test is THIS checkout's file."""
+    import fit_models
+
+    mod_path = Path(fit_models.__file__).resolve()
+    assert mod_path.is_relative_to(REPO_ROOT), (
+        f"imported fit_models from outside the checkout: {mod_path}"
+    )
+    assert mod_path == HARNESS / "scripts" / "fit_models.py"
 
 P_FIXED = np.array([0.15, 0.2245, 0.31, 0.42, 0.57, 0.68, 0.83])
 B_FIXED = np.array([0.18, 0.26, 0.19, 0.35, 0.49, 0.61, 0.72])

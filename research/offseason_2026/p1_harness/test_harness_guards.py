@@ -19,6 +19,7 @@ import polars as pl
 import pytest
 
 HARNESS = Path(__file__).resolve().parent
+REPO_ROOT = HARNESS.parents[2]
 sys.path.insert(0, str(HARNESS / "scripts"))
 
 from build_features import (  # noqa: E402
@@ -26,6 +27,17 @@ from build_features import (  # noqa: E402
     SOURCE_TYPE_ENTITY,
     validate_no_future_leakage,
 )
+
+
+def test_import_resolves_inside_checkout() -> None:
+    """The builder under test is THIS checkout's file, never a path fallback."""
+    import build_features
+
+    mod_path = Path(build_features.__file__).resolve()
+    assert mod_path.is_relative_to(REPO_ROOT), (
+        f"imported build_features from outside the checkout: {mod_path}"
+    )
+    assert mod_path == HARNESS / "scripts" / "build_features.py"
 
 
 def make_features(
