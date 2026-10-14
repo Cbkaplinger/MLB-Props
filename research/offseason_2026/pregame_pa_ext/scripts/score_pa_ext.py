@@ -108,6 +108,14 @@ def main() -> None:
     lab = lab.with_columns(
         *[pl.Series(name, vals) for name, vals in new_cols.items()])
 
+    # lab and cmp must carry the same starts in the same row order: the
+    # machinery gate and the secondary bootstrap both pair raw-arm rows
+    # (lab) with the v3 uniq_* columns (cmp). Sort both on the full start
+    # key so the pairing is deterministic (join order alone is not
+    # guaranteed); the explicit alignment assert runs once cmp exists.
+    key_cols = ["game_date", "game_pk", "side", "pitcher"]
+    lab = lab.sort(key_cols)
+
     # ------------- machinery-equivalence gate: calibrated arms must
     # reproduce the accepted v3 uniq metrics bit-identically (<=1e-12)
     v3_full = pl.read_parquet(V3_METRICS)
@@ -129,6 +137,10 @@ def main() -> None:
     cmp = lab.join(v3, on=["game_pk", "side", "pitcher", "game_date"],
                    how="inner", suffix="_v3")
     assert cmp.height == core.EXPECTED_N_STARTS, "v3 comparison join lost rows"
+    cmp = cmp.sort(key_cols)
+    assert cmp.select(key_cols).equals(lab.select(key_cols)), (
+        "cmp/lab key misalignment: the uniq_* comparison columns would "
+        "not pair with the raw-arm rows")
     bit_id = {}
     for tag, v3name in (("h3_cal", "h3"), ("l5_cal", "l5")):
         pms, means = recomp[tag]
@@ -157,6 +169,14 @@ def main() -> None:
         return core.v1.slate_bootstrap(
             lab[a].to_numpy() - lab[b].to_numpy(), dates)
 
+    def paired_uniq(a: str, b: str) -> dict:
+        # the uniq_* metrics live on cmp (the v3 join), never on lab
+        # (full_run-1 crash: ColumnNotFoundError "uniq_h3_rps" not found);
+        # cmp is key-aligned to lab (assert above), so dates pair with
+        # the cmp rows
+        return core.v1.slate_bootstrap(
+            lab[a].to_numpy() - cmp[b].to_numpy(), dates)
+
     boot = {}
     for metric in ("rps", "logscore"):
         boot[f"h3_raw_minus_l5_raw_{metric}"] = paired(
@@ -167,7 +187,7 @@ def main() -> None:
     for tag in ("h3_raw", "l5_raw"):
         base = "h3" if tag.startswith("h3") else "l5"
         for metric in ("rps", "logscore"):
-            boot[f"{tag}_minus_v3uniq_{base}_{metric}"] = paired(
+            boot[f"{tag}_minus_v3uniq_{base}_{metric}"] = paired_uniq(
                 f"{tag}_{metric}", f"uniq_{base}_{metric}")
 
     agg = {}
