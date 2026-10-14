@@ -4,7 +4,7 @@ All commands run with the repo venv Python 3.11.9 / pytest 9.1.1 /
 polars 1.43.0. Suite = the three focused suites
 (`p1_harness` + `bf_workload_v1` + `prospective_logging`), the same
 population as the 2026-10-13 publication-repair baseline (69 passed /
-3 skipped). External lake: `C:\Users\ckaplinger\MLB-Props-Research\`.
+3 skipped). External lake: `<external-lake>\`.
 No 2026 scoring, no deployment, no model/policy changes.
 
 ## 1. Portable lane, artifacts absent (main-active checkout)
@@ -54,7 +54,7 @@ guards would have failed any fallback.
 
 ## 3. Artifact-equipped run on this machine (repaired a/b included)
 
-    $env:P1_HARNESS_ARTIFACT_ROOT = "C:\Users\ckaplinger\MLB-Props-Research\p1-harness-v2"
+    $env:P1_HARNESS_ARTIFACT_ROOT = "<external-lake>\p1-harness-v2"
     python -m pytest research/offseason_2026/p1_harness \
         research/offseason_2026/bf_workload_v1 -q
 
@@ -69,7 +69,7 @@ conftest.py match the private lake byte-for-byte).
 
 ## 4. Required-artifact INTEGRATION lane, lake present
 
-    $env:P1_HARNESS_ARTIFACT_ROOT = "C:\Users\ckaplinger\MLB-Props-Research\p1-harness-v2"
+    $env:P1_HARNESS_ARTIFACT_ROOT = "<external-lake>\p1-harness-v2"
     python -m pytest research/offseason_2026/p1_harness \
         research/offseason_2026/bf_workload_v1 -m integration -q
 

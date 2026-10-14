@@ -3,7 +3,7 @@
 Point-in-time acceptance evidence, 2026-10-13. Every row states where the
 probability comes from, what it was fit on, its calibration status, and the
 evaluation row count. Canonical sources: the executed run dirs under
-`C:\Users\ckaplinger\MLB-Props-Research\` (see RUN_VERSION_MAP.md in this
+`<external-lake>\` (see RUN_VERSION_MAP.md in this
 directory); hashes pinned in `p1_harness/conftest.py` (EXPECTED_ARTIFACTS)
 and in each run's own manifest. No candidate here is a production model.
 

@@ -5,7 +5,7 @@ lives, its recorded run identity, its code identity, and its registration
 timestamp WHERE ONE WAS RECORDED. Dashes mean "not recorded at execution
 time" (disclosed, not backfilled). `obs <date>` = hash observed and
 recorded by this map on 2026-10-13, not by the run itself. External dirs
-are under `C:\Users\ckaplinger\MLB-Props-Research\` (private lake).
+are under `<external-lake>\` (private lake).
 
 | Run | Dir | Run identity | Code identity | Registration timestamp |
 |---|---|---|---|---|
@@ -29,6 +29,6 @@ are under `C:\Users\ckaplinger\MLB-Props-Research\` (private lake).
 - The recovered scoring sources (`run_bf_ab_score.py`, content-equivalent
   to the v1 "scoring code used" record; `run_bf_ab_score_v2.py`, byte-exact
   executed v2) are archived outside the repo under
-  `C:\Users\ckaplinger\MLB-Props-Research\archived-scoring-sources\` with
+  `<external-lake>\archived-scoring-sources\` with
   PROVENANCE.md; they are NOT in the publication set and NOT wired into any
   current runner (v3 at 7d0e8c8 is the canonical scorer).
