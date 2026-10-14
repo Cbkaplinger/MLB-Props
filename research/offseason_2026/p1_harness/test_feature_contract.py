@@ -211,6 +211,7 @@ def test_b_future_game_append_cannot_change_earlier_rows() -> None:
         assert delta == 0.0, f"append changed earlier rows' {col} (delta={delta})"
 
 
+@pytest.mark.integration
 def test_c_executed_artifact_source_dates_strictly_precede_game_date() -> None:
     """(c) full-frame strict-prior check on the executed features.parquet."""
     if not FEATURES_PARQUET.exists():
@@ -226,6 +227,7 @@ def test_c_executed_artifact_source_dates_strictly_precede_game_date() -> None:
         assert bad.height == 0, f"{src_col}: {bad.height} rows with src >= game_date"
 
 
+@pytest.mark.integration
 def test_d_eval_prediction_key_sets_identical_across_candidates() -> None:
     """(d) reference A, log5, and logistic B share one EVAL key set."""
     if not EVAL_PARQUET.exists():

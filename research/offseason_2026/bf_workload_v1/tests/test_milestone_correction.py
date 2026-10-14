@@ -133,6 +133,7 @@ def test_unchanged_metrics_and_changed_brier_vs_v1_report():
                 assert abs(b_v1 - b_v2) > 100.0
 
 
+@pytest.mark.integration
 def test_v2_aggregate_brier_equals_direct_recompute_from_parquet():
     if not V2_METRICS_PARQUET.exists():
         pytest.skip(
