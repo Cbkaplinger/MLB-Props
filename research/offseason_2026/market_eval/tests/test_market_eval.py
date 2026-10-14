@@ -301,6 +301,46 @@ def test_pairing_latest_both_sides_clock():
     assert closing_pair["price_over"].item() == -110
 
 
+def test_latest_per_side_no_fanout_same_ts_distinct_labels():
+    """C3 regression: two closing-eligible rows can share ONE quote_ts for
+    the same (start, line, book, side) under distinct snapshot labels;
+    latest_per_side must collapse them to ONE row per key so the
+    closing-ref join cannot fan out actionable rows or paper bets."""
+    fp = ts("2025-05-01T23:00:00Z")
+    base = {
+        "game_pk": 1, "pitcher": 10, "line": 5.5, "book": "dk",
+        "tier": me.TIER_A, "first_pitch_ts": fp, "predictor_available_ts": PA,
+        "event_id": "e1", "pitcher_key": "a alice",
+        "game_date": date(2025, 5, 1), "block": "b", "pitch_half": "Top",
+        "vendor_game_date": date(2025, 5, 1), "market": "pitcher_strikeouts",
+    }
+    rows = [
+        dict(base, side="over", snapshot="morning",
+             quote_ts=ts("2025-05-01T18:00:00Z"), price=-105),
+        dict(base, side="under", snapshot="morning",
+             quote_ts=ts("2025-05-01T18:00:00Z"), price=-115),
+        # two distinct snapshot labels at the SAME closing ts
+        dict(base, side="over", snapshot="close",
+             quote_ts=ts("2025-05-01T22:55:00Z"), price=-110),
+        dict(base, side="over", snapshot="late_close",
+             quote_ts=ts("2025-05-01T22:55:00Z"), price=-112),
+        dict(base, side="under", snapshot="close",
+             quote_ts=ts("2025-05-01T22:55:00Z"), price=-110),
+    ]
+    jf = _joined_frame(rows)
+    latest = me.latest_per_side(me.closing_eligible(jf))
+    assert latest.height == 2  # one per side, not 3
+    assert latest.filter(pl.col("side") == "over").height == 1
+    act, closing_side, pre = me.split_actionable_closing(jf)
+    # the actionable morning pair must not be duplicated by the fan-out
+    assert act.height == 2
+    assert act.select("game_pk", "pitcher", "line", "book", "side").n_unique() == 2
+    assert closing_side.height == 2
+    assert closing_side.select(
+        "game_pk", "pitcher", "line", "book", "side"
+    ).n_unique() == 2
+
+
 # ---------------------------------------------------------------------------
 # end-to-end prep on synthetic parquet fixtures
 # ---------------------------------------------------------------------------

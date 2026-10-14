@@ -534,7 +534,17 @@ def latest_per_side(quotes: pl.DataFrame) -> pl.DataFrame:
     quotes = quotes.unique(keep="first", maintain_order=True)
     keys = ["game_pk", "pitcher", "line", "book", "side"]
     latest_ts = quotes.group_by(keys).agg(pl.col("quote_ts").max().alias("quote_ts"))
-    return quotes.join(latest_ts, on=keys + ["quote_ts"], how="semi")
+    latest = quotes.join(latest_ts, on=keys + ["quote_ts"], how="semi")
+    # C3: distinct snapshot labels (or prices) can share ONE quote_ts, so
+    # the semi join still returns several rows per key and fans out every
+    # downstream join (actionable exclusion, paper-bet CLV). Collapse to ONE
+    # row per key, deterministically (full-column sort + first).
+    order = keys + ["quote_ts"] + [
+        c for c in latest.columns if c not in keys + ["quote_ts"]
+    ]
+    return latest.sort(order).unique(
+        subset=keys, keep="first", maintain_order=True
+    )
 
 
 def pair_sides(quotes: pl.DataFrame) -> pl.DataFrame:
