@@ -635,3 +635,36 @@ def test_score_implemented_but_requires_inputs(capsys, tmp_path):
             "--score", "--prep-dir", str(tmp_path / "nope"),
             "--score-dir", str(tmp_path / "score"),
         ])
+
+
+def test_load_quotes_pooled_market_two_pitcher_collision(tmp_path):
+    """C3 regression (independent check of the registered v1 defect): v1
+    pooled the two K markets on (event, snapshot, book, line, side) WITHOUT
+    player_norm, so whenever two pitchers shared such a key one pitcher's
+    quotes were arbitrarily deleted and the pipeline ran nondeterministically
+    (750k+ such shared keys in the archive). v2 pools WITHIN a pitcher:
+    both pitchers must survive each snapshot with their own bettor-best
+    price, and repeated loads must be identical (file-row-index
+    tie-breaks + maintain_order unique)."""
+    rows = []
+    for snap, snap_ts in (("morning", "2025-05-01T18:00:00Z"),
+                          ("close", "2025-05-01T22:55:00Z")):
+        for price in (-120, -110):  # duplicate key rows; -110 is bettor-best
+            rows.append(_q("e1", snap, snap_ts, "2025-05-01", "draftkings",
+                           5.5, "over", price, player_norm="alice a"))
+        rows.append(_q("e1", snap, snap_ts, "2025-05-01", "draftkings",
+                       5.5, "over", 105, player_norm="bob b"))
+    qpath = tmp_path / "book_lines.parquet"
+    _quotes_frame(rows).write_parquet(qpath)
+    q1, meta1 = me.load_quotes(qpath)
+    q2, meta2 = me.load_quotes(qpath)
+    assert q1.height == 4  # 2 pitchers x 2 snapshots, per-side pooled
+    snap1 = q1.filter(pl.col("snapshot") == "morning")
+    assert snap1.height == 2
+    alice = snap1.filter(pl.col("player_norm") == "alice a")
+    bob = snap1.filter(pl.col("player_norm") == "bob b")
+    assert alice.height == 1 and bob.height == 1
+    assert alice["price"].item() == -110   # max-price dedup within alice
+    assert bob["price"].item() == 105      # bob's quote NOT deleted by the key collision
+    assert q1.equals(q2)                   # deterministic across loads
+    assert meta1 == meta2
