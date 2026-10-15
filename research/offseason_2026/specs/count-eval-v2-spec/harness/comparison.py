@@ -7,7 +7,7 @@ differing only in the model adapter.
 
 Ground truth for features, windows, fitting dates and BF PMF construction:
 extracted_feature_reality.md (extracted from executed code, cited file:line).
-Incumbent being replayed: overnight-p2 scripts/run_ladder.py (LOG5 identity,
+Incumbent being refit: overnight-p2 scripts/run_ladder.py (LOG5 identity,
 B_logreg 6-feature logistic, H3 8-feature logistic), which SUPERSEDES
 p1-harness-v2 fit_models.py.
 
@@ -19,9 +19,14 @@ Registered adapters here cover the PA lane only:
   P0_log5       full log5 identity on w150 priors + lg_rate (no fit, no scaler)
   P1_B_logreg   LogisticRegression(C=1.0, max_iter=1000) + StandardScaler
                 (base_train only) on the 6 frozen B features
-  P1_H3_replay  INCUMBENT REPLAY of the accepted baseline: same logistic spec
-                on the 8 H3 features (reproduces the executed ladder fit
-                procedure; it is not a new fit or a new search)
+  P1_H3_incumbent_refit
+                INCUMBENT-PROCEDURE REFIT of the accepted baseline: same
+                logistic spec on the 8 H3 features (re-executes the frozen H3
+                fitting procedure on the registered folds; NOT proven
+                prediction-equivalent to historical incumbent outputs
+                (pred_H3_raw); equivalence requires a separate real-data
+                comparison requiring authorization). Formerly registered as
+                "P1_H3_replay" -- that ID is superseded.
   P2_lgbm / B2_lgbm_catboost-style stubs / hierarchical:
                 NotImplementedError stubs, registered NOT-STARTED.
 
@@ -368,14 +373,18 @@ class LogisticAdapter(ModelAdapter):
     on logit(p)) fit on the calibration sub-block ONLY (run_ladder.py:109-119,
     192-200); raw and calibrated lanes are kept separate.
 
-    P1_H3_replay is the INCUMBENT REPLAY: it reproduces the accepted baseline
-    fit procedure of the executed overnight-p2 H3 ladder candidate. It is not
-    a new fit, not a search, and claims no new evidence."""
+    P1_H3_incumbent_refit is the INCUMBENT-PROCEDURE REFIT: it re-executes
+    the frozen H3 fitting procedure of the executed overnight-p2 H3 ladder
+    candidate on the registered folds. It is NOT proven prediction-equivalent
+    to the historical incumbent outputs (pred_H3_raw); equivalence requires a
+    separate real-data comparison requiring authorization. It is not a new
+    fit, not a search, and claims no new evidence."""
 
-    def __init__(self, name: str, features: tuple[str, ...], incumbent_replay: bool = False):
+    def __init__(self, name: str, features: tuple[str, ...],
+                 incumbent_refit: bool = False):
         self.name = name
         self.required_features = tuple(features)
-        self.incumbent_replay = incumbent_replay
+        self.incumbent_refit = incumbent_refit
 
     def fit(self, fold_name, X_train, y_train):
         from sklearn.linear_model import LogisticRegression
@@ -546,8 +555,8 @@ def registered_adapters() -> dict[str, ModelAdapter]:
     return {
         "P0_log5": Log5BaselineAdapter(),
         "P1_B_logreg": LogisticAdapter("P1_B_logreg", tuple(FEAT_B)),
-        "P1_H3_replay": LogisticAdapter(
-            "P1_H3_replay", tuple(FEAT_H3), incumbent_replay=True),
+        "P1_H3_incumbent_refit": LogisticAdapter(
+            "P1_H3_incumbent_refit", tuple(FEAT_H3), incumbent_refit=True),
         "P2_lgbm": NotImplementedAdapter(
             "P2_lgbm",
             "LightGBM binary classifier; monotone-constraint policy must be "
@@ -578,7 +587,7 @@ class RunConfig:
     pa_table_path: str
     features_path: str
     candidates: list[str] = field(default_factory=lambda: [
-        "P0_log5", "P1_B_logreg", "P1_H3_replay"])
+        "P0_log5", "P1_B_logreg", "P1_H3_incumbent_refit"])
     baseline: str = BASELINE_CANDIDATE
     n_boot: int = N_BOOT
     seed: int = SEED_BOOTSTRAP

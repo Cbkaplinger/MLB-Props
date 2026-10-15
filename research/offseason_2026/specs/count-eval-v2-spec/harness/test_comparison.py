@@ -111,7 +111,7 @@ def _run_cfg(synth, tmp_path, candidates=None, label=""):
         pa_table_path=str(synth["pa_path"]),
         features_path=str(synth["feat_path"]),
         candidates=candidates if candidates is not None
-        else ["P0_log5", "P1_B_logreg", "P1_H3_replay"],
+        else ["P0_log5", "P1_B_logreg", "P1_H3_incumbent_refit"],
         output_root=str(tmp_path / "outputs"),
         run_label=label,
     )
@@ -419,9 +419,9 @@ def test_fold_isolation_confirm_mutation_leaves_dev_predictions_unchanged(
 
 
 def test_adapter_contract_prob_range_and_scaler_refit_per_fold(synth, tmp_path):
-    out = run_comparison(_run_cfg(synth, tmp_path, candidates=["P0_log5", "P1_B_logreg", "P1_H3_replay"], label="contract"))
+    out = run_comparison(_run_cfg(synth, tmp_path, candidates=["P0_log5", "P1_B_logreg", "P1_H3_incumbent_refit"], label="contract"))
     for fold in DEV_BLOCKS + ["confirm_2025H2"]:
-        for cand in ["P0_log5", "P1_B_logreg", "P1_H3_replay"]:
+        for cand in ["P0_log5", "P1_B_logreg", "P1_H3_incumbent_refit"]:
             p = pl.read_parquet(out / f"preds_{fold}__{cand}.parquet")
             assert p.height > 0
             assert p["pred_raw"].min() >= 0.0 and p["pred_raw"].max() <= 1.0
@@ -474,14 +474,14 @@ def test_unregistered_candidate_fails_loud(synth, tmp_path):
 
 
 def test_missing_required_features_fail_loud(synth, tmp_path):
-    # P1_H3_replay needs ew_* columns; drop them from the feature file
+    # P1_H3_incumbent_refit needs ew_* columns; drop them from the feature file
     feat = pl.read_parquet(synth["feat_path"]).drop(["ew_pitcher", "ew_batter"])
     p = tmp_path / "feat_no_ew.parquet"
     feat.write_parquet(p)
     with pytest.raises(ComparisonError, match="ew_pitcher"):
         run_comparison(RunConfig(
             pa_table_path=str(synth["pa_path"]), features_path=str(p),
-            candidates=["P1_H3_replay"], output_root=str(tmp_path / "miss"),
+            candidates=["P1_H3_incumbent_refit"], output_root=str(tmp_path / "miss"),
             run_label="missing"))
 
 

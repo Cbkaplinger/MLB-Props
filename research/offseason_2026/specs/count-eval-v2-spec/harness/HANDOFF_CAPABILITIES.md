@@ -179,3 +179,15 @@ MATCH (repaired), stream DIFFERENT.
 4. H1/H2 registered nowhere in the harness despite being part of the executed
    ladder narrative; CANDIDATE_MAP.md has no H1/H2 IDs, so the harness cannot
    reproduce the full H0-H3 ladder without new registrations.
+
+## Addendum 2026-10-15: defect 1 resolved by rename
+
+Defect 1 above ("misleading name: P1_H3_replay refits...") was resolved by the
+rename option: the adapter ID/label is now `P1_H3_incumbent_refit` —
+incumbent-procedure refit, re-executes the frozen H3 fitting procedure on the
+registered folds; NOT proven prediction-equivalent to historical incumbent
+outputs (pred_H3_raw); equivalence requires a separate real-data comparison
+requiring authorization. The old ID `P1_H3_replay` is documented as SUPERSEDED
+in CANDIDATE_MAP.md ("Superseded IDs"). Sections 1-4 above are the Chat 2
+reviewed evidence base and are preserved verbatim; their `P1_H3_replay`
+references describe the pre-rename state.
