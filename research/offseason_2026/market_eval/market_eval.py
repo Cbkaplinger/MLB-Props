@@ -1135,6 +1135,7 @@ SCORE_FILES = [
     "clv_table.parquet",
     "skill_metrics.json",
     "bootstrap.json",
+    "confirm_metrics.json",
     "score_summary.json",
     "score_manifest.json",
 ]
@@ -1152,6 +1153,21 @@ PERSISTED_COUNT_COLS = [
 
 class ScoreReadError(RuntimeError):
     """Raised when scoring inputs are missing or fail verification."""
+
+
+class PopulationLabelError(RuntimeError):
+    """F-6: raised when a `block` label is not in the registered set
+    (fail loud instead of silently scoring an unregistered population)."""
+
+
+# F-6 registered population assignment (card C3.3 + C3.7 amendment): ONE
+# validated block->population mapping used for EVERY reported metric.
+# block_2024H1 is a registered development WINDOW per C3.3 but precedes the
+# prep_v2 archive cohort (2024-07-01..2025-09-28) and cannot occur in
+# prep_v2 rows; the scorer validates against the cohort set.
+DEV_BLOCKS = ("block_2024H2", "block_2025H1")
+CONFIRM_BLOCKS = ("confirm_2025H2",)
+REGISTERED_BLOCKS = DEV_BLOCKS + CONFIRM_BLOCKS
 
 
 def settle_result(line: float, side: str, realized_k: int) -> str:
@@ -1344,9 +1360,82 @@ def _prep_hash_check(prep_dir: Path) -> None:
             )
 
 
+def _assign_populations(obs: pl.DataFrame) -> dict:
+    """F-6: THE ONE population assignment for the whole scoring run.
+
+    Validates every row's `block` label against REGISTERED_BLOCKS
+    {block_2024H2, block_2025H1, confirm_2025H2} and returns the dev /
+    confirm row masks used by ALL metrics (skill, bootstrap, per_tier,
+    per_book, count summaries, ROI, paper bets). Unknown or null labels
+    raise PopulationLabelError naming the offending labels and row counts.
+    Empty known blocks are permitted (a block with 0 rows is OK; it simply
+    does not appear in rows_by_block).
+    """
+    blocks = obs["block"].to_list()
+    unknown = {}
+    for b in blocks:
+        key = "<null>" if b is None else str(b)
+        if key not in REGISTERED_BLOCKS:
+            unknown[key] = unknown.get(key, 0) + 1
+    if unknown:
+        raise PopulationLabelError(
+            "F-6 population assignment failed: %d row(s) carry block labels "
+            "outside the registered set %s; offending labels: %s; "
+            "refusing to score"
+            % (sum(unknown.values()), list(REGISTERED_BLOCKS),
+               ", ".join("%s (n=%d)" % (k, v)
+                         for k, v in sorted(unknown.items())))
+        )
+    is_confirm = np.array([b in CONFIRM_BLOCKS for b in blocks], dtype=bool)
+    by_block = obs.group_by("block").agg(pl.len().alias("n")).sort("block")
+    return {
+        "dev_mask": ~is_confirm,
+        "confirm_mask": is_confirm,
+        "registered_blocks": list(REGISTERED_BLOCKS),
+        "rows_by_block": {
+            r["block"]: int(r["n"]) for r in by_block.iter_rows(named=True)
+        },
+        "dev_rows": int((~is_confirm).sum()),
+        "confirm_rows": int(is_confirm.sum()),
+    }
+
+
+def _effective_counts(sub: pl.DataFrame) -> dict:
+    """Effective counts for one population subset of the scored rows."""
+    return {
+        "contract_side_rows": sub.height,
+        "distinct_start_line_pairs": int(
+            sub.select("game_pk", "pitcher", "line").n_unique()),
+        "distinct_starts": int(sub.select("game_pk", "pitcher").n_unique()),
+        "distinct_slate_dates": int(sub["game_date"].n_unique()),
+        "push_rows": int(sub["y_push"].sum()),
+    }
+
+
+def _per_tier(sub: pl.DataFrame) -> dict:
+    """Per-tier skill breakdown WITHIN one population (Tier A/B separation
+    preserved inside dev and confirm alike; F-6)."""
+    out = {}
+    for t in sub["tier"].unique().to_list():
+        s = sub.filter(pl.col("tier") == t)
+        out[t] = {a: _brier_logloss(s, a) for a in ("h3", "l5", "market")}
+        out[t]["n_rows"] = s.height
+    return out
+
+
+def _per_book(sub: pl.DataFrame) -> dict:
+    """Per-book Brier breakdown WITHIN one population (F-6)."""
+    out = {}
+    for bk in sub["book"].unique().to_list():
+        s = sub.filter(pl.col("book") == bk)
+        out[bk] = {a: _brier_logloss(s, a)["brier"] for a in ("h3", "l5", "market")}
+        out[bk]["n_rows"] = s.height
+    return out
+
+
 def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
               seed: int = 20261001, n_boot: int = 2000) -> dict:
-    """Authorized-scoring implementation (correction C2).
+    """Authorized-scoring implementation (corrections C2/C3, F-6).
 
     Joins realized K (start_metrics_v2) to the frozen prep contracts, settles
     the registered paper bets, computes the PIN primary metric (paired
@@ -1354,6 +1443,15 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
     identical matched contracts), reuses the persisted count-layer errors,
     and runs the registered slate-date bootstrap (2000 resamples, seed
     20261001, identical resample indices across competitors).
+
+    F-6 population separation: ONE validated block->population assignment
+    (dev = block_2024H2 + block_2025H1; confirm = confirm_2025H2; unknown or
+    null labels fail loud) is used for EVERY metric. The headline
+    (skill_metrics.json `dev`, bootstrap.json `brier`) is dev-only;
+    confirmation is serialized separately (confirm_metrics.json + the
+    `confirm` key of bootstrap.json) with its own bootstrap; ROI and count
+    summaries are per population; bets_ledger/clv_table carry a
+    `population` column.
     """
     out_dir = Path(out_dir)
     existing = [f for f in SCORE_FILES if (out_dir / f).exists()]
@@ -1383,12 +1481,20 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
         )
     obs = _outcome_frame(labeled)
 
-    # ---- contract-level probability skill (PIN primary) --------------------
-    skill = {a: _brier_logloss(obs, a) for a in ("h3", "l5", "market")}
-    n_push = int(obs["y_push"].sum())
-    n_rows = obs.height
-    slates = obs["game_date"].to_list()
-    slate_blocks = obs["block"].to_list()
+    # ---- F-6: ONE validated population assignment for ALL metrics ----------
+    # Every metric below (skill, bootstrap, per_tier, per_book, count
+    # summaries, ROI, paper bets) splits on THIS assignment only. Unknown or
+    # null block labels fail loud BEFORE any metric is computed; empty known
+    # blocks are permitted.
+    pop = _assign_populations(obs)
+    dev_mask = pop["dev_mask"]
+    confirm_mask = pop["confirm_mask"]
+    obs_dev = obs.filter(pl.Series(dev_mask))
+    obs_confirm = (
+        obs.filter(pl.Series(confirm_mask)) if confirm_mask.any() else None
+    )
+
+    # ---- per-row losses (identical definition for both populations) --------
     boot_vals = {}
     for a in ("h3", "l5", "market"):
         pw, pp, pl_ = _side_probs(obs, a)
@@ -1401,62 +1507,80 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
                    .then(pl.col("y_under_win")).otherwise(pl.col("y_over_win"))) ** 2
             ).alias("_b")
         )["_b"].to_numpy()
-    # F-6: confirmation rows NEVER enter development pooled points or
-    # bootstrap draws (card C3.3). Split the observation frame; compute the
-    # dev-pooled bootstrap over DEV blocks only and report confirmation
-    # separately with its own bootstrap.
-    DEV_BLOCKS = ("block_2024H2", "block_2025H1")
-    CONFIRM_BLOCKS = ("confirm_2025H2",)
-    is_confirm = np.array([b in CONFIRM_BLOCKS for b in slate_blocks])
-    dev_mask = ~is_confirm
+    slates = obs["game_date"].to_list()
+    slate_blocks = obs["block"].to_list()
+
+    # ---- development headline: DEV rows ONLY (F-6; card C3.3/C3.7) ---------
+    # The pooled bootstrap and every headline point estimate exclude
+    # confirm_2025H2 entirely; confirmation is reported separately below.
+    skill_dev = {a: _brier_logloss(obs_dev, a) for a in ("h3", "l5", "market")}
     boot_skill = _slate_bootstrap(
         {k: v[dev_mask] for k, v in boot_vals.items()},
         [d for d, m in zip(slates, dev_mask) if m],
         [b for b, m in zip(slate_blocks, dev_mask) if m],
         n_boot, seed)
-    confirm_rows = int(is_confirm.sum())
+
+    # ---- confirmation: computed on confirm rows ONLY, own bootstrap --------
     confirm_skill = None
-    if confirm_rows:
-        confirm_skill = {}
-        for a in ("h3", "l5", "market"):
-            m = is_confirm
-            confirm_skill[a] = {
-                "brier": float(np.mean(boot_vals[a][m])),
-                "n_rows": confirm_rows,
-                "n_dates": len(set(np.array(slates)[m].tolist())),
-            }
-        # paired H3-vs-LOG5 within the confirmation block, own bootstrap
-        c_pairs = np.vstack([boot_vals["h3"][m] - boot_vals["l5"][m]
-                             for m in [is_confirm]])
-        c_dates = [d for d, m2 in zip(slates, is_confirm) if m2]
-        c_blocks = [b for b, m2 in zip(slate_blocks, is_confirm) if m2]
-        c_boot = _slate_bootstrap(
-            {"h3_minus_l5": c_pairs[0]}, c_dates, c_blocks, n_boot, seed)
-        confirm_skill["h3_minus_l5"] = c_boot["h3_minus_l5"]
+    confirm_boot = None
+    if obs_confirm is not None:
+        skill_confirm = {a: _brier_logloss(obs_confirm, a)
+                         for a in ("h3", "l5", "market")}
+        confirm_boot = _slate_bootstrap(
+            {k: v[confirm_mask] for k, v in boot_vals.items()},
+            obs_confirm["game_date"].to_list(),
+            obs_confirm["block"].to_list(),
+            n_boot, seed)
+        confirm_skill = {
+            "population": list(CONFIRM_BLOCKS),
+            "registered_dev_blocks": list(DEV_BLOCKS),
+            "n_rows": int(confirm_mask.sum()),
+            "n_dates": int(obs_confirm["game_date"].n_unique()),
+            "push_rows": int(obs_confirm["y_push"].sum()),
+            "brier": {a: confirm_boot[a]["point"] for a in ("h3", "l5", "market")},
+            "brier_ci": {
+                a: {"p2.5": confirm_boot[a]["p2.5"],
+                    "p97.5": confirm_boot[a]["p97.5"]}
+                for a in ("h3", "l5", "market")
+            },
+            "log_loss_non_push": {
+                a: skill_confirm[a]["log_loss_non_push"]
+                for a in ("h3", "l5", "market")
+            },
+            "brier_skill_vs_market": {
+                a: confirm_boot["market"]["point"] - confirm_boot[a]["point"]
+                for a in ("h3", "l5")
+            },
+            "per_tier": _per_tier(obs_confirm),
+            # paired H3-vs-LOG5 within the confirmation block, own bootstrap
+            "h3_minus_l5": confirm_boot["h3_minus_l5"],
+        }
 
-    per_tier = {}
-    for t in obs["tier"].unique().to_list():
-        sub = obs.filter(pl.col("tier") == t)
-        per_tier[t] = {a: _brier_logloss(sub, a) for a in ("h3", "l5", "market")}
-        per_tier[t]["n_rows"] = sub.height
-    per_book = {}
-    for bk in obs["book"].unique().to_list():
-        sub = obs.filter(pl.col("book") == bk)
-        per_book[bk] = {a: _brier_logloss(sub, a)["brier"] for a in ("h3", "l5", "market")}
-        per_book[bk]["n_rows"] = sub.height
+    # ---- per-tier / per-book breakdowns, PER POPULATION (F-6) --------------
+    per_tier_dev = _per_tier(obs_dev)
+    per_book_dev = _per_book(obs_dev)
 
-    # ---- count layer: REUSE persisted errors -------------------------------
+    # ---- count layer: REUSE persisted errors, PER POPULATION (F-6) ---------
     start_level = obs.select(
-        ["game_pk", "pitcher", "pitch_half", "tier", "game_date"]
+        ["game_pk", "pitcher", "pitch_half", "tier", "game_date", "block"]
         + ["base_h3_" + c for c in PERSISTED_COUNT_COLS]
         + ["base_l5_" + c for c in PERSISTED_COUNT_COLS]
     ).unique()
-    count_metrics = {"n_starts": start_level.height}
-    for arm in ("h3", "l5"):
-        count_metrics[arm] = {
-            c: float(start_level["base_%s_%s" % (arm, c)].mean())
-            for c in PERSISTED_COUNT_COLS
-        }
+    count_metrics = {}
+    for name, block_set in (("dev", DEV_BLOCKS), ("confirm", CONFIRM_BLOCKS)):
+        sub = start_level.filter(pl.col("block").is_in(list(block_set)))
+        count_metrics[name] = {"n_starts": sub.height}
+        if sub.height:
+            for arm in ("h3", "l5"):
+                count_metrics[name][arm] = {
+                    c: float(sub["base_%s_%s" % (arm, c)].mean())
+                    for c in PERSISTED_COUNT_COLS
+                }
+        else:
+            for arm in ("h3", "l5"):
+                count_metrics[name][arm] = {
+                    c: None for c in PERSISTED_COUNT_COLS
+                }
 
     # ---- paper bets ---------------------------------------------------------
     # (game_pk, pitcher) is unique in start_metrics_v2 (7,194/7,194) and the
@@ -1482,7 +1606,32 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
             return_dtype=pl.Float64,
         )
         .alias("pnl_units")
+    ).with_columns(
+        # F-6: carry the population label on every settled bet row
+        pl.when(pl.col("block").is_in(list(CONFIRM_BLOCKS)))
+        .then(pl.lit("confirm"))
+        .otherwise(pl.lit("dev"))
+        .alias("population")
     )
+
+    def _bets_summary(sub: pl.DataFrame) -> dict:
+        n = sub.height
+        w = int((sub["result"] == "win").sum())
+        l = int((sub["result"] == "lose").sum())
+        p = int((sub["result"] == "push").sum())
+        pnl = float(sub["pnl_units"].sum())
+        return {
+            "n": n,
+            "wins": w,
+            "losses": l,
+            "pushes": p,
+            "pnl_units": pnl,
+            "roi_per_bet": pnl / n if n else 0.0,
+            "win_rate": w / max(1, w + l),
+        }
+
+    bets_dev = ledger.filter(pl.col("population") == "dev")
+    bets_confirm = ledger.filter(pl.col("population") == "confirm")
     n_bets = ledger.height
     wins = int((ledger["result"] == "win").sum())
     losses = int((ledger["result"] == "lose").sum())
@@ -1494,8 +1643,8 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
     clv = ledger.filter(pl.col("clv_pct").is_not_null())
     clv_table = clv.select(
         ["game_pk", "pitcher", "line", "side", "book", "tier", "game_date",
-         "quote_ts", "price", "decimal_odds", "close_quote_ts", "close_price",
-         "clv_pct", "result", "pnl_units"]
+         "block", "population", "quote_ts", "price", "decimal_odds",
+         "close_quote_ts", "close_price", "clv_pct", "result", "pnl_units"]
     )
     clv_summary = {
         "n_bets": n_bets,
@@ -1511,40 +1660,88 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
             r["tier"]: float(r["m"]) for r in clv_table.group_by("tier").agg(
                 pl.col("clv_pct").mean().alias("m")).iter_rows(named=True)
         },
+        "clv_mean_by_population": {
+            r["population"]: float(r["m"]) for r in clv_table.group_by(
+                "population").agg(
+                pl.col("clv_pct").mean().alias("m")).iter_rows(named=True)
+        },
     }
 
-    bet_dates = ledger["game_date"].to_list()
-    bet_blocks = ledger["block"].to_list()
+    # ---- ROI bootstrap PER POPULATION (F-6) ---------------------------------
+    # Separate dev vs confirm ratio bootstraps; each population uses its own
+    # draw stream (same base seed + 1, disclosed). No pooled ROI interval is
+    # reported: dev and confirm never mix.
+    bet_dates_l = ledger["game_date"].to_list()
+    bet_blocks_l = ledger["block"].to_list()
+    bet_pop_l = ledger["population"].to_list()
     pnl_arr = ledger["pnl_units"].to_numpy()
-    bet_boot = _roi_bootstrap(pnl_arr, bet_dates, bet_blocks, n_boot, seed)
+    roi_boot = {}
+    for name in ("dev", "confirm"):
+        m = np.array([p == name for p in bet_pop_l])
+        if m.any():
+            roi_boot[name] = _roi_bootstrap(
+                pnl_arr[m],
+                [d for d, mm in zip(bet_dates_l, m) if mm],
+                [b for b, mm in zip(bet_blocks_l, m) if mm],
+                n_boot, seed)
+        else:
+            roi_boot[name] = None
 
     # ---- outputs ------------------------------------------------------------
     out_dir.mkdir(parents=True, exist_ok=True)
     ledger.write_parquet(out_dir / "bets_ledger.parquet")
     clv_table.write_parquet(out_dir / "clv_table.parquet")
 
-    effective = {
-        "contract_side_rows": n_rows,
-        "distinct_start_line_pairs": int(
-            obs.select("game_pk", "pitcher", "line").n_unique()),
-        "distinct_starts": int(obs.select("game_pk", "pitcher").n_unique()),
-        "distinct_slate_dates": int(obs["game_date"].n_unique()),
-        "push_rows": n_push,
+    effective = _effective_counts(obs)
+    effective.update({
+        "dev_rows": pop["dev_rows"],
+        "confirm_rows": pop["confirm_rows"],
+        "rows_by_block": pop["rows_by_block"],
+        "reconciliation": "dev_rows + confirm_rows = contract_side_rows "
+                          "(no silent row loss; pinned by the F-6 regression)",
         "note": "complementary over/under sides share one realization and are "
                 "NOT independent; the slate-date bootstrap is the declared "
                 "correlation handling; effective counts reported alongside",
-    }
+    })
+
+    def _pop_skill_block(sub: pl.DataFrame, skill: dict) -> dict:
+        return {
+            "n_rows": sub.height,
+            "n_dates": int(sub["game_date"].n_unique()),
+            "push_rows": int(sub["y_push"].sum()),
+            "brier": {a: skill[a]["brier"] for a in skill},
+            "log_loss_non_push": {
+                a: skill[a]["log_loss_non_push"] for a in skill
+            },
+            "brier_skill_vs_market": {
+                a: skill["market"]["brier"] - skill[a]["brier"]
+                for a in ("h3", "l5")
+            },
+            "per_tier": _per_tier(sub),
+            "per_book_brier": _per_book(sub),
+            "effective_counts": _effective_counts(sub),
+        }
+
     skill_out = {
         "primary_metric": "multi-class Brier at matched contracts, classes "
                           "{win, push, lose}; identical matched contracts "
                           "across H3-raw / LOG5-raw / de-vig market",
-        "brier": {a: skill[a]["brier"] for a in skill},
-        "brier_skill_vs_market": {
-            a: skill["market"]["brier"] - skill[a]["brier"] for a in ("h3", "l5")
+        "population_definitions": {
+            "dev": list(DEV_BLOCKS),
+            "confirm": list(CONFIRM_BLOCKS),
+            "rule": "ONE validated block->population assignment is used for "
+                    "every metric; the headline is DEV-ONLY (confirm_2025H2 "
+                    "excluded) and confirmation is reported separately "
+                    "(confirm key here + confirm_metrics.json)",
         },
-        "log_loss_non_push": {a: skill[a]["log_loss_non_push"] for a in skill},
-        "per_tier": per_tier,
-        "per_book_brier": per_book,
+        "dev": _pop_skill_block(obs_dev, skill_dev),
+        "confirm": (
+            dict(confirm_skill,
+                 per_book_brier=_per_book(obs_confirm),
+                 effective_counts=_effective_counts(obs_confirm),
+                 log_loss_non_push=confirm_skill["log_loss_non_push"])
+            if confirm_skill is not None else None
+        ),
         "count_layer_persisted_reused": count_metrics,
         "count_layer_source": str(start_metrics_path),
         "effective_counts": effective,
@@ -1554,24 +1751,87 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
     (out_dir / "bootstrap.json").write_text(json.dumps({
         "params": {"seed": seed, "n_boot": n_boot, "unit": "slate date",
                    "block_stratified": True,
-                   "identical_indices_across_competitors": True},
+                   "identical_indices_across_competitors": True,
+                   "population": "dev pooled = %s (confirm %s EXCLUDED from "
+                                 "dev points and draws; reported separately)"
+                                 % (", ".join(DEV_BLOCKS),
+                                    ", ".join(CONFIRM_BLOCKS))},
+        "population_definitions": {"dev": list(DEV_BLOCKS),
+                                   "confirm": list(CONFIRM_BLOCKS)},
         "brier": boot_skill,
         "brier_skill_vs_market_ci": {
             a: boot_skill["%s_minus_market" % a] for a in ("h3", "l5")},
-        "paper_roi": bet_boot,
+        "paper_roi": roi_boot,
+        "confirm": (
+            None if confirm_boot is None else {
+                "n_rows": confirm_skill["n_rows"],
+                "n_dates": confirm_skill["n_dates"],
+                "brier": confirm_skill["brier"],
+                "brier_ci": confirm_skill["brier_ci"],
+                "h3_minus_l5": confirm_skill["h3_minus_l5"],
+            }
+        ),
     }, indent=2), encoding="utf-8")
+    # F-6: the confirmation metrics are SERIALIZED in their own file (not
+    # merely computed); empty confirm block permitted (metrics null).
+    if confirm_skill is not None:
+        confirm_metrics_out = {
+            "population": list(CONFIRM_BLOCKS),
+            "registered_dev_blocks": list(DEV_BLOCKS),
+            "n_rows": confirm_skill["n_rows"],
+            "n_dates": confirm_skill["n_dates"],
+            "brier": confirm_skill["brier"],
+            "brier_ci": confirm_skill["brier_ci"],
+            "log_loss_non_push": confirm_skill["log_loss_non_push"],
+            "brier_skill_vs_market": confirm_skill["brier_skill_vs_market"],
+            "per_tier": confirm_skill["per_tier"],
+            "h3_minus_l5": confirm_skill["h3_minus_l5"],
+            "params": {"seed": seed, "n_boot": n_boot, "unit": "slate date"},
+            "note": "confirm_2025H2 rows never enter dev pooled points or "
+                    "bootstrap draws (card C3.3/C3.7)",
+        }
+    else:
+        confirm_metrics_out = {
+            "population": list(CONFIRM_BLOCKS),
+            "registered_dev_blocks": list(DEV_BLOCKS),
+            "n_rows": 0,
+            "n_dates": 0,
+            "metrics": None,
+            "note": "no confirm_2025H2 rows in the scored prep (empty known "
+                    "block is permitted)",
+        }
+    (out_dir / "confirm_metrics.json").write_text(
+        json.dumps(confirm_metrics_out, indent=2), encoding="utf-8")
 
     summary = {
-        "spec": "market-eval-v1 score (EXPERIMENT_CARD.md correction C2)",
+        "spec": "market-eval-v1 score (EXPERIMENT_CARD.md corrections C2/C3; "
+                "F-6 population separation)",
         "prep_dir": str(prep_dir),
+        "population_definitions": {"dev": list(DEV_BLOCKS),
+                                   "confirm": list(CONFIRM_BLOCKS)},
         "bets": {"n": n_bets, "wins": wins, "losses": losses, "pushes": pushes,
                  "pnl_units": pnl, "roi_per_bet": roi, "win_rate": wr,
                  "missing_close": clv_summary["n_missing_close"]},
-        "skill_headline": {
-            "brier_h3": skill["h3"]["brier"],
-            "brier_l5": skill["l5"]["brier"],
-            "brier_market": skill["market"]["brier"],
+        "bets_by_population": {
+            "dev": _bets_summary(bets_dev),
+            "confirm": _bets_summary(bets_confirm),
+            "reconciliation": "dev n + confirm n = total bets",
         },
+        "skill_headline": {
+            "population": "dev (%s)" % ", ".join(DEV_BLOCKS),
+            "brier_h3": skill_dev["h3"]["brier"],
+            "brier_l5": skill_dev["l5"]["brier"],
+            "brier_market": skill_dev["market"]["brier"],
+        },
+        "confirm_headline": (
+            None if confirm_skill is None else {
+                "population": ", ".join(CONFIRM_BLOCKS),
+                "brier_h3": confirm_skill["brier"]["h3"],
+                "brier_l5": confirm_skill["brier"]["l5"],
+                "brier_market": confirm_skill["brier"]["market"],
+                "n_rows": confirm_skill["n_rows"],
+            }
+        ),
         "count_layer": count_metrics,
     }
     (out_dir / "score_summary.json").write_text(

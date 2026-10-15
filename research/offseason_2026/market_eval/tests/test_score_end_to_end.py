@@ -126,14 +126,14 @@ def _ts(s):
 
 def _contract(game_pk, pitcher, half, line, side, price, d, p_over_mkt,
               p_h3_over, p_h3_under, p_l5_over, p_l5_under, game_date,
-              push_h3=0.0, push_l5=0.0):
+              push_h3=0.0, push_l5=0.0, block="block_2024H2"):
     p_h3_win = p_h3_over if side == "over" else p_h3_under
     p_h3_lose = p_h3_under if side == "over" else p_h3_over
     p_l5_win = p_l5_over if side == "over" else p_l5_under
     p_l5_lose = p_l5_under if side == "over" else p_l5_over
     return {
         "game_pk": game_pk, "pitcher": pitcher, "pitcher_key": "a alice",
-        "game_date": game_date, "block": "block_test", "pitch_half": "Top",
+        "game_date": game_date, "block": block, "pitch_half": "Top",
         "tier": me.TIER_A, "first_pitch_ts": _ts("2025-05-01T23:00:00Z"),
         "line": line, "book": "draftkings",
         "pair_ts": _ts("2025-05-01T18:00:00Z"),
@@ -247,7 +247,6 @@ def test_score_end_to_end(tmp_path):
     # ---- all outputs written ----
     for f in me.SCORE_FILES:
         assert (out / f).exists(), f
-
     # ---- known payouts ----
     ledger = pl.read_parquet(out / "bets_ledger.parquet").sort("game_pk")
     assert ledger.height == 4  # S5 (no-bet) excluded
@@ -276,21 +275,28 @@ def test_score_end_to_end(tmp_path):
     assert b1["clv_pct"] == pytest.approx((2.5 - d_close) / d_close)
 
     # ---- skill metrics: hand-computed multi-class Brier ----
+    # (all fixture rows carry the dev block block_2024H2, so the dev
+    # headline covers all 5 rows; F-6 population separation)
     sk = json.loads((out / "skill_metrics.json").read_text(encoding="utf-8"))
+    assert sk["population_definitions"]["dev"] == [
+        "block_2024H2", "block_2025H1"]
+    assert sk["population_definitions"]["confirm"] == ["confirm_2025H2"]
     # H3 rows: (p_win, p_push, p_lose) vs outcome one-hot
     # S1 over:  (.6, 0, .4) vs (1,0,0) -> .16+.16            = .32
     # S2 under: (.4, 0, .6) vs (0,0,1) -> .16+.16            = .32
     # S3 over:  (.3, .4, .7) vs (0,1,0) -> .09+.36+.49       = .94
     # S4 over:  (.55,0,.45) vs (0,0,1) -> .3025+.3025        = .605
     # S5 under: (.5, 0, .5) vs (1,0,0) -> .25+.25            = .50
-    assert sk["brier"]["h3"] == pytest.approx((0.32 + 0.32 + 0.94 + 0.605 + 0.50) / 5)
+    assert sk["dev"]["brier"]["h3"] == pytest.approx(
+        (0.32 + 0.32 + 0.94 + 0.605 + 0.50) / 5)
     # LOG5 rows (zero push mass):
     # S1 over win:  (.3,0,.7) vs (1,0,0) = .49+.49           = .98
     # S2 under lose:(.7,0,.3) vs (0,0,1) = .49+.49           = .98
     # S3 over push: (.2,0,.8) vs (0,1,0) = .04+1+.64         = 1.68
     # S4 over lose: (.5,0,.5) vs (0,0,1) = .25+.25           = .50
     # S5 under win: (.6,0,.4) vs (1,0,0) = .16+.16           = .32
-    assert sk["brier"]["l5"] == pytest.approx((0.98 + 0.98 + 1.68 + 0.50 + 0.32) / 5)
+    assert sk["dev"]["brier"]["l5"] == pytest.approx(
+        (0.98 + 0.98 + 1.68 + 0.50 + 0.32) / 5)
     # market: p_market is the de-vig win prob at the row's own side; compute
     # the expected Brier from the fixture frame under the same definition
     m = pl.read_parquet(prep / "matched_contracts.parquet")
@@ -316,19 +322,34 @@ def test_score_end_to_end(tmp_path):
             (r["p_market"] - y_win) ** 2 + (0.0 - y_push) ** 2
             + ((1.0 - r["p_market"]) - y_lose) ** 2
         )
-    assert sk["brier"]["market"] == pytest.approx(sum(exp_market) / len(exp_market))
-    assert sk["effective_counts"]["push_rows"] == 1
-    assert sk["effective_counts"]["contract_side_rows"] == 5
-    assert sk["effective_counts"]["distinct_starts"] == 5
-    # count layer reused, not recomputed
-    assert sk["count_layer_persisted_reused"]["n_starts"] == 5
-    assert sk["count_layer_persisted_reused"]["h3"]["rps"] == pytest.approx(0.5)
+    assert sk["dev"]["brier"]["market"] == pytest.approx(sum(exp_market) / len(exp_market))
+    # F-6: no confirm rows in this fixture -> empty confirm block permitted
+    assert sk["confirm"] is None
+    assert sk["dev"]["effective_counts"]["push_rows"] == 1
+    assert sk["dev"]["effective_counts"]["contract_side_rows"] == 5
+    assert sk["dev"]["effective_counts"]["distinct_starts"] == 5
+    eff = sk["effective_counts"]
+    assert eff["dev_rows"] == 5 and eff["confirm_rows"] == 0
+    assert eff["dev_rows"] + eff["confirm_rows"] == eff["contract_side_rows"]
+    # count layer reused, not recomputed (per population; all dev here)
+    assert sk["count_layer_persisted_reused"]["dev"]["n_starts"] == 5
+    assert sk["count_layer_persisted_reused"]["confirm"]["n_starts"] == 0
+    assert sk["count_layer_persisted_reused"]["dev"]["h3"]["rps"] == pytest.approx(0.5)
+
+    # ---- confirmation serialized even when empty (F-6) ----
+    cm = json.loads(
+        (out / "confirm_metrics.json").read_text(encoding="utf-8"))
+    assert cm["population"] == ["confirm_2025H2"]
+    assert cm["n_rows"] == 0 and cm["metrics"] is None
 
     # ---- bootstrap deterministic under the registered seed ----
     b1 = json.loads((out / "bootstrap.json").read_text(encoding="utf-8"))
     assert b1["params"]["seed"] == 20261001
     assert b1["params"]["n_boot"] == 200
     assert "h3_minus_market" in b1["brier"]
+    assert b1["confirm"] is None  # no confirm rows
+    assert b1["paper_roi"]["confirm"] is None
+    assert b1["paper_roi"]["dev"]["point"] == pytest.approx(-0.125)
     me.run_score(prep, sm_path, tmp_path / "score2", seed=20261001, n_boot=200)
     b2 = json.loads((tmp_path / "score2" / "bootstrap.json").read_text(encoding="utf-8"))
     assert b1 == b2
