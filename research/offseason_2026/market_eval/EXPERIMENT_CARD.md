@@ -359,3 +359,148 @@ closing ref for CLV, 388 without (disclosed at scoring).
 Prep output hashes (sha256_16, see `outputs\prep\manifest.json`):
 matched_contracts `420091e353fbb258`, actionable_pairs `544956c4a4481f9c`,
 closing_refs `91b6528ea5363433`, paper_bets `65c52a4bb1a3f874`.
+
+## CORRECTION C3 (2026-10-14) — AMENDED REGISTRATION
+
+This section AMENDS the registration above. It is appended, not substituted:
+the original registration text stays in force as the historical record and
+is quoted verbatim below wherever this amendment changes it (marked
+ORIGINAL). Nothing in this amendment restores untouched evaluation: the
+prep was rebuilt under C2 after v1 defects, the scoring code was written
+and reviewed before any authorized run, and an unauthorized scoring
+execution already occurred (see UNRESOLVED item). This amendment completes
+and pins the registration so a FUTURE authorized scoring run, if approved,
+is evaluated against a fully specified, deterministic, reviewed protocol.
+
+### C3.1 Estimand (amended; supersedes nothing, completes section 4)
+
+ORIGINAL (section 4): "Primary probability-skill metric (at the scoring
+run): **multi-class Brier at matched contracts** on identical observations,
+classes {over_win, push, under_win}, competitors H3-raw vs LOG5-raw vs
+de-vig market (`p_market`), push counted as a class (refund)."
+
+AMENDED registration: every reported skill metric is the ROW-WEIGHTED
+estimand — the sum of per-row metric contributions divided by the count of
+rows over all included rows (rows never thinned):
+
+- Brier: `sum_rows [(p_win - y_win)^2 + (p_push - y_push)^2
+  + (p_lose - y_lose)^2] / n_rows` over matched contract side rows.
+- Log loss (secondary, non-push rows): `sum_rows[-(y log p + (1-y)
+  log(1-p))] / n_nonpush_rows`, clipped at `LOG_FLOOR = 1e-12`.
+- Paper ROI: `sum(pnl_units) / n_bets` over settled paper bets.
+
+The unit of resampling is the SLATE DATE (`game_date`); a date contributes
+ALL of its rows (per-date numerator sum + row count), never a thinned or
+averaged version. The point estimate is the same row-weighted estimand on
+the full data. This matches the parity target
+`research/offseason_2026/run_paired_uncertainty.py` (estimand: "sum of
+per-row losses / count of rows over all sampled-date rows").
+
+### C3.2 Bootstrap stratification/weighting (amended)
+
+ORIGINAL (section 4): "Uncertainty: paired slate-date bootstrap, **2000
+resamples, seed 20261001, resampling unit = game_date** (slate), identical
+resample indices across all competitors."
+
+AMENDED registration (the reviewed repair; verified by F-1 hand-calculated
+test `test_slate_bootstrap_hand_calculated_unequal_slate_sizes` and C3
+regression `test_slate_bootstrap_block_stratified_row_weighted`):
+
+1. BLOCK-STRATIFIED draws: within each block the replicate draws exactly
+   that block's ORIGINAL slate-date count of dates, with replacement
+   (multinomial over the block's dates). A replicate can never drop or
+   over-draw a block.
+2. ROW-WEIGHTED pooled combination: per-block numerators (per-row metric
+   sums over sampled-date rows) and denominators (sampled row counts) are
+   summed ACROSS blocks; the replicate statistic is numerator/denominator,
+   on the same per-row scale as the point estimate. Block weights cannot
+   shift across replicates.
+3. PAIRED draws: ONE draw of date indices per block per replicate is shared
+   across ALL competitors (H3-raw, LOG5-raw, de-vig market, and the
+   H3-vs-LOG5 / H3-vs-market / L5-vs-market pairwise diffs), so intervals
+   are paired at the draw level.
+4. Params unchanged: 2000 resamples, seed 20261001 (ROI bootstrap uses the
+   adjacent stream seed+1, disclosed), percentile interval [2.5, 97.5].
+
+### C3.3 Block definitions (registered)
+
+Owner-ruled v3 assessment windows (identical to
+`run_paired_uncertainty.BLOCK_WINDOWS`; parity by construction):
+
+| Block | Window | Role |
+| --- | --- | --- |
+| `block_2024H1` | 2024-01-01 .. 2024-06-30 | development |
+| `block_2024H2` | 2024-07-01 .. 2024-12-31 | development |
+| `block_2025H1` | 2025-01-01 .. 2025-06-30 | development |
+| `confirm_2025H2` | 2025-07-01 .. | CONFIRMATORY (never pooled into dev) |
+
+Bootstrap resampling and pooled point estimates use DEVELOPMENT blocks
+only; `confirm_2025H2` rows are reported separately and never enter the
+dev pooled estimand. Cohort note: the prep_v2 cohort spans
+2024-07-01..2025-09-28, so prep_v2 carries `block_2024H2`, `block_2025H1`,
+and `confirm_2025H2` rows only (`block_2024H1` precedes the archive
+cohort; the window definition above still applies to any future prep).
+
+### C3.4 Selection and settlement behavior (repaired; registration completed)
+
+ORIGINAL (section "Selection rule"): "Per (start, line, side): among
+pre-cutoff quotes take the LATEST snapshot per book; then the book by
+`BOOK_PRIORITY`; then the best decimal price; then the book name." and
+"one pair per (start, line) by max total decimal, then priority, then
+latest ts".
+
+AMENDED registration:
+
+- **F-2 (pair_sides collapse):** distinct snapshot labels (or prices) can
+  share ONE `quote_ts`; the pairing/collapse steps reduce to exactly ONE
+  row per (start, line, book, side) before pairing and ONE pair per
+  (start, line, book) after, deterministically (full-column sort + first).
+  Hard `_assert_unique` join-cardinality guards on closing_side_refs
+  (start, line, book, side), paper_bets (start, line, side), and all prep
+  outputs fail loud BEFORE any write instead of silently multiplying rows.
+- **Eval-observation tiebreak (completed):** the one-pair-per-(start, line)
+  ordering is max total decimal, then lowest `BOOK_PRIORITY` index, then
+  latest pair ts, THEN book name ascending. The final name tiebreak is
+  required because two books both outside BOOK_PRIORITY tie on all three
+  original keys; without it the choice was nondeterministic across
+  processes (fixed in commit 850aa38).
+- **F-3 (settlement semantics):** half line NEVER pushes (over wins at
+  K >= ceil(L), under wins at K <= floor(L)); integer line L pushes at
+  K == L for BOTH sides with exact 0.0 refund; invalid side / negative K
+  fail loud. Pinned by the K = 0..20 sweep
+  `test_settlement_half_line_never_pushes_and_integer_push_refunds`.
+- **F-5 (push-aware bet columns):** paper-bet EV uses the refund
+  decomposition `p_h3_win*(d-1) - p_h3_lose` (push mass excluded from the
+  lose term; eea37bc), and the paper-bet table carries `p_h3_push` (the
+  frozen-PMF push probability) per bet row (244ee13).
+
+### C3.5 prep_v2 persisted constants are HISTORICAL
+
+Where the constants echoed inside the frozen prep_v2 outputs
+(`prep_summary.json` -> `registered_constants`, `manifest.json`) differ
+from this amended registration, the PERSISTED ECHO is HISTORICAL and this
+section governs. Known divergences:
+
+- `observation_dedup` in prep_v2 reads "...max total decimal, then book
+  priority, then latest ts" — HISTORICAL; the amended rule adds the final
+  book-name tiebreak (C3.4).
+- `bootstrap_registered_only` in prep_v2 records only n_resamples / seed /
+  unit — HISTORICAL; the amended bootstrap is block-stratified and
+  row-weighted per C3.2/C3.3.
+- The prep_v2 output bytes themselves are UNCHANGED by this amendment
+  (write-once holds; the F-2 outcome-free audit found 0 duplicate keys and
+  the expanded OLD-vs-NEW selection audit is reported in
+  FINDINGS_F1_F5_2026-10-14.md).
+
+### C3.6 Accidental scoring exposure — UNRESOLVED
+
+C2 disclosed an unauthorized real scoring run executed accidentally at
+2026-10-14 17:15 (a test invoked `--score` with default paths after the
+scoring code landed but before its guard test was rewritten; outputs were
+deleted without being cited). THIS ITEM REMAINS UNRESOLVED: the exposure
+inspection (what was joined, what was computed, what the deleted outputs
+contained, and any information leak into subsequent decisions) has not
+been completed and no closure evidence exists. Nothing in this amendment
+should be read as clearing that exposure or as restoring an untouched
+evaluation state. The authorized canonical scoring run remains separately
+owner-gated (F-4 flag confirms intent only).
