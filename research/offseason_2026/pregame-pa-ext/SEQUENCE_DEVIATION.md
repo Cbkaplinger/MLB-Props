@@ -82,3 +82,15 @@ review. This exposure is the reason the status correction below exists.
 - Frozen run dir sha256 of metrics.json: e0d590870b8a400c341c3da2b0bd12c122b83ae60f8dc5306146495aa08f52e4
 - Implementation commit: b2be3c9c6a3f29d47f44b2c769bd933023491d4e (research/market-eval-v2)
 - Repo copy of this record: research/offseason_2026/pregame-pa-ext/SEQUENCE_DEVIATION.md (commit-only; not pushed)
+
+## Addendum 2026-10-15: MLflow import completed (non-authoritative)
+
+The post-run MLflow importer ran successfully against the frozen canonical run
+(the importer is downstream bookkeeping only; it does not touch the canonical
+outputs). Details are in `mlflow_import_record.json` (this directory):
+mlflow 3.17.1, experiment `pa-k-probability-v1`, parent run
+e2194b6b0f7c4f1da59db2a967af1e2b tagged with the packet run_id, git_sha,
+config_hash, harness_run_id, exposure and review_status
+(RESULT-PENDING-INDEPENDENT-REVIEW); 20 child runs (candidate x fold x lane)
+with params + metrics; idempotency added to the importer and verified by a
+second import (no duplicate). Import window: 2026-10-15T13:29:57Z..13:29:59Z.

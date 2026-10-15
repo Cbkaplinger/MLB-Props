@@ -65,6 +65,11 @@ FEAT_B = [
     "n_prior_pitcher", "n_prior_batter", "cold_start",
 ]
 FEAT_H3 = FEAT_B + ["ew_pitcher", "ew_batter"]
+# H3 ablation variants (registered 2026-10-15, synthetic-test only): the 6 B
+# features plus exactly one EW-90d column; identical logistic spec, folds and
+# settings, only the EW column set differs.
+FEAT_H3_PITCHER_EW = FEAT_B + ["ew_pitcher"]
+FEAT_H3_BATTER_EW = FEAT_B + ["ew_batter"]
 
 # Fold anchors: train_end values (2023,12,31), (2024,6,30), (2024,12,31),
 # (2025,6,30) and assessment windows, exactly run_ladder.py:60-66. Nominal
@@ -557,6 +562,10 @@ def registered_adapters() -> dict[str, ModelAdapter]:
         "P1_B_logreg": LogisticAdapter("P1_B_logreg", tuple(FEAT_B)),
         "P1_H3_incumbent_refit": LogisticAdapter(
             "P1_H3_incumbent_refit", tuple(FEAT_H3), incumbent_refit=True),
+        "P1_H3_pitcher_ew_only": LogisticAdapter(
+            "P1_H3_pitcher_ew_only", tuple(FEAT_H3_PITCHER_EW)),
+        "P1_H3_batter_ew_only": LogisticAdapter(
+            "P1_H3_batter_ew_only", tuple(FEAT_H3_BATTER_EW)),
         "P2_lgbm": NotImplementedAdapter(
             "P2_lgbm",
             "LightGBM binary classifier; monotone-constraint policy must be "

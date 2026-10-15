@@ -25,7 +25,8 @@ sys.path.insert(0, str(HERE))
 import comparison as cmp_mod  # noqa: E402
 from comparison import (  # noqa: E402
     AdapterContractError, AvailabilityError, ComparisonError, ConstantAdapter,
-    DEV_BLOCKS, DuplicateKeyError, FEAT_B, FEAT_H3, LogisticAdapter,
+    DEV_BLOCKS, DuplicateKeyError, FEAT_B, FEAT_H3, FEAT_H3_BATTER_EW,
+    FEAT_H3_PITCHER_EW, LogisticAdapter,
     Log5BaselineAdapter, RunConfig, WriteOnceError, brier, derive_folds,
     enforce_availability_guard, eval_identity_hash, load_pa_rows, log5,
     log_loss, registered_adapters, run_comparison, slate_date_bootstrap,
@@ -483,6 +484,59 @@ def test_missing_required_features_fail_loud(synth, tmp_path):
             pa_table_path=str(synth["pa_path"]), features_path=str(p),
             candidates=["P1_H3_incumbent_refit"], output_root=str(tmp_path / "miss"),
             run_label="missing"))
+
+
+# ---------------------------------------------------------------------------
+# H3 EW-only ablation adapters (P1_H3_pitcher_ew_only / P1_H3_batter_ew_only)
+# ---------------------------------------------------------------------------
+
+EW_ONLY = ["P1_H3_pitcher_ew_only", "P1_H3_batter_ew_only"]
+
+
+def test_ew_only_adapters_declare_expected_features():
+    reg = registered_adapters()
+    for cand, feat_list in (("P1_H3_pitcher_ew_only", FEAT_H3_PITCHER_EW),
+                            ("P1_H3_batter_ew_only", FEAT_H3_BATTER_EW)):
+        a = reg[cand]
+        assert isinstance(a, LogisticAdapter)
+        assert list(a.required_features) == list(feat_list)
+        # 6 B features + exactly one EW-90d column
+        assert list(a.required_features[:6]) == list(FEAT_B)
+        assert len(a.required_features) == 7
+    assert reg["P1_H3_pitcher_ew_only"].required_features[-1] == "ew_pitcher"
+    assert reg["P1_H3_batter_ew_only"].required_features[-1] == "ew_batter"
+
+
+def test_ew_only_adapters_end_to_end_finite_probs(synth, tmp_path):
+    out = run_comparison(_run_cfg(synth, tmp_path, candidates=EW_ONLY,
+                                  label="ew_only"))
+    for fold in DEV_BLOCKS + ["confirm_2025H2"]:
+        for cand in EW_ONLY:
+            p = pl.read_parquet(out / f"preds_{fold}__{cand}.parquet")
+            assert p.height > 0
+            # finite probabilities inside [0, 1] on the synthetic fixture
+            assert p["pred_raw"].is_finite().all()
+            assert p["pred_raw"].min() >= 0.0 and p["pred_raw"].max() <= 1.0
+    man = json.loads((out / "run_manifest.json").read_text())
+    for cand, expect in (("P1_H3_pitcher_ew_only", FEAT_H3_PITCHER_EW),
+                         ("P1_H3_batter_ew_only", FEAT_H3_BATTER_EW)):
+        assert man["candidates"][cand]["block_2024H1"]["features"] == list(expect)
+        assert man["candidates"][cand]["block_2024H1"]["status"] == \
+            "IMPLEMENTED-ADAPTER"
+
+
+def test_ew_only_adapters_fail_loud_without_their_ew_column(synth, tmp_path):
+    feat = pl.read_parquet(synth["feat_path"])
+    cases = [("P1_H3_pitcher_ew_only", "ew_pitcher"),
+             ("P1_H3_batter_ew_only", "ew_batter")]
+    for i, (cand, col) in enumerate(cases):
+        p = tmp_path / f"feat_no_{col}.parquet"
+        feat.drop([col]).write_parquet(p)
+        with pytest.raises(ComparisonError, match=col):
+            run_comparison(RunConfig(
+                pa_table_path=str(synth["pa_path"]), features_path=str(p),
+                candidates=[cand], output_root=str(tmp_path / f"miss_{i}"),
+                run_label=f"missing_{col}"))
 
 
 def test_fold_construction_dates_match_registered_anchors(synth):
