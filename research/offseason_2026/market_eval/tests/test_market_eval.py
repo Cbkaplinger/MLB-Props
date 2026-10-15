@@ -748,6 +748,74 @@ def test_score_refused_without_explicit_opt_in_flag(capsys, tmp_path):
     assert not (tmp_path / "score").exists()
 
 
+def _synthetic_scoring_inputs(tmp_path):
+    """Minimal SYNTHETIC scoring inputs in tmp_path: a self-consistent prep
+    directory (two parquets + manifest with their real hashes) and a
+    synthetic realized-K start-metrics parquet. Exists so a test can prove
+    the F-4 refusal fires even when VALID inputs are sitting on disk."""
+    import json
+
+    prep = tmp_path / "prep"
+    prep.mkdir()
+    matched = pl.DataFrame({
+        "game_pk": [1], "pitcher": [1], "side": ["over"], "x": [1.0],
+    })
+    bets = pl.DataFrame({
+        "game_pk": [1], "pitcher": [1], "side": ["over"], "y": [1.0],
+    })
+    matched.write_parquet(prep / "matched_contracts.parquet")
+    bets.write_parquet(prep / "paper_bets.parquet")
+    manifest = {
+        "outputs_sha256_16": {
+            f: me.sha256_16(prep / f)
+            for f in ["matched_contracts.parquet", "paper_bets.parquet"]
+        }
+    }
+    (prep / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    sm = tmp_path / "start_metrics.parquet"
+    pl.DataFrame({
+        "game_pk": [1], "side": ["Top"], "pitcher": [1], "realized_k": [3],
+    }).write_parquet(sm)
+    return prep, sm
+
+
+def test_refusal_fires_before_reading_inputs_or_writing_score_outputs(
+    tmp_path, monkeypatch, capsys
+):
+    """F-4 gate verification on SYNTHETIC temp fixtures: --score without
+    --i-accept-outcome-scoring must refuse BEFORE reading the (valid,
+    synthetic) prep or realized-K file and BEFORE creating any score output.
+    Both the scoring entrypoint and ANY parquet read are instrumented to
+    fail the test if the refusal path touches them."""
+    prep, sm = _synthetic_scoring_inputs(tmp_path)
+    score_dir = tmp_path / "score"
+
+    def _no_score(*a, **k):
+        raise AssertionError("run_score invoked on the refusal path")
+
+    def _no_read(*a, **k):
+        raise AssertionError("read_parquet invoked on the refusal path")
+
+    monkeypatch.setattr(me, "run_score", _no_score)
+    monkeypatch.setattr(me.pl, "read_parquet", _no_read)
+    rc = me.main([
+        "--score",
+        "--prep-dir", str(prep),
+        "--start-metrics", str(sm),
+        "--score-dir", str(score_dir),
+    ])
+    assert rc == 2
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    # the refusal message names the gate
+    assert "--i-accept-outcome-scoring" in combined
+    assert "gated" in combined.lower()
+    # nothing was written: no score dir, no outputs, fixtures untouched
+    assert not score_dir.exists()
+    assert (prep / "matched_contracts.parquet").exists()
+    assert sm.exists()
+
+
 def test_load_quotes_pooled_market_two_pitcher_collision(tmp_path):
     """C3 regression (independent check of the registered v1 defect): v1
     pooled the two K markets on (event, snapshot, book, line, side) WITHOUT
