@@ -65,10 +65,9 @@ From `outputs\prep_v2\` (C2, write-once, bit-reproducible) and
 | Closing paired refs (benchmark-only) | 70,373 |
 | Paper bets (registered rule; settlement GATED) | 11,435 (10,962 with close, 473 without) |
 
-- Status: prep EXECUTED and outcome-free. **No authorized canonical
-  scoring run has executed.** One accidental run occurred (2026-10-14
-  ~17:15; outputs deleted without being cited; see INCIDENT.md); whether
-  anyone inspected the computed metrics before deletion is UNRESOLVED.
+- Status: prep EXECUTED and outcome-free. No authorized canonical scoring
+  run; one accidental run occurred (2026-10-14 ~17:15, outputs deleted,
+  inspection status UNRESOLVED — see INCIDENT.md).
 - Tier B (2024-07-01..2024-09-30, clock proxy) is development-era by date,
   carried in the same prep but reported separately and labeled sensitivity —
   never pooled into a Tier A headline.

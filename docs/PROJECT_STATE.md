@@ -17,14 +17,20 @@ no live-path changes; dashboard parked.
   (`research/offseason_2026/market_eval/`): prep v2 (outcome-free,
   write-once) + gated scorer + 28 synthetic tests + spec docs. The pin is
   preserved unchanged; review docs are a docs-only commit on top.
-- **Market-eval lane (F-6):** F-6 (C3.3 confirmation-exclusion) implemented
-  (`tests/test_f6_confirmation_exclusion.py`) and the diagnostic executed:
-  overnight-p2 `pooled_comparison.json` verified to exclude confirm_2025H2
+- **Market-eval lane (F-6):** F-6 (C3.3 confirmation-exclusion) COMPLETED:
+  one validated population assignment in `run_score` (fail-loud on
+  unknown/null block labels), dev-only headline, serialized confirmation
+  metrics (`confirm_metrics.json` + `bootstrap.json` `confirm`),
+  per-population ROI/count summaries, registered in the card as C3.7, and
+  pinned by a run_score-invoking regression
+  (`tests/test_f6_confirmation_separation.py`; the earlier
+  `tests/test_f6_confirmation_exclusion.py` and `_slate_bootstrap`
+  known-answer tests remain as helper-level coverage). overnight-p2
+  `pooled_comparison.json` previously verified to exclude confirm_2025H2
   from pooling. Holding for Chat 2 review.
-- **Scoring status:** NO authorized canonical scoring run. One accidental
-  run occurred 2026-10-14 ~17:15 (outputs deleted without being cited;
-  INCIDENT.md); whether anyone inspected the computed metrics is
-  UNRESOLVED. Scoring remains owner-gated.
+- **Scoring status:** no authorized canonical scoring run; one accidental
+  run occurred (2026-10-14 ~17:15, outputs deleted, inspection status
+  UNRESOLVED; INCIDENT.md). Scoring remains owner-gated.
 
 ## PRs and reviewed SHAs
 

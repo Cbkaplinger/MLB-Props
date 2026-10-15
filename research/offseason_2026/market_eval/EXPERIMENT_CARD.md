@@ -23,9 +23,10 @@ search is permitted under this card. 2026 data is out of scope
 > stand as the superseded record; ALL registered analysis under this card
 > uses prep_v2. A second defect (`chosen_for_eval` flag marking every
 > (start, line, book) row instead of the chosen book) is also fixed in v2.
-> Deviation note: an UNAUTHORIZED real scoring run executed accidentally at
-> 2026-10-14 17:15 (a test invoked `--score` with default paths after the
-> scoring code landed but before its guard test was rewritten); its outputs
+> Deviation note: no authorized canonical scoring run; one accidental run
+> occurred (2026-10-14 ~17:15, outputs deleted, inspection status
+> UNRESOLVED) — a test invoked `--score` with default paths after the
+> scoring code landed but before its guard test was rewritten; its outputs
 > were deleted without being cited and are NOT evidence of any kind; the
 > authorized scoring run remains gated.
 
@@ -494,13 +495,63 @@ section governs. Known divergences:
 
 ### C3.6 Accidental scoring exposure — UNRESOLVED
 
-C2 disclosed an unauthorized real scoring run executed accidentally at
-2026-10-14 17:15 (a test invoked `--score` with default paths after the
+Status: **no authorized canonical scoring run; one accidental run occurred
+(2026-10-14 ~17:15, outputs deleted, inspection status UNRESOLVED).**
+
+C2 disclosed that a test invoked `--score` with default paths after the
 scoring code landed but before its guard test was rewritten; outputs were
-deleted without being cited). THIS ITEM REMAINS UNRESOLVED: the exposure
+deleted without being cited. THIS ITEM REMAINS UNRESOLVED: the exposure
 inspection (what was joined, what was computed, what the deleted outputs
 contained, and any information leak into subsequent decisions) has not
 been completed and no closure evidence exists. Nothing in this amendment
 should be read as clearing that exposure or as restoring an untouched
 evaluation state. The authorized canonical scoring run remains separately
 owner-gated (F-4 flag confirms intent only).
+
+### C3.7 Population definitions for ALL reported metrics (F-6 completion)
+
+AMENDED registration (completes C3.3; supersedes any pooled-population
+reading of the scoring outputs): every metric the scoring run reports is
+computed per POPULATION from ONE validated block->population assignment,
+applied identically to skill points, bootstrap draws, per-tier and
+per-book breakdowns, count summaries, ROI, and paper bets:
+
+- **dev** = `block_2024H2` + `block_2025H1` (development headline;
+  `block_2024H1` is a registered dev window per C3.3 but precedes the
+  prep_v2 archive cohort and cannot occur in prep_v2 rows);
+- **confirm** = `confirm_2025H2` (never pooled into dev, never mixed into
+  any dev point, interval, ROI, or count summary).
+
+Concretely, the score outputs carry:
+
+1. **Validation (fail loud):** `run_score` validates every row's `block`
+   label against the registered cohort set {block_2024H2, block_2025H1,
+   confirm_2025H2} immediately after the outcome join; unknown or null
+   labels raise `PopulationLabelError` naming the offending labels and row
+   counts BEFORE any metric is computed. Empty known blocks are permitted
+   (a block with 0 rows is OK).
+2. **Dev-only headline:** `skill_metrics.json` top-level `dev` block and
+   `bootstrap.json` `brier` (points + block-stratified intervals) are
+   computed on DEV rows ONLY; `score_summary.json` `skill_headline` is
+   labeled with its population.
+3. **Serialized confirmation:** the confirmation metrics (per-arm Brier +
+   CI, log loss, skill vs market, per-tier breakdown, effective counts
+   n_rows/n_dates, and the paired `h3_minus_l5` bootstrap) are written to
+   `confirm_metrics.json` in the score dir AND mirrored under
+   `bootstrap.json` `confirm` + `skill_metrics.json` `confirm`.
+   `confirm_metrics.json` is part of the write-once SCORE_FILES set.
+4. **Per-population ROI and counts:** `bootstrap.json` `paper_roi` is
+   `{dev, confirm}` (separate block-stratified ratio bootstraps; no pooled
+   interval is reported); `skill_metrics.json`
+   `count_layer_persisted_reused` is `{dev, confirm}`;
+   `score_summary.json` adds `bets_by_population` and per-population CLV
+   means; `bets_ledger.parquet` and `clv_table.parquet` carry a
+   `population` column per row. Tier A/B separation is preserved WITHIN
+   each population (`per_tier` keys).
+5. **Reconciliation:** `effective_counts.dev_rows + confirm_rows =
+   contract_side_rows` with per-block row counts, pinned by the
+   run_score-invoking regression
+   (`tests/test_f6_confirmation_separation.py::test_f6_run_score_population_separation_end_to_end`)
+   and the pre-existing helper tests
+   (`test_f6_confirmation_exclusion.py`, the `_slate_bootstrap`
+   known-answer test).

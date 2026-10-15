@@ -54,10 +54,10 @@ resampling unit = game_date, IDENTICAL resample indices across
 competitors; paired diffs h3-market, l5-market, h3-l5), ROI ratio
 bootstrap (separate stream, seed+1, documented), persisted count errors
 REUSED verbatim (`PERSISTED_COUNT_COLS`, never recomputed), write-once
-score dir, six outputs. EXECUTION REMAINS OWNER-GATED — **no authorized
-canonical scoring run has executed**; one accidental run occurred
-(2026-10-14 ~17:15, outputs deleted; INCIDENT.md; inspection status
-unresolved).
+score dir, six outputs. EXECUTION REMAINS OWNER-GATED — status: **no
+authorized canonical scoring run; one accidental run occurred
+(2026-10-14 ~17:15, outputs deleted, inspection status UNRESOLVED)**
+(INCIDENT.md).
 
 ## Fixed (registered before execution; no optimization)
 
@@ -164,10 +164,10 @@ restricted to matched-contract starts (6,643), labeled separately.
 
 ## Known gaps / limits (disclosed, not blockers)
 
-- No authorized canonical scoring run (owner-gated); one accidental run
-  occurred 2026-10-14 ~17:15 (outputs deleted; inspection status
-  unresolved — INCIDENT.md); market lane has no authorized registered
-  outcome numbers.
+- No authorized canonical scoring run (owner-gated); status: no authorized
+  canonical scoring run; one accidental run occurred (2026-10-14 ~17:15,
+  outputs deleted, inspection status UNRESOLVED — INCIDENT.md); the
+  market lane has no authorized registered outcome numbers.
 - Integer-line push machinery unexercised (0 such contracts).
 - Count-layer interval coverage/sharpness metrics are PROPOSED
   (METRIC_SCHEMA), not implemented/persisted.
