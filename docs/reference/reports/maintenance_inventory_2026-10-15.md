@@ -1,5 +1,13 @@
 # Repository maintenance inventory — 2026-10-15 (Chat 3)
 
+> **Pass-2 addendum (2026-10-15):** coordination subsequently authorized worktree
+> removal after per-worktree dirty/unique-commit checks; candidates #1–#3 were
+> executed (9 `repo-review-*` worktrees removed; `paextwt` KEPT — holds unique
+> commit `dfd8f17`). Preservation of the dirty checkout, commit-by-commit
+> classification of the unpublished PR #2 commits, the operator-script fix
+> proposal (GitHub issue #5), and the BF/count evaluator inventory are recorded in
+> [`maintenance_pass2_preservation_inventory_2026-10-15.md`](maintenance_pass2_preservation_inventory_2026-10-15.md).
+
 Point-in-time maintenance/integration-prep record. **Not a queue** — work
 sequencing lives only in [`../../EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md).
 Chat 1 owns harness/LightGBM implementation; Chat 2 owns review; Chat 1 remains
