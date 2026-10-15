@@ -1,0 +1,459 @@
+{
+  "identity": {
+    "record": "AUTHORITATIVE ablation record (mechanically generated from frozen run artifacts)",
+    "row_id": "ablation-001__P1_H3_incumbent_refit__vs__P0_log5",
+    "packet_run_id": "first-run-v1-e59da946da21",
+    "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+    "config_sha256": "e59da946da218bd43af05d0dde3ddeace5b30c3280b249767158eec94ab15fc1",
+    "git_sha": "b2be3c9c6a3f29d47f44b2c769bd933023491d4e",
+    "branch": "research/market-eval-v2",
+    "created_utc": "2026-10-15T05:20:07.741772+00:00",
+    "record_generated_utc": "2026-10-15T14:33:20.335195+00:00",
+    "interface_version": "count-eval-v2-comparison-1.0",
+    "generator_script": "generate_ablation_record_authoritative.py",
+    "supersedes_row": "ablation_row.json (frozen builder-side row, preserved unmodified; sha256 d8540f559ee810557eaefa387ed6e75dd7d58390c0a7ca595ba240a798de605a); its decision.verdict 'ADOPT-SIGNAL' is SUPERSEDED-BY-V2-STATUS",
+    "status_version": 2
+  },
+  "candidate": {
+    "variant": "P1_H3_incumbent_refit",
+    "baseline": "P0_log5",
+    "ablation": "adds ew_pitcher + ew_batter (EW-90d) on top of the 6 B features",
+    "lane": "raw (principal; comparison.py:622)",
+    "other_candidate": "P1_B_logreg (reported in metrics.json; does NOT beat baseline)"
+  },
+  "chronology": {
+    "folds": [
+      "block_2024H1",
+      "block_2024H2",
+      "block_2025H1",
+      "confirm_2025H2"
+    ],
+    "dev_blocks": [
+      "block_2024H1",
+      "block_2024H2",
+      "block_2025H1"
+    ],
+    "confirm_block": "confirm_2025H2 (executed LAST; never pooled into dev)",
+    "fold_windows": {
+      "block_2024H1": {
+        "train": [
+          "2023-01-01",
+          "2023-08-03"
+        ],
+        "cal": [
+          "2023-08-03",
+          "2023-10-01"
+        ],
+        "assess": [
+          "2024-01-01",
+          "2024-06-30"
+        ]
+      },
+      "block_2024H2": {
+        "train": [
+          "2023-01-01",
+          "2024-05-02"
+        ],
+        "cal": [
+          "2024-05-02",
+          "2024-06-30"
+        ],
+        "assess": [
+          "2024-07-01",
+          "2024-12-31"
+        ]
+      },
+      "block_2025H1": {
+        "train": [
+          "2023-01-01",
+          "2024-08-02"
+        ],
+        "cal": [
+          "2024-08-02",
+          "2024-09-30"
+        ],
+        "assess": [
+          "2025-01-01",
+          "2025-06-30"
+        ]
+      },
+      "confirm_2025H2": {
+        "train": [
+          "2023-01-01",
+          "2025-05-02"
+        ],
+        "cal": [
+          "2025-05-02",
+          "2025-06-30"
+        ],
+        "assess": [
+          "2025-07-01",
+          "2025-09-28"
+        ]
+      }
+    },
+    "execution_utc": "2026-10-15T05:20:07.741772+00:00"
+  },
+  "population": {
+    "input_frames": {
+      "pa_table_rows": 731347,
+      "features_rows": 549296,
+      "excluded_2022_warmup": 182051,
+      "excluded_in_any_fold_window": 0
+    },
+    "assessment_rows": {
+      "block_2024H1": 94458,
+      "block_2024H2": 87808,
+      "block_2025H1": 95357,
+      "confirm_2025H2": 87569
+    },
+    "pooled_dev_rows": 277623,
+    "assessment_dates": {
+      "block_2024H1": 95,
+      "block_2024H2": 88,
+      "block_2025H1": 98,
+      "confirm_2025H2": 86
+    },
+    "eval_identity_shared_across_candidates": true
+  },
+  "fitting": {
+    "variant_features": [
+      "p_pitcher_prior_w150",
+      "p_batter_prior_w150",
+      "lg_rate",
+      "n_prior_pitcher",
+      "n_prior_batter",
+      "cold_start",
+      "ew_pitcher",
+      "ew_batter"
+    ],
+    "baseline_features": [
+      "p_pitcher_prior_w150",
+      "p_batter_prior_w150",
+      "lg_rate"
+    ],
+    "hyperparams": "C=1.0, max_iter=1000 (both fitted candidates)",
+    "scaler": "StandardScaler fit on base_train ONLY, one per fold",
+    "frozen_constants": {
+      "prior_weight_w": 150,
+      "ew_half_life_days": 90
+    },
+    "fitting_note": "incumbent-procedure REFIT on registered folds; NOT proven prediction-equivalent to historical incumbent outputs"
+  },
+  "calibration": {
+    "method": "block sigmoid (1-D unpenalized logistic of y on logit(p)), fit on the 60-PA-bearing-day cal sub-block per fold",
+    "lanes": "pred_raw principal (metrics.json); pred_cal recorded separately in preds parquets (derived point estimates only, no CI re-bootstrap)",
+    "baseline_calibration": "none (P0_log5 identity; raw only; pred_cal column is all-null in its preds files)"
+  },
+  "scores": {
+    "raw_lane_canonical": {
+      "P0_log5": {
+        "block_2024H1": {
+          "n": 94458,
+          "n_dates": 95,
+          "log_loss": 0.5195875078689778,
+          "brier": 0.16939672690386845,
+          "cal_log_loss_derived": null,
+          "cal_brier_derived": null
+        },
+        "block_2024H2": {
+          "n": 87808,
+          "n_dates": 88,
+          "log_loss": 0.5273753919143749,
+          "brier": 0.1729401480638385,
+          "cal_log_loss_derived": null,
+          "cal_brier_derived": null
+        },
+        "block_2025H1": {
+          "n": 95357,
+          "n_dates": 98,
+          "log_loss": 0.5152231157004112,
+          "brier": 0.16761954851937752,
+          "cal_log_loss_derived": null,
+          "cal_brier_derived": null
+        },
+        "confirm_2025H2": {
+          "n": 87569,
+          "n_dates": 86,
+          "log_loss": 0.5218233077936947,
+          "brier": 0.17055447127707482,
+          "cal_log_loss_derived": null,
+          "cal_brier_derived": null
+        }
+      },
+      "P1_H3_incumbent_refit": {
+        "block_2024H1": {
+          "n": 94458,
+          "n_dates": 95,
+          "log_loss": 0.519243506285357,
+          "brier": 0.16927140501555982,
+          "cal_log_loss_derived": 0.5192223099576556,
+          "cal_brier_derived": 0.16927261289294673
+        },
+        "block_2024H2": {
+          "n": 87808,
+          "n_dates": 88,
+          "log_loss": 0.5270287169807522,
+          "brier": 0.17281328416034636,
+          "cal_log_loss_derived": 0.5270566355812623,
+          "cal_brier_derived": 0.17281739350935546
+        },
+        "block_2025H1": {
+          "n": 95357,
+          "n_dates": 98,
+          "log_loss": 0.5145348748742404,
+          "brier": 0.16738567452204145,
+          "cal_log_loss_derived": 0.5147019181197904,
+          "cal_brier_derived": 0.16744498631820212
+        },
+        "confirm_2025H2": {
+          "n": 87569,
+          "n_dates": 86,
+          "log_loss": 0.5211215918550475,
+          "brier": 0.17028199507019473,
+          "cal_log_loss_derived": 0.5211383856084378,
+          "cal_brier_derived": 0.17029193317156854
+        }
+      }
+    },
+    "pooled_dev": {
+      "P0_log5": {
+        "n": 277623,
+        "n_dates": 281,
+        "log_loss": 0.5205516325208986,
+        "brier": 0.16990703882328703
+      },
+      "P1_H3_incumbent_refit": {
+        "n": 277623,
+        "n_dates": 281,
+        "log_loss": 0.5200885472771747,
+        "brier": 0.16974394411093371
+      }
+    }
+  },
+  "comparisons": {
+    "per_fold": {
+      "log_loss": {
+        "block_2024H1": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 0.0002131804723291213,
+            "ci95": [
+              -9.623097053915207e-06,
+              0.0004472994425919596
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.0003440015836208509,
+            "ci95": [
+              -0.0006142923549515912,
+              -5.972719952229027e-05
+            ]
+          }
+        },
+        "block_2024H2": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 0.00026685340291209464,
+            "ci95": [
+              3.308200022533653e-05,
+              0.000499138141455685
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.0003466749336227113,
+            "ci95": [
+              -0.0006367374686350552,
+              -4.817111273556398e-05
+            ]
+          }
+        },
+        "block_2025H1": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 0.00012192774006890285,
+            "ci95": [
+              -0.00010898140359512659,
+              0.0003421182874699119
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.0006882408261708966,
+            "ci95": [
+              -0.0009922946190225573,
+              -0.00039552012593200214
+            ]
+          }
+        },
+        "confirm_2025H2": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 0.00018958893497745654,
+            "ci95": [
+              4.2880008305269446e-05,
+              0.000339260729585385
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.0007017159386472978,
+            "ci95": [
+              -0.0009419301983852661,
+              -0.00046676292208202826
+            ]
+          }
+        }
+      },
+      "brier": {
+        "block_2024H1": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 6.955389131787642e-05,
+            "ci95": [
+              -4.8163255132559035e-06,
+              0.00015112215825235467
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.00012532188830859567,
+            "ci95": [
+              -0.0002240079358769028,
+              -2.410547785436629e-05
+            ]
+          }
+        },
+        "block_2024H2": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 8.905762650613087e-05,
+            "ci95": [
+              1.0710611520159315e-05,
+              0.00017172275365255371
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.00012686390349212544,
+            "ci95": [
+              -0.00022723173299715366,
+              -2.344513148576438e-05
+            ]
+          }
+        },
+        "block_2025H1": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 4.949353191743471e-05,
+            "ci95": [
+              -2.5624784614744687e-05,
+              0.0001198097205282434
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.00023387399733605367,
+            "ci95": [
+              -0.000340037717487379,
+              -0.00012883843048601214
+            ]
+          }
+        },
+        "confirm_2025H2": {
+          "P1_B_logreg_minus_P0_log5": {
+            "point": 5.018988673433263e-05,
+            "ci95": [
+              -3.118881788414399e-06,
+              0.00010716512388097969
+            ]
+          },
+          "P1_H3_incumbent_refit_minus_P0_log5": {
+            "point": -0.00027247620688010876,
+            "ci95": [
+              -0.00036464555920744964,
+              -0.0001820497314166914
+            ]
+          }
+        }
+      }
+    },
+    "pooled_dev": {
+      "log_loss": {
+        "P1_B_logreg_minus_P0_log5": {
+          "point": 0.00019881324014191806,
+          "ci95": [
+            6.632165850686937e-05,
+            0.0003397202280952712
+          ]
+        },
+        "P1_H3_incumbent_refit_minus_P0_log5": {
+          "point": -0.0004630852437239695,
+          "ci95": [
+            -0.000628320165200842,
+            -0.00028485002203550906
+          ]
+        }
+      },
+      "brier": {
+        "P1_B_logreg_minus_P0_log5": {
+          "point": 6.883236712161862e-05,
+          "ci95": [
+            2.458004543995993e-05,
+            0.0001176331165079036
+          ]
+        },
+        "P1_H3_incumbent_refit_minus_P0_log5": {
+          "point": -0.00016309471235331348,
+          "ci95": [
+            -0.00022341542652896655,
+            -9.889716331234517e-05
+          ]
+        }
+      }
+    },
+    "note": "paired slate-date bootstrap, block-stratified row-weighted ratio; confirm_2025H2 per-fold only"
+  },
+  "robustness": {
+    "bootstrap": {
+      "method": "slate-date block-stratified row-weighted ratio",
+      "n_resamples": 2000,
+      "seed": 20261001,
+      "unit": "game_date",
+      "shared_draws_across_candidates": true
+    },
+    "fold_consistency": "variant beats baseline on log loss AND Brier in all 4 folds (points); CIs exclude 0 for log loss in all 4 folds and for Brier in all 4 folds",
+    "confirm_handling": "confirm_2025H2 held out of dev, executed last, reported separately",
+    "eval_identity_sha256": {
+      "block_2024H1": "1b83c74d4d23871a8c39200187ed01a3dd667a71a88cd04be2fb99d0d14f7a78",
+      "block_2024H2": "f91cd91c019a0ff59576557f18f516d930c3811c2e30ac2157641619bf032d8b",
+      "block_2025H1": "1330d0cdb0211c7bc398d9afebf3e69e9468053fa7b62f797e2c644cda514376",
+      "confirm_2025H2": "da1d29d48e9064233bfe6e5bc5477580eedf9c59a6de000ca15b050d756ca2d9"
+    }
+  },
+  "decision": {
+    "verdict": "RESULT-PENDING-INDEPENDENT-REVIEW",
+    "supersedes": "ablation_row.json decision.verdict 'ADOPT-SIGNAL' (marked superseded-by-v2-status in SEQUENCE_DEVIATION.md; the v1 row itself is NOT mutated)",
+    "basis": "first-run-v1 executed before Chat 2's exact-SHA READY verdict; all eval-identity hashes, pooled + per-fold metrics and paired CIs were known to the builder before review; adoption cannot be claimed until independent post-execution reconciliation succeeds",
+    "pointer": "SEQUENCE_DEVIATION.md (this directory)",
+    "gate": "independent review must reconcile/accept the frozen outputs before any adoption signal is recognized; if reconciliation fails the provisional retention lapses",
+    "signal_note": "mechanical signal from frozen outputs (preserved for the reviewer, NOT an adoption claim): P1_H3_incumbent_refit beats P0_log5 on pooled dev log loss (delta -0.000463, 95% CI [-0.000628, -0.000285]) and Brier (delta -0.000163, 95% CI [-0.000223, -0.000099]); direction consistent in every fold including confirm_2025H2; improvement is small (~0.0005 log loss); P1_B_logreg does NOT beat the baseline"
+  },
+  "evidence": {
+    "run_dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+    "run_manifest.json": "897070f8acc593038a8f37126e1693d3a5f25389ce3e4b7d941592db817711c9",
+    "metrics.json": "e0d590870b8a400c341c3da2b0bd12c122b83ae60f8dc5306146495aa08f52e4",
+    "derived_lane_check.json": "412eb0a0deed187c8238343e7635fc505ac45d330f42a0606ee48c869359e6a6",
+    "ablation_row_v2_status.json": "5076d359382679d95e049f8c2eb84296dda45737052fa90f5361fa63cd5e05cb",
+    "output_inventory": "OUTPUT_INVENTORY.json (this directory; hashed inventory of every file in the run dir)",
+    "input_sha256": {
+      "pa_table": "e30d8561d8d0fbb9ab0eae562076312a29eeb1476172d533c3d93570959a85f0",
+      "features": "163ad43356e66649274682a473a4015c71f04be6c2f074f15e417c3d49b7e8f8"
+    },
+    "preds_files": [
+      "preds_block_2024H1__P0_log5.parquet",
+      "preds_block_2024H1__P1_B_logreg.parquet",
+      "preds_block_2024H1__P1_H3_incumbent_refit.parquet",
+      "preds_block_2024H2__P0_log5.parquet",
+      "preds_block_2024H2__P1_B_logreg.parquet",
+      "preds_block_2024H2__P1_H3_incumbent_refit.parquet",
+      "preds_block_2025H1__P0_log5.parquet",
+      "preds_block_2025H1__P1_B_logreg.parquet",
+      "preds_block_2025H1__P1_H3_incumbent_refit.parquet",
+      "preds_confirm_2025H2__P0_log5.parquet",
+      "preds_confirm_2025H2__P1_B_logreg.parquet",
+      "preds_confirm_2025H2__P1_H3_incumbent_refit.parquet"
+    ],
+    "harness": "research/offseason_2026/specs/count-eval-v2-spec/harness/comparison.py",
+    "config_doc": "research/offseason_2026/specs/count-eval-v2-spec/harness/FIRST_RUN_CONFIG.md",
+    "sequence_deviation": "SEQUENCE_DEVIATION.md (this directory)"
+  }
+}

@@ -94,3 +94,72 @@ config_hash, harness_run_id, exposure and review_status
 (RESULT-PENDING-INDEPENDENT-REVIEW); 20 child runs (candidate x fold x lane)
 with params + metrics; idempotency added to the importer and verified by a
 second import (no duplicate). Import window: 2026-10-15T13:29:57Z..13:29:59Z.
+
+## Addendum 2026-10-15 (second): post-execution reconciliation pass (non-authoritative)
+
+All work below is downstream bookkeeping over the frozen canonical outputs;
+nothing in the frozen run dir was modified (run_manifest.json + metrics.json
+hashes re-verified unchanged by OUTPUT_INVENTORY.json). Result status remains
+RESULT-PENDING-INDEPENDENT-REVIEW; independent review is still owed.
+
+- AUTHORITATIVE ABLATION RECORD generated mechanically from the frozen
+  artifacts: `ablation_record_authoritative.json` (lake: first-run-v1; repo
+  mirror: this directory) via `generate_ablation_record_authoritative.py`.
+  Field groups: identity / candidate / chronology / population / fitting /
+  calibration / scores / comparisons / robustness / decision / evidence.
+  decision.verdict is COPIED VERBATIM from ablation_row_v2_status.json =
+  RESULT-PENDING-INDEPENDENT-REVIEW (not decided by the generator).
+- SUPPLEMENTAL RAW + CALIBRATED metrics from the saved preds parquets:
+  `generate_supplemental_metrics.py` -> `supplemental_metrics.json` +
+  `supplemental_metrics.md`. RAW lane first verified: recomputation from all
+  12 preds parquets reproduces metrics.json BIT-EXACTLY (12/12 checks, max
+  |delta| = 0.0 for log loss and Brier; numpy-mean and polars-mean both exact).
+  CAL lane computed per fold + pooled dev; P0_log5 CAL lane UNDEFINED (no
+  calibrator; pred_cal all null in all 4 folds). CAL is derived point
+  estimates only, no CIs; metrics.json remains canonical.
+- OUTPUT INVENTORY: `OUTPUT_INVENTORY.json` (lake; repo mirror) - all 15 files
+  in the frozen run dir hashed with sizes + mtimes; declared external hashes
+  for run_manifest.json (897070f8...) and metrics.json (e0d59087...) both
+  MATCH. The original manifest is referenced, not rewritten.
+- LAKE MIRROR STATUS: `lake_mirror_status.json` (lake; repo mirror) - the
+  canonical run dir exists ONLY in the lake (CANONICAL-ONLY-IN-LAKE); no
+  mirrors found anywhere (repo, worktrees, rest of MLB-Props-Research), so
+  there are no stale mirrors to mark.
+- MLFLOW RECONCILIATION against the SAME canonical run dir:
+  `mlflow_reconcile.py` -> `mlflow_reconciliation.json` (lake; repo mirror).
+  tracking_uri sqlite:///C:/Users/ckaplinger/MLB-Props-Research/mlflow.db;
+  experiment pa-k-probability-v1 (experiment_id 1); parent run
+  e2194b6b0f7c4f1da59db2a967af1e2b (FINISHED, tagged run_id / git_sha /
+  config_hash / harness_run_id / exposure / review_status). Children: 20 =
+  12 raw (3 candidates x 4 folds) + 8 cal (2 fitted candidates x 4 folds;
+  P0_log5 has NO calibrator - pred_cal all null in all 4 folds - so its 4
+  CAL children do not exist). VERIFICATION: every child's logged log_loss /
+  brier / n recomputed from the frozen preds parquets (pred_raw for raw
+  lanes, pred_cal for cal lanes; tolerance 1e-9): 20/20 MATCH, 0 mismatch.
+  Observed discrepancy recorded, not repaired: artifact URIs are declared in
+  mlflow.db but ./mlruns was never materialized on disk (importer logged
+  params/metrics/tags only, no artifacts).
+- TIMESTAMPS PRESERVED SEPARATELY (three clocks, never merged): execution =
+  run_manifest.json created_utc 2026-10-15T05:20:07.741772Z (in-band); MLflow
+  import window = parent start/end 2026-10-15T13:29:57.149Z..13:29:59.036Z
+  plus mlflow_import_record.json written_utc 13:35:00Z; environment =
+  environment_pip_freeze_2026-10-15.txt (pip freeze of the repo venv, captured
+  post pyarrow restoration; lake, sha recorded in mlflow_reconciliation.json).
+- PYARROW DEPENDENCY CHANGE VERIFICATION (sequence 24.0.0 -> 25.0.1 ->
+  restored 24.0.0; the 25.0.1 bump was pulled in by the mlflow 3.17.1 install
+  via the streamlit pin, then corrected back; venv confirms 24.0.0):
+  (1) `pip check` output: "streamlit 1.61.1 has requirement starlette<1.4.0,
+  >=0.46.0, but you have starlette 1.6.0" - this conflict is PRE-EXISTING
+  (starlette-1.6.0.dist-info dated 2026-08-14, before the 2026-10-15 mlflow
+  install) and was NOT introduced by the pyarrow/mlflow change; no other
+  conflicts reported. (2) Parquet round-trip with pyarrow 24.0.0 PASS
+  (`parquet_roundtrip_pyarrow24.py`: identical schema + 1000 rows/values incl.
+  an all-null pred_cal column, via both polars and pyarrow.parquet).
+  (3) Synthetic harness suite PASS: pytest
+  research/offseason_2026/specs/count-eval-v2-spec/harness/test_comparison.py
+  -> 25 passed in 28.62s.
+- REPO MIRRORS of the new records are committed additively in this directory
+  (byte-identical copies of the lake files): ablation_record_authoritative.json,
+  supplemental_metrics.json, supplemental_metrics.md, OUTPUT_INVENTORY.json,
+  mlflow_reconciliation.json, lake_mirror_status.json. Generator scripts
+  remain lake-only per precedent (generate_ablation_row.py, mlflow_import.py).
