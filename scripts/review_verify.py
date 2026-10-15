@@ -376,19 +376,41 @@ def main(argv=None) -> int:
                     agree = False
                     fail(f"MLflow log_loss mismatch: {name}")
                 checked += 1
-            rep["checks"]["mlflow"] = {"parent_and_children_tagged": len(runs),
-                                       "children_via_parent_tag": len(child_ids),
-                                       "children_metric_checked": checked,
-                                       "agreement": agree,
-                                       "required": mlflow_required,
-                                       "classification": ("REQUIRED-MISSING"
-                                                          if mlflow_required and not known
-                                                          else ("OK" if known else "INFORMATIONAL-MISSING")),
-                                       "note": ("no tagged runs found: run was not logged "
-                                                "(fact, not failure)" if not known else "")}
+            # Explicit discovery-vs-verification statuses (owner correction):
+            # finding the parent/children is run DISCOVERY only; metric
+            # reconciliation requires >=1 checked metric cell. Zero checked
+            # cells must not silently pass as full verification.
+            discovery_status = "PASS" if known else "MISSING"
+            if checked > 0:
+                metric_status = "VERIFIED" if agree else "MISMATCH"
+            else:
+                metric_status = ("NOT-CHECKED (unsupported child naming "
+                                 "convention; see the independent import "
+                                 "receipt for the separate verification)")
+            rep["checks"]["mlflow"] = {
+                "run_discovery": discovery_status,
+                "metric_reconciliation": metric_status,
+                "parent_and_children_tagged": len(runs),
+                "children_via_parent_tag": len(child_ids),
+                "metric_cells_checked": checked,
+                "agreement_of_checked_cells": agree,
+                "required": mlflow_required,
+                "classification": (
+                    "REQUIRED-INCOMPLETE"
+                    if mlflow_required and (not known or metric_status != "VERIFIED")
+                    else ("OK" if (known and metric_status == "VERIFIED")
+                          else ("VERIFIED-DISCOVERY-ONLY"
+                                if known and not mlflow_required
+                                else "MISSING"))),
+                "note": ("discovery only; metric cells not checked under this "
+                         "naming convention" if checked == 0 and known else ""),
+            }
             if not known and mlflow_required:
                 fail("MLflow runs missing but the registered batch requires "
                      "automatic logging (required check)")
+            if mlflow_required and known and metric_status != "VERIFIED":
+                fail("required-tracking metric reconciliation incomplete: "
+                     f"{metric_status} ({checked} cells checked)")
         except Exception as e:
             rep["checks"]["mlflow"] = {"status": "unavailable", "error": str(e)[:120]}
             if mlflow_required:
