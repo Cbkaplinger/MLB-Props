@@ -1,7 +1,7 @@
 {
   "batch": "freeze_recency_batch_v1",
   "batch_id": "recency-batch-v1",
-  "config_sha256": "4b11e4b71cec3ab6c68235ea8966cf0f3f02f9a81cfc7d7bd209c6236c1af810",
+  "config_sha256": "05c7790ac039579ce0e19bae7720c19aa0803ddf0d22746e1b0f6a07dcce9104",
   "config_hash_definition": "sha256 over json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8') of the 'config' object in this file",
   "config": {
     "interface_version": "count-eval-v2-comparison-1.0",
@@ -167,6 +167,23 @@
       ],
       "multiplicity_rule": "family of 4 predeclared contrasts. Registered reporting rule: report each contrast's ORDINARY (unadjusted) 95% percentile interval AND the Holm-adjusted family result SEPARATELY; any family-level claim across the 4 contrasts must come from the Holm-adjusted result, never from the ordinary intervals.",
       "no_search": "no hyperparameter search, no half-life search, no feature-set search beyond the 4 registered candidates; the 4 contrasts are the only registered comparisons"
+    },
+    "hypothesis_test": {
+      "amendment": "C3.8, registered 2026-10-15 (EXPERIMENT_CARD.md section C3.8 + this section); additive amendment only - candidates, inputs, folds, seed, n_boot and output destination are UNCHANGED",
+      "scope": "the 4 predeclared RAW Brier contrasts only (C1_pitcher_ew_vs_B, C2_batter_ew_vs_B, C3_both_vs_pitcher_only, C4_both_vs_batter_only), each as a SIGNED RAW Brier difference (numerator arm minus denominator arm exactly as registered in evaluation.contrasts_predeclared)",
+      "estimand": "fold aggregation = the EXISTING block-stratified row-weighted pooled dev estimand (sum of per-row Brier contributions / count of rows over all pooled dev rows, dev blocks 2024H1/2024H2/2025H1 only); the observed contrast delta_j is the difference of the two candidates' pooled RAW Brier point estimates on the identical shared rows",
+      "resampling": {
+        "design_verification": "the resampling design SUPPORTS this inference and is verified: the resampling unit is the SLATE DATE (game_date) and the fold aggregation is the block-stratified row-weighted pooled estimand; both are explicitly identified and appropriate for the dependence structure - within-slate cross-row dependence is absorbed by resampling whole dates (multinomial over each block's original date count), block composition is fixed by block-stratified draws so block weights cannot shift across replicates, and the row-weighted num/den pooling keeps the replicate statistic on the same per-row scale as the point estimate",
+        "scheme": "the EXISTING paired slate-date bootstrap, block-stratified, row-weighted num/den ratio, n_boot=2000, seed=20261001; the per-block date draws depend only on (blocks, dates, n_boot, seed), so ONE draw stream is shared across candidates AND contrasts; contrast replicate deltas are differences of candidate replicate statistics under the SAME draws",
+        "paired": "paired resampling shared across candidates and contrasts is a registered requirement of the test"
+      },
+      "test": {
+        "name": "NULL-CENTERED APPROXIMATE BOOTSTRAP TEST",
+        "label": "approximate centered-bootstrap test, NOT an exact randomization test; NO finite-sample-validity guarantee",
+        "definition": "for each contrast j with observed delta Delta_j and bootstrap replicate Delta*_jb: centered errors e_jb = Delta*_jb - Delta_j; two-sided p_j = (1 + sum_b 1{|e_jb| >= |Delta_j|}) / (B + 1) with B = n_boot = 2000; the >= keeps ties in the numerator; the B + 1 denominator is the finite-resample correction",
+        "multiplicity": "Holm step-down across the 4 RAW Brier contrasts at family level 0.05 (monotone adjusted p-values); the ordinary percentile CIs remain explicitly UNADJUSTED; log loss and CAL lanes are DESCRIPTIVE ONLY (no test, no claim)"
+      },
+      "implementation": "comparison.py: HYPOTHESIS_TEST_CONTRASTS, null_centered_p_value, holm_adjust, null_centered_contrast_test; synthetic tests in harness/test_null_centered.py"
     },
     "output_destination": "C:\\Users\\ckaplinger\\MLB-Props-Research\\recency-batch-v1",
     "output_destination_confirmed_nonexistent": "2026-10-15",

@@ -6,25 +6,48 @@ scattered handoff notes only as a pointer sheet; the underlying cards and specs 
 harness/freeze_recency_batch_v1.json). Every hash below was recomputed from the actual files
 on 2026-10-15 by the pack author; re-verify before executing (commands in section 6).
 
-## 1. Published state (remote)
+## 1. Published state (remote) — RECONCILED 2026-10-15 (C3.8 amendment)
 
 | Item | Value |
 | --- | --- |
 | Remote branch | `research/market-eval-v2` (origin) |
-| Published remote SHA | `972fc554d956f3993552690c053967fb4c539a85` |
+| PRIOR TESTED HEAD (evidence) | `972fc554d956f3993552690c053967fb4c539a85` |
 | PR | #3, DRAFT: market-eval v2 implementation (review snapshot + docs) - https://github.com/Cbkaplinger/MLB-Props/pull/3 |
-| CI | run `38759070843`, PASS (completed/success), head SHA `972fc554...` - https://github.com/Cbkaplinger/MLB-Props/actions/runs/38759070843 |
+| CI (prior head evidence) | run `38759070843`, PASS (completed/success), head SHA `972fc554...` - https://github.com/Cbkaplinger/MLB-Props/actions/runs/38759070843 |
 
-Verified via `git ls-remote origin research/market-eval-v2` (matches local HEAD of the
-market-eval-v2 worktree) and `gh pr view 3` / `gh run view 38759070843`.
+HEAD-IDENTITY CORRECTION (2026-10-15): the `972fc554...` SHA is PRIOR
+TESTED-HEAD EVIDENCE only — it names the last remote-published, CI-green
+head. It is NOT a claim of equality with the current head. The worktree tip
+moved past it when the C3.8 null-centered approximate bootstrap test
+amendment landed (see section 2a); the NEW TIP AFTER THAT AMENDMENT is the
+FINAL CANDIDATE for publication. Verify equality at review time, do not
+assume it:
+
+```
+git ls-remote origin research/market-eval-v2
+git rev-parse HEAD    # from the market-eval-v2 worktree root
+```
+
+The two must match at publication time; until then, `972fc554...` stands
+only as the historical "this code state passed CI" record.
 
 ## 2. Frozen batch config
 
 - File: `research/offseason_2026/specs/count-eval-v2-spec/harness/freeze_recency_batch_v1.json`
-- Config sha256: `4b11e4b71cec3ab6c68235ea8966cf0f3f02f9a81cfc7d7bd209c6236c1af810`
+- Config sha256 (CURRENT, post-amendment C3.8):
+  `05c7790ac039579ce0e19bae7720c19aa0803ddf0d22746e1b0f6a07dcce9104`
   (definition, from the file itself: sha256 over
   `json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8')` of the `config`
   object - NOT the file bytes)
+- PRE-AMENDMENT hash (historical): `4b11e4b71cec3ab6c68235ea8966cf0f3f02f9a81cfc7d7bd209c6236c1af810`.
+  The only change is the ADDITIVE `hypothesis_test` section (amendment C3.8,
+  2026-10-15, registered in EXPERIMENT_CARD.md section C3.8 + the freeze's
+  `hypothesis_test` section): null-centered approximate bootstrap p-values
+  for the 4 predeclared RAW Brier contrasts from the SAME shared slate-date
+  draw stream, Holm across the 4 contrasts at family level 0.05, ordinary
+  CIs explicitly unadjusted, log loss + CAL descriptive only. Candidates,
+  inputs, folds, seed, n_boot, output destination and the frozen execution
+  command are UNCHANGED.
 - Status: `FROZEN - NOT EXECUTED`. Execution requires owner authorization (spec section 8).
 - Batch: `recency-batch-v1` (run_label); scope: DEVELOPMENT-ONLY EW-recency ablation on three
   dev folds. No confirm claim, no adoption claim, no production promotion; 2026 rows CLOSED.
@@ -154,21 +177,30 @@ Remote/PR/CI claims: `git ls-remote origin research/market-eval-v2`,
 
 1. **Config/input hash verification** - recompute the config sha256 (section 6, first command;
    remember the hash is over the sorted-JSON `config` object, not the file bytes) and the three
-   input parquet hashes (section 6, second command). All must match section 2/3 before any
-   further review work is trusted.
-2. **Confirm-exclusion guard** - confirm `RunConfig.include_confirm=False` is present in the
+   input parquet hashes (section 6, second command). The config hash must equal the CURRENT
+   post-C3.8 hash in section 2 (`05c7790a...e9104`); the pre-amendment `4b11e4b7...f810` is
+   historical. Input hashes must match section 3 before any further review work is trusted.
+2. **C3.8 hypothesis-test amendment** - verify the freeze's additive `hypothesis_test` section
+   matches EXPERIMENT_CARD.md C3.8: 4 signed RAW Brier contrasts, block-stratified row-weighted
+   pooled estimand, shared slate-date draw stream (unit = game_date), centered errors
+   e_jb = Delta*_jb - Delta_j with two-sided p = (1 + #{|e_jb| >= |Delta_j|}) / (B + 1),
+   labeled APPROXIMATE (not an exact randomization test, no finite-sample guarantee), Holm
+   across the 4 contrasts at family 0.05, ordinary CIs unadjusted, log loss + CAL descriptive.
+   Implementation: comparison.py (null_centered_p_value / holm_adjust /
+   null_centered_contrast_test) + harness/test_null_centered.py.
+3. **Confirm-exclusion guard** - confirm `RunConfig.include_confirm=False` is present in the
    frozen command AND backed by
    `test_confirm_exclusion_control_proves_no_confirm_rows_in_fits_or_bootstrap`
    (harness/test_comparison.py); confirm `run_comparison` fails loud if confirm rows leak
    (comparison.py leak check) and that `confirm_2025H2` is registered EXCLUDED in the config.
-3. **Contrast definitions** - verify the 4 predeclared contrasts (C1-C4, section 2.4) match the
+4. **Contrast definitions** - verify the 4 predeclared contrasts (C1-C4, section 2.4) match the
    config's `contrasts_predeclared` exactly and that the Holm family rule (ordinary intervals
    and Holm-adjusted result reported SEPARATELY) is stated in the config's
    `multiplicity_rule`.
-4. **F-4 opt-in gate** - owner authorization per spec section 8 is required before execution;
+5. **F-4 opt-in gate** - owner authorization per spec section 8 is required before execution;
    the batch is `FROZEN - NOT EXECUTED` and nothing in it authorizes a run. Reviewers must not
    "helpfully" run it.
-5. **Batch isolation (no 2025H2 scoring)** - the pooled population is the 3 dev folds ONLY;
+6. **Batch isolation (no 2025H2 scoring)** - the pooled population is the 3 dev folds ONLY;
    `confirm_2025H2` must never be fitted, scored, or bootstrapped in this batch, and no output
    may claim confirmation. Any artifact showing 2025H2 scores under `recency-batch-v1` is a
    violation.

@@ -502,6 +502,41 @@ def brier(y, p):
     return (np.asarray(p, dtype=np.float64) - np.asarray(y, dtype=np.float64)) ** 2
 
 
+def slate_date_draws(values: dict, dates, blocks, n_boot: int = N_BOOT,
+                     seed: int = SEED_BOOTSTRAP) -> np.ndarray:
+    """Core draw matrix of the paired slate-date block-stratified bootstrap:
+    returns the (n_boot, n_names) replicate statistic matrix (row-weighted
+    num/den per block). The per-block date draws depend ONLY on
+    (blocks, dates, n_boot, seed) -- not on the number of names or their
+    values -- so ONE draw stream is shared across every candidate and every
+    contrast computed from the same blocks/dates with the same seed. Callers
+    must treat that property as the pairing contract: contrast replicates are
+    differences of candidate replicates under the SAME draws."""
+    rng = np.random.default_rng(seed)
+    names = list(values)
+    mat = np.vstack([np.asarray(values[n], dtype=np.float64) for n in names])
+    num = np.zeros((n_boot, mat.shape[0]), dtype=np.float64)
+    den = np.zeros(n_boot, dtype=np.float64)
+    for b in sorted(set(blocks)):
+        mask = np.array([x == b for x in blocks], dtype=bool)
+        row_idx = np.nonzero(mask)[0]
+        b_dates = sorted(set(dates[i] for i in row_idx))
+        idx_of = {d: i for i, d in enumerate(b_dates)}
+        d_idx = np.array([idx_of[dates[i]] for i in row_idx], dtype=np.int64)
+        n_dates_b = len(b_dates)
+        b_sums = np.vstack([
+            np.bincount(d_idx, weights=mat[m][mask], minlength=n_dates_b)
+            for m in range(mat.shape[0])
+        ])
+        b_counts = np.bincount(d_idx, minlength=n_dates_b).astype(np.float64)
+        draws = rng.multinomial(
+            n_dates_b, np.full(n_dates_b, 1.0 / n_dates_b), size=n_boot
+        )
+        num += draws @ b_sums.T
+        den += draws @ b_counts
+    return num / den[:, None]
+
+
 def slate_date_bootstrap(values: dict, dates, blocks, n_boot: int = N_BOOT,
                          seed: int = SEED_BOOTSTRAP) -> dict:
     """Paired slate-date bootstrap, BLOCK-STRATIFIED (repaired method).
@@ -512,37 +547,15 @@ def slate_date_bootstrap(values: dict, dates, blocks, n_boot: int = N_BOOT,
     across ALL names, so resample indices are identical across candidates.
     Returns per-name point estimate + percentile CI on the per-row scale.
     """
-    import numpy as _np
-    rng = _np.random.default_rng(seed)
     names = list(values)
-    mat = _np.vstack([_np.asarray(values[n], dtype=_np.float64) for n in names])
-    blocks_arr = _np.asarray(blocks, dtype=object)
-    num = _np.zeros((n_boot, mat.shape[0]), dtype=_np.float64)
-    den = _np.zeros(n_boot, dtype=_np.float64)
-    for b in sorted(set(blocks)):
-        mask = _np.array([x == b for x in blocks], dtype=bool)
-        row_idx = _np.nonzero(mask)[0]
-        b_dates = sorted(set(dates[i] for i in row_idx))
-        idx_of = {d: i for i, d in enumerate(b_dates)}
-        d_idx = _np.array([idx_of[dates[i]] for i in row_idx], dtype=_np.int64)
-        n_dates_b = len(b_dates)
-        b_sums = _np.vstack([
-            _np.bincount(d_idx, weights=mat[m][mask], minlength=n_dates_b)
-            for m in range(mat.shape[0])
-        ])
-        b_counts = _np.bincount(d_idx, minlength=n_dates_b).astype(_np.float64)
-        draws = rng.multinomial(
-            n_dates_b, _np.full(n_dates_b, 1.0 / n_dates_b), size=n_boot
-        )
-        num += draws @ b_sums.T
-        den += draws @ b_counts
-    res = num / den[:, None]
+    mat = np.vstack([np.asarray(values[n], dtype=np.float64) for n in names])
+    res = slate_date_draws(values, dates, blocks, n_boot, seed)
     out = {}
     for j, n in enumerate(names):
         v = res[:, j]
         out[n] = {
             "point": float(mat[j].mean()),
-            "ci95": [float(_np.percentile(v, 2.5)), float(_np.percentile(v, 97.5))],
+            "ci95": [float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5))],
         }
     out["_meta"] = {
         "method": "slate-date, block-stratified, row-weighted ratio (num/den)",
@@ -550,6 +563,111 @@ def slate_date_bootstrap(values: dict, dates, blocks, n_boot: int = N_BOOT,
         "unit": "game_date", "shared_draws_across_names": True,
     }
     return out
+
+
+# ---------------------------------------------------------------------------
+# C3.8 null-centered approximate bootstrap test (amendment registered
+# 2026-10-15 in EXPERIMENT_CARD.md + freeze_recency_batch_v1.json
+# "hypothesis_test"). The 4 predeclared RAW Brier contrasts of the
+# recency-batch-v1 freeze, tested with centered bootstrap errors and Holm
+# step-down at family level 0.05, all from the SAME shared date draws.
+# ---------------------------------------------------------------------------
+
+HYPOTHESIS_TEST_CONTRASTS: list[tuple[str, str, str]] = [
+    ("C1_pitcher_ew_vs_B", "P1_H3_pitcher_ew_only", "P1_B_logreg"),
+    ("C2_batter_ew_vs_B", "P1_H3_batter_ew_only", "P1_B_logreg"),
+    ("C3_both_vs_pitcher_only", "P1_H3_incumbent_refit", "P1_H3_pitcher_ew_only"),
+    ("C4_both_vs_batter_only", "P1_H3_incumbent_refit", "P1_H3_batter_ew_only"),
+]
+
+HOLM_FAMILY_ALPHA = 0.05
+
+
+def null_centered_p_value(delta_obs: float, delta_rep: np.ndarray) -> float:
+    """Two-sided null-centered approximate bootstrap p-value.
+
+    p = (1 + #{b: |delta*_b - delta_obs| >= |delta_obs|}) / (B + 1).
+    The `>=` keeps ties in the numerator; the B+1 denominator is the
+    finite-resample correction. APPROXIMATE centered-bootstrap test, NOT an
+    exact randomization test; no finite-sample-validity guarantee."""
+    d = np.asarray(delta_rep, dtype=np.float64)
+    errors = d - float(delta_obs)
+    hits = int(np.sum(np.abs(errors) >= abs(float(delta_obs))))
+    return (1.0 + hits) / (d.size + 1.0)
+
+
+def holm_adjust(pvals: dict[str, float],
+                alpha: float = HOLM_FAMILY_ALPHA) -> dict[str, float]:
+    """Holm step-down adjusted p-values (monotone, capped at 1). Returns the
+    adjusted map only; rejection decisions are left to the caller."""
+    m = len(pvals)
+    adj: dict[str, float] = {}
+    running = 0.0
+    for i, k in enumerate(sorted(pvals, key=lambda k: pvals[k])):
+        running = max(running, (m - i) * float(pvals[k]))
+        adj[k] = min(1.0, running)
+    return adj
+
+
+def null_centered_contrast_test(values: dict, contrasts, dates, blocks,
+                                n_boot: int = N_BOOT,
+                                seed: int = SEED_BOOTSTRAP,
+                                res: np.ndarray | None = None) -> dict:
+    """C3.8 registered hypothesis test over predeclared contrasts.
+
+    values: name -> per-row RAW Brier array on the pooled dev rows (the
+    block-stratified row-weighted pooled estimand; the observed contrast
+    delta is the difference of the two candidates' pooled per-row means).
+    contrasts: (id, name_a, name_b) triples; signed delta = a - b.
+    The replicate deltas come from ONE shared draw matrix (slate-date draws
+    depend only on blocks/dates/n_boot/seed); pass `res` to reuse the exact
+    matrix another caller drew. Two-sided null-centered p-values, then Holm
+    across the contrasts at family level 0.05."""
+    names = list(values)
+    idx = {n: i for i, n in enumerate(names)}
+    if res is None:
+        res = slate_date_draws(values, dates, blocks, n_boot, seed)
+    raw: dict[str, dict] = {}
+    for cid, a, b in contrasts:
+        if a not in idx or b not in idx:
+            raise ComparisonError(
+                f"contrast {cid}: endpoint(s) missing from values: "
+                f"{[n for n in (a, b) if n not in idx]}")
+        delta = float(np.asarray(values[a], dtype=np.float64).mean()
+                      - np.asarray(values[b], dtype=np.float64).mean())
+        delta_rep = res[:, idx[a]] - res[:, idx[b]]
+        raw[cid] = {
+            "a": a, "b": b,
+            "delta": delta,
+            "p": null_centered_p_value(delta, delta_rep),
+        }
+    adj = holm_adjust({cid: raw[cid]["p"] for cid in raw})
+    return {
+        "contrasts": {
+            cid: {
+                "a": raw[cid]["a"], "b": raw[cid]["b"],
+                "delta": raw[cid]["delta"],
+                "p_value": raw[cid]["p"],
+                "p_holm": adj[cid],
+            }
+            for cid in raw
+        },
+        "method": (
+            "null-centered approximate bootstrap test: centered errors "
+            "(delta*_jb - delta_j), two-sided p = (1 + #{|delta*_jb - delta_j| "
+            ">= |delta_j|}) / (B + 1); approximate centered-bootstrap test, "
+            "NOT an exact randomization test, no finite-sample-validity "
+            "guarantee"),
+        "multiplicity": (
+            f"Holm step-down across the {len(raw)} predeclared contrasts at "
+            f"family level {HOLM_FAMILY_ALPHA}; ordinary percentile CIs are "
+            "UNADJUSTED; log loss and CAL are descriptive only"),
+        "estimand": (
+            "fold aggregation = block-stratified row-weighted pooled dev "
+            "estimand; resampling unit = slate date (game_date); one shared "
+            "draw stream across candidates and contrasts"),
+        "n_resamples": int(n_boot), "seed": int(seed),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -867,6 +985,31 @@ def _compute_metrics(cfg, df, folds, eval_frames, adapters, out_dir) -> dict:
             "log_loss": slate_date_bootstrap(ll_vals, pool_dates, pool_blocks, cfg.n_boot, cfg.seed),
             "brier": slate_date_bootstrap(br_vals, pool_dates, pool_blocks, cfg.n_boot, cfg.seed),
         }
+
+    # C3.8 registered hypothesis test: the 4 predeclared RAW Brier contrasts,
+    # two-sided null-centered approximate bootstrap p-values + Holm at family
+    # level 0.05, computed on the pooled dev rows from the SAME shared
+    # slate-date draw stream (draws depend only on blocks/dates/n_boot/seed;
+    # contrast replicates are differences of candidate replicates under one
+    # draw matrix). RAW lane principal; log loss + CAL descriptive only.
+    contrasts = [
+        (cid, a, b) for cid, a, b in HYPOTHESIS_TEST_CONTRASTS
+        if a in cfg.candidates and b in cfg.candidates
+    ]
+    applied_ids = {cid for cid, _, _ in contrasts}
+    skipped = [cid for cid, _, _ in HYPOTHESIS_TEST_CONTRASTS
+               if cid not in applied_ids]
+    cand_brier = {
+        c: brier(y_pool, pooled_frames[c]["pred_raw"].to_numpy())
+        for c in cfg.candidates
+    }
+    ht = null_centered_contrast_test(
+        cand_brier, contrasts, pool_dates, pool_blocks, cfg.n_boot, cfg.seed)
+    ht["lane"] = "RAW (principal lane); log loss + CAL descriptive only"
+    ht["metric"] = "Brier"
+    ht["population"] = "pooled dev (" + ", ".join(DEV_BLOCKS) + ")"
+    ht["contrasts_skipped_endpoints_absent"] = skipped
+    out["pooled_dev"]["hypothesis_test_brier_raw"] = ht
     return out
 
 

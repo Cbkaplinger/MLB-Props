@@ -558,6 +558,75 @@ Concretely, the score outputs carry:
    (`test_f6_confirmation_exclusion.py`, the `_slate_bootstrap`
    known-answer test).
 
+### C3.8 Null-centered approximate bootstrap test for the 4 predeclared RAW Brier contrasts (amendment, 2026-10-15)
+
+AMENDED registration for the recency-batch-v1 freeze
+(`specs/count-eval-v2-spec/harness/freeze_recency_batch_v1.json`, new
+`hypothesis_test` section; config sha256 changes from
+`4b11e4b7...f810` to `05c7790ac039579ce0e19bae7720c19aa0803ddf0d22746e1b0f6a07dcce9104`
+under the file's own hash definition). ADDITIVE only: frozen candidates,
+inputs, folds, seed, n_boot, lanes and output destination are UNCHANGED;
+nothing here authorizes a run.
+
+**Registered inference.** For each of the 4 predeclared contrasts
+(C1_pitcher_ew_vs_B, C2_batter_ew_vs_B, C3_both_vs_pitcher_only,
+C4_both_vs_batter_only, each a SIGNED RAW Brier difference exactly as
+registered in the freeze's `evaluation.contrasts_predeclared`):
+
+1. **Estimand (exact fold aggregation):** the EXISTING block-stratified
+   row-weighted pooled dev estimand - sum of per-row Brier contributions
+   divided by the count of rows over all pooled dev rows (dev blocks
+   2024H1/2024H2/2025H1 only; confirm_2025H2 excluded-not-scored). The
+   observed contrast delta `Delta_j` is the difference of the two
+   candidates' pooled RAW Brier point estimates on the identical shared
+   rows (per-fold eval-identity hash equality asserted).
+2. **Resampling (paired, shared):** the EXISTING paired slate-date
+   bootstrap, block-stratified, row-weighted num/den ratio, n_boot=2000,
+   seed=20261001. The per-block date draws depend only on
+   (blocks, dates, n_boot, seed), so ONE draw stream is shared across
+   candidates AND contrasts; contrast replicate deltas
+   `Delta*_jb` are differences of candidate replicate statistics under the
+   SAME draws.
+3. **Resampling-design verification (explicit):** the resampling unit (the
+   SLATE DATE, `game_date`) and the fold aggregation (block-stratified
+   row-weighted pooled) are explicitly identified and appropriate for the
+   dependence structure: within-slate cross-row dependence is absorbed by
+   resampling whole dates (multinomial over each block's original
+   slate-date count), block-stratified draws fix block composition so
+   block weights cannot shift across replicates, the row-weighted num/den
+   pooling keeps the replicate statistic on the same per-row scale as the
+   point estimate, and paired draws make every contrast replicate
+   internally paired. The existing design SUPPORTS this inference; no
+   validity blocker exists.
+4. **Test statistic:** NULL-CENTERED APPROXIMATE BOOTSTRAP TEST. With
+   observed contrast `Delta_j` and bootstrap replicate `Delta*_jb`,
+   centered errors `e_jb = Delta*_jb - Delta_j`; two-sided
+   `p_j = (1 + sum_b 1{|e_jb| >= |Delta_j|}) / (B + 1)` with B = 2000.
+   Ties count toward the numerator via `>=`; the `B + 1` denominator is
+   the finite-resample correction.
+5. **Label (binding):** this is an APPROXIMATE CENTERED-BOOTSTRAP TEST,
+   NOT an exact randomization test, and carries NO finite-sample-validity
+   guarantee.
+6. **Multiplicity:** Holm step-down across the 4 RAW Brier contrasts at
+   family level 0.05 (monotone adjusted p-values); any family-level claim
+   across the 4 contrasts comes ONLY from the Holm-adjusted result. The
+   ordinary (unadjusted) 95% percentile intervals remain explicitly
+   UNADJUSTED and are never used for a family-level claim. Log loss and
+   the CAL lane are DESCRIPTIVE ONLY (no test, no claim).
+
+**Implementation:** `comparison.py`
+(`HYPOTHESIS_TEST_CONTRASTS`, `null_centered_p_value`, `holm_adjust`,
+`null_centered_contrast_test`, wired into `_compute_metrics` as
+`pooled_dev.hypothesis_test_brier_raw`). Synthetic verification:
+`harness/test_null_centered.py` - (a) hand-computed fixture with exact
+p-values including a tie case; (b) p in (0,1], non-increasing as
+`|Delta_j|` moves away from the centered null; (c) symmetric null-centered
+draws -> conservative (p >= 1/(B+1); large |Delta_j| -> minimal p);
+(d) Holm monotonicity + family-level 0.05 respected (hand-computed);
+(e) arm swap reverses the signed delta with the two-sided p unchanged;
+plus runner-integration tests (all 4 contrasts registered from one shared
+draw stream; absent endpoints skipped fail-safe; determinism).
+
 ## EXECUTED-RUN record (canonical scoring run) — EXECUTED 2026-10-14
 
 Status: **EXECUTED once; outputs PRESERVED write-once; results

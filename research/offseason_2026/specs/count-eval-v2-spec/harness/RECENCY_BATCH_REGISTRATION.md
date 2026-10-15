@@ -4,7 +4,28 @@ Registered 2026-10-15. This file is the repo mirror of the registration
 section (section 9) appended to the count-eval-v2 card
 (`C:\Users\ckaplinger\MLB-Props-Research\count-eval-v2-spec\COMPARISON_INTERFACE_SPEC.md`);
 the frozen config is `freeze_recency_batch_v1.json` in this directory
-(config sha256 `4b11e4b71cec3ab6c68235ea8966cf0f3f02f9a81cfc7d7bd209c6236c1af810`).
+(config sha256 `05c7790ac039579ce0e19bae7720c19aa0803ddf0d22746e1b0f6a07dcce9104`
+post-amendment; the pre-amendment hash
+`4b11e4b71cec3ab6c68235ea8966cf0f3f02f9a81cfc7d7bd209c6236c1af810` is
+HISTORICAL).
+
+## AMENDMENT C3.8 (2026-10-15, additive)
+
+The freeze gained a `hypothesis_test` section (see that file; full text in
+EXPERIMENT_CARD.md section C3.8): the 4 predeclared RAW Brier contrasts are
+tested with a NULL-CENTERED APPROXIMATE BOOTSTRAP TEST (centered errors
+e_jb = Delta*_jb - Delta_j; two-sided p_j = (1 + #{|e_jb| >= |Delta_j|}) /
+(B + 1); ties counted via >=; B+1 finite-resample correction) on the SAME
+shared slate-date draw stream as the existing bootstrap (unit = game_date;
+block-stratified row-weighted pooled estimand - verified appropriate for
+the dependence structure), with Holm step-down across the 4 contrasts at
+family level 0.05. Labeled APPROXIMATE: NOT an exact randomization test,
+no finite-sample-validity guarantee. Ordinary percentile CIs remain
+explicitly UNADJUSTED; log loss and CAL lanes are descriptive only.
+Candidates, inputs, folds, seed, n_boot, output destination and the frozen
+execution command are UNCHANGED. Implementation: comparison.py +
+harness/test_null_centered.py (synthetic tests, including a hand-computed
+tie case, Holm monotonicity, and arm-swap p-invariance).
 
 ## What is registered
 
