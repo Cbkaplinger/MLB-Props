@@ -1,0 +1,159 @@
+{
+  "batch": "freeze_lgbm_equal_info_v1",
+  "batch_id": "lgbm-equal-info-v1",
+  "config_sha256": "8dec7352957b8d4f09073a8b296450f69ae551a2d27e758da3c1bf2fdac6f294",
+  "config_hash_definition": "sha256 over json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8') of the 'config' object in this file",
+  "config": {
+    "interface_version": "count-eval-v1-lgbm-equal-info-freeze-1.0",
+    "batch_name": "lgbm-equal-info-v1",
+    "registered_date": "2026-10-15",
+    "scope": "DEVELOPMENT-ONLY LightGBM equal-information comparison (PREP frozen; no real-data execution). No confirm claim, no adoption claim, no production promotion; 2026 rows remain CLOSED.",
+    "status": "FROZEN - NOT EXECUTED (PREP-COMPLETE synthetic only)",
+    "readiness_gate": "PENDING READINESS GATE: not yet READY. The standing conditional authorization applies after READY; until then no real-data fit or score happens under this config.",
+    "lgbm_hyperparameters": {
+      "interface": "count-eval-v1-lgbm-equal-info-1.0",
+      "objective": "binary",
+      "learning_rate": 0.05,
+      "num_leaves": 31,
+      "min_data_in_leaf": 100,
+      "feature_fraction": 1.0,
+      "bagging_fraction": 1.0,
+      "bagging_freq": 0,
+      "lambda_l1": 0.0,
+      "lambda_l2": 0.0,
+      "seed": 20261001,
+      "feature_fraction_seed": 20261001,
+      "data_random_seed": 20261001,
+      "deterministic": true,
+      "force_row_wise": true,
+      "num_boost_round": 400,
+      "early_stopping_rounds": 50,
+      "early_stopping_data": "inner_block(base_train carve-out) ONLY",
+      "class_weighting": "NONE (no scale_pos_weight, no is_unbalance)",
+      "verbosity": -1,
+      "metric": [
+        "binary_logloss",
+        "binary_error"
+      ]
+    },
+    "lgbm_hyperparameters_source": "lgbm_equal_info_adapter.py LGBM_EQUAL_INFO_CONFIG (copied verbatim; any change is a new config, not an edit)",
+    "adapter": {
+      "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\count-eval-v1\\lgbm_equal_info_adapter.py",
+      "interface": "count-eval-v1-lgbm-equal-info-1.0",
+      "config_sha256": "f7e3726a5259920ef28f73b1ad7fa58d505488cd07304cc95e8044bccc91ffd0",
+      "tests": "test_lgbm_equal_info_adapter.py + test_auto_tracking.py (lake count-eval-v1; byte-identical repo mirror test_auto_tracking.py)"
+    },
+    "equal_information_contract": {
+      "features": [
+        "p_pitcher_prior_w150",
+        "p_batter_prior_w150",
+        "lg_rate",
+        "n_prior_pitcher",
+        "n_prior_batter",
+        "cold_start",
+        "ew_pitcher",
+        "ew_batter"
+      ],
+      "features_binding": "identical to the both-EW logistic reference P1_H3_incumbent_refit (6 frozen B features + ew_pitcher + ew_batter; comparison.py FEAT_H3)",
+      "rows": "identical rows for both candidates per fold: same base_train pool, same calibration sub-block, same eval frame; per-fold eval identity hash (sorted (game_pk, at_bat_number, batter)) asserted identical across candidates when executed",
+      "folds_binding": "same registered dev folds as the both-EW logistic reference (block_2024H1 / block_2024H2 / block_2025H1), same fold_calibration_rule (60 PA-bearing-day sigmoid sub-block), same metric definitions"
+    },
+    "training_only_tuning": {
+      "early_stopping": "permitted on ONE inner block carved out of base_train ONLY (last 20% of distinct base_train slate dates); verified structurally by test_inner_block_is_train_carveout_not_eval",
+      "prohibited_sources": "no early stopping on the calibration sub-block, no early stopping on or any label use from the dev-assessment frames; the eval frame is never visible to fitting",
+      "no_search": "no hyperparameter search outside the inner-carve-out early stop; the frozen config above is recorded, not searched",
+      "dev_assessment_labels": "dev-assessment labels are NEVER used for training, stopping, scaling, or calibration"
+    },
+    "evaluation": {
+      "seed": 20261001,
+      "n_boot": 2000,
+      "bootstrap": "paired slate-date bootstrap, block-stratified, shared draw stream; 1-D replicate shape assertions before elementwise subtraction",
+      "primary_metric": "Brier on RAW (pred_raw lane, PRINCIPAL)",
+      "secondary_metric": "log loss on RAW (descriptive secondary)",
+      "calibration_lane": "CAL SEPARATE: sigmoid calibration on the calibration sub-block ONLY, same definition as the executed logistic adapters; reported separately, never merged with RAW; no CAL contrast claims"
+    },
+    "baseline_binding": {
+      "reference": "P1_H3_incumbent_refit (both-EW logistic) fit with the EXECUTED comparison.py procedure (C=1.0 max_iter=1000, StandardScaler base_train only, block sigmoid cal)",
+      "contrast_definition": "contrast = P2_lgbm_equal_info - P1_H3_incumbent_refit on identical pooled rows under the same shared draw stream",
+      "per_contrast_interval_reporting": "EVERY registered contrast carries its own explicit unadjusted 95% percentile interval plus its own null-centered p-value; no contrast may be registered without interval reporting",
+      "registered_contrasts": [
+        {
+          "id": "C_lgbm_vs_both_EW_logistic",
+          "contrast": "P2_lgbm_equal_info minus P1_H3_incumbent_refit",
+          "interval_reporting": "EXPLICIT: ci95_unadjusted percentile interval + null_centered p_value emitted per contrast (adapter contrast dict, verified in test_baseline_binding_and_contrast_interval)"
+        }
+      ],
+      "interval_coverage_verification": "verified at freeze time: every entry in registered_contrasts has explicit interval reporting (the registered set is exactly {C_lgbm_vs_both_EW_logistic}); the Holm-adjusted family result is reported separately from the ordinary intervals; adding a contrast later requires adding its interval reporting in the same registration"
+    },
+    "folds": {
+      "block_2024H1": {
+        "train_end": [
+          2023,
+          12,
+          31
+        ],
+        "assess": [
+          [
+            2024,
+            1,
+            1
+          ],
+          [
+            2024,
+            6,
+            30
+          ]
+        ]
+      },
+      "block_2024H2": {
+        "train_end": [
+          2024,
+          6,
+          30
+        ],
+        "assess": [
+          [
+            2024,
+            7,
+            1
+          ],
+          [
+            2024,
+            12,
+            31
+          ]
+        ]
+      },
+      "block_2025H1": {
+        "train_end": [
+          2024,
+          12,
+          31
+        ],
+        "assess": [
+          [
+            2025,
+            1,
+            1
+          ],
+          [
+            2025,
+            6,
+            30
+          ]
+        ]
+      },
+      "confirm_2025H2": {
+        "status": "EXCLUDED - NOT SCORED"
+      },
+      "confirm_and_2026_exclusion": "confirm_2025H2 excluded - not scored; 2026 rows remain CLOSED (no 2026 loads, no 2026 tuning)"
+    },
+    "output_destination": "C:\\Users\\ckaplinger\\MLB-Props-Research\\lgbm-equal-info-v1",
+    "output_destination_confirmed_nonexistent": "2026-10-15",
+    "output_write_once_note": "write-once: the harness refuses to overwrite an existing output dir (WriteOnceError pattern, same as run_comparison); the run creates <output_destination>\\<64-hex run_id>\\",
+    "authorization": {
+      "execution_status": "PENDING READINESS GATE",
+      "note": "the standing conditional authorization applies after READY; nothing in this freeze authorizes a run before READY"
+    }
+  }
+}
