@@ -216,7 +216,9 @@ python verify_ledger.py          # writes outputs\verification\; updates
 
 SCORING RUN (code COMPLETE under C2; EXECUTION NOT AUTHORIZED — requires
 owner approval; the command below has never been run against the frozen
-prep). F-4 hard opt-in gate: `--score` REFUSES to run without the explicit
+prep. SUPERSEDED 2026-10-14: executed ONCE as recorded in the
+EXECUTED-RUN record at the end of this card — the text below stands as
+the pre-execution registration). F-4 hard opt-in gate: `--score` REFUSES to run without the explicit
 `--i-accept-outcome-scoring` flag (the refusal names the gate, reads no
 inputs, writes nothing, exits 2). Passing the flag confirms intent to join
 realized outcomes; it does NOT by itself constitute owner authorization:
@@ -555,3 +557,73 @@ Concretely, the score outputs carry:
    and the pre-existing helper tests
    (`test_f6_confirmation_exclusion.py`, the `_slate_bootstrap`
    known-answer test).
+
+## EXECUTED-RUN record (canonical scoring run) — EXECUTED 2026-10-14
+
+Status: **EXECUTED once; outputs PRESERVED write-once; results
+PRELIMINARY pending Chat 2 integrity review. Reviewer integrity verdict:
+PENDING.** No authorized reruns exist. No model promotion. No production
+changes. The accidental 2026-10-14 ~17:15 run (C3.6) remains UNRESOLVED
+and is unrelated to this executed run's evidence status.
+
+### Provenance
+
+| Item | Value |
+| --- | --- |
+| Executed code SHA | `108d5ba9ca4075017c7590a6c90e967fe3b18707` (branch `research/market-eval-v2`; descendant of pinned review snapshot `02ce162f119208b762edf1fd690edd5e7ee9b8ea`) |
+| Executed scorer | `C:\Users\ckaplinger\MLB-Props-Research\market-eval-v1\market_eval.py`; sha256 `c2745980ada20c0942a811ac6e58245418a45cd8f7d83b265f17f54f834cd6c5`; committed git blob `99db556c676878aab5336989fbc7fccd9f4e31f5` (raw blob bytes hash to `c2745980...4c6c5`, so the executed file is byte-identical to the reviewed committed bytes) |
+| Stale lake scorer replaced pre-run | sha256 `457991d81d44f9541dcb6a2889f35979aa0d9d844cd1ab91d57e1aea5e20e929` (pre-amendment pinned-snapshot bytes) replaced with the reviewed committed bytes above BEFORE the run |
+| Execution date/time | 2026-10-14; outputs and execution log written 23:44:16-23:44:17 local (file-system timestamps; the execution log carries no in-band timestamp field) |
+| Authorization provenance | the owner's "Keep moving forward" instruction plus the coordinator's bounded execution authorization: ONE canonical scoring run at the reviewed SHA. The F-4 `--i-accept-outcome-scoring` flag confirms intent to join realized outcomes only; it does not by itself constitute owner authorization. No separate explicit approval quotation exists and none is invented here. |
+| Reviewer verdict | Chat 2 integrity-review verdict: PENDING (no verdict recorded as of this writing) |
+| Canonical findings hash | not applicable - no separate findings digest was registered for this run; the output-file hashes below are the canonical digests |
+
+Literal command (run from `C:\Users\ckaplinger\MLB-Props-Research\market-eval-v1\`;
+the F-4 gate refuses `--score` without the flag, so the flag's presence is
+a structural fact of the successful run):
+
+```
+python market_eval.py --score --i-accept-outcome-scoring --prep-dir outputs\prep_v2 --start-metrics "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet" --score-dir outputs\score_v2 --seed 20261001 --n-boot 2000
+```
+
+Note: `CHAT2_HANDOFF.md` section 3 quotes the registered command line
+without the F-4 flag (copied from the lake card's score section at
+handoff time); the literal executed command above is authoritative.
+
+### Outputs and hashes
+
+Output dir (write-once):
+`C:\Users\ckaplinger\MLB-Props-Research\market-eval-v1\outputs\score_v2\`;
+execution log: `..\score_v2_execution_log_2026-10-14.txt`. Full sha256 as
+recorded in `CHAT2_HANDOFF.md`, re-verified 2026-10-15 against the
+preserved bytes (all match):
+
+| File | Bytes | sha256 |
+| --- | ---: | --- |
+| bets_ledger.parquet | 488,965 | `be02861afafc526e7184ac13f4825ec613c06a92209818e44f6f7c465e973b80` |
+| bootstrap.json | 2,579 | `d237037bb263dbc3149013408fb7d026eb70622fb51241aa8c4c1819ec220e65` |
+| clv_table.parquet | 184,576 | `78e7d8c1f3a50a54179b63f79f9461089d7345fcf5151208ad2dc1fe6a9f6559` |
+| confirm_metrics.json | 1,564 | `8f052c192572e9819dabce62c1067dc6257c1aeea4e8d57ea6d1b8851993c982` |
+| score_manifest.json | 376 | `bc9ed9e31750f6e6ac6ad5ec7f0ed35a24b30f8098a23106c449a2d1bb0a2bd2` |
+| score_summary.json | 2,869 | `deec1c21f61a3f9827c799dccda9ecf3e234f779cd7e96623520f18a5c8c6214` |
+| skill_metrics.json | 8,709 | `08c99f3997eacbbde989fbcb5e703b53a1709e9146f0ad5bf92d4b387061cba6` |
+| ..\score_v2_execution_log_2026-10-14.txt | 5,826 | `7c61ff31644e203adec9c90e08675187e83d8fc89786a320a24ea3817060ed16` |
+
+### Result-label corrections (binding reading of the outputs)
+
+1. The 25,978-row development population is POOLED Tier A + Tier B:
+   Tier A_verified_clock 14,014 side rows + Tier B_clock_proxy 11,964
+   side rows (184 slate dates). Any reading of the dev headline as
+   "Tier A only" is INCORRECT; the dev headline (n_rows 25,978) includes
+   both tiers.
+2. Tier A results are the STRICT-CLOCK lane (verified pregame clocks):
+   dev Tier A Brier H3-raw 0.46727 / LOG5-raw 0.46504 / market 0.44687
+   (n_rows 14,014; `skill_metrics.json` `dev.per_tier.A_verified_clock`).
+   Tier B is SENSITIVITY-ONLY (proxy clocks; dev Tier B Brier H3-raw
+   0.46971 / LOG5-raw 0.46785 / market 0.44684, n_rows 11,964) and stays
+   sensitivity-only in every citation of these outputs.
+3. No strict execution-timing claims are made beyond the established
+   provenance: 2024 Tier B rows use PROXY clocks (not verified pregame
+   timestamps). Only the Tier A strict-clock lane supports strict
+   pregame-clock timing statements, within the limits of the
+   verification bundle.

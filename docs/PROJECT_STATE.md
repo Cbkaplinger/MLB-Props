@@ -1,6 +1,6 @@
 # PROJECT_STATE — one-screen current state
 
-**Date:** 2026-10-14. Point-in-time summary; `docs/EXECUTION_BACKLOG.md`
+**Date:** 2026-10-15. Point-in-time summary; `docs/EXECUTION_BACKLOG.md`
 remains the live work queue and wins on conflicts.
 
 ## Champion (production)
@@ -28,9 +28,21 @@ no live-path changes; dashboard parked.
   known-answer tests remain as helper-level coverage). overnight-p2
   `pooled_comparison.json` previously verified to exclude confirm_2025H2
   from pooling. Holding for Chat 2 review.
-- **Scoring status:** no authorized canonical scoring run; one accidental
-  run occurred (2026-10-14 ~17:15, outputs deleted, inspection status
-  UNRESOLVED; INCIDENT.md). Scoring remains owner-gated.
+- **Scoring status (2026-10-15):** canonical scoring run EXECUTED once at
+  `108d5ba9` (2026-10-14 23:44 local), after the stale lake scorer
+  (`457991d8...`) was replaced pre-run with the reviewed committed bytes
+  (blob `99db556c...f4e31`, sha256 `c2745980...4c6c5`, byte-identity
+  verified). Outputs preserved write-once in
+  `market-eval-v1\outputs\score_v2\`; all file hashes re-verified
+  (CHAT2_HANDOFF.md, copied byte-identical to
+  `research/offseason_2026/market_eval/CHAT2_HANDOFF.md`; EXECUTED-RUN
+  record in EXPERIMENT_CARD.md, both copies). Results are PRELIMINARY
+  pending Chat 2 integrity review (reviewer verdict PENDING). Binding
+  result labels: dev headline (25,978 rows) = pooled Tier A + Tier B;
+  Tier A = STRICT-CLOCK lane; Tier B sensitivity-only (2024 Tier B uses
+  proxy clocks; no strict execution-timing claims beyond that
+  provenance). No authorized reruns, model promotion, or production
+  changes. The 17:15 accidental run (C3.6) remains UNRESOLVED.
 
 ## PRs and reviewed SHAs
 
@@ -40,12 +52,12 @@ no live-path changes; dashboard parked.
 | PR #2 (paired slate-date uncertainty repair) | OPEN (non-draft) |
 | Reviewed SHA `6567c51` | backlog/docs review snapshot reviewed by Chat 2 |
 | Pinned snapshot `02ce162f` | market-eval v2 implementation, byte-identical to lake sources, 28 tests pass on committed bytes |
-| Branch `research/market-eval-v2` | published review branch: pin + docs-only follow-up commits; DRAFT research-only PR |
+| Branch `research/market-eval-v2` (PR #3) | published review branch: pin + docs-only follow-up commits; DRAFT research-only PR |
 
 ## Next action
 
-Chat 2 independent review of the pinned snapshot (REVIEW_HANDOFF.md in
-`research/offseason_2026/market_eval/`), led by the two serious issues:
-the 17:15 incident blinding question and the missing verified pregame BF
-inputs. The canonical scoring run stays gated until the owner resolves
-blinding and accepts the review.
+Chat 2 independent integrity review of the executed canonical scoring run
+(CHAT2_HANDOFF.md + the EXECUTED-RUN record in EXPERIMENT_CARD.md), with
+the 17:15 incident blinding question (C3.6) still open. Results stay
+PRELIMINARY; no reruns, model promotion, or production changes until the
+owner accepts the review.
