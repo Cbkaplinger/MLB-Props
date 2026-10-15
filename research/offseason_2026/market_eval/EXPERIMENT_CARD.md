@@ -578,17 +578,27 @@ and is unrelated to this executed run's evidence status.
 | Reviewer verdict | Chat 2 integrity-review verdict: PENDING (no verdict recorded as of this writing) |
 | Canonical findings hash | not applicable - no separate findings digest was registered for this run; the output-file hashes below are the canonical digests |
 
-Literal command (run from `C:\Users\ckaplinger\MLB-Props-Research\market-eval-v1\`;
-the F-4 gate refuses `--score` without the flag, so the flag's presence is
-a structural fact of the successful run):
+Reconstructed effective command (2026-10-15 correction, supplemental to
+3fce43d; run from `C:\Users\ckaplinger\MLB-Props-Research\market-eval-v1\`):
+the execution log captures no verbatim command line and carries no in-band
+timestamp, so this command is RECONSTRUCTED, not captured. Its content is
+established by (a) the run's outputs manifest and argument-derived paths, and
+(b) the F-4 gate, which refuses `--score` without
+`--i-accept-outcome-scoring`, making the flag's presence a structural fact
+of the successful run:
 
 ```
 python market_eval.py --score --i-accept-outcome-scoring --prep-dir outputs\prep_v2 --start-metrics "C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet" --score-dir outputs\score_v2 --seed 20261001 --n-boot 2000
 ```
 
-Note: `CHAT2_HANDOFF.md` section 3 quotes the registered command line
-without the F-4 flag (copied from the lake card's score section at
-handoff time); the literal executed command above is authoritative.
+**Dated correction note (2026-10-15):** `CHAT2_HANDOFF.md` section 3 quotes
+the registered command line WITHOUT the F-4 flag (copied from the lake
+card's score section at handoff time), so its command section needed flag
+disclosure. The original handoff file is retained unchanged
+(sha256 `2e050474cfebce6c98d80c8be4255fcdd53382616374942c7b989f67786e5558`,
+byte-identical to the lake copy; verified 2026-10-15); this note is the
+correction of record, and the reconstructed effective command above is
+authoritative over the handoff's command line.
 
 ### Outputs and hashes
 
