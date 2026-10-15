@@ -554,3 +554,69 @@ def test_fold_construction_dates_match_registered_anchors(synth):
     for name, fold in folds.items():
         assert fold.train_start <= fold.cal_first <= fold.cal_last
         assert fold.cal_last < fold.assess_start
+
+
+# ---------------------------------------------------------------------------
+# 2025H2 exclusion control (RunConfig.include_confirm=False)
+# ---------------------------------------------------------------------------
+
+def test_confirm_exclusion_control_proves_no_confirm_rows_in_fits_or_bootstrap(
+        synth, tmp_path):
+    """Differential proof that include_confirm=False excludes confirm_2025H2
+    from every fit, calibration sub-block and bootstrap: flipping ALL
+    confirm-window labels (2025-07-01..2025-09-28) changes NOTHING the run
+    touches, so two runs over label-flipped confirm rows must produce
+    BYTE-IDENTICAL metrics.json. Any leak of a confirm row into a base_train
+    fit, a scaler, a calibrator or the pooled-dev bootstrap would move a
+    metric and break the equality. The written outputs must also contain no
+    confirm prediction file at all."""
+    pa, feat = _synth_frames()
+    pa_flip = pa.with_columns(
+        pl.when(pl.col("game_date") >= pl.date(2025, 7, 1))
+        .then(1 - pl.col("y")).otherwise(pl.col("y")).alias("y"))
+    assert pa_flip["y"].sum() != pa["y"].sum()  # the mutation is real
+    tmp = tmp_path / "excl"
+    tmp.mkdir()
+    feat_path = tmp / "feat.parquet"
+    feat.write_parquet(feat_path)
+    outs = []
+    for tag, pp in (("a", pa), ("b", pa_flip)):
+        pa_path = tmp / f"pa_{tag}.parquet"
+        pp.write_parquet(pa_path)
+        outs.append(run_comparison(RunConfig(
+            pa_table_path=str(pa_path), features_path=str(feat_path),
+            candidates=["P0_log5", "P1_B_logreg", "P1_H3_incumbent_refit"],
+            include_confirm=False,
+            output_root=str(tmp_path / f"out_{tag}"), run_label=tag)))
+    for out in outs:
+        # no confirm prediction file written at all
+        assert list(out.glob("preds_confirm_2025H2__*.parquet")) == []
+        m = json.loads((out / "metrics.json").read_text())
+        assert "confirm_2025H2" not in m["per_fold"]
+        assert m["pooled_dev"]["blocks_pooled"] == list(DEV_BLOCKS)
+        assert "EXCLUDED" in m["confirm_separate_note"]
+        man = json.loads((out / "run_manifest.json").read_text())
+        assert man["config"]["include_confirm"] is False
+        assert man["confirm_block_status"].startswith("EXCLUDED-BY-CONFIG")
+        # every scored eval row predates the confirm window
+        last = max(pl.read_parquet(f)["game_date"].max()
+                   for f in out.glob("preds_*.parquet"))
+        assert last < dt.date(2025, 7, 1)
+    # bit-identical metrics despite flipped confirm labels
+    assert (outs[0] / "metrics.json").read_text() == \
+        (outs[1] / "metrics.json").read_text()
+
+
+def test_confirm_scored_by_default_and_excluded_only_when_configured(
+        synth, tmp_path):
+    """Executed-behavior control: the default config still scores
+    confirm_2025H2 LAST and never pools it; exclusion happens only when
+    include_confirm=False is set."""
+    out = run_comparison(_run_cfg(synth, tmp_path, label="incl"))
+    assert (out / "preds_confirm_2025H2__P0_log5.parquet").exists()
+    man = json.loads((out / "run_manifest.json").read_text())
+    assert man["config"]["include_confirm"] is True
+    assert man["confirm_block_status"] == "EXECUTED-LAST-NEVER-POOLED"
+    m = json.loads((out / "metrics.json").read_text())
+    assert "confirm_2025H2" in m["per_fold"]
+    assert m["pooled_dev"]["blocks_pooled"] == list(DEV_BLOCKS)

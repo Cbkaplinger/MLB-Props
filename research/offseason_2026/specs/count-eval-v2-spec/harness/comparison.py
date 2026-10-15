@@ -259,7 +259,8 @@ def derive_folds(df: pl.DataFrame) -> dict[str, Fold]:
     """Derive the four registered folds with runtime calibration spans.
 
     confirm_2025H2 is present in the returned dict but is executed LAST by
-    run_comparison and never pooled into dev (run_ladder.py:66, 329, 369).
+    run_comparison and never pooled into dev (run_ladder.py:66, 329, 369);
+    with RunConfig.include_confirm=False it is not executed at all.
     """
     folds: dict[str, Fold] = {}
     for name, spec in BLOCKS.items():
@@ -600,6 +601,7 @@ class RunConfig:
     baseline: str = BASELINE_CANDIDATE
     n_boot: int = N_BOOT
     seed: int = SEED_BOOTSTRAP
+    include_confirm: bool = True
     output_root: str = "outputs"
     run_label: str = ""
 
@@ -612,6 +614,7 @@ class RunConfig:
             "baseline": self.baseline,
             "n_boot": self.n_boot,
             "seed": self.seed,
+            "include_confirm": self.include_confirm,
             "run_label": self.run_label,
             "blocks": {k: {"train_end": v["train_end"], "assess": v["assess"]}
                        for k, v in BLOCKS.items()},
@@ -670,7 +673,8 @@ def run_comparison(cfg: RunConfig) -> Path:
 
     df = load_pa_rows(cfg.pa_table_path, cfg.features_path)
     folds = derive_folds(df)
-    fold_order = DEV_BLOCKS + [CONFIRM_BLOCK]
+    fold_order = list(DEV_BLOCKS) + ([CONFIRM_BLOCK] if cfg.include_confirm
+                                     else [])
 
     manifest = {
         "interface_version": INTERFACE_VERSION,
@@ -688,7 +692,13 @@ def run_comparison(cfg: RunConfig) -> Path:
         "candidates": {},
         "execution_order_note": (
             "dev folds then confirm_2025H2 LAST; confirm never pooled into dev "
-            "(run_ladder.py:66, 329, 369)"),
+            "(run_ladder.py:66, 329, 369)"
+            if cfg.include_confirm else
+            "dev folds ONLY; confirm_2025H2 EXCLUDED by config "
+            "(include_confirm=False): not fitted, not scored, not bootstrapped"),
+        "confirm_block_status": (
+            "EXECUTED-LAST-NEVER-POOLED" if cfg.include_confirm else
+            "EXCLUDED-BY-CONFIG (include_confirm=False)"),
         "synthetic_gate": "test_comparison.py must pass before any real-data run "
                           "(spec section 7); no real-data authorization granted here",
     }
@@ -762,6 +772,12 @@ def run_comparison(cfg: RunConfig) -> Path:
             raise ComparisonError("eval-row identity hash differs across candidates")
 
     metrics = _compute_metrics(cfg, df, folds, eval_frames, adapters, out_dir)
+    if not cfg.include_confirm:
+        leaked = sorted(p.name for p in out_dir.glob("preds_confirm_2025H2__*.parquet"))
+        if leaked:
+            raise ComparisonError(
+                f"confirm_2025H2 exclusion violated: confirm prediction files "
+                f"present despite include_confirm=False: {leaked}")
     (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2))
     (out_dir / "metrics.md").write_text(_metrics_md(metrics))
     manifest["metrics_files"] = ["metrics.json", "metrics.md"]
@@ -771,6 +787,7 @@ def run_comparison(cfg: RunConfig) -> Path:
 
 def _compute_metrics(cfg, df, folds, eval_frames, adapters, out_dir) -> dict:
     base = cfg.baseline
+    confirm_executed = CONFIRM_BLOCK in eval_frames
 
     def fold_metrics(fname: str, cand: str) -> dict:
         p = pl.read_parquet(out_dir / f"preds_{fname}__{cand}.parquet")
@@ -789,8 +806,11 @@ def _compute_metrics(cfg, df, folds, eval_frames, adapters, out_dir) -> dict:
         "method": "slate-date block-stratified row-weighted ratio",
         "n_resamples": cfg.n_boot, "seed": cfg.seed},
         "per_fold": {}, "pooled_dev": {}, "confirm_separate_note":
-        "confirm_2025H2 reported separately; never pooled into dev"}
-    for fname in DEV_BLOCKS + [CONFIRM_BLOCK]:
+        ("confirm_2025H2 reported separately; never pooled into dev"
+         if confirm_executed else
+         "confirm_2025H2 EXCLUDED from this run (include_confirm=False); "
+         "dev pooling unaffected (dev blocks only)")}
+    for fname in [*DEV_BLOCKS, *([CONFIRM_BLOCK] if confirm_executed else [])]:
         out["per_fold"][fname] = {}
         cand_stats = {c: fold_metrics(fname, c) for c in cfg.candidates}
         for c in cfg.candidates:
