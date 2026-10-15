@@ -17,6 +17,10 @@ no live-path changes; dashboard parked.
   (`research/offseason_2026/market_eval/`): prep v2 (outcome-free,
   write-once) + gated scorer + 28 synthetic tests + spec docs. The pin is
   preserved unchanged; review docs are a docs-only commit on top.
+- **Market-eval lane (F-6):** F-6 (C3.3 confirmation-exclusion) implemented
+  (`tests/test_f6_confirmation_exclusion.py`) and the diagnostic executed:
+  overnight-p2 `pooled_comparison.json` verified to exclude confirm_2025H2
+  from pooling. Holding for Chat 2 review.
 - **Scoring status:** NO authorized canonical scoring run. One accidental
   run occurred 2026-10-14 ~17:15 (outputs deleted without being cited;
   INCIDENT.md); whether anyone inspected the computed metrics is
