@@ -340,9 +340,20 @@ def main(argv=None) -> int:
             con = sqlite3.connect(args.mlflow_db)
             cur = con.cursor()
             label = M.get("run_label")
+            # Importer tag convention: run_id tag = "<label>" (first-run) or
+            # "<label>-<harness-run-id 12..64 hex>" (recency). Match the label
+            # exactly or as a prefix so both conventions are found; children
+            # are also discovered via mlflow.parentRunId.
             runs = cur.execute(
-                "SELECT r.run_uuid, r.name FROM runs r JOIN tags t ON r.run_uuid=t.run_uuid "
-                "WHERE t.value=?", (label,)).fetchall()
+                "SELECT DISTINCT r.run_uuid, r.name FROM runs r "
+                "JOIN tags t ON r.run_uuid=t.run_uuid "
+                "WHERE t.key='run_id' AND (t.value=? OR t.value LIKE ? || '-%')",
+                (label, label)).fetchall()
+            child_ids = [r[0] for r in cur.execute(
+                "SELECT t.run_uuid FROM tags t WHERE t.key='mlflow.parentRunId' "
+                "AND t.value IN (SELECT run_uuid FROM runs WHERE name LIKE ? || '%')",
+                (label,)).fetchall()]
+            known = {r[0] for r in runs} | set(child_ids)
             agree, checked = True, 0
             for rid, name in runs:
                 parts = name.split("__")
@@ -365,15 +376,17 @@ def main(argv=None) -> int:
                     agree = False
                     fail(f"MLflow log_loss mismatch: {name}")
                 checked += 1
-            rep["checks"]["mlflow"] = {"runs_tagged": len(runs), "children_metric_checked": checked,
+            rep["checks"]["mlflow"] = {"parent_and_children_tagged": len(runs),
+                                       "children_via_parent_tag": len(child_ids),
+                                       "children_metric_checked": checked,
                                        "agreement": agree,
                                        "required": mlflow_required,
                                        "classification": ("REQUIRED-MISSING"
-                                                          if mlflow_required and not runs
-                                                          else ("OK" if runs else "INFORMATIONAL-MISSING")),
+                                                          if mlflow_required and not known
+                                                          else ("OK" if known else "INFORMATIONAL-MISSING")),
                                        "note": ("no tagged runs found: run was not logged "
-                                                "(fact, not failure)" if not runs else "")}
-            if not runs and mlflow_required:
+                                                "(fact, not failure)" if not known else "")}
+            if not known and mlflow_required:
                 fail("MLflow runs missing but the registered batch requires "
                      "automatic logging (required check)")
         except Exception as e:
