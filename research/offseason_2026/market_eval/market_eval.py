@@ -18,6 +18,8 @@ ASCII only (cp1252 console).
 """
 from __future__ import annotations
 
+import numpy as np
+
 import argparse
 import hashlib
 import json
@@ -938,6 +940,7 @@ def run_prep(book_lines: Path, envelope: Path, payload_path: Path,
             },
         },
         "inputs": {},
+                "f6_confirmation_separation": "confirmation rows (confirm_2025H2) are excluded from development pooled points and bootstrap draws; reported separately with their own bootstrap (card C3.3)",
         "identity": {},
         "coverage": {},
         "contracts": {},
@@ -1398,7 +1401,38 @@ def run_score(prep_dir: Path, start_metrics_path: Path, out_dir: Path,
                    .then(pl.col("y_under_win")).otherwise(pl.col("y_over_win"))) ** 2
             ).alias("_b")
         )["_b"].to_numpy()
-    boot_skill = _slate_bootstrap(boot_vals, slates, slate_blocks, n_boot, seed)
+    # F-6: confirmation rows NEVER enter development pooled points or
+    # bootstrap draws (card C3.3). Split the observation frame; compute the
+    # dev-pooled bootstrap over DEV blocks only and report confirmation
+    # separately with its own bootstrap.
+    DEV_BLOCKS = ("block_2024H2", "block_2025H1")
+    CONFIRM_BLOCKS = ("confirm_2025H2",)
+    is_confirm = np.array([b in CONFIRM_BLOCKS for b in slate_blocks])
+    dev_mask = ~is_confirm
+    boot_skill = _slate_bootstrap(
+        {k: v[dev_mask] for k, v in boot_vals.items()},
+        [d for d, m in zip(slates, dev_mask) if m],
+        [b for b, m in zip(slate_blocks, dev_mask) if m],
+        n_boot, seed)
+    confirm_rows = int(is_confirm.sum())
+    confirm_skill = None
+    if confirm_rows:
+        confirm_skill = {}
+        for a in ("h3", "l5", "market"):
+            m = is_confirm
+            confirm_skill[a] = {
+                "brier": float(np.mean(boot_vals[a][m])),
+                "n_rows": confirm_rows,
+                "n_dates": len(set(np.array(slates)[m].tolist())),
+            }
+        # paired H3-vs-LOG5 within the confirmation block, own bootstrap
+        c_pairs = np.vstack([boot_vals["h3"][m] - boot_vals["l5"][m]
+                             for m in [is_confirm]])
+        c_dates = [d for d, m2 in zip(slates, is_confirm) if m2]
+        c_blocks = [b for b, m2 in zip(slate_blocks, is_confirm) if m2]
+        c_boot = _slate_bootstrap(
+            {"h3_minus_l5": c_pairs[0]}, c_dates, c_blocks, n_boot, seed)
+        confirm_skill["h3_minus_l5"] = c_boot["h3_minus_l5"]
 
     per_tier = {}
     for t in obs["tier"].unique().to_list():
