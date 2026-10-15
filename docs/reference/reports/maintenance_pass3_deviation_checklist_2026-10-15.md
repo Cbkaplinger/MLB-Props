@@ -58,11 +58,18 @@ it contains (incl. `hold_pct()` in `src/Python/market.py`).
 
 ## 4. Integration checklist (Chat 1 executes; coordination gates; Chat 3 prepared)
 
+> **Amended per coordination (2026-10-15, second ruling):** reviewer-tooling PR #6 is
+> included below (it need not wait until last — no file overlap with any lane, verified);
+> and every "no conflicts identified" claim is scoped to the inspected SHAs and must be
+> rechecked against the final heads before merging. The plan does not authorize Chat 3
+> to merge; Chat 1 remains integration owner.
+
 Dependency graph (verified this pass; no commits moved):
 
 ```text
 main 72d7923
   |-- PR #2 (2c4d9bb, 2 files, ready, CI green)            [no dependencies]
+  |-- PR #6 (f9f7ec7, reviewer tooling, draft; 2 new files) [no dependencies; any position]
   |-- PR #3 (9dc01b3, draft; CONTAINS PR #2 tip by SHA)     [depends on: owner READY + PR #2 first]
   |-- beb146b (backlog restructure; not in any PR)          [depends on: PR #3 merged (same file, later content)]
   `-- PR #4 (9444760, maintenance docs; new files only)     [no hard dependencies; merge last]
@@ -75,8 +82,15 @@ main 72d7923
 - [ ] Merge. Repo precedent is a merge commit (PR #1); either method is safe: with FF,
   main becomes `2c4d9bb` and PR #3 still contains it; with a merge commit, PR #3's two
   shared files are blob-identical to what PR #2 adds, so a later `merge main` into PR #3
-  is conflict-free on them.
+  shows no conflicts identified at the inspected SHAs — recheck at final heads.
 - [ ] Record identity block + CI run in the merge receipt.
+
+### Step 1b — PR #6 (reviewer tooling; independent, any position)
+
+- [ ] Chat 2 owns this PR; Chat 1 merges it when Chat 2 drops draft status.
+- [ ] No file overlap with PR #2/#3/#4 or `beb146b` (verified this pass); CI green on
+  head `f9f7ec7` (run 38801914998). Recheck both at merge time.
+- [ ] No ordering constraint relative to the other PRs; merging before PR #3 is fine.
 
 ### Step 2 — PR #3 (after LightGBM stage closes, owner READY)
 
@@ -98,7 +112,8 @@ main 72d7923
 
 ### Step 4 — PR #4 (maintenance docs, last)
 
-- [ ] New-files-only (3 reports + 1 addendum): conflict-free with everything.
+- [ ] New-files-only (3 reports + 1 addendum): no file overlap with any other lane at
+  the inspected SHAs; recheck against final heads before merging.
 - [ ] Optional refresh after PR #2/#3 merge: rebase/merge main to update the
   point-in-time SHA references, then drop draft status and merge.
 - [ ] Post-merge: PR #4's "files created/modified" ledger in the reports stays valid
