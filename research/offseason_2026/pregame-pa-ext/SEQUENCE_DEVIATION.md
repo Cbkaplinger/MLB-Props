@@ -163,3 +163,38 @@ RESULT-PENDING-INDEPENDENT-REVIEW; independent review is still owed.
   supplemental_metrics.json, supplemental_metrics.md, OUTPUT_INVENTORY.json,
   mlflow_reconciliation.json, lake_mirror_status.json. Generator scripts
   remain lake-only per precedent (generate_ablation_row.py, mlflow_import.py).
+
+## Addendum 2026-10-15 (third): UNRESOLVED OBSERVATION - conflicting remote-tip observations around the market-eval PR #3 review
+
+Recorded per owner closeout instruction. Both observations are preserved
+exactly as made; the conflict between them is NOT resolved, no explanation
+is established, and none is invented. Nothing above this addendum is
+altered.
+
+- OBSERVATION A (Chat 2, first-hand, at market-eval PR #3 review time,
+  2026-10-14): a fresh ls-remote/fetch of PR #3 returned the remote tip as
+  4bdb5ecddce1b5be519b730941b742e21975c401 (recorded in
+  CANONICAL_FINDINGS_2026-10-14.md lines 3-6: "verified byte-identical
+  inside PR #3 head 4bdb5ec..."; commit dated 2026-10-14T18:00:21-04:00).
+- OBSERVATION B (builder-side record, same branch, same day): the F-1..F-5
+  fix pass record
+  (research/offseason_2026/market_eval/FINDINGS_F1_F5_2026-10-14.md line 4)
+  states "Base of this pass: 6a41dbf84abc0a38feb0192b97aeb89fe0c87e13
+  (PENDING_FINDINGS commit)" (commit dated 2026-10-14T18:31:02-04:00) -
+  i.e., the recorded PR #3 branch state for that pass already contained
+  6a41dbf, a DESCENDANT of 4bdb5ec, published to the PR as its base.
+- CONFLICT: 4bdb5ec is an ancestor of 6a41dbf. A review-time remote tip of
+  4bdb5ec and a recorded branch state built on 6a41dbf cannot both describe
+  the same remote at the same moment. No push timestamp exists for either
+  SHA, so the ordering of the 6a41dbf push relative to the review-time
+  ls-remote is NOT ESTABLISHED.
+- STATUS: UNRESOLVED OBSERVATION. No reconciling evidence has been found;
+  no explanation is asserted; both values are recorded verbatim. This
+  addendum does not modify any established chronology above (which concerns
+  the first-run-v1 run, not PR #3).
+- Related first-hand observation (same reviewer, same findings file, line
+  562): during the first-run-v1 gate turn, ls-remote reported the remote
+  tip as 5bb0c2c when execution artifacts already existed; that anomaly is
+  likewise UNRESOLVED and remains recorded in
+  chat2-review-overnight-20261013/market_eval/CANONICAL_FINDINGS_2026-10-14.md
+  (sha256 790953b5946e8c2ae4954372f77b886066ae535ea11fab64462b624ac3bf90c7).
