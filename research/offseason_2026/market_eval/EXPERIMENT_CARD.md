@@ -561,8 +561,9 @@ Concretely, the score outputs carry:
 ## EXECUTED-RUN record (canonical scoring run) — EXECUTED 2026-10-14
 
 Status: **EXECUTED once; outputs PRESERVED write-once; results
-PRELIMINARY pending Chat 2 integrity review. Reviewer integrity verdict:
-PENDING.** No authorized reruns exist. No model promotion. No production
+PRELIMINARY at serialization (2026-10-14); Chat 2 integrity review of the
+score_v2 artifacts ACCEPTED 2026-10-14 (see Reviewer verdict below).** No
+authorized reruns exist. No model promotion. No production
 changes. The accidental 2026-10-14 ~17:15 run (C3.6) remains UNRESOLVED
 and is unrelated to this executed run's evidence status.
 
@@ -575,8 +576,8 @@ and is unrelated to this executed run's evidence status.
 | Stale lake scorer replaced pre-run | sha256 `457991d81d44f9541dcb6a2889f35979aa0d9d844cd1ab91d57e1aea5e20e929` (pre-amendment pinned-snapshot bytes) replaced with the reviewed committed bytes above BEFORE the run |
 | Execution date/time | 2026-10-14; outputs and execution log written 23:44:16-23:44:17 local (file-system timestamps; the execution log carries no in-band timestamp field) |
 | Authorization provenance | the owner's "Keep moving forward" instruction plus the coordinator's bounded execution authorization: ONE canonical scoring run at the reviewed SHA. The F-4 `--i-accept-outcome-scoring` flag confirms intent to join realized outcomes only; it does not by itself constitute owner authorization. No separate explicit approval quotation exists and none is invented here. |
-| Reviewer verdict | Chat 2 integrity-review verdict: PENDING (no verdict recorded as of this writing) |
-| Canonical findings hash | not applicable - no separate findings digest was registered for this run; the output-file hashes below are the canonical digests |
+| Reviewer verdict | Chat 2 integrity review: ACCEPTED — SCORING-ARTIFACT INTEGRITY REVIEW + CLOSEOUT (2026-10-14, Chat 2 sole reviewer), bit-level reconciliation of all 7 score_v2 output files + execution log; findings recorded in `C:\Users\ckaplinger\MLB-Props-Research\chat2-review-overnight-20261013\market_eval\CANONICAL_FINDINGS_2026-10-14.md` (computed-at-citation sha256 `b5daea6be46d59fd1900a2e8e615e6b9d58dc2d5ef1c105c78865dd8ec462d14`, not a pre-registered digest) |
+| Canonical findings hash | no separate findings digest was registered in the score artifacts (CHAT2_HANDOFF.md section 1 lists only output-file hashes); canonical identity of the accepted run = `score_manifest.json` sha256 `bc9ed9e31750f6e6ac6ad5ec7f0ed35a24b30f8098a23106c449a2d1bb0a2bd2` |
 
 Reconstructed effective command (2026-10-15 correction, supplemental to
 3fce43d; run from `C:\Users\ckaplinger\MLB-Props-Research\market-eval-v1\`):
