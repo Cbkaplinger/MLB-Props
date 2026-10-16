@@ -102,5 +102,50 @@
     "no rerun on ANY failure: a failed or nonconforming run is never re-executed into the same destination; any deviation from this freeze requires a NEW registration, never an amendment",
     "execution requires explicit owner authorization after exact-head CI + review; this commit does NOT execute the comparison",
     "no promotion, no production change; dev-only evidence (confirm_2025H2 and 2026 stay closed)"
-  ]
+  ],
+  "execution_amendment_v1": {
+    "amendment_id": "execution_amendment_v1",
+    "amended_utc": "2026-10-16",
+    "amendment_type": "ADDITIVE-EXECUTION-PLUMBING-ONLY",
+    "statement": "No scientific fields changed; this amendment only pins execution plumbing.",
+    "runner": {
+      "path": "research/offseason_2026/bf_lane/run_count_b1_v1.py",
+      "sha256": "7a3956d294d69443023fe513bf66481b198b8b1a7e5117f20b0de2a1cd8db07a",
+      "note": "committed byte-identical at this hash in the amendment commit; the runner re-derives this hash from its own bytes and refuses on mismatch"
+    },
+    "immutable_config": {
+      "path": "research/offseason_2026/bf_lane/freeze_count_eval_v1.json",
+      "scientific_contract": "all scientific fields above (purpose, provenance, frozen_baselines, only_varying_input, held_identical, endpoint, row_accounting, output, persistence_inventory, fail_closed_rules) are UNCHANGED by this amendment; only this execution_amendment_v1 key was added"
+    },
+    "literal_command": "python research/offseason_2026/bf_lane/run_count_b1_v1.py --freeze research/offseason_2026/bf_lane/freeze_count_eval_v1.json --i-accept-real-data-execution",
+    "working_directory": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\market-eval-v2",
+    "output_root": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\count_b1\\",
+    "environment_identity_capture_command": "python -c \"import sys, platform; print(sys.version); print(platform.platform())\"; python -m pip freeze | Out-File -Encoding ascii C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\pip_freeze_count_b1_v1.txt",
+    "preflight_assertion": "the runner asserts the write-once destination is absent BEFORE any read or write and exits nonzero if it exists (preflight_destination_absent; no-rerun rule enforced)",
+    "output_inventory_schema_22_files": [
+      "count_b1_aggregates_block_2024H2.json",
+      "count_b1_aggregates_block_2025H1.json",
+      "count_b1_aggregates_pooled.json",
+      "count_b1_bootstrap_replicates.npy",
+      "count_b1_calibration_deciles_block_2024H2.json",
+      "count_b1_calibration_deciles_block_2025H1.json",
+      "count_b1_calibration_deciles_pooled.json",
+      "count_b1_contrast.json",
+      "count_b1_coverage_width.json",
+      "count_b1_flagged_recenter_records.json",
+      "count_b1_identity_gate.json",
+      "count_b1_per_date_paired_sums.csv",
+      "count_b1_per_row_pmf_b0.parquet",
+      "count_b1_per_row_pmf_b1.parquet",
+      "count_b1_per_row_scores.parquet",
+      "count_b1_p_bar_inventory.json",
+      "count_b1_row_count_assertions.json",
+      "lgbm_equal_info_config.json",
+      "metrics.json",
+      "retrieved/lgbm_equal_info_config.json",
+      "run_manifest.json",
+      "tracking_status.json"
+    ],
+    "manifest_schema": "run_manifest.json derived ONLY from that run's final artifacts (config/registration/input/artifact hashes, persisted-record timestamps, verdict) with the full sha256 inventory; its own sha256 is recorded OUTSIDE the run dir (registration documentation); never edited in place; write-once"
+  }
 }

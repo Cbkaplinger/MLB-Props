@@ -144,3 +144,70 @@ never edited in place.
   review. This commit does not execute the comparison.
 - **No promotion, no production change:** dev-only evidence; confirm_2025H2
   and 2026 stay closed.
+
+## Execution amendment v1 (ADDITIVE — execution plumbing only, 2026-10-16)
+
+**No scientific fields changed; this amendment only pins execution plumbing.**
+Everything above this section (what is compared, frozen identities, held
+identical, primary endpoint and test, row accounting, output location,
+immutable manifest requirement, persistence inventory, fail-closed /
+no-rerun conditions) is byte-unchanged. The machine-readable twin
+`freeze_count_eval_v1.json` likewise changes ONLY by the additive
+`"execution_amendment_v1"` key. This amendment closes preflight item 5d
+(COUNT_RUN_PREFLIGHT.md): the runner and its literal command are now
+committed and reviewed BEFORE any execution.
+
+- **Runner:** `research/offseason_2026/bf_lane/run_count_b1_v1.py`,
+  sha256 `7a3956d294d69443023fe513bf66481b198b8b1a7e5117f20b0de2a1cd8db07a`
+  (committed byte-identical at this hash; the runner re-derives its own
+  bytes against the pinned hash and refuses on mismatch). It reuses the
+  frozen count scoring machinery verbatim: `kcount_combiner` (registered
+  sha `94f57a49...`) for `bf_pmf_from_37` / `combine_count` / summed
+  count-RPS, and the harness `comparison.py` `slate_date_draws` +
+  `null_centered_contrast_test` (n=2000, seed 20261001, block-stratified,
+  one shared draw stream, null-centered two-sided p, Holm family of 1).
+- **Immutable config:** `research/offseason_2026/bf_lane/freeze_count_eval_v1.json`
+  (scientific contract unchanged; runner hash-gates its endpoint,
+  row-accounting, and output blocks against the registered values).
+- **Literal command** (run from the working directory below; execution
+  remains owner-gated via `--i-accept-real-data-execution`):
+
+  ```
+  python research/offseason_2026/bf_lane/run_count_b1_v1.py --freeze research/offseason_2026/bf_lane/freeze_count_eval_v1.json --i-accept-real-data-execution
+  ```
+
+- **Working directory:**
+  `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\market-eval-v2`
+- **Output root (write-once):**
+  `C:\Users\ckaplinger\MLB-Props-Research\bf-2026-eval-v1-outputs\count_b1\`
+- **Environment identity capture command** (run before execution; writes
+  next to, not inside, the 22-file run dir):
+
+  ```
+  python -c "import sys, platform; print(sys.version); print(platform.platform())"; python -m pip freeze | Out-File -Encoding ascii C:\Users\ckaplinger\MLB-Props-Research\bf-2026-eval-v1-outputs\pip_freeze_count_b1_v1.txt
+  ```
+
+- **Preflight assertion:** the runner asserts the write-once destination is
+  absent BEFORE any read or write and exits nonzero if it exists
+  (`preflight_destination_absent`; no-rerun rule enforced).
+- **Declared 22-file output inventory schema** (exact set enforced by the
+  runner at end of run; `run_manifest.json` derived only from final
+  artifacts, its own sha256 recorded outside the run dir, never edited in
+  place):
+  `count_b1_aggregates_block_2024H2.json`,
+  `count_b1_aggregates_block_2025H1.json`, `count_b1_aggregates_pooled.json`,
+  `count_b1_bootstrap_replicates.npy`,
+  `count_b1_calibration_deciles_block_2024H2.json`,
+  `count_b1_calibration_deciles_block_2025H1.json`,
+  `count_b1_calibration_deciles_pooled.json`, `count_b1_contrast.json`,
+  `count_b1_coverage_width.json`,
+  `count_b1_flagged_recenter_records.json`,
+  `count_b1_identity_gate.json`, `count_b1_per_date_paired_sums.csv`,
+  `count_b1_per_row_pmf_b0.parquet`, `count_b1_per_row_pmf_b1.parquet`,
+  `count_b1_per_row_scores.parquet`, `count_b1_p_bar_inventory.json`,
+  `count_b1_row_count_assertions.json`, `lgbm_equal_info_config.json`,
+  `metrics.json`, `retrieved/lgbm_equal_info_config.json`,
+  `run_manifest.json`, `tracking_status.json`.
+
+This amendment commit does NOT execute the comparison; execution still
+requires explicit owner authorization after exact-head CI + review.
