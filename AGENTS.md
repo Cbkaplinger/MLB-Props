@@ -17,6 +17,7 @@ That backlog is the single holy work-state file (APPROVED / BLOCKED / waiting / 
 | Paper / portfolio summary | `docs/paper/manuscript.md`, `docs/paper/resume-summary.md` |
 | Skill provenance/catalog/evals | `docs/agent/skills-provenance.md`, `docs/agent/skills-catalog.md`, `docs/agent/skills-evaluations.md` |
 | Ops contracts (Checkpoint A) | `docs/reference/reports/ops_contracts_2026-09-30.md` | Settlement + dashboard contracts, OPS-1/OPS-2 cards; remote deployment UNVERIFIED |
+| PR workflow | `docs/reference/pr_workflow.md` | How to make/document/review/merge PRs; what CI green means; identity-block template |
 
 Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); never `git push` (`.cursor/rules/git-push-policy.mdc`).
 
