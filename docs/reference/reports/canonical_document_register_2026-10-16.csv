@@ -1,0 +1,204 @@
+path,class,owner,inbound_links,note
+.agents/skills/repo-garbage-collector/SKILL.md,canonical-living,owner,0,skill definitions
+.agents/skills/repo-garbage-collector/references/cleanup-policy.md,canonical-living,owner,0,skill definitions
+.agents/skills/repo-garbage-collector/references/metric-invariants.md,canonical-living,owner,0,skill definitions
+.agents/skills/repo-garbage-collector/references/verification-checklist.md,canonical-living,owner,0,skill definitions
+.cursor/skills/archive-research-memory/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/audit-backtest-integrity/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/audit-dead-code/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/audit-feature-leakage/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/compare-champion-challenger/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/consolidate-code/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/design-ml-experiment/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/document-architecture/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/grill-with-docs/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/improve-codebase-architecture/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/reconcile-baseball-stats/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/repo-quality-passthrough/SKILL.md,canonical-living,owner,0,skill definitions
+.cursor/skills/repo-quality-passthrough/reference.md,canonical-living,owner,1,skill definitions
+.cursor/skills/write-adr/SKILL.md,canonical-living,owner,0,skill definitions
+AGENTS.md,canonical-living,owner,1,agent entry pointer
+CONTEXT.md,canonical-living,chat3,0,domain glossary
+README.md,canonical-living,chat3,0,root entry point
+docs/EXECUTION_BACKLOG.md,canonical-living,coordination/owner,17,work-state source of truth
+docs/agent/skills-catalog.md,canonical-living,chat3,0,publication / skill docs
+docs/agent/skills-evaluations.md,canonical-living,chat3,0,publication / skill docs
+docs/agent/skills-provenance.md,canonical-living,chat3,0,publication / skill docs
+docs/diagrams/00-index.md,canonical-living,chat3,1,"status maps; supersede, never rewrite"
+docs/diagrams/01-architecture.md,canonical-living,chat3,1,"status maps; supersede, never rewrite"
+docs/diagrams/02-leakage-and-risks.md,canonical-living,chat3,1,"status maps; supersede, never rewrite"
+docs/diagrams/03-modeling-and-evaluation.md,canonical-living,chat3,1,"status maps; supersede, never rewrite"
+docs/diagrams/04-roadmap.md,canonical-living,chat3,1,"status maps; supersede, never rewrite"
+docs/diagrams/05-live-prediction-flow.md,canonical-living,chat3,1,"status maps; supersede, never rewrite"
+docs/diagrams/README.md,canonical-living,chat3,0,"status maps; supersede, never rewrite"
+docs/paper/README.md,canonical-living,chat3,0,publication / skill docs
+docs/paper/manuscript.md,canonical-living,chat3,2,publication / skill docs
+docs/paper/resume-summary.md,canonical-living,chat3,1,publication / skill docs
+docs/reference/PROPOSED_COMMITS.md,canonical-living,chat3,0,living standards
+docs/reference/README.md,canonical-living,chat3,0,living standards
+docs/reference/agentic_stack_final_plan_updated.md,canonical-living,chat3,0,living standards
+docs/reference/beat_the_books_program.md,canonical-living,chat3,0,living standards
+docs/reference/champion_challenger_protocol.md,canonical-living,chat3,0,living standards
+docs/reference/clv_backfill_plan.md,canonical-living,chat3,1,living standards
+docs/reference/cursor_deep_dive_brief.md,canonical-living,chat3,0,living standards
+docs/reference/daily_kpi_protocol.md,canonical-living,chat3,0,living standards
+docs/reference/dashboard_information_architecture.md,canonical-living,chat3,0,living standards
+docs/reference/dev-notes.md,canonical-living,chat3,0,living standards
+docs/reference/evaluation-framework-external-2026-10-06.md,canonical-living,chat3,0,living standards
+docs/reference/exit_anomaly_protocol.md,canonical-living,chat3,0,living standards
+docs/reference/experiment_sop.md,canonical-living,chat3,1,living standards
+docs/reference/golden_metrics.md,canonical-living,chat3,2,living standards
+docs/reference/governance_metric_stack.md,canonical-living,chat3,0,living standards
+docs/reference/lineup_train_serve.md,canonical-living,chat3,0,living standards
+docs/reference/live_assembly_plan.md,canonical-living,chat3,0,living standards
+docs/reference/market_clv_gates.md,canonical-living,chat3,0,living standards
+docs/reference/measurement_operations.md,canonical-living,chat3,0,living standards
+docs/reference/mlb-strikeout-forecasting-roadmap.md,canonical-living,chat3,0,living standards
+docs/reference/model-card.md,canonical-living,chat3,0,living standards
+docs/reference/oddsapi_replay_architecture.md,canonical-living,chat3,5,living standards
+docs/reference/offseason_2026_choice_log.md,canonical-living,chat3,0,living standards
+docs/reference/offseason_2026_source_register.md,canonical-living,chat3,0,living standards
+docs/reference/offseason_architecture_audit_2026-09-28.md,canonical-living,chat3,0,living standards
+docs/reference/opencode_handoff.md,canonical-living,chat3,2,living standards
+docs/reference/pa_feature_lineage_2026-09-30.md,canonical-living,chat3,0,living standards
+docs/reference/pa_split_provenance_correction_2026-09-30.md,canonical-living,chat3,0,living standards
+docs/reference/pitcher_outs_expansion_plan.md,canonical-living,chat3,0,living standards
+docs/reference/post_freeze_holdout.md,canonical-living,chat3,0,living standards
+docs/reference/repo_canonical_map.md,canonical-living,chat3,0,surface classification
+docs/reference/repo_waste_sweep_checklist.md,canonical-living,chat3,0,living standards
+docs/reference/research_assistant_instructions.md,canonical-living,chat3,0,living standards
+docs/reference/results_dashboard_diagnostics.md,canonical-living,chat3,0,living standards
+docs/reference/retrain_spec.md,canonical-living,chat3,0,living standards
+research/offseason_2026/README.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/bf-2026-predictor-seal-v1/CLASSIFICATION.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/bf-2026-predictor-seal-v1/README.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/bf-2026-predictor-seal-v1/READY_BRIEF.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/bf-distribution-design-prereg.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/bf-distribution-readiness-clarifications.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/bf-origin-tail-audit-2026-10-08.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/corrected-history-feature-manifest.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/corrected-history-workload-prereg.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/early-season-extension-prereg.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/expanding-training-prereg-draft.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/expanding-training-prereg.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/bf-2026-cohort-enumeration-2026-10-14/card.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/bf-cohort-scorer-mode-2026-10-14/card.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/bf-pilot-diagnostic-reclass-2026-10-14/card.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/logistic_pa/bundle/provenance_sidecar.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/logistic_pa/deviations.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/logistic_pa/report.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/logistic_pa/validation_lanes.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/pa1a_raw_pa/deviations.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/pa1b_oracle_xk/deviations.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/pa1b_oracle_xk/report.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/pitcher_prior/deviations.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/pitcher_prior/report.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/tree_pa/deviations.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/experiments/tree_pa/report.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/history-contract-2026-10-08.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/i3-closeout-2026-10-08.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/i3b-transfer-freeze-2024.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/i4-card-source-experiment-draft.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/i4-card-source-experiment.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/i5-tail-challenger-draft.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/i5-tail-challenger.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/kcount-integration-clarification-2026-10-08.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/kcount-integration-prereg-draft.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/kcount-integration-prereg.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/lgbm-bridge-contract-2026-10-09.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/p1_harness/ACCEPTANCE_EVIDENCE.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/p1_harness/PROBABILITY_SOURCE_TABLE.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/p1_harness/RUN_VERSION_MAP.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pa-aggregation-contract-2026-10-09-CORRECTION-1.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pa-aggregation-contract-2026-10-09.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pa-k-baseline-prereg-draft.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pa-k-baseline-prereg.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pa-l3-refit-contract-2026-10-09.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pa-lgbm-contract-2026-10-09.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pregame-opportunity-contract-draft.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/pregame-opportunity-contract.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/prospective_logging/LOGGING_SPEC.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/publication-checkpoint-staging-2026-10-08.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/sep-challenger-contract.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/count_metrics.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/features.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/friend_retention.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/lineups.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/mlflow-mirror-implementation-card.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/pa-count-distribution-d0-d5-spec.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/pa_dataset_contract.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/pregame-workload-dev-spec.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/splits.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/specs/tbf_residual_store.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/transfer-2024-prereg.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/transfer-validation-readiness-2026-10-08.md,frozen-evidence,chat1,0,experiment packets; addenda only
+research/offseason_2026/wf-comparison-contract-2026-10-09.md,frozen-evidence,chat1,0,experiment packets; addenda only
+docs/archive/README.md,historical-evidence,owner,0,archive; retain
+docs/archive/leaky-baseline-2026-07-23/README.md,historical-evidence,owner,0,archive; retain
+docs/archive/pre-pipeline-v6/README.md,historical-evidence,owner,0,archive; retain
+docs/reference/reports/README.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/bf-closure-record-2026-10-13.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/cloud_hosting_2026-09-14.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/confounder_strata_audit_2026-09-14.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/forward_diary_archive_2026-09-14.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/freeze_playbook_2026-09-11.md,historical-evidence,chat3,1,dated report; errata only
+docs/reference/reports/granular_open_calibration_2026-09-01.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/historical_clv_odds_apis_2026-09-02.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/juiced_replay_ledger_2026-09-11.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/known_issues_overnight_p2_2026-10-13.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/model_comparison_pack/2026-08-21.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/oddsapi_replay_inventory_2026-09-11.md,historical-evidence,chat3,1,dated report; errata only
+docs/reference/reports/ops_contracts_2026-09-30.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/pa_bf_review_record_2026-10-12.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/phase8_5_truth_sync_2026-09-30.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/policy_reset_2025lock_prereg_2026-09-11.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/ratings_hook_wake_2026-09-14.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/real_bets_logging_checklist.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/repo_quality_passthrough/2026-08-18.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/repo_quality_passthrough/2026-08-21.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/slate_shock_join_2026-09-11.md,historical-evidence,chat3,0,dated report; errata only
+docs/reference/reports/weekly_policy_settle_pack_latest.md,historical-evidence,chat3,0,dated report; errata only
+docs/research/PAPER_NOTES.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/README.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/count_layer_findings.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/floor_freeze_log.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/historical-step-findings-summary.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/notebook_change_log.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/phase11_model_quality_gates.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/phase_d_population_findings.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/pitch_type_strike_csw_findings.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/prob_calibration_findings.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/snapshots/2026-08-20/final58_consensus_freeze.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/snapshots/README.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/statistical_audit_and_sequencing_report.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/step10_p1_registry_freeze.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/step11_discipline_registry_freeze.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/step7_registry_freeze.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/tbf_first_model_findings.md,historical-evidence,owner,0,supporting historical rationale
+docs/research/tbf_spine_phase_ab.md,historical-evidence,owner,0,supporting historical rationale
+analysis/model_results/README.md,operational,chat3,0,scoped readme/guide
+data/Pitcher-Starts-2023-2025-Data/README.md,operational,chat3,0,scoped readme/guide
+data/README.md,operational,chat3,0,scoped readme/guide
+docs/CLEANUP_LOG.md,operational,chat3,0,scoped readme/guide
+docs/README.md,operational,chat3,0,scoped readme/guide
+docs/adr/PROPOSED-mlflow-research-mirror.md,operational,chat3,0,scoped readme/guide
+docs/adr/TEMPLATE.md,operational,chat3,0,scoped readme/guide
+models/README.md,operational,chat3,0,scoped readme/guide
+models/Strikeout-Model/README.md,operational,chat3,0,scoped readme/guide
+models/Strikeout-Model/research/README.md,operational,chat3,0,scoped readme/guide
+models/Strikeout-Model/results/README.md,operational,chat3,0,scoped readme/guide
+models/TBF-Model/README.md,operational,chat3,0,scoped readme/guide
+playground/README.md,operational,chat3,0,scoped readme/guide
+production/INDEX.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/README.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/RUNBOOK.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/cloud/README.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/notebooks/README.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/odds/README.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/ops/README.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/ops/market_research/README.md,operational,chat2/owner,0,ops runbooks/notebooks
+production/projections/README.md,operational,chat2/owner,0,ops runbooks/notebooks
+scripts/README.md,operational,chat3,0,scoped readme/guide
+src/Python/README.md,operational,chat3,0,scoped readme/guide
+src/README.md,operational,chat3,0,scoped readme/guide
+tests/README.md,operational,chat3,0,scoped readme/guide
