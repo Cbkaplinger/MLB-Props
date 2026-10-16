@@ -21,6 +21,10 @@
 # registered identity (freeze config hash, input sha256s, adapter file +
 # config hashes, builder-worktree harness comparison.py sha, wrapper/runner
 # self-hashes) from disk and fails loud BEFORE any fitting.
+# Amendment-2 (2026-10-15): registered text-source files (.py/.json/.md)
+# verify LF-NORMALIZED (portable across git EOL materializations); binary
+# files (.parquet/.pkl/.joblib/.npy) stay byte-exact. See
+# TEXT_SOURCE_IDENTITY_CONVENTION below.
 #
 # ASCII-only (cp1252 consoles).
 from __future__ import annotations
@@ -40,6 +44,36 @@ CONFIG_HASH_DEFINITION = (
     "sha256 over json.dumps(config, sort_keys=True, separators=(',',':'))"
     ".encode('utf-8') of the 'config' object in this file")
 
+# ---------------------------------------------------------------------------
+# TEXT-SOURCE IDENTITY CONVENTION (amendment-2, 2026-10-15)
+# ---------------------------------------------------------------------------
+# A byte-exact sha256 over a registered .py/.md source file is NOT portable
+# across git EOL materializations: the repo blobs are LF, but core.autocrlf
+# (or an eol attribute) can materialize CRLF in a fresh checkout, so the
+# on-disk bytes differ while the content is identical. The declared
+# convention below fixes this: declared text-source files are identified by
+# sha256 over their LF-NORMALIZED content; declared binary files (and any
+# undeclared extension, as a safe default) stay BYTE-EXACT. The convention
+# is declared here (single owner) and mirrored verbatim in
+# freeze_lgbm_equal_info_v1.json under config.text_source_identity_convention.
+
+TEXT_SOURCE_EXTENSIONS = frozenset({".py", ".json", ".md"})
+BINARY_IDENTITY_EXTENSIONS = frozenset({".parquet", ".pkl", ".joblib", ".npy"})
+
+TEXT_SOURCE_IDENTITY_CONVENTION = (
+    "TEXT-SOURCE IDENTITY CONVENTION (amendment-2, 2026-10-15): declared "
+    "text-source files (extensions " + ", ".join(sorted(TEXT_SOURCE_EXTENSIONS))
+    + ") are identified by sha256 over their LF-NORMALIZED content (every "
+    "CRLF and lone CR is normalized to LF before hashing), so a registered "
+    "text identity is reproducible across git EOL materializations "
+    "(core.autocrlf / eol attributes). Declared binary files (extensions "
+    + ", ".join(sorted(BINARY_IDENTITY_EXTENSIONS))
+    + ") and any other extension are identified BYTE-EXACT (sha256 over the "
+    "raw file bytes). Byte-exact values registered under the prior "
+    "amendment-1 convention are preserved as historical records and are not "
+    "re-verified against disk; verification uses the normalized value for "
+    "text-source files and the byte-exact value for binary files.")
+
 STATUS_FILE = "tracking_status.json"
 
 
@@ -58,6 +92,36 @@ class IdentityMismatch(TrackingFailure):
 
 def sha256_file(path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def normalize_text_bytes(raw: bytes) -> bytes:
+    """LF-normalization per the declared convention: CRLF -> LF, then any
+    lone CR -> LF."""
+    return raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def file_identity_class(path) -> str:
+    """"text" or "binary" per TEXT_SOURCE_IDENTITY_CONVENTION (undeclared
+    extensions are treated as binary, the safe default)."""
+    suffix = Path(path).suffix.lower()
+    if suffix in TEXT_SOURCE_EXTENSIONS:
+        return "text"
+    return "binary"
+
+
+def sha256_file_identity(path) -> dict:
+    """Identity of one file per TEXT_SOURCE_IDENTITY_CONVENTION. Returns
+    {"class": "text"|"binary", "byte_exact": sha256(raw bytes),
+    "lf_normalized": sha256(LF-normalized bytes)} - for a binary file the
+    two hashes are identical."""
+    raw = Path(path).read_bytes()
+    cls = file_identity_class(path)
+    norm = normalize_text_bytes(raw) if cls == "text" else raw
+    return {
+        "class": cls,
+        "byte_exact": hashlib.sha256(raw).hexdigest(),
+        "lf_normalized": hashlib.sha256(norm).hexdigest(),
+    }
 
 
 def freeze_config_sha256(cfg: dict) -> str:
@@ -266,11 +330,17 @@ def verify_registered_identities(freeze_path, *, adapter_module=None,
                                  runner_path=None) -> dict:
     """Re-derive every registered identity from disk and fail loud on the
     first mismatch, BEFORE any fitting. Checks: freeze config hash (per the
-    registered config_hash_definition), the three registered input sha256s
-    (pa_table, features_v3, start_metrics outcome source - path+hash
-    registration only), the adapter file + config hashes and its frozen
-    hyperparameters, the builder-worktree harness comparison.py sha, and the
-    wrapper/runner self-hashes."""
+    registered config_hash_definition), the declared text-source identity
+    convention (must equal TEXT_SOURCE_IDENTITY_CONVENTION), the three
+    registered input sha256s (pa_table, features_v3, start_metrics outcome
+    source - path+hash registration only; binary files, byte-exact), the
+    adapter file + config hashes and its frozen hyperparameters, the
+    builder-worktree harness comparison.py sha, and the wrapper/runner
+    self-hashes. Text-source files (.py/.json/.md) are verified against
+    their LF-normalized registered value when one is registered
+    (TEXT_SOURCE_IDENTITY_CONVENTION); otherwise - and for binary files -
+    the byte-exact value is verified. Byte-exact values registered under
+    the prior amendment-1 convention are preserved as historical records."""
     freeze = json.loads(Path(freeze_path).read_text(encoding="utf-8"))
     cfg = freeze["config"]
     checks: dict[str, dict] = {}
@@ -283,29 +353,57 @@ def verify_registered_identities(freeze_path, *, adapter_module=None,
                 f"{name}: registered {declared!r} != on-disk {actual!r}; "
                 "refusing to fit against unregistered identities")
 
+    def _expect_file(name: str, path, reg: dict, exact_key: str,
+                     normalized_key: str | None = None) -> None:
+        """Verify one registered file identity per the declared convention:
+        LF-normalized for text-source files when a normalized value is
+        registered, byte-exact otherwise (binary files, synthetic freezes)."""
+        ident = sha256_file_identity(path)
+        if (normalized_key is not None and normalized_key in reg
+                and ident["class"] == "text"):
+            _expect(f"{name}.{normalized_key}", reg[normalized_key],
+                    ident["lf_normalized"])
+            checks[f"{name}.byte_exact_observed"] = {
+                "declared": reg.get(exact_key),
+                "actual": ident["byte_exact"],
+                "ok": reg.get(exact_key) in (None, ident["byte_exact"]),
+                "note": ("informational: byte-exact value is a historical "
+                         "record under the prior convention and is not "
+                         "re-verified")}
+        elif exact_key in reg:
+            _expect(f"{name}.{exact_key}", reg[exact_key],
+                    ident["byte_exact"])
+        else:
+            raise IdentityMismatch(
+                f"{name}: no registered identity key "
+                f"({normalized_key!r} or {exact_key!r})")
+
     _expect("config_hash_definition", freeze.get("config_hash_definition"),
             CONFIG_HASH_DEFINITION)
+    _expect("text_source_identity_convention",
+            cfg.get("text_source_identity_convention"),
+            TEXT_SOURCE_IDENTITY_CONVENTION)
     _expect("freeze_config_sha256", freeze["config_sha256"],
             freeze_config_sha256(cfg))
     inputs = cfg["registered_inputs"]
     for key in ("pa_table", "features_v3", "start_metrics_outcome_source"):
-        _expect(f"input.{key}", inputs[key]["sha256"],
-                sha256_file(inputs[key]["path"]))
+        _expect_file(f"input.{key}", inputs[key]["path"], inputs[key],
+                     "sha256")
     ad_reg = cfg["adapter"]
-    _expect("adapter.file_sha256", ad_reg["file_sha256"],
-            sha256_file(ad_reg["path"]))
+    _expect_file("adapter", ad_reg["path"], ad_reg,
+                 "file_sha256", "file_sha256_normalized")
     adapter = adapter_module or _import_adapter(ad_reg["path"])
     _expect("adapter.config_sha256", ad_reg["config_sha256"],
             adapter.config_sha256())
     _expect("adapter.hyperparameters", cfg["lgbm_hyperparameters"],
             adapter.LGBM_EQUAL_INFO_CONFIG)
     bw = cfg["builder_worktree_harness"]
-    _expect("harness.comparison_sha256", bw["comparison_sha256"],
-            sha256_file(bw["comparison_path"]))
+    _expect_file("harness.comparison", bw["comparison_path"], bw,
+                 "comparison_sha256", "comparison_sha256_normalized")
     tw = cfg["tracking_wrapper"]
-    _expect("wrapper.file_sha256", tw["file_sha256"],
-            sha256_file(tw["path"]))
+    _expect_file("wrapper", tw["path"], tw,
+                 "file_sha256", "file_sha256_normalized")
     if runner_path is not None:
-        _expect("runner.file_sha256", bw["runner_sha256"],
-                sha256_file(runner_path))
+        _expect_file("runner", runner_path, bw,
+                     "runner_sha256", "runner_sha256_normalized")
     return {"ok": True, "checked": sorted(checks), "checks": checks}

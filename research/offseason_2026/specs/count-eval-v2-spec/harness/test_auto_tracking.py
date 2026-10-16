@@ -41,11 +41,17 @@ import numpy as np
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# sys.path order matters (amendment-2): the lake count-eval-v1 dir holds a
+# HISTORICAL amendment-1 mirror of track_and_verify.py (preserved, not
+# updated), so it is inserted FIRST and the builder-worktree harness dir is
+# inserted LAST so the REGISTERED harness modules (track_and_verify,
+# comparison) shadow the stale mirror; the lake dir still supplies
+# lgbm_equal_info_adapter (registered there and nowhere else).
+sys.path.insert(0, r"C:\Users\ckaplinger\MLB-Props-Research\count-eval-v1")
 sys.path.insert(0, HERE)
 sys.path.insert(0, (r"C:\Users\ckaplinger\Downloads\Personal-Projects"
                     r"\MLB-Props-worktrees\market-eval-v2\research"
                     r"\offseason_2026\specs\count-eval-v2-spec\harness"))
-sys.path.insert(0, r"C:\Users\ckaplinger\MLB-Props-Research\count-eval-v1")
 
 LOG_MODE = "log"
 VERIFY_MODE = "verify"
@@ -53,6 +59,15 @@ HANDOFF = "auto_tracking_handoff.json"
 
 ORIGINAL_CONFIG_SHA256 = (
     "8dec7352957b8d4f09073a8b296450f69ae551a2d27e758da3c1bf2fdac6f294")
+
+AMENDMENT1_CONFIG_SHA256 = (
+    "b33e2a845c929f5f6dafba9c0adfcab49b4ee26655ed42e4f09428d9a2a100cf")
+
+AMENDMENT2_CONFIG_SHA256 = (
+    "bcfc2a15a4351f9bff44fb55a3830c9715360ac8d9e60870039c05b4e75ef260")
+
+EXECUTED_RUN_ID = (
+    "b8bc222c703a4a60e1eb0736143800e34601f61db0ced84cc067597b7796fd05")
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +296,7 @@ def _make_synthetic_freeze(tmp_path, input_paths=None, extra_cfg=None):
         files[name] = f
     cfg = {
         "interface_version": "synthetic",
+        "text_source_identity_convention": tv.TEXT_SOURCE_IDENTITY_CONVENTION,
         "lgbm_hyperparameters": dict(ad.LGBM_EQUAL_INFO_CONFIG),
         "registered_inputs": {
             k: {"path": str(files[k]),
@@ -288,14 +304,26 @@ def _make_synthetic_freeze(tmp_path, input_paths=None, extra_cfg=None):
             for k in files},
         "adapter": {"path": str(ad.__file__),
                     "file_sha256": tv.sha256_file(ad.__file__),
+                    "file_sha256_normalized":
+                        tv.sha256_file_identity(ad.__file__)[
+                            "lf_normalized"],
                     "config_sha256": ad.config_sha256()},
         "tracking_wrapper": {"path": str(tv.__file__),
-                             "file_sha256": tv.sha256_file(tv.__file__)},
+                             "file_sha256": tv.sha256_file(tv.__file__),
+                             "file_sha256_normalized":
+                                 tv.sha256_file_identity(tv.__file__)[
+                                     "lf_normalized"]},
         "builder_worktree_harness": {
             "comparison_path": str(cmp_mod.__file__),
             "comparison_sha256": tv.sha256_file(cmp_mod.__file__),
+            "comparison_sha256_normalized":
+                tv.sha256_file_identity(cmp_mod.__file__)["lf_normalized"],
             "runner_sha256": tv.sha256_file(
-                os.path.join(HERE, "run_lgbm_equal_info.py"))},
+                os.path.join(HERE, "run_lgbm_equal_info.py")),
+            "runner_sha256_normalized":
+                tv.sha256_file_identity(
+                    os.path.join(HERE, "run_lgbm_equal_info.py"))[
+                        "lf_normalized"]},
     }
     if extra_cfg:
         cfg.update(extra_cfg)
@@ -320,7 +348,7 @@ def test_verify_registered_identities_synthetic_ok_and_tamper(tmp_path):
     out = tv.verify_registered_identities(freeze_path,
                                           runner_path=runner)
     assert out["ok"] is True
-    assert "input.features_v3" in out["checked"]
+    assert "input.features_v3.sha256" in out["checked"]
 
     # tamper one registered input byte -> IdentityMismatch naming it
     f = files["features_v3"]
@@ -339,24 +367,40 @@ def test_verify_registered_identities_synthetic_ok_and_tamper(tmp_path):
 
 
 def test_amended_freeze_registration_integrity():
-    """The REAL amended freeze: hash integrity, historical preservation,
-    D-3 declaration, literal command, and full on-disk identity
-    verification against the registered files."""
+    """The REAL amended freeze (amendment-2): hash integrity, historical
+    preservation (both superseded registrations), the declared text-source
+    identity convention, D-3 declaration, literal command, and full on-disk
+    identity verification against the registered files."""
     import lgbm_equal_info_adapter as ad
     import track_and_verify as tv
 
     freeze_path = os.path.join(HERE, "freeze_lgbm_equal_info_v1.json")
     freeze = json.loads(open(freeze_path, encoding="utf-8").read())
     cfg = freeze["config"]
+    assert freeze["config_sha256"] == AMENDMENT2_CONFIG_SHA256
     assert tv.freeze_config_sha256(cfg) == freeze["config_sha256"]
 
-    # D-2: previous registration preserved as historical, hash-verified
+    # amendment-2: the declared text-source identity convention is registered
+    # verbatim (single owner: track_and_verify.TEXT_SOURCE_IDENTITY_CONVENTION)
+    assert cfg["text_source_identity_convention"] == \
+        tv.TEXT_SOURCE_IDENTITY_CONVENTION
+
+    # D-2: both prior registrations preserved as historical, hash-verified
     hist = freeze["historical_registrations"]
-    assert len(hist) == 1
+    assert len(hist) == 2
     assert hist[0]["config_sha256"] == ORIGINAL_CONFIG_SHA256
     assert tv.freeze_config_sha256(hist[0]["config"]) == \
         ORIGINAL_CONFIG_SHA256
     assert "SUPERSEDED" in hist[0]["annotation"]
+    assert hist[1]["config_sha256"] == AMENDMENT1_CONFIG_SHA256
+    assert tv.freeze_config_sha256(hist[1]["config"]) == \
+        AMENDMENT1_CONFIG_SHA256
+    assert "SUPERSEDED" in hist[1]["annotation"]
+
+    # amendment-2 execution note: the executed run predates this convention
+    note = cfg["amendment_2"]["execution_note"]
+    assert EXECUTED_RUN_ID in note
+    assert "PREDATES" in note
 
     # D-3: final-fit declaration present and explicit
     decl = cfg["final_fit_declaration"]
@@ -368,10 +412,12 @@ def test_amended_freeze_registration_integrity():
     assert "run_lgbm_equal_info.py" in cmd
     assert "--i-accept-real-data-execution" in cmd
 
-    # registered hashes are full 64-hex sha256s
+    # registered hashes are full 64-hex sha256s; binary inputs byte-exact
     for key in ("pa_table", "features_v3", "start_metrics_outcome_source"):
         sha = cfg["registered_inputs"][key]["sha256"]
         assert len(sha) == 64 and all(c in "0123456789abcdef" for c in sha)
+        assert cfg["registered_inputs"][key]["identity_class"].startswith(
+            "binary")
     assert cfg["registered_inputs"]["start_metrics_outcome_source"][
         "join_status"].startswith("REGISTERED-PATH-ONLY")
 
@@ -380,9 +426,152 @@ def test_amended_freeze_registration_integrity():
         freeze_path, adapter_module=ad,
         runner_path=os.path.join(HERE, "run_lgbm_equal_info.py"))
     assert out["ok"] is True
+    # text-source identities verified via their LF-normalized values
+    for key in ("adapter.file_sha256_normalized",
+                "wrapper.file_sha256_normalized",
+                "harness.comparison.comparison_sha256_normalized",
+                "runner.runner_sha256_normalized"):
+        assert key in out["checked"]
 
-    # destination remains absent (write-once, never executed)
-    assert not Path(cfg["output_destination"]).exists()
+    # destination: the amendment-1 real-data run executed 2026-10-15 under
+    # this output_destination (write-once run dir b8bc222c...; it PREDATES
+    # amendment-2 and is NOT re-registered here) - the write-once rule pins
+    # that the executed run dir exists untouched and canonical outputs are
+    # never overwritten
+    dest = Path(cfg["output_destination"])
+    assert dest.is_dir()
+    run_dir = dest / EXECUTED_RUN_ID
+    assert run_dir.is_dir()
+    assert (run_dir / "metrics.json").is_file()
+    assert (run_dir / "run_manifest.json").is_file()
+    manifest = json.loads((run_dir / "run_manifest.json").read_text(
+        encoding="utf-8"))
+    # the executed run carries the amendment-1 registration identity
+    assert manifest["freeze_config_sha256"] == AMENDMENT1_CONFIG_SHA256
+
+
+def test_text_source_identity_convention_eol_portability(tmp_path):
+    """Amendment-2 portability: the REAL registered freeze verifies against
+    both LF-materialized and CRLF-materialized copies of every registered
+    text-source file (fresh-checkout equivalence under either git EOL
+    setting), while a CONTENT tamper still fails loud and the registered
+    binary inputs stay byte-exact."""
+    import lgbm_equal_info_adapter as ad
+    import track_and_verify as tv
+
+    freeze_path = os.path.join(HERE, "freeze_lgbm_equal_info_v1.json")
+    freeze = json.loads(open(freeze_path, encoding="utf-8").read())
+    cfg = json.loads(json.dumps(freeze["config"]))  # deep copy
+    runner_path = os.path.join(HERE, "run_lgbm_equal_info.py")
+
+    text_files = {
+        "adapter": cfg["adapter"]["path"],
+        "wrapper": cfg["tracking_wrapper"]["path"],
+        "comparison": cfg["builder_worktree_harness"]["comparison_path"],
+        "runner": runner_path,
+    }
+    lf_dir = tmp_path / "eol_portability_lf"
+    crlf_dir = tmp_path / "eol_portability_crlf"
+    lf_dir.mkdir()
+    crlf_dir.mkdir()
+
+    def materialized_freeze(materialize: str, workdir: Path):
+        """Copy of the real freeze whose registered text identities are the
+        LF-content hashes (exactly how the real amendment-2 freeze
+        registers them), while each registered text-source file is
+        re-materialized on disk with the requested EOL (LF like the repo
+        blobs, or CRLF like an autocrlf fresh checkout)."""
+        cfg2 = json.loads(json.dumps(cfg))
+        for name, src in text_files.items():
+            norm = tv.normalize_text_bytes(Path(src).read_bytes())
+            data = norm if materialize == "lf" else norm.replace(
+                b"\n", b"\r\n")
+            dst = workdir / f"{name}.py"
+            dst.write_bytes(data)
+            # registered values: LF-content hashes (EOL-invariant identity)
+            byte_exact_lf = hashlib.sha256(norm).hexdigest()
+            lf_normalized = hashlib.sha256(norm).hexdigest()
+            assert tv.sha256_file_identity(dst)["lf_normalized"] == \
+                lf_normalized
+            if name == "adapter":
+                cfg2["adapter"]["path"] = str(dst)
+                cfg2["adapter"]["file_sha256"] = byte_exact_lf
+                cfg2["adapter"]["file_sha256_normalized"] = lf_normalized
+            elif name == "wrapper":
+                cfg2["tracking_wrapper"]["path"] = str(dst)
+                cfg2["tracking_wrapper"]["file_sha256"] = byte_exact_lf
+                cfg2["tracking_wrapper"]["file_sha256_normalized"] = \
+                    lf_normalized
+            elif name == "comparison":
+                cfg2["builder_worktree_harness"]["comparison_path"] = \
+                    str(dst)
+                cfg2["builder_worktree_harness"]["comparison_sha256"] = \
+                    byte_exact_lf
+                cfg2["builder_worktree_harness"][
+                    "comparison_sha256_normalized"] = lf_normalized
+            else:
+                cfg2["builder_worktree_harness"]["runner_sha256"] = \
+                    byte_exact_lf
+                cfg2["builder_worktree_harness"][
+                    "runner_sha256_normalized"] = lf_normalized
+        out_freeze = {
+            "batch": freeze["batch"], "batch_id": freeze["batch_id"],
+            "config_sha256": tv.freeze_config_sha256(cfg2),
+            "config_hash_definition": freeze["config_hash_definition"],
+            "config": cfg2,
+        }
+        p = workdir / "freeze_materialized.json"
+        p.write_text(json.dumps(out_freeze, indent=2), encoding="utf-8")
+        return p
+
+    # 1. CRLF-materialized fresh-checkout simulation PASSES (the registered
+    #    LF-normalized values are EOL-invariant; the CRLF copies really do
+    #    differ byte-exact from every registered value - exactly the
+    #    fresh-checkout situation amendment-1 could not survive)
+    crlf_freeze = materialized_freeze("crlf", crlf_dir)
+    out = tv.verify_registered_identities(crlf_freeze, adapter_module=ad,
+                                          runner_path=str(
+                                              crlf_dir / "runner.py"))
+    assert out["ok"] is True
+    crlf_observed = {k: v for k, v in out["checks"].items()
+                     if k.endswith("byte_exact_observed")}
+    assert len(crlf_observed) == len(text_files)
+    assert all(v["ok"] is False for v in crlf_observed.values())
+
+    # 2. LF-materialized copies also PASS (repo-blob equivalence), and their
+    #    byte-exact values match the registered LF-content hashes
+    lf_freeze = materialized_freeze("lf", lf_dir)
+    out = tv.verify_registered_identities(lf_freeze, adapter_module=ad,
+                                          runner_path=str(lf_dir / "runner.py"))
+    assert out["ok"] is True
+    lf_observed = {k: v for k, v in out["checks"].items()
+                   if k.endswith("byte_exact_observed")}
+    assert all(v["ok"] is True for v in lf_observed.values())
+
+    # 3. a CONTENT tamper of a registered text-source file still FAILS loud
+    tampered = materialized_freeze("lf", lf_dir)
+    cfg3 = json.loads(tampered.read_text(encoding="utf-8"))
+    comp = Path(cfg3["config"]["builder_worktree_harness"]
+                ["comparison_path"])
+    comp.write_bytes(comp.read_bytes() + b"\n# tampered\n")
+    with pytest.raises(tv.IdentityMismatch, match="comparison"):
+        tv.verify_registered_identities(tampered, adapter_module=ad,
+                                        runner_path=str(lf_dir / "runner.py"))
+
+    # 4. binary registered inputs remain byte-exact under the convention:
+    #    a binary-class file's identity is its raw bytes (byte_exact ==
+    #    lf_normalized) and any byte change changes it
+    bin_dir = lf_dir / "_binary"
+    bin_dir.mkdir(exist_ok=True)
+    bin_file = bin_dir / "pa_table.parquet"
+    bin_file.write_bytes(b"binary bytes")
+    before = tv.sha256_file_identity(bin_file)
+    bin_file.write_bytes(b"binary bytes!")
+    after = tv.sha256_file_identity(bin_file)
+    assert before["class"] == after["class"] == "binary"
+    assert before["byte_exact"] == before["lf_normalized"]
+    assert after["byte_exact"] == after["lf_normalized"]
+    assert before["byte_exact"] != after["byte_exact"]
 
 
 # ---------------------------------------------------------------------------

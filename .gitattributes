@@ -1,0 +1,6 @@
+# Scoped EOL pin for the count-eval-v2 harness (amendment-2, 2026-10-15):
+# fresh checkouts materialize these text sources LF so they match the
+# LF-registered identity bytes (see track_and_verify.py
+# TEXT_SOURCE_IDENTITY_CONVENTION). Registered binary inputs
+# (.parquet/.pkl/.joblib/.npy) are unaffected (byte-exact identities).
+research/offseason_2026/specs/count-eval-v2-spec/harness/*.py text eol=lf
