@@ -34,8 +34,10 @@ authorization after this packet + the exact-head CI pass.
 | Item | Value |
 | --- | --- |
 | Branch | research/market-eval-v2 |
-| Exact head SHA containing this packet | recorded in the session return after push |
-| CI run | recorded in the session return after push (gh run view) |
+| Exact head SHA containing this packet | `dda744961a99486e6dcfe8b087ca43f52de92316` (pushed fast-forward 1ca413d..dda7449) |
+| Packet commits | `a34b58c` (lgbm-equal-info-v2 closeout card) + `dda7449` (bf-lane-v1 B0/B1 packet + backlog) |
+| CI run | **38951856825 — SUCCESS** (workflow `ci`, head `dda7449...`, 2026-10-16) |
+| Bookkeeping commit (this record) | on top of `dda7449`; docs-only |
 
 ## Registered next step (NOT executed)
 
