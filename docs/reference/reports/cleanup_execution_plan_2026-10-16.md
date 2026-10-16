@@ -63,3 +63,30 @@ also touches `src/Python`-adjacent research code → its own approved PR).
 
 Report-only slice on `maintenance/quality-baseline-20261016` (no PR). Re-rank
 trigger: any verdict, merge, or owner ruling changes the dependency column.
+
+## Addendum — 2026-10-16 deep-audit discoveries (re-ranked inputs)
+
+From the seven audit reports committed this pass
+(`python_dead_code`, `test_quality`, `notebook_artifact_census`,
+`dependency_reproducibility`, `entrypoint_ops`, `docs_consolidation_design`,
+`security_config`):
+
+- **NEW T13 (high value):** declare the **8 undeclared imports** (`requests`,
+  `xgboost`, `optuna`, `catboost`, `modal`, `pymupdf`, `markdown`, `sage`) —
+  fresh installs cannot import tracked code today. One-commit slice, low risk.
+  Ranks alongside T3.
+- **NEW T14 (medium):** research/harness suites under `research/offseason_2026/`
+  are **outside default pytest collection** (`testpaths = ["tests"]`) — CI green
+  does not exercise them. Proposal: explicit research-lane pytest invocation in
+  CI (no path filtering of the main suite). Owner approval; schedule after T3.
+- **RANK UP — T5:** superseded-pointer pass now also carries the operator-chain
+  smoke-existence test proposal (would have caught Issue #5).
+- **NEW T15 (owner validation):** 5 documented-canonical `src/Python` modules
+  (`ballpark`, `batter_features`, `batter_rolling`, `identity`, `reliability`)
+  are statically dead (zero importers/tests/callers) — owner must confirm
+  whether invocation exists outside the tracked tree before any disposition.
+  Also 1 true zero-reference orphan file awaiting the same ruling.
+- **CORRECTED:** `bullpen.py` is proven active (prior census wrong); census
+  conclusions superseded by `python_dead_code_audit_2026-10-16.md`.
+- Security posture: no committed credentials; remaining items are the already-
+  ticketed T3/T10 plus 3 informational `Invoke-Expression` sites.
