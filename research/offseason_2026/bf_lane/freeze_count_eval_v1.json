@@ -1,0 +1,106 @@
+{
+  "freeze_id": "count-eval-v1",
+  "freeze_utc": "2026-10-16",
+  "status": "FROZEN - NOT EXECUTED (no comparison run, no fit, no scoring, no real-data run in this commit)",
+  "registration_id": "bf-2026-eval-v1-count_b1",
+  "purpose": "Paired count-layer comparison B1 vs B0: identical cohort/folds/eligibility/p_bar/aggregation/PA probabilities/calibration/count-integration settings; the ONLY varying input is the supplied BF PMF (B1 Ridge-recentered extended PMF vs B0 empirical extended PMF).",
+  "provenance": {
+    "b1_closeout_commit": "6ee8544 (research/market-eval-v2; B1_CLOSEOUT.md, D1 correction b1-d1-ci95-rmse-scale-v1, L2 manifest, L3 runner lineage)",
+    "b1_run_manifest": {
+      "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-lane-v1\\b1_run_v1\\run_manifest.json",
+      "sha256": "37910a98b69177704a8147c2c5e04880a893927c368d598329a674298943b16a",
+      "immutable": true
+    },
+    "b1_metrics_json": {
+      "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-lane-v1\\b1_run_v1\\metrics.json",
+      "sha256": "0453da67f0c37fdddc37cc66492769014b419c0a0d11bbb46ee1d79da74002f8"
+    },
+    "b1_registration": {
+      "registration_id": "bf-lane-v1-b1-ridge-workload-challenger",
+      "sha256": "e10ee2c4a9a56ece249ba3f2203762a34a6a524c9dff3b432d4afca43756425d",
+      "verdict": "ACCEPT WITH LIMITATION (Chat 2 reconciliation 2026-10-16; D1/L2/L3 closed, none touch a registered number)"
+    }
+  },
+  "frozen_baselines": {
+    "bf_pmf_b0": {
+      "lineage": "bf-workload-v1 BASE empirical BF PMF build (bf_forecasts.parquet -> kcount_combiner.bf_pmf_from_37 cap-60 extension) -> combine_count -> RPS stack",
+      "audit": "b0_audit.json sha256 a420dda40317b517dcf7d4cfcafee5d9e8877f52299d1e716db5d70071218a69, verdict PASS (pregame-valid 7,194/7,194)",
+      "builder_sha256": "8893918b3d001f2e3d481eae40e000b32a3968545e37b84f4ba82ba9f7708ef6",
+      "bf_forecasts_sha256": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
+      "kcount_combiner_sha256": "94f57a49c0996df5147fb961a085fd229d0ba0e3903c6da0ced9f2d3b670f18f"
+    },
+    "projected_pa_probs_p_bar": {
+      "identity": "accepted projected-state PA probabilities = frozen per-start scalar shrunk pitcher K rate, w=150 log5 form (kcount-integration I3b prior construction; pa-k prior_rates W=150; pool = completed PAs strictly before game_date under the pa-k label convention), H3/log5 lane lineage",
+      "sha256": "b91486525988da836303d55dab2718164e214bb6679a41225fcc4d79147bf4c4",
+      "identical_both_arms": true,
+      "explicitly_not_reused": "the realized-sequence diagnostic's realized-PA p_bar (NOT pregame-valid)"
+    }
+  },
+  "only_varying_input": {
+    "description": "the supplied BF PMF per start",
+    "arm_b0": "B0 empirical: kcount_combiner.bf_pmf_from_37(stored BASE pmf37) extended, unchanged",
+    "arm_b1": "B1 recentered: the persisted b1_ext_* extended PMF from b1_per_row_forecasts.parquet (B0 BASE PMF recentered on the Ridge predicted mean by the registered deterministic integer shift; career-debut rows pass through unchanged)",
+    "source_artifact": "b1_per_row_forecasts.parquet sha256 a5f0ad81318c25e34d8837ee56d8728db63df4cd56049d8497d126d6880fcb69"
+  },
+  "held_identical": [
+    "cohort and window (7,194 first-pitcher-of-record starts, 2024-07-01..2025-12-31, 272 slate dates)",
+    "folds verbatim from b1_registration.json (block_2024H2 + block_2025H1 dev-scored; block_2024H1 declared empty; confirm_2025H2 EXCLUDED-NOT-SCORED; 2026 CLOSED)",
+    "row eligibility + availability-state handling (own_distribution / insufficient_history_league_pool / career_debut_league_pool; short prior outings preserved)",
+    "p_bar projected PA probabilities (sha b9148652...; identical both arms)",
+    "count integration (kcount_combiner.combine_count, k_max 24, milestones 6/8/10/12, summed count-RPS convention)",
+    "calibration + aggregation (block-stratified row-weighted pooled dev estimand; resampling unit = slate date)",
+    "observed outcomes (realized BF / realized strikeouts per start_metrics_v2)"
+  ],
+  "endpoint": {
+    "primary": "paired count-RPS, B1 - B0 (C_b1_ridge_vs_b0_empirical)",
+    "bootstrap": {"n_boot": 2000, "seed": 20261001, "unit": "game_date (slate date)", "method": "block-stratified by fold, one shared draw stream"},
+    "test": "null-centered approximate bootstrap, two-sided, percentile CIs UNADJUSTED",
+    "holm_family": {
+      "size": 1,
+      "contrasts": ["C_b1_ridge_vs_b0_empirical on count-RPS"],
+      "note": "family of 1 per b1_registration.json; the recency-batch-v1 4-contrast RAW-Brier family is a different lane and is NOT reused"
+    }
+  },
+  "row_accounting": {
+    "registered_full_window": {"n_starts": 7194, "n_slate_dates": 272, "own_distribution": 6059, "insufficient_history": 966, "career_debut": 169, "failed_joins": 0},
+    "dev_scored_expectation": {"n_rows": 4866, "n_slate_dates": 186, "block_2024H2": 2334, "block_2025H1": 2532, "career_debut_pass_through": 120, "insufficient_history": 698, "own_distribution": 4048},
+    "excluded": {"confirm_2025H2": 2328, "role": "EXCLUDED-NOT-SCORED", "block_2024H1": 0, "2026": "CLOSED"},
+    "career_debut_behavior": "B1 forecast = B0 PMF unchanged (bitwise pass-through; shift s=0; excluded from Ridge fit and scored rows), exactly as registered",
+    "flagged_recenter_records": {
+      "count": 217,
+      "share": "217/4,866 = 4.5%",
+      "treatment": "consumed AS-IS from the persisted B1 run: recenter_mass_loss_flag rows (dropped mass > 0.01 guard; max 0.42, median 0.0347) are renormalized valid PMFs, carried into every aggregate, reported, never silently accepted, never excluded"
+    },
+    "assertion": "per-fold + pooled row counts asserted at run time against this table; any mismatch fails loud"
+  },
+  "output": {
+    "location": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\count_b1\\",
+    "write_once": true,
+    "confirmed_absent_utc": "2026-10-16 (parent bf-2026-eval-v1-outputs and count_b1 both verified absent)",
+    "immutable_manifest_requirement": {
+      "required": "run_manifest.json inside the run dir, derived ONLY from that run's final artifacts (config/registration/input/artifact hashes, timestamps from persisted records, verdict), with the full sha256 inventory",
+      "self_hash": "the manifest's own sha256 is recorded OUTSIDE the manifest (closeout/registration doc); never edited in place; write-once"
+    }
+  },
+  "persistence_inventory": [
+    "per-row forecast frame both arms (row IDs game_pk/side/pitcher, fold, availability state, supplied BF PMF identity, per-row count-RPS/logscore/milestone Briers, means)",
+    "per-row count PMFs both arms (k_max 24) + per-row p_bar values (hash-recorded at run time)",
+    "per-date paired sums CSV (n, b0_rps, b1_rps per slate date)",
+    "bootstrap replicate matrix (2000 x metric arrays, shared stream) as npy",
+    "aggregates: per-fold + pooled dev (n, count_rps, count_logscore, bias/MAE/RMSE, 4 milestone Briers, coverage/width P10-P90 + P25-P75) both arms + paired deltas",
+    "calibration deciles both arms",
+    "contrast record: delta, null-centered p, Holm p, method text, n_boot, seed",
+    "row-count assertion table vs this registration",
+    "metrics.json with full artifact_inventory_sha256 written inside the single compare pass",
+    "MLflow logging through the shared track_and_verify chain (compare once -> save -> log -> verify fresh-process) with tracking_status.json",
+    "run_manifest.json per the immutable-manifest requirement"
+  ],
+  "fail_closed_rules": [
+    "destination must not exist (write-once); if it exists, refuse without writing",
+    "identity gate BEFORE any fitting/scoring: b1_registration sha, b1_run manifest + metrics.json hashes, bf_forecasts/start_metrics_v2/pa_table/builder/combiner input hashes, B0 audit PASS verdict re-derived from disk; any mismatch = exit nonzero, nothing written",
+    "compare executed EXACTLY ONCE; tracking failure preserves partials, never triggers a refit or rescore, never retries silently (log-phase-only recovery permitted, recorded)",
+    "no rerun on ANY failure: a failed or nonconforming run is never re-executed into the same destination; any deviation from this freeze requires a NEW registration, never an amendment",
+    "execution requires explicit owner authorization after exact-head CI + review; this commit does NOT execute the comparison",
+    "no promotion, no production change; dev-only evidence (confirm_2025H2 and 2026 stay closed)"
+  ]
+}
