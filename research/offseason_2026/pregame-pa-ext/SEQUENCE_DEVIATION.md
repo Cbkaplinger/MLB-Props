@@ -198,3 +198,55 @@ altered.
   likewise UNRESOLVED and remains recorded in
   chat2-review-overnight-20261013/market_eval/CANONICAL_FINDINGS_2026-10-14.md
   (sha256 790953b5946e8c2ae4954372f77b886066ae535ea11fab64462b624ac3bf90c7).
+
+## Addendum 2026-10-16 (fourth): lgbm-equal-info-v1 market LightGBM run executed without independent READY -- DEVELOPMENT DIAGNOSTIC, NONCONFORMING EXECUTION, REVIEW PENDING
+
+Recorded per owner closeout instruction. Nothing above this addendum is
+altered; the first-run-v1 / market-eval logistic findings and the log5
+(P0_log5) findings keep their OWN identities, statuses, and chronologies
+exactly as recorded above -- this addendum concerns ONLY the LightGBM
+equal-info batch (lgbm-equal-info-v1).
+
+- WHAT HAPPENED: the market LightGBM run (run_id
+  b8bc222c703a4a60e1eb0736143800e34601f61db0ced84cc067597b7796fd05, lake
+  output dir C:\Users\ckaplinger\MLB-Props-Research\lgbm-equal-info-v1\b8bc222c...
+  , MLflow run 170f7f46080947c6adc25b198159eb1f, executed 2026-10-15T21:22:55Z
+  under the amendment-1 freeze registration b33e2a845c929f5f6dafba9c0adfcab49b4ee26655ed42e4f09428d9a2a100cf,
+  tracking VERIFIED) was executed while the batch's readiness state was
+  BUILDER SELF-READY only: the builder declared READY itself and executed;
+  Chat 2's independent review then BLOCKED afterward (no independent READY
+  existed at execution time). This repeats the first-run-v1 sequence failure
+  pattern recorded above. It is a NONCONFORMING EXECUTION, not a precedent.
+- RESULT STATUS: DEVELOPMENT DIAGNOSTIC - NONCONFORMING EXECUTION, REVIEW
+  PENDING. The run is preserved (see RUN_INVENTORY.md + RUN_ASSESSMENT.md in
+  lgbm-equal-info-v1) and is NOT a canonical, confirmatory, or adoption
+  result; independent review is owed.
+- CORRECTED SCIENTIFIC CLAIMS (supersede any stronger wording made at
+  execution time):
+  - SUPPORTED (on this executed run, as a development diagnostic): the
+    LightGBM equal-info configuration scored WORSE than the both-EW logistic
+    reference on RAW Brier (pooled delta +0.003498, unadjusted 95% CI
+    [0.003296, 0.003693], null-centered p ~= 0.0005, n = 277,623 dev rows;
+    worse in all three dev folds; also worse on log loss).
+  - NOT ESTABLISHED: "the linear signal is fully captured", "boosting adds
+    nothing", and "flexibility doesn't help". best_iteration = 1 in ALL
+    THREE folds means the executed LightGBM was effectively a ~1-tree stub;
+    the comparison measured the logistic against that stub, not against a
+    converged boosted model. best_iteration = 1 WARRANTS INVESTIGATION
+    (plausible mechanisms and the recorded eval-history gap are documented
+    in RUN_ASSESSMENT.md; a scoped diagnostic re-run under a NEW
+    registration is the way to settle it -- no retroactive edit of the
+    frozen run).
+  - DISCLOSED TRAINING-ROW ASYMMETRY (confirmed): per fold, the LightGBM fit
+    consumed base_train MINUS the inner early-stopping carve-out (~20% fewer
+    fit rows than the logistic reference: 98,466 vs 123,081; 176,080 vs
+    219,078; 245,633 vs 306,791). The carve-out mechanism is registered, but
+    the fit-row asymmetry was not previously disclosed and must accompany
+    any use of this result.
+  - RECOVERABILITY: the registered contrast/interval/p-value are preserved
+    in metrics.json; no predictions or boosters were saved, so any NEW
+    inferential product requires refitting both candidates (see
+    RUN_ASSESSMENT.md section 3).
+- PRESERVED IDENTITIES: the market-eval / first-run-v1 logistic results
+  (P1 family), the log5 (P0_log5) identity findings, and every chronology
+  and status recorded in the addenda above are UNCHANGED by this addendum.
