@@ -90,3 +90,29 @@ From the seven audit reports committed this pass
   conclusions superseded by `python_dead_code_audit_2026-10-16.md`.
 - Security posture: no committed credentials; remaining items are the already-
   ticketed T3/T10 plus 3 informational `Invoke-Expression` sites.
+
+## Addendum 2 — 2026-10-16 (second audit wave; tickets T13-T18)
+
+From `dynamic_import_resolution`, `ci_coverage_map`, `entrypoint_inventory`,
+`notebook_deep_review`, `artifact_lifecycle_map`, `dependency_closure`,
+`config_provenance`:
+
+- **T13 CONFIRMED (upgraded):** 8 undeclared imports; full taxonomy + homes in
+  `dependency_closure_2026-10-16.md`. Declarations first (D1), lockfile second.
+- **T14 NARROWED:** exactly 5 test files excluded from default CI on main
+  (`ci_coverage_map_2026-10-16.md`); grows materially when PR #3 lands. Minimal
+  non-weakening remedy proposed (research-lane step + required status).
+- **NEW T15 FINAL:** the 5 canonical modules are now PROVEN dead in the tracked
+  tree (dynamic-loading refuted; `ballpark`/`batter_features` have zero
+  references of any kind). Blocking question is now purely owner knowledge:
+  out-of-tree invocation yes/no. Same ruling covers the 1 zero-ref orphan and
+  test-only `skill_stats.py`.
+- **NEW T16:** INDEX-completeness pass — 62 undocumented entry points + 4
+  undocumented env vars + env-var reference table (ops + config audits).
+- **NEW T17:** `src/Notebooks/` archive-with-manifest (10 files, 2026-07-23
+  vintage, output-less, lineage-only) — supersedes the vaguer T11; two docs
+  (`dev-notes.md`, `CLEANUP_LOG.md`) need pointer updates in the same slice.
+- **NEW T18:** registry-vs-reality schedule reconciliation (22 scheduled
+  entry points vs pipeline registry's 10 schedules; registry is design-only).
+- **T11 superseded by T17.** All other ranks unchanged; T3 still first at the
+  next free CI-family slot after the count run finalizes.
