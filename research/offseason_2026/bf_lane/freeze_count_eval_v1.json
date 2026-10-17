@@ -110,8 +110,8 @@
     "statement": "No scientific fields changed; this amendment only pins execution plumbing.",
     "runner": {
       "path": "research/offseason_2026/bf_lane/run_count_b1_v1.py",
-      "sha256": "fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3",
-      "note": "committed byte-identical at this hash in the amendment commit; the runner re-derives this hash from its own bytes and refuses on mismatch; sha256 updated in the 2026-10-16 execution-repair commit (the three aux parquet writes were repaired to pass an explicit destination path to DataFrame.write_parquet after the first attempt failed on the missing 'file' argument; no scientific field changed; the failed partial remains preserved as failure evidence)"
+      "sha256": "209eef4b2652f9d5a32d189444e0db48895fc19daf536b9906f54cabebb026d3",
+      "note": "committed byte-identical at this hash in the amendment commit; the runner re-derives this hash from its own bytes and refuses on mismatch; sha256 updated in the 2026-10-16 execution-repair commit (the three aux parquet writes were repaired to pass an explicit destination path to DataFrame.write_parquet after the first attempt failed on the missing 'file' argument) and again in the 2026-10-17 recovery-name normalization fix (resolve_recovery_destination compares separator-normalized path components instead of platform-flavored Path.name/Path.parent, so the registered pair count_b1 / count_b1_recovery_v1 is accepted on any CI platform; the exact-registered-pair acceptance is regression-tested); no scientific field changed; the failed partial remains preserved as failure evidence"
     },
     "immutable_config": {
       "path": "research/offseason_2026/bf_lane/freeze_count_eval_v1.json",

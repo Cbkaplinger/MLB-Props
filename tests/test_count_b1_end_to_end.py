@@ -294,6 +294,45 @@ def test_resolve_recovery_destination_synthetic(runner, tmp_path):
     assert dest == tmp_path / "outputs" / "count_b1_recovery_v1"
 
 
+def test_resolve_recovery_destination_accepts_registered_pair(runner):
+    """Regression (2026-10-17 CI failure): the EXACT registered pair --
+    failed evidence destination count_b1, recovery destination
+    count_b1_recovery_v1 -- must be accepted on ANY platform. The freeze
+    carries Windows-style trailing-backslash paths; raw-string or
+    platform-flavored Path.name comparisons rejected them on POSIX."""
+    freeze = json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
+    rec = freeze["recovery_run_v1"]
+    orig_comps = runner.path_components(rec["original_destination"])
+    dest_comps = runner.path_components(rec["destination"])
+    assert orig_comps[-1] == "count_b1"
+    assert dest_comps[-1] == "count_b1_recovery_v1"
+    assert orig_comps[-2] == dest_comps[-2] == "bf-2026-eval-v1-outputs"
+    dest = runner.resolve_recovery_destination(freeze)  # must not raise
+    assert runner.path_components(str(dest))[-1] == "count_b1_recovery_v1"
+
+
+@pytest.mark.parametrize("dest", [
+    "C:\\root\\count_b1_recovery_v1\\",
+    "C:\\root\\count_b1_recovery_v1",
+    "C:/root/count_b1_recovery_v1/",
+    "C:/root/count_b1_recovery_v1",
+])
+def test_resolve_recovery_destination_normalizes_separators(runner, dest):
+    """Trailing and platform separators must not affect acceptance."""
+    freeze = {
+        "output": {"location": "C:\\root\\count_b1\\"},
+        "recovery_run_v1": {
+            "original_destination": "C:\\root\\count_b1\\",
+            "original_status": "FAILED",
+            "preserves_original_failure_directory": True,
+            "recovery_run_id": REGISTRATION_ID + "_recovery_v1",
+            "destination": dest,
+        },
+    }
+    out = runner.resolve_recovery_destination(freeze)  # must not raise
+    assert runner.path_components(str(out))[-1] == "count_b1_recovery_v1"
+
+
 def test_resolve_recovery_no_addendum_returns_registered_destination(runner):
     assert runner.resolve_recovery_destination(
         {"output": {"location": FROZEN_OUTPUT_LOCATION}}) == runner.OUT_DIR

@@ -158,11 +158,13 @@ no-rerun conditions) is byte-unchanged. The machine-readable twin
 committed and reviewed BEFORE any execution.
 
 - **Runner:** `research/offseason_2026/bf_lane/run_count_b1_v1.py`,
-  sha256 `fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3`
+  sha256 `209eef4b2652f9d5a32d189444e0db48895fc19daf536b9906f54cabebb026d3`
   (originally committed as
   `7a3956d294d69443023fe513bf66481b198b8b1a7e5117f20b0de2a1cd8db07a`; the
   sha256 was updated in the 2026-10-16 execution-repair commit after the
-  missing-parquet-destination repair — see the recovery addendum below;
+  missing-parquet-destination repair, and again in the 2026-10-17
+  recovery-name normalization fix after the POSIX CI failure — see the
+  recovery addendum below;
   the runner re-derives its own bytes against the pinned hash and refuses
   on mismatch). It reuses the
   frozen count scoring machinery verbatim: `kcount_combiner` (registered
@@ -243,7 +245,10 @@ purely execution plumbing, additive to everything above.
   preserved-evidence flag, recovery destination + convention, unchanged
   no-rerun rule). The `execution_amendment_v1.runner.sha256` pin was updated
   to the repaired runner bytes
-  (`fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3`) —
+  (`fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3`, and
+  again to
+  `209eef4b2652f9d5a32d189444e0db48895fc19daf536b9906f54cabebb026d3` in the
+  2026-10-17 recovery-name normalization fix) —
   execution plumbing only; every scientific field is unchanged.
 - **Runner repair:** the three aux parquet call sites
   (`count_b1_per_row_scores.parquet`, `count_b1_per_row_pmf_b0.parquet`,
@@ -255,6 +260,16 @@ purely execution plumbing, additive to everything above.
   destination`), prefights the recovery destination for absence, and asserts
   the preserved original destination + error log still exist before any
   execution.
+- **Recovery-name normalization fix (2026-10-17, CI only):** the exact-head
+  CI run on ubuntu rejected the registered pair because `Path(...).name`
+  keeps a trailing `\` on POSIX (backslash is not a separator there), so the
+  name guard compared raw platform-flavored strings.
+  `resolve_recovery_destination` now compares separator-normalized path
+  components (`path_components`, split on `/` and `\`, trailing separators
+  dropped) for both the name check and the sibling check. The registered
+  pair — failed evidence destination `count_b1`, recovery destination
+  `count_b1_recovery_v1` — is accepted on any platform; no scientific
+  field, destination, or rule changed, and no execution was performed.
 - **No-rerun rule UNCHANGED:** write-once applies to the recovery
   destination too; a failed recovery is never re-executed into the same
   destination; any further deviation requires a NEW registration, never an

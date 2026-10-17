@@ -84,6 +84,7 @@ import hashlib
 import json
 import math
 import platform
+import re
 import sys
 import traceback
 from pathlib import Path
@@ -315,6 +316,16 @@ def preflight_destination_absent(dest: Path) -> None:
 # recovery addendum (additive freeze key recovery_run_v1)
 # ---------------------------------------------------------------------------
 
+def path_components(raw: str) -> list:
+    """Platform-independent path components: split on / and \\ and drop
+    empty components (trailing or duplicated separators). Recovery-name
+    comparisons MUST use these, never raw strings or platform-flavored
+    Path.name/Path.parent: on POSIX a Windows-style destination with a
+    trailing '\\' is one literal filename, so raw comparisons reject the
+    exact registered pair depending on the CI platform."""
+    return [c for c in re.split(r"[\\/]+", raw) if c]
+
+
 def resolve_recovery_destination(freeze: dict) -> Path:
     """Resolve the effective write-once run dir from the freeze.
 
@@ -323,7 +334,12 @@ def resolve_recovery_destination(freeze: dict) -> Path:
     check_freeze_config before any execution). Returns the registered
     OUT_DIR when no recovery addendum is present; otherwise validates the
     additive "recovery_run_v1" key and returns the registered recovery
-    destination, so the preserved FAILED original is never written into."""
+    destination, so the preserved FAILED original is never written into.
+
+    All name/sibling comparisons run on path_components() (separator- and
+    trailing-separator-normalized), so the registered pair -- failed
+    evidence destination count_b1, recovery destination
+    count_b1_recovery_v1 -- is accepted on any platform."""
     rec = freeze.get(RECOVERY_KEY)
     if not isinstance(rec, dict):
         return OUT_DIR
@@ -342,19 +358,24 @@ def resolve_recovery_destination(freeze: dict) -> Path:
         fail("recovery addendum: recovery_run_id %r != registered "
              "convention %r" % (rec.get("recovery_run_id"),
                                 REGISTRATION_ID + RECOVERY_SUFFIX))
-    dest = Path(str(rec.get("destination", "")))
-    orig_dir = Path(registered_out.rstrip("\\/"))
-    if dest.name != orig_dir.name + RECOVERY_SUFFIX:
+    dest_raw = str(rec.get("destination", ""))
+    dest_comps = path_components(dest_raw)
+    orig_comps = path_components(registered_out)
+    if not dest_comps or not orig_comps:
         fail("recovery addendum: destination name %r violates the "
              "recovery convention <registered dir name>%s"
-             % (dest.name, RECOVERY_SUFFIX))
-    if dest.parent != orig_dir.parent:
+             % (rec.get("destination"), RECOVERY_SUFFIX))
+    if dest_comps[-1] != orig_comps[-1] + RECOVERY_SUFFIX:
+        fail("recovery addendum: destination name %r violates the "
+             "recovery convention <registered dir name>%s"
+             % (dest_comps[-1], RECOVERY_SUFFIX))
+    if dest_comps[:-1] != orig_comps[:-1]:
         fail("recovery addendum: destination %s must be a sibling of the "
-             "registered destination under the same output root" % dest)
-    if dest == orig_dir:
+             "registered destination under the same output root" % dest_raw)
+    if dest_comps == orig_comps:
         fail("recovery addendum: recovery destination must differ from the "
              "preserved original destination")
-    return dest
+    return Path(dest_raw)
 
 
 def assert_original_failure_preserved(freeze: dict) -> None:
