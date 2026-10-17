@@ -1,0 +1,164 @@
+{
+  "baseline": "P0_log5",
+  "bootstrap": {
+    "method": "slate-date block-stratified row-weighted ratio",
+    "n_resamples": 2000,
+    "seed": 20261001
+  },
+  "per_fold": {
+    "block_2024H1": {
+      "P1_B_logreg": {
+        "n": 94458,
+        "n_dates": 95,
+        "log_loss": 0.519800688341307,
+        "brier": 0.1694662807951863
+      },
+      "P1_H3_pitcher_ew_only": {
+        "n": 94458,
+        "n_dates": 95,
+        "log_loss": 0.5194972336714538,
+        "brier": 0.16936765946860957
+      },
+      "P1_H3_batter_ew_only": {
+        "n": 94458,
+        "n_dates": 95,
+        "log_loss": 0.5195403164714447,
+        "brier": 0.1693684212763682
+      },
+      "P1_H3_incumbent_refit": {
+        "n": 94458,
+        "n_dates": 95,
+        "log_loss": 0.519243506285357,
+        "brier": 0.16927140501555982
+      }
+    },
+    "block_2024H2": {
+      "P1_B_logreg": {
+        "n": 87808,
+        "n_dates": 88,
+        "log_loss": 0.527642245317287,
+        "brier": 0.17302920569034463
+      },
+      "P1_H3_pitcher_ew_only": {
+        "n": 87808,
+        "n_dates": 88,
+        "log_loss": 0.5273581424298303,
+        "brier": 0.17293347463137015
+      },
+      "P1_H3_batter_ew_only": {
+        "n": 87808,
+        "n_dates": 88,
+        "log_loss": 0.527308571567258,
+        "brier": 0.17290877613279193
+      },
+      "P1_H3_incumbent_refit": {
+        "n": 87808,
+        "n_dates": 88,
+        "log_loss": 0.5270287169807522,
+        "brier": 0.17281328416034636
+      }
+    },
+    "block_2025H1": {
+      "P1_B_logreg": {
+        "n": 95357,
+        "n_dates": 98,
+        "log_loss": 0.5153450434404802,
+        "brier": 0.16766904205129493
+      },
+      "P1_H3_pitcher_ew_only": {
+        "n": 95357,
+        "n_dates": 98,
+        "log_loss": 0.5150430739564027,
+        "brier": 0.16756477466086128
+      },
+      "P1_H3_batter_ew_only": {
+        "n": 95357,
+        "n_dates": 98,
+        "log_loss": 0.5148361685026216,
+        "brier": 0.16748938198991298
+      },
+      "P1_H3_incumbent_refit": {
+        "n": 95357,
+        "n_dates": 98,
+        "log_loss": 0.5145348748742404,
+        "brier": 0.16738567452204145
+      }
+    }
+  },
+  "pooled_dev": {
+    "blocks_pooled": [
+      "block_2024H1",
+      "block_2024H2",
+      "block_2025H1"
+    ],
+    "note": "dev blocks only; confirm_2025H2 never pooled (run_ladder.py:314-334)",
+    "candidates": {
+      "P1_B_logreg": {
+        "n": 277623,
+        "n_dates": 281,
+        "log_loss": 0.5207504457610405,
+        "brier": 0.16997587119040866
+      },
+      "P1_H3_pitcher_ew_only": {
+        "n": 277623,
+        "n_dates": 281,
+        "log_loss": 0.5204536218968796,
+        "brier": 0.1698762247214857
+      },
+      "P1_H3_batter_ew_only": {
+        "n": 277623,
+        "n_dates": 281,
+        "log_loss": 0.5203815346183205,
+        "brier": 0.16984277653509802
+      },
+      "P1_H3_incumbent_refit": {
+        "n": 277623,
+        "n_dates": 281,
+        "log_loss": 0.5200885472771747,
+        "brier": 0.16974394411093371
+      }
+    },
+    "hypothesis_test_brier_raw": {
+      "contrasts": {
+        "C1_pitcher_ew_vs_B": {
+          "a": "P1_H3_pitcher_ew_only",
+          "b": "P1_B_logreg",
+          "delta": -9.96464689229648e-05,
+          "p_value": 0.0004997501249375312,
+          "p_holm": 0.001999000499750125
+        },
+        "C2_batter_ew_vs_B": {
+          "a": "P1_H3_batter_ew_only",
+          "b": "P1_B_logreg",
+          "delta": -0.00013309465531063935,
+          "p_value": 0.0004997501249375312,
+          "p_holm": 0.001999000499750125
+        },
+        "C3_both_vs_pitcher_only": {
+          "a": "P1_H3_incumbent_refit",
+          "b": "P1_H3_pitcher_ew_only",
+          "delta": -0.00013228061055198248,
+          "p_value": 0.0004997501249375312,
+          "p_holm": 0.001999000499750125
+        },
+        "C4_both_vs_batter_only": {
+          "a": "P1_H3_incumbent_refit",
+          "b": "P1_H3_batter_ew_only",
+          "delta": -9.883242416430793e-05,
+          "p_value": 0.0004997501249375312,
+          "p_holm": 0.001999000499750125
+        }
+      },
+      "method": "null-centered approximate bootstrap test: centered errors (delta*_jb - delta_j), two-sided p = (1 + #{|delta*_jb - delta_j| >= |delta_j|}) / (B + 1); approximate centered-bootstrap test, NOT an exact randomization test, no finite-sample-validity guarantee",
+      "multiplicity": "Holm step-down across the 4 predeclared contrasts at family level 0.05; ordinary percentile CIs are UNADJUSTED; log loss and CAL are descriptive only",
+      "estimand": "fold aggregation = block-stratified row-weighted pooled dev estimand; resampling unit = slate date (game_date); one shared draw stream across candidates and contrasts",
+      "n_resamples": 2000,
+      "seed": 20261001,
+      "lane": "RAW (principal lane); log loss + CAL descriptive only",
+      "metric": "Brier",
+      "population": "pooled dev (block_2024H1, block_2024H2, block_2025H1)",
+      "contrasts_skipped_endpoints_absent": []
+    }
+  },
+  "confirm_separate_note": "confirm_2025H2 EXCLUDED from this run (include_confirm=False); dev pooling unaffected (dev blocks only)"
+}
