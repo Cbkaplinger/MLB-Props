@@ -158,9 +158,13 @@ no-rerun conditions) is byte-unchanged. The machine-readable twin
 committed and reviewed BEFORE any execution.
 
 - **Runner:** `research/offseason_2026/bf_lane/run_count_b1_v1.py`,
-  sha256 `7a3956d294d69443023fe513bf66481b198b8b1a7e5117f20b0de2a1cd8db07a`
-  (committed byte-identical at this hash; the runner re-derives its own
-  bytes against the pinned hash and refuses on mismatch). It reuses the
+  sha256 `fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3`
+  (originally committed as
+  `7a3956d294d69443023fe513bf66481b198b8b1a7e5117f20b0de2a1cd8db07a`; the
+  sha256 was updated in the 2026-10-16 execution-repair commit after the
+  missing-parquet-destination repair — see the recovery addendum below;
+  the runner re-derives its own bytes against the pinned hash and refuses
+  on mismatch). It reuses the
   frozen count scoring machinery verbatim: `kcount_combiner` (registered
   sha `94f57a49...`) for `bf_pmf_from_37` / `combine_count` / summed
   count-RPS, and the harness `comparison.py` `slate_date_draws` +
@@ -211,3 +215,52 @@ committed and reviewed BEFORE any execution.
 
 This amendment commit does NOT execute the comparison; execution still
 requires explicit owner authorization after exact-head CI + review.
+
+## Execution-recovery addendum v1 (ADDITIVE — recovery destination only, 2026-10-16)
+
+**No scientific field changed.** The first execution attempt on 2026-10-16
+FAILED at the first aux parquet write with `TypeError:
+DataFrame.write_parquet() missing 1 required positional argument: 'file'`
+(polars requires the destination argument; the three aux parquet call sites
+called `write_parquet()` bare). **No analytical results were produced** —
+no contrast, aggregate, bootstrap, calibration, or manifest artifact existed
+before the failure. This addendum records the recovery convention; it is
+purely execution plumbing, additive to everything above.
+
+- **Preserved failure evidence (IMMUTABLE):**
+  `C:\Users\ckaplinger\MLB-Props-Research\bf-2026-eval-v1-outputs\count_b1\`
+  containing `count_b1_error_log.json` (status FAILED, full traceback).
+  Never deleted, overwritten, relabeled, or written into again.
+- **Recovery destination (registered, write-once):**
+  `C:\Users\ckaplinger\MLB-Props-Research\bf-2026-eval-v1-outputs\count_b1_recovery_v1\`
+  — sibling of the registered destination under the same output root, named
+  by the convention `<registered output dir name>_recovery_v1`; recovery
+  run id `bf-2026-eval-v1-count_b1_recovery_v1`. The successful recovery run
+  is distinguishable from the preserved failure by its directory name and by
+  the `recovery_run_v1` block inside its `run_manifest.json`.
+- **Machine-readable twin:** additive `"recovery_run_v1"` key in
+  `freeze_count_eval_v1.json` (original destination, FAILED status, error,
+  preserved-evidence flag, recovery destination + convention, unchanged
+  no-rerun rule). The `execution_amendment_v1.runner.sha256` pin was updated
+  to the repaired runner bytes
+  (`fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3`) —
+  execution plumbing only; every scientific field is unchanged.
+- **Runner repair:** the three aux parquet call sites
+  (`count_b1_per_row_scores.parquet`, `count_b1_per_row_pmf_b0.parquet`,
+  `count_b1_per_row_pmf_b1.parquet`) now route through
+  `write_once_parquet(path, df)`, which performs the write-once check and
+  then passes the explicit destination path to
+  `DataFrame.write_parquet`. The runner additionally resolves the effective
+  write-once run dir from the additive freeze key (`resolve_recovery_
+  destination`), prefights the recovery destination for absence, and asserts
+  the preserved original destination + error log still exist before any
+  execution.
+- **No-rerun rule UNCHANGED:** write-once applies to the recovery
+  destination too; a failed recovery is never re-executed into the same
+  destination; any further deviation requires a NEW registration, never an
+  amendment.
+- **Synthetic coverage:** `tests/test_count_b1_end_to_end.py` exercises the
+  repaired write/finalize path on synthetic fixtures (all 22 declared files,
+  parquet read-back, manifest generation, inventory enforcement, and a
+  regression assertion that `write_parquet` is always called with an
+  explicit destination), plus tests for the recovery-convention resolution.

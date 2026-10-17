@@ -1,7 +1,7 @@
 {
   "freeze_id": "count-eval-v1",
   "freeze_utc": "2026-10-16",
-  "status": "FROZEN - NOT EXECUTED (no comparison run, no fit, no scoring, no real-data run in this commit)",
+  "status": "FROZEN - first execution attempt FAILED 2026-10-16 (runner TypeError: DataFrame.write_parquet() missing 1 required positional argument: 'file'; NO analytical results produced; partial + error log preserved untouched as failure evidence in the registered destination); recovery destination registered under the additive recovery_run_v1 key; scientific contract UNCHANGED",
   "registration_id": "bf-2026-eval-v1-count_b1",
   "purpose": "Paired count-layer comparison B1 vs B0: identical cohort/folds/eligibility/p_bar/aggregation/PA probabilities/calibration/count-integration settings; the ONLY varying input is the supplied BF PMF (B1 Ridge-recentered extended PMF vs B0 empirical extended PMF).",
   "provenance": {
@@ -110,8 +110,8 @@
     "statement": "No scientific fields changed; this amendment only pins execution plumbing.",
     "runner": {
       "path": "research/offseason_2026/bf_lane/run_count_b1_v1.py",
-      "sha256": "7a3956d294d69443023fe513bf66481b198b8b1a7e5117f20b0de2a1cd8db07a",
-      "note": "committed byte-identical at this hash in the amendment commit; the runner re-derives this hash from its own bytes and refuses on mismatch"
+      "sha256": "fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3",
+      "note": "committed byte-identical at this hash in the amendment commit; the runner re-derives this hash from its own bytes and refuses on mismatch; sha256 updated in the 2026-10-16 execution-repair commit (the three aux parquet writes were repaired to pass an explicit destination path to DataFrame.write_parquet after the first attempt failed on the missing 'file' argument; no scientific field changed; the failed partial remains preserved as failure evidence)"
     },
     "immutable_config": {
       "path": "research/offseason_2026/bf_lane/freeze_count_eval_v1.json",
@@ -147,5 +147,23 @@
       "tracking_status.json"
     ],
     "manifest_schema": "run_manifest.json derived ONLY from that run's final artifacts (config/registration/input/artifact hashes, persisted-record timestamps, verdict) with the full sha256 inventory; its own sha256 is recorded OUTSIDE the run dir (registration documentation); never edited in place; write-once"
+  },
+  "recovery_run_v1": {
+    "recovery_run_id": "bf-2026-eval-v1-count_b1_recovery_v1",
+    "added_utc": "2026-10-16",
+    "additive": true,
+    "additive_key": "recovery_run_v1",
+    "statement": "Execution-recovery addendum: the original write-once destination is occupied by the preserved FAILED partial from the 2026-10-16 attempt (TypeError: DataFrame.write_parquet() missing 1 required positional argument: 'file'; no analytical results produced). This key changes NO scientific field; the recovery execution writes the SAME registered 22-file inventory for the SAME registration into the registered recovery destination below, and the write-once/no-rerun rule applies unchanged to that recovery destination.",
+    "original_destination": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\count_b1\\",
+    "original_status": "FAILED",
+    "original_error": "TypeError: DataFrame.write_parquet() missing 1 required positional argument: 'file'",
+    "original_analytical_results": "NONE (the failure occurred at the first aux parquet write, before any contrast/aggregate/bootstrap artifact was produced)",
+    "preserves_original_failure_directory": true,
+    "preserved_evidence": ["count_b1_error_log.json"],
+    "original_directory_treatment": "IMMUTABLE EVIDENCE: never deleted, overwritten, relabeled, or written into again",
+    "destination": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\count_b1_recovery_v1\\",
+    "destination_convention": "<registered output dir name>_recovery_v1 as a sibling under the same output root; the successful recovery run is distinguishable from the preserved failure by its directory name and by the recovery block in its run_manifest.json",
+    "runner_resolution": "the runner resolves the effective write-once run dir from this key (resolve_recovery_destination), prefights the recovery destination for absence, and asserts the preserved original destination + error log still exist before any execution",
+    "no_rerun_rule": "UNCHANGED: write-once applies to the recovery destination too; a failed recovery is never re-executed into the same destination; any further deviation requires a NEW registration, never an amendment"
   }
 }

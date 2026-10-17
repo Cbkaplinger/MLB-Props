@@ -1,9 +1,28 @@
 """bf-2026-eval-v1 / count_b1: registered count-layer comparison (one pass).
 
-EXECUTION AMENDMENT V1 RUNNER (2026-10-16). Executes the frozen registration
-freeze_count_eval_v1.json + COUNT_REGISTRATION.md
-(registration_id bf-2026-eval-v1-count_b1) EXACTLY ONCE into the write-once
-run dir C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\count_b1\\.
+EXECUTION AMENDMENT V1 RUNNER (2026-10-16; repaired 2026-10-16, see below).
+Executes the frozen registration freeze_count_eval_v1.json + COUNT_REGISTRATION.md
+(registration_id bf-2026-eval-v1-count_b1) EXACTLY ONCE into the registered
+write-once run dir
+C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\count_b1\\,
+or -- when the freeze carries the additive "recovery_run_v1" addendum (the
+original destination is occupied by the preserved FAILED partial from the
+2026-10-16 attempt: bare DataFrame.write_parquet() calls missing the required
+`file` argument; no analytical results were produced) -- into the registered
+recovery destination
+C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-2026-eval-v1-outputs\\count_b1_recovery_v1\\.
+The original failure directory is preserved untouched as failure evidence;
+the successful recovery run is distinguishable by its directory name and by
+the recovery block in its run_manifest.json. The write-once/no-rerun rule
+applies unchanged to the recovery destination.
+
+REPAIR (2026-10-16): the first execution attempt failed at the three aux
+parquet writes with "TypeError: DataFrame.write_parquet() missing 1 required
+positional argument: 'file'" (polars requires the destination argument).
+The three call sites now route through write_once_parquet(path, df), which
+passes an explicit destination path to DataFrame.write_parquet after the
+write-once check. No scientific registration field was changed; the failed
+attempt produced no analytical results and remains preserved as evidence.
 
 No scientific fields changed; the amendment only pins execution plumbing
 (runner bytes, literal command, environment capture, output root, 22-file
@@ -91,6 +110,13 @@ BF_DIR = LAKE / "bf-workload-v1"
 OUT_DIR = LAKE / "bf-2026-eval-v1-outputs" / "count_b1"
 FREEZE_DEFAULT = HERE.parent / "freeze_count_eval_v1.json"
 ACCEPT_FLAG = "--i-accept-real-data-execution"
+
+# Recovery addendum (additive freeze key "recovery_run_v1"): when present,
+# the effective write-once run dir is the registered recovery destination
+# (the original destination holds the preserved FAILED partial).
+RECOVERY_KEY = "recovery_run_v1"
+RECOVERY_SUFFIX = "_recovery_v1"
+RUN_DIR: Path = OUT_DIR  # effective run dir; resolved from the freeze in main()
 
 # ---------------------------------------------------------------------------
 # Registered identities (frozen registration; hard-coded, fail-closed)
@@ -251,6 +277,17 @@ def write_once_json(path: Path, obj) -> None:
     write_once(path, json.dumps(py(obj), indent=2).encode("ascii"))
 
 
+def write_once_parquet(path: Path, df: pl.DataFrame) -> None:
+    """Write-once parquet with an EXPLICIT destination path.
+
+    polars >= 1.x requires the `file` argument; the 2026-10-16 attempt
+    failed on bare write_parquet() calls. The write-once check runs BEFORE
+    the explicit destination is handed to DataFrame.write_parquet."""
+    if path.exists():
+        fail("write-once violation: %s already exists" % path)
+    df.write_parquet(path)
+
+
 def environment_identity() -> dict:
     return {
         "python": sys.version.replace("\n", " "),
@@ -272,6 +309,65 @@ def preflight_destination_absent(dest: Path) -> None:
         fail("write-once destination %s already exists; the no-rerun rule "
              "refuses to re-execute into it (exit nonzero, nothing written)"
              % dest)
+
+
+# ---------------------------------------------------------------------------
+# recovery addendum (additive freeze key recovery_run_v1)
+# ---------------------------------------------------------------------------
+
+def resolve_recovery_destination(freeze: dict) -> Path:
+    """Resolve the effective write-once run dir from the freeze.
+
+    Pure validation over the parsed freeze (the caller gates
+    freeze["output"]["location"] against the registered destination via
+    check_freeze_config before any execution). Returns the registered
+    OUT_DIR when no recovery addendum is present; otherwise validates the
+    additive "recovery_run_v1" key and returns the registered recovery
+    destination, so the preserved FAILED original is never written into."""
+    rec = freeze.get(RECOVERY_KEY)
+    if not isinstance(rec, dict):
+        return OUT_DIR
+    registered_out = freeze["output"]["location"]
+    if rec.get("original_destination") != registered_out:
+        fail("recovery addendum: original_destination %r != registered "
+             "output location %r" % (rec.get("original_destination"),
+                                     registered_out))
+    if rec.get("original_status") != "FAILED":
+        fail("recovery addendum: original_status must record the FAILED "
+             "partial")
+    if rec.get("preserves_original_failure_directory") is not True:
+        fail("recovery addendum: preserves_original_failure_directory must "
+             "be true (the failed partial is immutable evidence)")
+    if rec.get("recovery_run_id") != REGISTRATION_ID + RECOVERY_SUFFIX:
+        fail("recovery addendum: recovery_run_id %r != registered "
+             "convention %r" % (rec.get("recovery_run_id"),
+                                REGISTRATION_ID + RECOVERY_SUFFIX))
+    dest = Path(str(rec.get("destination", "")))
+    orig_dir = Path(registered_out.rstrip("\\/"))
+    if dest.name != orig_dir.name + RECOVERY_SUFFIX:
+        fail("recovery addendum: destination name %r violates the "
+             "recovery convention <registered dir name>%s"
+             % (dest.name, RECOVERY_SUFFIX))
+    if dest.parent != orig_dir.parent:
+        fail("recovery addendum: destination %s must be a sibling of the "
+             "registered destination under the same output root" % dest)
+    if dest == orig_dir:
+        fail("recovery addendum: recovery destination must differ from the "
+             "preserved original destination")
+    return dest
+
+
+def assert_original_failure_preserved(freeze: dict) -> None:
+    """Filesystem check (real execution only): the preserved FAILED
+    original destination with its error log must still exist as failure
+    evidence before a recovery execution is allowed."""
+    if not isinstance(freeze.get(RECOVERY_KEY), dict):
+        return
+    err_log = OUT_DIR / "count_b1_error_log.json"
+    if not OUT_DIR.is_dir() or not err_log.is_file():
+        fail("recovery addendum: the preserved FAILED destination %s with "
+             "count_b1_error_log.json must still exist as failure evidence "
+             "before recovery execution" % OUT_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -424,8 +520,8 @@ def _calibration_deciles(df: pl.DataFrame) -> dict:
 
 
 def run_compare() -> dict:
-    preflight_destination_absent(OUT_DIR)
-    OUT_DIR.mkdir(parents=True)
+    preflight_destination_absent(RUN_DIR)
+    RUN_DIR.mkdir(parents=True)
     prf = pl.read_parquet(INPUT_PATHS["b1_per_row_forecasts.parquet"])
 
     # ---- row accounting assertions (fail loud on any mismatch) -----------
@@ -537,26 +633,26 @@ def run_compare() -> dict:
     ])
 
     # ---- aux artifacts (write-once) ---------------------------------------
-    write_once(OUT_DIR / "count_b1_per_row_scores.parquet",
-               rdf.write_parquet())
+    scores_path = RUN_DIR / "count_b1_per_row_scores.parquet"
+    write_once_parquet(scores_path, rdf)
     pmf_df = rdf.select("game_pk", "side", "pitcher")
     b0_pdf = pl.DataFrame(b0_pk, schema=["b0_count_%d" % k
                                          for k in range(K_MAX)])
     b1_pdf = pl.DataFrame(b1_pk, schema=["b1_count_%d" % k
                                          for k in range(K_MAX)])
-    write_once(OUT_DIR / "count_b1_per_row_pmf_b0.parquet",
-               pl.concat([pmf_df, b0_pdf], how="horizontal")
-               .write_parquet())
-    write_once(OUT_DIR / "count_b1_per_row_pmf_b1.parquet",
-               pl.concat([pmf_df, b1_pdf], how="horizontal")
-               .write_parquet())
+    b0_pmf_path = RUN_DIR / "count_b1_per_row_pmf_b0.parquet"
+    b1_pmf_path = RUN_DIR / "count_b1_per_row_pmf_b1.parquet"
+    write_once_parquet(b0_pmf_path,
+                       pl.concat([pmf_df, b0_pdf], how="horizontal"))
+    write_once_parquet(b1_pmf_path,
+                       pl.concat([pmf_df, b1_pdf], how="horizontal"))
 
     per_date = (rdf.group_by("fold", "game_date")
                 .agg(pl.len().alias("n"),
                      pl.col("b0_rps").sum().alias("b0_rps_sum"),
                      pl.col("b1_rps").sum().alias("b1_rps_sum"))
                 .sort(["fold", "game_date"]))
-    write_once(OUT_DIR / "count_b1_per_date_paired_sums.csv",
+    write_once(RUN_DIR / "count_b1_per_date_paired_sums.csv",
                per_date.write_csv().encode("ascii"))
 
     # ---- paired slate-date bootstrap (shared stream) + contrast -----------
@@ -569,7 +665,7 @@ def run_compare() -> dict:
                                seed=cmp.SEED_BOOTSTRAP)
     if (cmp.N_BOOT, 2) != res.shape:
         fail("bootstrap replicate matrix shape %s != (2000, 2)" % (res.shape,))
-    np.save(OUT_DIR / "count_b1_bootstrap_replicates.npy", res)
+    np.save(RUN_DIR / "count_b1_bootstrap_replicates.npy", res)
     contrast = cmp.null_centered_contrast_test(
         values, [("C_b1_ridge_vs_b0_empirical", "b1_rps", "b0_rps")],
         dates, blocks, n_boot=cmp.N_BOOT, seed=cmp.SEED_BOOTSTRAP, res=res)
@@ -579,7 +675,7 @@ def run_compare() -> dict:
                             float(np.percentile(d_rep, 97.5))]
     c["note"] = ("primary endpoint C_b1_ridge_vs_b0_empirical on count-RPS; "
                  "Holm family of 1; percentile CIs UNADJUSTED")
-    write_once_json(OUT_DIR / "count_b1_contrast.json", contrast)
+    write_once_json(RUN_DIR / "count_b1_contrast.json", contrast)
 
     # ---- aggregates / calibration / coverage ------------------------------
     scopes = [("pooled", rdf)] + [(f, rdf.filter(pl.col("fold") == f))
@@ -592,13 +688,13 @@ def run_compare() -> dict:
         cov_by_scope[tag] = _coverage_width(df)
         cal_by_scope[tag] = _calibration_deciles(df)
         suffix = "" if tag == "pooled" else "_" + tag
-        write_once_json(OUT_DIR
+        write_once_json(RUN_DIR
                         / ("count_b1_aggregates%s.json" % suffix),
                         agg_by_scope[tag])
-        write_once_json(OUT_DIR
+        write_once_json(RUN_DIR
                         / ("count_b1_calibration_deciles%s.json" % suffix),
                         cal_by_scope[tag])
-    write_once_json(OUT_DIR / "count_b1_coverage_width.json", cov_by_scope)
+    write_once_json(RUN_DIR / "count_b1_coverage_width.json", cov_by_scope)
 
     # ---- assertions / inventories / flagged records ------------------------
     row_count_assertions = {
@@ -616,7 +712,7 @@ def run_compare() -> dict:
     }
     if row_count_assertions["verdict"] != "PASS":
         fail("row-count assertion table verdict FAIL")
-    write_once_json(OUT_DIR / "count_b1_row_count_assertions.json",
+    write_once_json(RUN_DIR / "count_b1_row_count_assertions.json",
                     row_count_assertions)
 
     flagged = rdf.filter(pl.col("recenter_mass_loss_flag")).select(
@@ -624,7 +720,7 @@ def run_compare() -> dict:
         "recenter_mass_loss")
     fl = flagged.to_dicts()
     losses = [r["recenter_mass_loss"] for r in fl]
-    write_once_json(OUT_DIR / "count_b1_flagged_recenter_records.json", {
+    write_once_json(RUN_DIR / "count_b1_flagged_recenter_records.json", {
         "count": len(fl),
         "share": "%d/%d = %.1f%%" % (len(fl), n_rows, 100.0 * len(fl)
                                      / n_rows),
@@ -647,7 +743,7 @@ def run_compare() -> dict:
                    "b1_per_row_forecasts.parquet (B1 run; identical both "
                    "arms; realized-PA diagnostic p_bar NOT reused)",
     }
-    write_once_json(OUT_DIR / "count_b1_p_bar_inventory.json",
+    write_once_json(RUN_DIR / "count_b1_p_bar_inventory.json",
                     p_bar_inventory)
 
     config = {
@@ -732,7 +828,7 @@ def describe(result: dict, out_dir, saved=None, extra_params=None):
         "n_boot": cfg["paired_uncertainty"]["n_boot"],
         "seed": cfg["paired_uncertainty"]["seed"],
         "holm_family_size": 1,
-        "run_dir": str(OUT_DIR),
+        "run_dir": str(RUN_DIR),
     }
     agg = result["aggregate"]["pooled"]
     metrics = {
@@ -757,14 +853,14 @@ def finalize_manifest(identities: dict, amendment_sha256: str,
     own sha256 is recorded OUTSIDE the run dir (never edited in place)."""
     inventory = {}
     for rel in RUN_FILES_SCHEMA:
-        p = OUT_DIR / rel
+        p = RUN_DIR / rel
         if rel == "run_manifest.json":
             continue
         if not p.is_file():
             fail("declared inventory file missing at finalize: %s" % rel)
         inventory[rel] = sha256_file(p)
-    on_disk = sorted(str(p.relative_to(OUT_DIR)).replace("\\", "/")
-                     for p in OUT_DIR.rglob("*") if p.is_file())
+    on_disk = sorted(str(p.relative_to(RUN_DIR)).replace("\\", "/")
+                     for p in RUN_DIR.rglob("*") if p.is_file())
     expected = sorted(set(RUN_FILES_SCHEMA) - {"run_manifest.json"})
     if on_disk != expected:
         fail("output inventory mismatch:\n  on disk: %s\n  expected: %s"
@@ -805,9 +901,21 @@ def finalize_manifest(identities: dict, amendment_sha256: str,
                                   "in place",
         },
     }
-    write_once_json(OUT_DIR / "run_manifest.json", manifest)
+    if RUN_DIR != OUT_DIR:
+        manifest["recovery_run_v1"] = {
+            "recovery_run_id": REGISTRATION_ID + RECOVERY_SUFFIX,
+            "recovery_destination": str(RUN_DIR) + "\\",
+            "original_destination_preserved": str(OUT_DIR) + "\\",
+            "original_status": "FAILED (no analytical results produced)",
+            "note": "successful recovery execution under the additive "
+                    "freeze recovery_run_v1 addendum; the original FAILED "
+                    "attempt is preserved untouched as failure evidence "
+                    "and is distinguishable from this successful run by "
+                    "directory name and this manifest block",
+        }
+    write_once_json(RUN_DIR / "run_manifest.json", manifest)
     print("run_manifest.json sha256 (record OUTSIDE the run dir):")
-    print(sha256_file(OUT_DIR / "run_manifest.json"))
+    print(sha256_file(RUN_DIR / "run_manifest.json"))
 
 
 def main(argv=None) -> int:
@@ -828,17 +936,27 @@ def main(argv=None) -> int:
               "fitted, scored, or written." % ACCEPT_FLAG)
         return 2
 
-    # preflight: destination must be absent (exit nonzero otherwise)
-    preflight_destination_absent(OUT_DIR)
-    freeze_check = check_freeze_config(Path(args.freeze).resolve())
+    # resolve the effective write-once run dir (registered destination, or
+    # the registered recovery destination when the freeze carries the
+    # additive recovery_run_v1 addendum), then preflight it
+    global RUN_DIR
+    freeze_path = Path(args.freeze).resolve()
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    RUN_DIR = resolve_recovery_destination(freeze)
+    preflight_destination_absent(RUN_DIR)
+    assert_original_failure_preserved(freeze)
+    freeze_check = check_freeze_config(freeze_path)
     identities = check_identities(freeze_check)
     global _FREEZE_SHA256
     _FREEZE_SHA256 = freeze_check["freeze_sha256"]
     print("identity gates PASS; registration sha256 verified")
+    if RUN_DIR != OUT_DIR:
+        print("recovery addendum active: writing into %s; original FAILED "
+              "destination %s preserved untouched" % (RUN_DIR, OUT_DIR))
 
     try:
         t = track_and_verify(
-            run_compare, OUT_DIR,
+            run_compare, RUN_DIR,
             "sqlite:///" + str(LAKE / "mlflow.db"),
             experiment="bf-2026-eval-v1", run_name="count_b1_v1",
             describe=describe)
@@ -850,7 +968,7 @@ def main(argv=None) -> int:
                "traceback": traceback.format_exc(),
                "note": "single run; partials preserved; NO silent retry; "
                        "no rerun into this destination"}
-        log_dir = OUT_DIR if OUT_DIR.exists() else OUT_DIR.parent
+        log_dir = RUN_DIR if RUN_DIR.exists() else RUN_DIR.parent
         (log_dir / "count_b1_error_log.json").write_text(
             json.dumps(err, indent=2), encoding="ascii")
         print("RUN FAILED - partials preserved in %s" % log_dir)
@@ -864,7 +982,7 @@ def main(argv=None) -> int:
             "b0_audit_verdict": identities["b0_audit_verdict"],
             "environment": environment_identity(),
             "python_executable": sys.executable}
-    write_once_json(OUT_DIR / "count_b1_identity_gate.json", gate)
+    write_once_json(RUN_DIR / "count_b1_identity_gate.json", gate)
 
     finalize_manifest({**identities["identities"],
                        "freeze": freeze_check["freeze_sha256"]},
