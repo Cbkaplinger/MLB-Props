@@ -158,7 +158,7 @@ no-rerun conditions) is byte-unchanged. The machine-readable twin
 committed and reviewed BEFORE any execution.
 
 - **Runner:** `research/offseason_2026/bf_lane/run_count_b1_v1.py`,
-  sha256 `209eef4b2652f9d5a32d189444e0db48895fc19daf536b9906f54cabebb026d3`
+  sha256 `b8caa3e70262e239551d40d4af7f64793fd3fb405f4bf429863febac0e9829dd`
   (originally committed as
   `7a3956d294d69443023fe513bf66481b198b8b1a7e5117f20b0de2a1cd8db07a`; the
   sha256 was updated in the 2026-10-16 execution-repair commit after the
@@ -247,7 +247,7 @@ purely execution plumbing, additive to everything above.
   to the repaired runner bytes
   (`fc097b5697f75934e286002a18653a00046ca540d7b6050d5e8744b782e47be3`, and
   again to
-  `209eef4b2652f9d5a32d189444e0db48895fc19daf536b9906f54cabebb026d3` in the
+  `b8caa3e70262e239551d40d4af7f64793fd3fb405f4bf429863febac0e9829dd` in the
   2026-10-17 recovery-name normalization fix) —
   execution plumbing only; every scientific field is unchanged.
 - **Runner repair:** the three aux parquet call sites

@@ -375,7 +375,10 @@ def resolve_recovery_destination(freeze: dict) -> Path:
     if dest_comps == orig_comps:
         fail("recovery addendum: recovery destination must differ from the "
              "preserved original destination")
-    return Path(dest_raw)
+    # strip trailing separators so the returned run dir is a clean Path on
+    # every platform (a trailing '\' would otherwise end up inside the last
+    # component on POSIX and break preflight/manifest path equality)
+    return Path(dest_raw.rstrip("\\/"))
 
 
 def assert_original_failure_preserved(freeze: dict) -> None:

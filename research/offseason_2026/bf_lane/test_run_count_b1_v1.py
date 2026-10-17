@@ -25,7 +25,7 @@ FREEZE = HERE / "freeze_count_eval_v1.json"
 AMENDMENT_STATEMENT = ("No scientific fields changed; this amendment only "
                        "pins execution plumbing.")
 RUNNER_SHA256 = (
-    "209eef4b2652f9d5a32d189444e0db48895fc19daf536b9906f54cabebb026d3")
+    "b8caa3e70262e239551d40d4af7f64793fd3fb405f4bf429863febac0e9829dd")
 
 FROZEN_SCIENTIFIC = {
     "registration_id": "bf-2026-eval-v1-count_b1",
@@ -130,4 +130,4 @@ def test_amendment_section_hash_is_stable():
     freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
     am = freeze["execution_amendment_v1"]
     assert _canonical_sha256(am) == (
-        "5b0d888024995aa2ec6f6ae28bbbef20a60bac6694c241a76c2a35c1bd9fbab2")
+        "b732e2d0626d0cebcedb7da9bdd4ec897e3c4121da1161948711cfcfe01ac3cc")
