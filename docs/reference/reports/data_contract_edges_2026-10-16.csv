@@ -1,0 +1,14 @@
+contract,producer_tracked,consumers_tracked,key_grain,validation_coverage,storage,breakage_risk
+pa_table.parquet,p1_harness/scripts/build_pa_table.py,"build_features.py, fit_models.py, harness test","(game_pk, at_bat_number, pitcher) PA grain","test_feature_contract + sha manifest + EXPECTED_ARTIFACTS guards",local artifacts (ignored),medium-naming-drift
+features.parquet,build_features.py,"fit_models.py, harness test",per-PA features,same harness guards,local artifacts (ignored),low-guarded
+eval_predictions.parquet,fit_models.py,"BF cohort enumeration, harness test",per-PA predictions,eval-identity hash (harness),artifacts,low
+dev_predictions.parquet,fit_models.py,harness test,per-PA predictions,eval-identity hash (harness),artifacts,low
+pa_table_2023_2024.parquet,none tracked (lake-generated predecessor),"logistic_pa/bundle/build_bundle.py, run_phase7.py","PA grain 2-season slice",card/hashes.json,lake/artifacts,medium-producer-untracked
+per_pa.parquet,run_pa1a.py,"run_pa1b_o.py, run_pitcher_prior.py",PA rows + attribution,experiment manifest,experiment dir,low
+ledger.parquet,odds_ledger.py append path (API not literal path),"market_research analyses, notebooks","(start, line, side, book) ticket grain; dedupe key",pre-commit trio (test_odds_ledger),artifacts (ignored),low-strongest-tested
+bf_pmfs.parquet,tests/test_i3_runner.py (synthetic),i3 runner internals,BF PMFs,test fixtures,tmp,low
+kc_pmfs.parquet,tests/test_i3_runner.py (synthetic),i3 runner internals,count PMFs,test fixtures,tmp,low
+book_lines_pitcher.parquet,none tracked (lake/env-sourced),market_research harnesses,book/line grain,none in-tree,lake,medium-undocumented-import
+graded.parquet,none tracked (lake/env-sourced),market_research harnesses,book/line grain,none in-tree,lake,medium-undocumented-import
+cohort_rows_metadata.parquet,run_bf_2026_cohort_enumeration.py,receipt only,cohort rows,manifest,lake,low
+daily_lineups_*.parquet,production builder (dynamic path),pregame capture adapter,"(game_pk, doubleheader, batter, slot)",adapter tests (6 green),data/processed (ignored),low
