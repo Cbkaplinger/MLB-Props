@@ -1,0 +1,553 @@
+{
+  "record": "MLflow reconciliation of the post-run import against the SAME canonical frozen run dir",
+  "generated_utc": "2026-10-15T14:37:16.419790+00:00",
+  "generator_script": "mlflow_reconcile.py",
+  "canonical": {
+    "run_dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+    "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+    "packet_run_id": "first-run-v1-e59da946da21",
+    "run_manifest_sha256": "897070f8acc593038a8f37126e1693d3a5f25389ce3e4b7d941592db817711c9",
+    "review_status": "RESULT-PENDING-INDEPENDENT-REVIEW",
+    "status_pointer": "SEQUENCE_DEVIATION.md + ablation_row_v2_status.json (this directory)"
+  },
+  "timestamps_preserved_separately": {
+    "execution_utc": "2026-10-15T05:20:07.741772+00:00",
+    "execution_source": "run_manifest.json created_utc (in-band, frozen run dir)",
+    "mlflow_import_window_utc": {
+      "parent_start": "2026-10-15T13:29:57.149000+00:00",
+      "parent_end": "2026-10-15T13:29:59.036000+00:00",
+      "import_record_written_utc": "2026-10-15T13:35:00Z",
+      "source": "mlflow.db runs.start_time/end_time + mlflow_import_record.json"
+    },
+    "environment_snapshot": {
+      "file": "environment_pip_freeze_2026-10-15.txt (this directory)",
+      "sha256": "459de5b4b942b54c72e3a96e8a6679259f271ba4cd1a68cffc9276d769dcab73",
+      "note": "pip freeze of the repo venv (C:/Users/ckaplinger/Downloads/Personal-Projects/MLB-Props/.venv), captured post pyarrow-restoration; preserved separately from run and import times"
+    }
+  },
+  "mlflow": {
+    "version": "3.17.1",
+    "tracking_uri": "sqlite:///C:/Users/ckaplinger/MLB-Props-Research/mlflow.db",
+    "db_path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\mlflow.db",
+    "experiment": "pa-k-probability-v1",
+    "experiment_id": 1,
+    "artifact_store_declared": "file:///C:/Users/ckaplinger/MLB-Props-Research/first-run-v1/mlruns/<run_id>/artifacts",
+    "artifact_store_materialized": false,
+    "artifact_store_note": "artifact URIs are declared in mlflow.db but the ./mlruns directory was not materialized on disk (the importer logged params/metrics/tags only, no artifacts); recorded as an observed discrepancy, not repaired"
+  },
+  "parent_run": {
+    "run_id": "e2194b6b0f7c4f1da59db2a967af1e2b",
+    "name": "first-run-v1-e59da946da21",
+    "status": "FINISHED",
+    "tags": {
+      "mlflow.user": "ckaplinger",
+      "mlflow.source.name": "C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\mlflow_import.py",
+      "mlflow.source.type": "LOCAL",
+      "mlflow.runName": "first-run-v1-e59da946da21",
+      "git_sha": "b2be3c9c6a3f29d47f44b2c769bd933023491d4e",
+      "config_hash": "e59da946da218bd43af05d0dde3ddeace5b30c3280b249767158eec94ab15fc1",
+      "run_id": "first-run-v1-e59da946da21",
+      "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+      "exposure": "development+inspected_confirmation",
+      "review_status": "RESULT-PENDING-INDEPENDENT-REVIEW",
+      "interface_version": "count-eval-v2-comparison-1.0",
+      "lane_note": "raw lane principal (comparison.py:622); cal lane derived, non-canonical"
+    }
+  },
+  "children": {
+    "count": 20,
+    "raw_lanes": 12,
+    "cal_lanes": 8,
+    "shape_explanation": "3 candidates x 4 folds = 12 raw child runs (pred_raw lane). CAL lane = 8 child runs because P0_log5 has NO calibrator (block sigmoid sub-block exists only for the fitted candidates P1_B_logreg and P1_H3_incumbent_refit; its pred_cal column is all-null in all 4 folds), so 2 candidates x 4 folds = 8. 12 + 8 = 20 children."
+  },
+  "verification": {
+    "method": "per child run: recompute log_loss/brier from the frozen preds parquet (pred_raw for raw lanes, pred_cal for cal lanes) and compare to the MLflow-logged values (tolerance 1e-9); n checked against parquet row count",
+    "children_verified": 20,
+    "children_matched": 20,
+    "children_not_applicable": 0,
+    "children_mismatched": 0,
+    "all_verified": true,
+    "per_child": [
+      {
+        "run_uuid": "d14dc2ee7e9f4394abb3a05a213fcfce",
+        "name": "P0_log5__block_2024H1__raw",
+        "candidate": "P0_log5",
+        "fold": "block_2024H1",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5195875078689778,
+          "brier": 0.16939672690386845,
+          "n": 94458.0,
+          "n_dates": 95.0
+        },
+        "recomputed": {
+          "log_loss": 0.5195875078689778,
+          "brier": 0.16939672690386845,
+          "n": 94458,
+          "n_dates": 95,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "900b8c246d9f414cb35a4e3c7fff3e71",
+        "name": "P1_B_logreg__block_2024H1__raw",
+        "candidate": "P1_B_logreg",
+        "fold": "block_2024H1",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.519800688341307,
+          "brier": 0.1694662807951863,
+          "n": 94458.0,
+          "n_dates": 95.0
+        },
+        "recomputed": {
+          "log_loss": 0.519800688341307,
+          "brier": 0.1694662807951863,
+          "n": 94458,
+          "n_dates": 95,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "d14aab1542a4416aa76223d45367e683",
+        "name": "P1_B_logreg__block_2024H1__cal",
+        "candidate": "P1_B_logreg",
+        "fold": "block_2024H1",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5197386355861745,
+          "brier": 0.1694544409800578,
+          "n": 94458.0,
+          "n_dates": 95.0
+        },
+        "recomputed": {
+          "log_loss": 0.5197386355861826,
+          "brier": 0.1694544409800571,
+          "n": 94458,
+          "n_dates": 95,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 8.104628079763643e-15,
+        "delta_brier": 6.938893903907228e-16,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "9575beb2cc0040abba18e95db5f2e5fe",
+        "name": "P1_H3_incumbent_refit__block_2024H1__raw",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "block_2024H1",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.519243506285357,
+          "brier": 0.16927140501555982,
+          "n": 94458.0,
+          "n_dates": 95.0
+        },
+        "recomputed": {
+          "log_loss": 0.519243506285357,
+          "brier": 0.16927140501555982,
+          "n": 94458,
+          "n_dates": 95,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "fc14d021bf4c418ca8c825aa9a6e2c8b",
+        "name": "P1_H3_incumbent_refit__block_2024H1__cal",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "block_2024H1",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5192223099576556,
+          "brier": 0.16927261289294673,
+          "n": 94458.0,
+          "n_dates": 95.0
+        },
+        "recomputed": {
+          "log_loss": 0.5192223099576627,
+          "brier": 0.16927261289294798,
+          "n": 94458,
+          "n_dates": 95,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 7.105427357601002e-15,
+        "delta_brier": 1.2490009027033011e-15,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "6f8170b5271e496eb8127727325c2710",
+        "name": "P0_log5__block_2024H2__raw",
+        "candidate": "P0_log5",
+        "fold": "block_2024H2",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5273753919143749,
+          "brier": 0.1729401480638385,
+          "n": 87808.0,
+          "n_dates": 88.0
+        },
+        "recomputed": {
+          "log_loss": 0.5273753919143749,
+          "brier": 0.1729401480638385,
+          "n": 87808,
+          "n_dates": 88,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "73b43164887145de827e1c8cfe114db8",
+        "name": "P1_B_logreg__block_2024H2__raw",
+        "candidate": "P1_B_logreg",
+        "fold": "block_2024H2",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.527642245317287,
+          "brier": 0.17302920569034463,
+          "n": 87808.0,
+          "n_dates": 88.0
+        },
+        "recomputed": {
+          "log_loss": 0.527642245317287,
+          "brier": 0.17302920569034463,
+          "n": 87808,
+          "n_dates": 88,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "241c7285947e4237891c3d5f7dc911be",
+        "name": "P1_B_logreg__block_2024H2__cal",
+        "candidate": "P1_B_logreg",
+        "fold": "block_2024H2",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5276494606181956,
+          "brier": 0.17302619175873873,
+          "n": 87808.0,
+          "n_dates": 88.0
+        },
+        "recomputed": {
+          "log_loss": 0.5276494606182012,
+          "brier": 0.17302619175873893,
+          "n": 87808,
+          "n_dates": 88,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 5.551115123125783e-15,
+        "delta_brier": 1.942890293094024e-16,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "148ab602a2aa49db9e87b2804592ae93",
+        "name": "P1_H3_incumbent_refit__block_2024H2__raw",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "block_2024H2",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5270287169807522,
+          "brier": 0.17281328416034636,
+          "n": 87808.0,
+          "n_dates": 88.0
+        },
+        "recomputed": {
+          "log_loss": 0.5270287169807522,
+          "brier": 0.17281328416034636,
+          "n": 87808,
+          "n_dates": 88,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "316b71f9137c4282be78cc2c3f62c6e7",
+        "name": "P1_H3_incumbent_refit__block_2024H2__cal",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "block_2024H2",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5270566355812623,
+          "brier": 0.17281739350935546,
+          "n": 87808.0,
+          "n_dates": 88.0
+        },
+        "recomputed": {
+          "log_loss": 0.5270566355812628,
+          "brier": 0.17281739350935588,
+          "n": 87808,
+          "n_dates": 88,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 5.551115123125783e-16,
+        "delta_brier": 4.163336342344337e-16,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "3f60e533bf5f491d8a6f06b69a2cf45a",
+        "name": "P0_log5__block_2025H1__raw",
+        "candidate": "P0_log5",
+        "fold": "block_2025H1",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5152231157004112,
+          "brier": 0.16761954851937752,
+          "n": 95357.0,
+          "n_dates": 98.0
+        },
+        "recomputed": {
+          "log_loss": 0.5152231157004112,
+          "brier": 0.16761954851937752,
+          "n": 95357,
+          "n_dates": 98,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "f31b25193eb04002b8bc1f1f98161ae2",
+        "name": "P1_B_logreg__block_2025H1__raw",
+        "candidate": "P1_B_logreg",
+        "fold": "block_2025H1",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5153450434404802,
+          "brier": 0.16766904205129493,
+          "n": 95357.0,
+          "n_dates": 98.0
+        },
+        "recomputed": {
+          "log_loss": 0.5153450434404802,
+          "brier": 0.16766904205129493,
+          "n": 95357,
+          "n_dates": 98,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "6337b61dcf4540759856070472d3ee3c",
+        "name": "P1_B_logreg__block_2025H1__cal",
+        "candidate": "P1_B_logreg",
+        "fold": "block_2025H1",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5155498060916562,
+          "brier": 0.1677386024899571,
+          "n": 95357.0,
+          "n_dates": 98.0
+        },
+        "recomputed": {
+          "log_loss": 0.5155498060916541,
+          "brier": 0.16773860248995665,
+          "n": 95357,
+          "n_dates": 98,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 2.1094237467877974e-15,
+        "delta_brier": 4.440892098500626e-16,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "ce8ca2c116344ca7abe522edccac00a8",
+        "name": "P1_H3_incumbent_refit__block_2025H1__raw",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "block_2025H1",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5145348748742404,
+          "brier": 0.16738567452204145,
+          "n": 95357.0,
+          "n_dates": 98.0
+        },
+        "recomputed": {
+          "log_loss": 0.5145348748742404,
+          "brier": 0.16738567452204145,
+          "n": 95357,
+          "n_dates": 98,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "caf15dec425244debc877529760591cc",
+        "name": "P1_H3_incumbent_refit__block_2025H1__cal",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "block_2025H1",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5147019181197904,
+          "brier": 0.16744498631820212,
+          "n": 95357.0,
+          "n_dates": 98.0
+        },
+        "recomputed": {
+          "log_loss": 0.5147019181197854,
+          "brier": 0.16744498631820354,
+          "n": 95357,
+          "n_dates": 98,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 4.9960036108132044e-15,
+        "delta_brier": 1.4155343563970746e-15,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "32045819b9f04671bbbe8a216af87c9a",
+        "name": "P0_log5__confirm_2025H2__raw",
+        "candidate": "P0_log5",
+        "fold": "confirm_2025H2",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5218233077936947,
+          "brier": 0.17055447127707482,
+          "n": 87569.0,
+          "n_dates": 86.0
+        },
+        "recomputed": {
+          "log_loss": 0.5218233077936947,
+          "brier": 0.17055447127707482,
+          "n": 87569,
+          "n_dates": 86,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "4e3ff0e454494622b8e3bcfde6a26e23",
+        "name": "P1_B_logreg__confirm_2025H2__raw",
+        "candidate": "P1_B_logreg",
+        "fold": "confirm_2025H2",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5220128967286722,
+          "brier": 0.17060466116380915,
+          "n": 87569.0,
+          "n_dates": 86.0
+        },
+        "recomputed": {
+          "log_loss": 0.5220128967286722,
+          "brier": 0.17060466116380915,
+          "n": 87569,
+          "n_dates": 86,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "d0f6e37a544444fd8d5f11890a05ca35",
+        "name": "P1_B_logreg__confirm_2025H2__cal",
+        "candidate": "P1_B_logreg",
+        "fold": "confirm_2025H2",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5220373088760282,
+          "brier": 0.17061043986519112,
+          "n": 87569.0,
+          "n_dates": 86.0
+        },
+        "recomputed": {
+          "log_loss": 0.5220373088760174,
+          "brier": 0.1706104398651923,
+          "n": 87569,
+          "n_dates": 86,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 1.0769163338864018e-14,
+        "delta_brier": 1.1934897514720433e-15,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "f7cb321fa8f343a09a346bef720d810e",
+        "name": "P1_H3_incumbent_refit__confirm_2025H2__raw",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "confirm_2025H2",
+        "lane": "raw",
+        "logged": {
+          "log_loss": 0.5211215918550475,
+          "brier": 0.17028199507019473,
+          "n": 87569.0,
+          "n_dates": 86.0
+        },
+        "recomputed": {
+          "log_loss": 0.5211215918550475,
+          "brier": 0.17028199507019473,
+          "n": 87569,
+          "n_dates": 86,
+          "pred_column": "pred_raw"
+        },
+        "delta_log_loss": 0.0,
+        "delta_brier": 0.0,
+        "verdict": "MATCH",
+        "match": true
+      },
+      {
+        "run_uuid": "e167f9e6f613411ebe3ede841bf8bd78",
+        "name": "P1_H3_incumbent_refit__confirm_2025H2__cal",
+        "candidate": "P1_H3_incumbent_refit",
+        "fold": "confirm_2025H2",
+        "lane": "cal",
+        "logged": {
+          "log_loss": 0.5211383856084378,
+          "brier": 0.17029193317156854,
+          "n": 87569.0,
+          "n_dates": 86.0
+        },
+        "recomputed": {
+          "log_loss": 0.5211383856084313,
+          "brier": 0.17029193317156885,
+          "n": 87569,
+          "n_dates": 86,
+          "pred_column": "pred_cal"
+        },
+        "delta_log_loss": 6.5503158452884236e-15,
+        "delta_brier": 3.0531133177191805e-16,
+        "verdict": "MATCH",
+        "match": true
+      }
+    ]
+  }
+}
