@@ -16,13 +16,17 @@ Lineage (read-only; this module reimplements nothing new and tunes nothing):
 - Cumulative/EW state: ``entity_daily_state`` / ``league_daily_state``
   mirror run_pregame_state_comparison.py (strictly-prior shift; EW weights
   2^(dnum/90) with half-life 90d); G1-verified machinery from pregame-pa-ext-v1.
-- Frozen checkpoint coefficients: no serialized model artifact exists in any
-  lineage directory; the coefficients are obtained by deterministic refit of
-  the frozen recipe (StandardScaler + LogisticRegression(C=1.0, max_iter=1000)
-  per block on the 8 FEAT_H3 features) and verified against the stored
-  overnight-p2 preds checkpoints at <=1e-8 (the paext-v1
-  ``fit_models_verified`` mechanism). A serialized-model injection hook is
-  provided for future artifacts.
+- Frozen checkpoint coefficients: no coefficients are ever fit at adapter
+  execution time. A one-time reconstruction script
+  (``pregame_pa_ext/build_checkpoint.py``) performs the deterministic refit
+  of the frozen recipe (StandardScaler + LogisticRegression(C=1.0,
+  max_iter=1000) per block on the 8 FEAT_H3 features), verifies it against
+  the stored overnight-p2 preds checkpoints at <=1e-8 (the paext-v1
+  ``fit_models_verified`` mechanism), and serializes the VERIFIED
+  coefficients to a JSON artifact with a sha256 pin. The adapter loads ONLY
+  that serialized artifact; if it is absent the adapter fails loud with the
+  named error ``MISSING_CHECKPOINT_ARTIFACT`` -- no league-rate fallback
+  and no reconstruction fallback at execution time.
 - Count PMFs: both registered RAW arms over the shared BF workload PMF
   (bf-workload-v1 BASE empirical build, extended by
   ``kcount_combiner.bf_pmf_from_37``): H3-raw cycled-prefix-mean arm and
@@ -40,6 +44,8 @@ Design rules:
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from pathlib import Path
 
@@ -74,7 +80,13 @@ for _n in range(KCOUNT_CAP + 1):
 
 SOURCE_TYPE_ENTITY = "entity_history"
 SOURCE_TYPE_COLD = "league_prior_no_entity_history"
-SOURCE_TYPE_FALLBACK = "league_rate_fill_uncovered_slot"
+SOURCE_TYPE_COLD_NO_PRIOR = "cold_start_no_prior"
+EXCLUSION_REASON_COLD = (
+    "cold_start_no_prior: no pitcher/batter history in the PA table and the "
+    "frozen recipe declares no cold-start probability; PA excluded from "
+    "scoring (owner rule: no silent league-rate fallback)"
+)
+CHECKPOINT_FORMAT = "pregame-pa-ext-v2/h3_raw-checkpoint-v1"
 
 SRC_DATE_COLS = [
     "src_date_pitcher", "src_date_batter",
@@ -421,21 +433,79 @@ def verify_checkpoint(models: dict, feat: pl.DataFrame,
     return report
 
 
-def maybe_load_serialized_models(directory: Path) -> dict | None:
-    """Load a serialized checkpoint (one .joblib/.pkl mapping block name ->
-    coefficient dict) if one exists; None otherwise. No serialized model
-    artifact exists in any current lineage directory, so the canonical path
-    is the deterministic refit + verify gate."""
-    import pickle
-    for name in ("h3_raw_checkpoint.pkl", "h3_raw_checkpoint.joblib"):
-        p = Path(directory) / name
-        if p.exists():
-            if p.suffix == ".joblib":
-                import joblib
-                return joblib.load(p)
-            with open(p, "rb") as fh:
-                return pickle.load(fh)
-    return None
+def checkpoint_payload(models: dict, verification: dict | None) -> dict:
+    """Canonical JSON-serializable checkpoint payload (coefficient dict per
+    block + the recorded <=1e-8 verification report)."""
+    return {
+        "features": list(FEAT_H3),
+        "recipe": {"w_prior": W_PRIOR, "half_life_days": HALF_LIFE_DAYS},
+        "blocks": models,
+        "verification": verification,
+    }
+
+
+def checkpoint_sha256(payload: dict) -> str:
+    """sha256 pin over the canonical JSON encoding of the payload."""
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def serialize_checkpoint(
+    models: dict, verification: dict | None, out_path: Path,
+) -> Path:
+    """Serialize VERIFIED coefficients to the JSON artifact with a sha256
+    pin (used only by build_checkpoint.py, never by the adapter path)."""
+    payload = checkpoint_payload(models, verification)
+    doc = {
+        "format": CHECKPOINT_FORMAT,
+        "sha256": checkpoint_sha256(payload),
+        "payload": payload,
+    }
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(doc, indent=2, sort_keys=True),
+                        encoding="utf-8")
+    return out_path
+
+
+def load_serialized_checkpoint(path: Path | None = None) -> tuple[dict, dict]:
+    """Load the SERIALIZED frozen checkpoint (the only coefficient source
+    at adapter execution time). Fails loud:
+    - MISSING_CHECKPOINT_ARTIFACT when the file does not exist (no
+      league-rate fallback, no reconstruction fallback), and
+    - CHECKPOINT_HASH_MISMATCH when the sha256 pin over the payload does
+      not match (corrupted or tampered artifact)."""
+    p = Path(path) if path else CHECKPOINT_PATH
+    if not p.exists():
+        raise AdapterError(
+            f"MISSING_CHECKPOINT_ARTIFACT: frozen checkpoint artifact not "
+            f"found: {p}; run build_checkpoint.py once to reconstruct and "
+            "verify it (the adapter never refits and never falls back)")
+    doc = json.loads(p.read_text(encoding="utf-8"))
+    if doc.get("format") != CHECKPOINT_FORMAT:
+        raise AdapterError(
+            f"CHECKPOINT_FORMAT_MISMATCH: {p} is not a "
+            f"{CHECKPOINT_FORMAT} artifact")
+    payload = doc["payload"]
+    pin = doc.get("sha256")
+    actual = checkpoint_sha256(payload)
+    if pin != actual:
+        raise AdapterError(
+            f"CHECKPOINT_HASH_MISMATCH: sha256 pin mismatch for {p}: "
+            f"declared {pin}, computed {actual}")
+    if payload.get("features") != list(FEAT_H3):
+        raise AdapterError(
+            f"CHECKPOINT_FEATURE_MISMATCH: artifact features "
+            f"{payload.get('features')} != registered {list(FEAT_H3)}")
+    models = payload["blocks"]
+    if not isinstance(models, dict) or not models:
+        raise AdapterError(f"CHECKPOINT_BLOCKS_INVALID: {p}")
+    meta = {
+        "path": str(p),
+        "sha256": pin,
+        "verification": payload.get("verification"),
+    }
+    return models, meta
 
 
 # --------------------------------------------------------------- LOG5 arm
@@ -565,10 +635,13 @@ def unseen_pairs_report(pf: pl.DataFrame, pa: pl.DataFrame) -> dict:
     })
     if unseen_rows:
         sub = pf[unseen_rows]
-        assert_no_feature_nulls(sub)
+        scored_sub = sub.filter(
+            pl.col("source_type") != SOURCE_TYPE_COLD_NO_PRIOR)
+        if scored_sub.height:
+            assert_no_feature_nulls(scored_sub)
         for col in ("p_h3_raw", "p_l5_raw"):
-            if col in sub.columns:
-                v = sub[col].to_numpy()
+            if col in scored_sub.columns:
+                v = scored_sub[col].to_numpy()
                 if not np.all(np.isfinite(v)):
                     raise AdapterError(
                         f"unseen-pair rows have non-finite {col}")
@@ -580,8 +653,11 @@ def unseen_pairs_report(pf: pl.DataFrame, pa: pl.DataFrame) -> dict:
         "n_entities_never_seen_in_pa_table": len(never_seen_entities),
         "handled_by": (
             "feature-based scoring: the H3-raw checkpoint consumes the 8 "
-            "FEAT_H3 features only (no player IDs); unseen pairs are scored "
-            "via per-entity cumulative priors + EW-90d + league rate"),
+            "FEAT_H3 features only (no player IDs); unseen pairs with full "
+            "entity history are scored via per-entity cumulative priors + "
+            "EW-90d + league rate; cold-start slots (no entity history) "
+            f"carry source_type={SOURCE_TYPE_COLD_NO_PRIOR} and are "
+            "EXCLUDED from scoring, never league-rate filled"),
     }
 
 
@@ -610,11 +686,19 @@ def build_projected_pa_probs(
     pa: PA table with (game_pk, at_bat_number, batter, pitcher, game_date,
         y) -- the training-side lineage only; no same-date or future row can
         reach a feature (strictly-prior shift + hard cutoff gate).
-    models: {block_name -> coefficient dict} from the verified frozen
-        checkpoint (or a single 'default' entry when scoring one block).
+    models: {block_name -> coefficient dict} loaded from the SERIALIZED
+        sha256-pinned frozen checkpoint (load_serialized_checkpoint); the
+        adapter never refits.
     bf37_by_start: optional (game_pk, side, pitcher, pmf37_0..pmf37_36)
-        frame; when given, both RAW count-PMF arms are attached per start.
+        frame; when given, both RAW count-PMF arms are attached per start
+        (fully scored starts only; starts containing a cold-start slot are
+        excluded from the PMF arms with an explicit reason).
     out_path: when given, results are written write-once.
+
+    Cold-start slots (pitcher or batter without PA-table history) are
+    EXCLUDED from scoring: source_type = "cold_start_no_prior", PA
+    probability null, explicit exclusion_reason. There is NO league-rate
+    fallback (owner rule).
 
     Returns (per-PA probabilities frame, provenance summary dict)."""
     long, n_uncovered = projected_long(proj)
@@ -623,15 +707,42 @@ def build_projected_pa_probs(
     lg = league_daily_state(pa)
     pf = attach_prior_features(long, p_daily, b_daily, lg)
     pf = add_block(pf)
+    pf = pf.with_columns(
+        pl.when(pl.col("cold_start") == 1)
+        .then(pl.lit(SOURCE_TYPE_COLD_NO_PRIOR))
+        .otherwise(pl.lit(SOURCE_TYPE_ENTITY))
+        .alias("source_type")
+    )
     cutoff = assert_cutoff(pf)
-    require_feature_columns(pf)
-    pf = arm_probs(pf, models)
+    # Cold-start slots are EXCLUDED from scoring (explicit, never a silent
+    # league-rate fill): the frozen recipe declares no cold-start
+    # probability, so their PA probability stays null with an explicit
+    # exclusion_reason. Feature construction upstream keeps the registered
+    # frozen w150/EW recipe (required for checkpoint verification); the
+    # exclusion guarantees those league-derived features never reach a
+    # scored probability.
+    cold = pf.filter(pl.col("source_type") == SOURCE_TYPE_COLD_NO_PRIOR)
+    scored = pf.filter(pl.col("source_type") != SOURCE_TYPE_COLD_NO_PRIOR)
+    require_feature_columns(scored)
+    scored = arm_probs(scored, models).with_columns(
+        pl.lit(None, dtype=pl.Utf8).alias("exclusion_reason")
+    )
+    cold = cold.with_columns(
+        pl.lit(None, dtype=pl.Float64).alias("p_h3_raw"),
+        pl.lit(None, dtype=pl.Float64).alias("p_l5_raw"),
+        pl.lit(EXCLUSION_REASON_COLD).alias("exclusion_reason"),
+    )
+    pf = pl.concat([scored, cold], how="vertical").sort(
+        "game_date", "game_pk", "side", "slot"
+    )
     assert_identity(pf)
     unseen = unseen_pairs_report(pf, pa)
     summary = {
         "n_projected_starts": proj.height,
         "n_uncovered_slots_dropped": n_uncovered,
-        "n_pa_rows_scored": pf.height,
+        "n_pa_rows_scored": scored.height,
+        "n_pa_rows_excluded_cold_start": cold.height,
+        "cold_start_exclusion_reason": EXCLUSION_REASON_COLD,
         "cutoff": cutoff,
         "unseen_pairs": unseen,
     }
@@ -642,11 +753,32 @@ def build_projected_pa_probs(
         if missing:
             raise AdapterError(f"BF PMF frame missing columns: {missing}")
         bf = bf37_by_start.select("game_pk", "side", "pitcher", *pmf37_cols)
-        starts = pf.sort("slot").group_by(
+        per_start = pf.group_by("game_pk", "side", "pitcher").agg(
+            n_scored=(pl.col("exclusion_reason").is_null()).sum(),
+            n_cold=(pl.col("source_type") == SOURCE_TYPE_COLD_NO_PRIOR).sum(),
+        )
+        bad_shape = per_start.filter(
+            (pl.col("n_cold") == 0) & (pl.col("n_scored") != 9))
+        if bad_shape.height:
+            raise AdapterError(
+                "start(s) without any cold slot do not carry exactly 9 "
+                f"scored slots: {bad_shape.height} start(s)")
+        # Starts containing a cold-start slot are excluded from the
+        # count-PMF arms with an explicit reason (never league-rate
+        # filled); only fully scored starts get PMFs.
+        starts_ok = per_start.filter(
+            (pl.col("n_cold") == 0) & (pl.col("n_scored") == 9)
+        ).select("game_pk", "side", "pitcher")
+        n_pmf_excluded_starts = per_start.filter(
+            pl.col("n_cold") > 0).height
+        scored_rows = pf.filter(
+            pl.col("exclusion_reason").is_null()).join(
+            starts_ok, on=["game_pk", "side", "pitcher"], how="semi")
+        starts = scored_rows.sort("slot").group_by(
             "game_pk", "side", "pitcher").agg(
             pl.col("p_h3_raw").sort_by("slot").alias("p9_h3"),
             pl.col("p_l5_raw").sort_by("slot").alias("p9_l5"),
-        ).join(bf, on=["game_pk", "side", "pitcher"], how="left")
+        ).join(bf, on=["game_pk", "side", "pitcher"], how="inner")
         if starts.filter(pl.col("pmf37_0").is_null()).height:
             raise AdapterError("BF PMF missing for projected starts")
         pmf_h3, pmf_l5, mk_h3, mk_l5 = [], [], [], []
@@ -655,7 +787,7 @@ def build_projected_pa_probs(
             p9_l5 = np.asarray(row["p9_l5"], dtype=np.float64)
             if p9_h3.shape != (9,) or p9_l5.shape != (9,):
                 raise AdapterError(
-                    "start does not carry exactly 9 covered slots "
+                    "start does not carry exactly 9 scored slots "
                     f"(game_pk={row['game_pk']}, side={row['side']}, "
                     f"pitcher={row['pitcher']})")
             arms = start_count_pmfs(
@@ -676,8 +808,27 @@ def build_projected_pa_probs(
                           "pmf_l5_raw", "mean_k_h3_raw", "mean_k_l5_raw"),
             on=["game_pk", "side", "pitcher"], how="left",
         )
-        if pf["pmf_h3_raw"].null_count():
-            raise AdapterError("count-PMF join left unmatched per-PA rows")
+        # Null PMFs are allowed ONLY on cold-start rows and on rows of
+        # starts that contain a cold-start slot (explicit exclusion);
+        # anything else is a lineage error.
+        cold_starts = per_start.filter(pl.col("n_cold") > 0).select(
+            "game_pk", "side", "pitcher").with_columns(
+            pl.lit(True).alias("start_has_cold_slot"))
+        pf = pf.join(cold_starts, on=["game_pk", "side", "pitcher"],
+                     how="left").with_columns(
+            pl.col("start_has_cold_slot").fill_null(False))
+        unexplained = pf.filter(
+            pl.col("pmf_h3_raw").is_null()
+            & (pl.col("source_type") != SOURCE_TYPE_COLD_NO_PRIOR)
+            & ~pl.col("start_has_cold_slot")
+        )
+        if unexplained.height:
+            raise AdapterError(
+                "count-PMF join left null PMFs on non-excluded rows: "
+                f"{unexplained.height} row(s)")
+        pf = pf.drop("start_has_cold_slot")
+        summary["n_starts_pmf_computed"] = starts.height
+        summary["n_starts_pmf_excluded_cold_slot"] = n_pmf_excluded_starts
     if out_path is not None:
         write_once(pf, out_path)
     return pf, summary
@@ -693,6 +844,9 @@ OVERNIGHT_P2_DIR = Path(os.environ.get(
 PAEXT_OUT_DIR = Path(os.environ.get(
     "PAEXT_V2_OUT_DIR",
     r"C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2"))
+CHECKPOINT_PATH = Path(os.environ.get(
+    "PAEXT_V2_CHECKPOINT_PATH",
+    str(PAEXT_OUT_DIR / "checkpoints" / "h3_raw_checkpoint.json")))
 
 
 def load_projected_lineups(directory: Path | None = None) -> pl.DataFrame:
@@ -713,52 +867,17 @@ def load_pa_table(directory: Path | None = None) -> pl.DataFrame:
 
 def run_real(out_name: str = "projected_pa_probs_v1.parquet") -> dict:
     """Real-lineage driver (private lake required; never runs in CI).
-    Deterministic refit of the frozen H3-raw checkpoint recipe per block
-    (train on 2023-01-01..cal_first, sigmoid-free RAW principal, cal window
-    = last 60 days before each BLOCK_TRAIN_END, identical to
-    paext-v1 fit_models_verified), verified against the stored overnight-p2
-    preds checkpoints (<=1e-8) BEFORE any projected-row inference; output
-    is write-once."""
-    from datetime import timedelta
+    Loads the SERIALIZED frozen checkpoint artifact produced ONCE by
+    ``build_checkpoint.py`` (deterministic refit + <=1e-8 verification
+    gate at build time, sha256-pinned). The adapter NEVER refits and NEVER
+    reconstructs at execution time: a missing artifact fails loud with
+    MISSING_CHECKPOINT_ARTIFACT (no league-rate fallback, no
+    reconstruction fallback). Output is write-once."""
     proj = load_projected_lineups()
     pa = load_pa_table()
-    p_daily = entity_daily_state(pa, "pitcher")
-    b_daily = entity_daily_state(pa, "batter")
-    lg = league_daily_state(pa)
-    realized = pa.select(
-        "game_pk", "at_bat_number", "batter", "pitcher", "game_date",
-    ).sort("game_date")
-    feat = attach_prior_features(realized, p_daily, b_daily, lg)
-    feat = feat.join(pa.select("game_pk", "at_bat_number", "batter", "y"),
-                     on=["game_pk", "at_bat_number", "batter"], how="inner")
-    # day-1 league state is 0/0 (NaN) in any PA table; the frozen fits
-    # start 2023-01-01, long after league history exists, so drop the
-    # non-finite league rows from fit frames only (never silently in the
-    # projected path, where the cutoff gate already guarantees a finite
-    # asof league rate).
-    feat = feat.filter(pl.col("lg_rate").is_finite())
-    blocks = {
-        "block_2024H2": (2024, 6, 30),
-        "block_2025H1": (2024, 12, 31),
-        "confirm_2025H2": (2025, 6, 30),
-    }
-    models = {}
-    for block, (te_y, te_m, te_d) in blocks.items():
-        cal_last = feat.filter(
-            (pl.col("game_date") >= pl.date(2023, 1, 1))
-            & (pl.col("game_date") <= pl.date(te_y, te_m, te_d))
-        )["game_date"].max()
-        cal_first = cal_last - timedelta(days=59)
-        train = feat.filter(
-            (pl.col("game_date") >= pl.date(2023, 1, 1))
-            & (pl.col("game_date") < cal_first))
-        cal = feat.filter(
-            (pl.col("game_date") >= cal_first)
-            & (pl.col("game_date") <= cal_last))
-        models[block] = fit_models_from_frames(train, cal)
-    verify = verify_checkpoint(models, feat, OVERNIGHT_P2_DIR / "data")
+    models, ck = load_serialized_checkpoint()
     pf, summary = build_projected_pa_probs(proj, pa, models)
     out = write_once(pf, PAEXT_OUT_DIR / "outputs" / out_name)
-    summary["checkpoint_verification"] = verify
+    summary["checkpoint"] = ck
     summary["output"] = str(out)
     return summary

@@ -145,7 +145,8 @@ def test_cutoff_gate_fails_loud_on_future_source(pa):
 
 def test_no_current_or_future_mutation(pa, models):
     """Adding PA rows ON or AFTER the forecast date must not change any
-    projected feature or probability."""
+    projected feature or probability (checked on the scored rows; the
+    cold-start row stays excluded either way)."""
     cutoff = date(2025, 3, 15)
     proj = synth_projected(pa, cutoff, unseen_batter=777001)
     base, _ = ad.build_projected_pa_probs(proj, pa, models)
@@ -154,8 +155,12 @@ def test_no_current_or_future_mutation(pa, models):
         synth_pa_table(10, seed=99, day_offset=90),
     ])
     after, _ = ad.build_projected_pa_probs(proj, mutated, models)
+    base_s = base.filter(pl.col("source_type") == ad.SOURCE_TYPE_ENTITY)
+    after_s = after.filter(pl.col("source_type") == ad.SOURCE_TYPE_ENTITY)
     for c in ad.FEAT_H3 + ["p_h3_raw", "p_l5_raw"]:
-        assert np.array_equal(base[c].to_numpy(), after[c].to_numpy()), c
+        assert np.array_equal(base_s[c].to_numpy(), after_s[c].to_numpy()), c
+    for c in ("source_type", "exclusion_reason"):
+        assert (base[c].to_list() == after[c].to_list()), c
 
 
 # ------------------------------------------------------------ shape gates
@@ -183,46 +188,81 @@ def test_identity_gate_rejects_duplicate_keys(pa, models):
 
 # ---------------------------------------------------------- unseen pairs
 def test_unseen_pairs_scored_via_features(pa, models):
-    """A (pitcher, batter) pair that never occurred in the PA table is
-    scored through its entity features; the probability equals the frozen
-    coefficients applied to the asof-built features (the model consumes no
-    player IDs)."""
+    """A (pitcher, batter) pair that never occurred in the PA table -- with
+    BOTH entities carrying history -- is scored through its entity
+    features; the probability equals the frozen coefficients applied to
+    the asof-built features (the model consumes no player IDs)."""
     cutoff = date(2025, 3, 15)
-    unseen_b = 777001
-    proj = synth_projected(pa, cutoff, unseen_batter=unseen_b)
-    pf, summary = ad.build_projected_pa_probs(proj, pa, models)
+    unseen_pair = (870001, 660005)
+    pa2 = pa.filter(
+        ~((pl.col("pitcher") == unseen_pair[0])
+          & (pl.col("batter") == unseen_pair[1])))
+    assert pa2.filter(
+        (pl.col("pitcher") == unseen_pair[0])
+        & (pl.col("batter") == unseen_pair[1])).height == 0
+    proj = synth_projected(pa2, cutoff)
+    # force slot 5 to the dropped batter: unseen pair, seen entities
+    proj = proj.with_columns(pl.lit(unseen_pair[1]).alias("u_slot_5"))
+    pf, summary = ad.build_projected_pa_probs(proj, pa2, models)
     assert summary["unseen_pairs"]["n_unseen_pairs"] == 1
     assert summary["unseen_pairs"]["handled_by"].startswith("feature-based")
-    row_unseen = pf.filter(pl.col("batter") == unseen_b)
+    row_unseen = pf.filter(
+        (pl.col("pitcher") == unseen_pair[0])
+        & (pl.col("batter") == unseen_pair[1]))
     assert row_unseen.height == 1
+    assert row_unseen["source_type"].to_list() == [ad.SOURCE_TYPE_ENTITY]
     assert np.isfinite(row_unseen["p_h3_raw"].to_numpy()).all()
     manual = ad.apply_h3_raw(row_unseen.select(ad.FEAT_H3),
                              models["block_2025H1"])
     assert np.allclose(row_unseen["p_h3_raw"].to_numpy(), manual, atol=1e-12)
 
 
-def test_unseen_batter_ids_are_interchangeable(pa, models):
+def test_cold_start_slots_excluded_no_league_fallback(pa, models):
+    """Cold-start slots (entity without PA-table history) are EXCLUDED
+    from scoring with an explicit marker and reason -- never silently
+    league-rate filled (owner rule). The frozen recipe declares no
+    cold-start probability, so the PA probability stays null."""
+    cutoff = date(2025, 3, 15)
+    unseen_b = 777001
+    proj = synth_projected(pa, cutoff, unseen_batter=unseen_b)
+    pf, summary = ad.build_projected_pa_probs(proj, pa, models)
+    assert summary["n_pa_rows_scored"] == 8
+    assert summary["n_pa_rows_excluded_cold_start"] == 1
+    cold = pf.filter(pl.col("batter") == unseen_b)
+    assert cold.height == 1
+    assert cold["source_type"].to_list() == [ad.SOURCE_TYPE_COLD_NO_PRIOR]
+    assert cold["exclusion_reason"].to_list() == [ad.EXCLUSION_REASON_COLD]
+    assert cold["p_h3_raw"].to_list() == [None]
+    assert cold["p_l5_raw"].to_list() == [None]
+    # scored slots are untouched by the cold row's league-derived features
+    scored = pf.filter(pl.col("source_type") == ad.SOURCE_TYPE_ENTITY)
+    assert scored.height == 8
+    assert np.isfinite(scored["p_h3_raw"].to_numpy()).all()
+
+
+def test_cold_start_ids_are_interchangeable(pa, models):
     """Two DIFFERENT never-seen batter IDs at the same slot against the
-    same pitcher must produce identical probabilities: the frozen
-    checkpoint scores features only (cold-start league fallback), proving
-    there is no player-ID memorization."""
+    same pitcher are both EXCLUDED with identical markers and identical
+    (excluded) probabilities: there is no player-ID dependence and no
+    league-rate fallback path."""
     cutoff = date(2025, 3, 15)
     proj_a = synth_projected(pa, cutoff, unseen_batter=777001)
     proj_b = synth_projected(pa, cutoff, unseen_batter=888001)
     pf_a, sum_a = ad.build_projected_pa_probs(proj_a, pa, models)
     pf_b, sum_b = ad.build_projected_pa_probs(proj_b, pa, models)
-    assert sum_a["unseen_pairs"]["n_unseen_pairs"] == 1
-    assert sum_b["unseen_pairs"]["n_unseen_pairs"] == 1
     u = pf_a.filter(pl.col("batter") == 777001)
     v = pf_b.filter(pl.col("batter") == 888001)
-    # both are cold-start: features derive from the league fallback
-    assert u["src_type_batter"].to_list() == [ad.SOURCE_TYPE_COLD]
-    assert v["src_type_batter"].to_list() == [ad.SOURCE_TYPE_COLD]
-    assert u["cold_start"].to_list() == [1]
-    for c in ad.FEAT_H3:
-        assert np.array_equal(u[c].to_numpy(), v[c].to_numpy()), c
-    assert np.array_equal(u["p_h3_raw"].to_numpy(), v["p_h3_raw"].to_numpy())
-    assert np.array_equal(u["p_l5_raw"].to_numpy(), v["p_l5_raw"].to_numpy())
+    assert u["source_type"].to_list() == [ad.SOURCE_TYPE_COLD_NO_PRIOR]
+    assert v["source_type"].to_list() == [ad.SOURCE_TYPE_COLD_NO_PRIOR]
+    assert u["exclusion_reason"].to_list() == [ad.EXCLUSION_REASON_COLD]
+    assert v["exclusion_reason"].to_list() == [ad.EXCLUSION_REASON_COLD]
+    assert u["p_h3_raw"].to_list() == [None]
+    assert v["p_h3_raw"].to_list() == [None]
+    # the scored 8 slots are identical across the two projections
+    sa = pf_a.filter(pl.col("source_type") == ad.SOURCE_TYPE_ENTITY)
+    sb = pf_b.filter(pl.col("source_type") == ad.SOURCE_TYPE_ENTITY)
+    for c in ad.FEAT_H3 + ["p_h3_raw", "p_l5_raw"]:
+        assert np.array_equal(sa[c].to_numpy(), sb[c].to_numpy()), c
 
 
 # ------------------------------------------------------------ PMF arms
@@ -280,17 +320,38 @@ def test_pmf_differs_when_per_pa_probs_differ():
 
 def test_full_pipeline_attaches_valid_pmfs(pa, models):
     cutoff = date(2025, 3, 15)
-    proj = synth_projected(pa, cutoff, unseen_batter=777001)
+    proj = synth_projected(pa, cutoff)
     bf = pl.DataFrame([{
         "game_pk": 999001, "side": "Bot", "pitcher": 870001,
         **{f"pmf37_{j}": v for j, v in enumerate(synth_bf37())},
     }])
-    pf, _ = ad.build_projected_pa_probs(proj, pa, models, bf37_by_start=bf)
+    pf, summary = ad.build_projected_pa_probs(proj, pa, models,
+                                              bf37_by_start=bf)
+    assert summary["n_starts_pmf_computed"] == 1
+    assert summary["n_starts_pmf_excluded_cold_slot"] == 0
     for tag in ("h3_raw", "l5_raw"):
         pmf = np.asarray(pf[f"pmf_{tag}"][0])
         assert pmf.shape == (24,)
         assert abs(pmf.sum() - 1.0) <= 1e-9
         assert (pmf >= 0).all()
+
+
+def test_pmf_excluded_for_start_with_cold_slot(pa, models):
+    """A start containing a cold-start slot is excluded from the count-PMF
+    arms with an explicit reason; its rows carry null PMFs and never a
+    league-rate-filled PMF."""
+    cutoff = date(2025, 3, 15)
+    proj = synth_projected(pa, cutoff, unseen_batter=777001)
+    bf = pl.DataFrame([{
+        "game_pk": 999001, "side": "Bot", "pitcher": 870001,
+        **{f"pmf37_{j}": v for j, v in enumerate(synth_bf37())},
+    }])
+    pf, summary = ad.build_projected_pa_probs(proj, pa, models,
+                                              bf37_by_start=bf)
+    assert summary["n_starts_pmf_computed"] == 0
+    assert summary["n_starts_pmf_excluded_cold_slot"] == 1
+    assert pf["pmf_h3_raw"].null_count() == pf.height
+    assert pf["pmf_l5_raw"].null_count() == pf.height
 
 
 # ----------------------------------------------------- fail-loud guards
@@ -326,3 +387,56 @@ def test_no_real_data_read(tmp_path, monkeypatch):
         ad.load_projected_lineups(tmp_path)
     with pytest.raises(ad.AdapterError):
         ad.load_pa_table(tmp_path)
+
+
+# ------------------------------------------------- checkpoint artifact
+def test_missing_checkpoint_artifact_fails_loud(tmp_path):
+    """The adapter loads ONLY the serialized checkpoint: a missing artifact
+    fails loud with the named MISSING_CHECKPOINT_ARTIFACT error -- no
+    league-rate fallback, no reconstruction fallback."""
+    with pytest.raises(ad.AdapterError, match="MISSING_CHECKPOINT_ARTIFACT"):
+        ad.load_serialized_checkpoint(tmp_path / "absent.json")
+
+
+def test_checkpoint_serialize_load_roundtrip(pa, models, tmp_path):
+    """serialize_checkpoint -> load_serialized_checkpoint reproduces the
+    verified coefficients exactly and records the matching sha256 pin."""
+    verification = {"block_2025H1": {"n_rows": 10, "max_abs_diff": 0.0}}
+    out = tmp_path / "h3_raw_checkpoint.json"
+    ad.serialize_checkpoint(models, verification, out)
+    loaded, meta = ad.load_serialized_checkpoint(out)
+    assert meta["sha256"] == ad.checkpoint_sha256(
+        ad.checkpoint_payload(models, verification))
+    assert meta["verification"] == verification
+    assert set(loaded) == set(models)
+    for block in models:
+        for key in ("mean", "scale", "coef", "intercept", "features"):
+            assert loaded[block][key] == models[block][key], (block, key)
+
+
+def test_checkpoint_hash_pin_rejects_tamper(pa, models, tmp_path):
+    """Any byte-level tamper with the coefficients breaks the sha256 pin
+    and fails loud with CHECKPOINT_HASH_MISMATCH."""
+    out = tmp_path / "h3_raw_checkpoint.json"
+    ad.serialize_checkpoint(models, None, out)
+    import json
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    doc["payload"]["blocks"]["block_2024H2"]["coef"][0] += 1e-12
+    out.write_text(json.dumps(doc, indent=2, sort_keys=True),
+                   encoding="utf-8")
+    with pytest.raises(ad.AdapterError, match="CHECKPOINT_HASH_MISMATCH"):
+        ad.load_serialized_checkpoint(out)
+
+
+def test_checkpoint_roundtrip_via_build_checkpoint_module(models, tmp_path):
+    """build_checkpoint.reconstruct's serialize/load round-trip helpers are
+    importable and consistent with the adapter's artifact format (no lake
+    access: only serialization is exercised)."""
+    sys.path.insert(0, str(HERE / "research" / "offseason_2026"))
+    from pregame_pa_ext import build_checkpoint as bc  # noqa: E402
+    out = tmp_path / "h3_raw_checkpoint.json"
+    ad.serialize_checkpoint(models, None, out)
+    models_loaded, meta = ad.load_serialized_checkpoint(out)
+    assert bc.BLOCK_TRAIN_END["block_2024H2"] == (2024, 6, 30)
+    assert meta["path"] == str(out)
+    assert set(models_loaded) == set(models)
