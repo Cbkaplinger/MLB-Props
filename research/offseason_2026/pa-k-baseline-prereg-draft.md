@@ -1,3 +1,5 @@
+> **SUPERSEDED (working draft, noncanonical):** this pre-freeze working copy is superseded by the registered final [pa-k-baseline-prereg.md](pa-k-baseline-prereg.md). superseded by an identical registered final (blob-identical); preserved as lineage. Content below is preserved unmodified; the final is the authoritative version.
+
 # DRAFT prereg — PA-K chronological baseline (2026-10-07)
 
 > **Status: DRAFT.** Not frozen, not authorized, not scored. Frozen prereg is

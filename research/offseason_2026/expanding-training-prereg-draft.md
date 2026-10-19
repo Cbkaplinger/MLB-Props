@@ -1,3 +1,5 @@
+> **SUPERSEDED (working draft, noncanonical):** this pre-freeze working copy is superseded by the registered final [expanding-training-prereg.md](expanding-training-prereg.md). superseded by an identical registered final (blob-identical); preserved as lineage. Content below is preserved unmodified; the final is the authoritative version.
+
 # DRAFT prereg — BF hazard training-policy comparison (2026-10-06)
 
 > **Status: DRAFT.** Not frozen, not authorized, not executed. Frozen prereg
