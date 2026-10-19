@@ -45,3 +45,5 @@ Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); never `git push`
 - Always-on rule: `.cursor/rules/agent-context.mdc` -> backlog + `docs/reference/repo_canonical_map.md`
 - Historical CLV API research: `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`
 - Live odds remain SharpAPI (`SHARPAPI_KEY`); do not confuse with historical backfill vendors
+
+See [AGENTS_ROLES.md](docs/AGENTS_ROLES.md) for the full role map.
