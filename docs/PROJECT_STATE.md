@@ -54,6 +54,24 @@ no live-path changes; dashboard parked.
 | Pinned snapshot `02ce162f` | market-eval v2 implementation, byte-identical to lake sources, 28 tests pass on committed bytes |
 | Branch `research/market-eval-v2` (PR #3) | published review branch: pin + docs-only follow-up commits; DRAFT research-only PR |
 
+## Closeout corrections (2026-10-19, lake-only)
+
+Scientific closeout corrections for the count_b1_recovery_v1 recovery run are
+recorded lake-only at
+`C:\Users\ckaplinger\MLB-Props-Research\bf-2026-eval-v1-outputs\CLOSEOUT_CORRECTIONS.md`
+(SIBLING of the frozen run dir; nothing inside `count_b1_recovery_v1\` was
+modified, moved, or deleted). SHA-256 of the file at write time:
+`b88dae06...` for RECONCILIATION_CHAT2.md is recorded inside it; the closeout
+file itself records: (a) RECONCILIATION_CHAT2.md authorship/timing/hash and the
+write-once boundary note; (b) WITHDRAWAL of the earlier 11-file / missing-PMF
+account (actual inventory = 21 files; finalization defect = two misnamed pooled
+filenames + missing run_manifest.json; no analytical evidence missing);
+(c) accepted conclusion: B1 improves the registered development-fold
+BF/workload count-distribution endpoint vs B0 by -0.02818 count-RPS
+[-0.03656, -0.01980]; computation complete; package finalization failed;
+acceptance WITH LIMITATION; no production promotion or betting-performance
+claim.
+
 ## Next action
 
 Chat 2 independent integrity review of the executed canonical scoring run
