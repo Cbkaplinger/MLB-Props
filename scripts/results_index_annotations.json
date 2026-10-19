@@ -1,0 +1,4 @@
+{
+  "comment": "Declared evidence class / review status per experiment directory. Values must come from a human owner or Chat 2 review receipt, never inferred by the generator. Allowed evidence_class values: development-only, confirmation, diagnostic, promotion-eligible, not-applicable. Missing entries render as MISSING in the index.",
+  "experiments": []
+}
