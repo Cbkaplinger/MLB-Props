@@ -1,6 +1,6 @@
 # PROJECT_STATE — one-screen current state
 
-**Date:** 2026-10-15. Point-in-time summary; `docs/EXECUTION_BACKLOG.md`
+**Date:** 2026-10-19. Point-in-time summary; `docs/EXECUTION_BACKLOG.md`
 remains the live work queue and wins on conflicts.
 
 ## Champion (production)
@@ -53,6 +53,42 @@ no live-path changes; dashboard parked.
 | Reviewed SHA `6567c51` | backlog/docs review snapshot reviewed by Chat 2 |
 | Pinned snapshot `02ce162f` | market-eval v2 implementation, byte-identical to lake sources, 28 tests pass on committed bytes |
 | Branch `research/market-eval-v2` (PR #3) | published review branch: pin + docs-only follow-up commits; DRAFT research-only PR |
+| PR #12 (hygiene checker) | MERGED at `d57ba17f57c8c932411a9e5be885a3de69d25411` (2026-10-19) |
+| PR #13 (governance/cleanup-skills) | review PASS at head `5571b338b4a4e1b037ca78a38873d857fae7fcc9` (CI green, MERGEABLE); MERGED 2026-10-19; post-merge `origin/main` = `dd3318f0492ebbd41ae4e813c43d8416fd5b134f` |
+
+## Completed-item canonical pointers (2026-10-19)
+
+- **PR #12 merged** — canonical merge SHA
+  `d57ba17f57c8c932411a9e5be885a3de69d25411` on `origin/main`.
+- **Directory mapping resolved** — upstream BF fit, the failed count
+  attempt, and the count recovery run are three distinct directories with
+  distinct provenance; the earlier conflated account is superseded by the
+  closeout corrections below.
+- **Recovery inventory** — 21 files (not 11); the audit addition is
+  recorded lake-only in the CLOSEOUT_CORRECTIONS.md sibling (see the
+  historical evidence section below for hashes and withdrawal detail).
+- **Count recovery analysis independently reproduced** — accepted
+  WITH LIMITATION (package finalization failed; computation complete).
+- **Metric-context scorecard published** — RECOUNT scorecard committed at
+  `8f8c0f5de53b427e73190aad5af7f7ce300b745f` (compact count-lane record:
+  target K/start, support 0..22 exact + >=23 absorbing, natural log,
+  thresholds K>=6/8/10/12, B0/B1 count-RPS + log score + threshold
+  Briers + realized event rates; no count-lane prior-data predictor
+  exists and PA-lane 0.520552 is not cross-layer comparable; market
+  de-vig Brier 0.4469 vs H3 0.4684 / LOG5 0.4663 on matched contracts).
+- **Market review CLOSED** — the de-vig market dominates both PA arms at
+  matched contracts (de-vig Brier 0.4469 < H3 0.4684 < LOG5 0.4663);
+  market-eval lane conclusions are final for this round.
+
+## Next action
+
+Select ONE next scientific question from the existing backlog/roadmap,
+conditioned on the closed market result (de-vig market dominates both PA
+arms at matched contracts). Candidates: BF distributional challengers
+(beta-binomial v2 gate), pitch/arsenal feature blocks for the PA lane,
+projected-batter PA-probability extension scoring, or the
+count-aggregation comparison (pbar vs Poisson-binomial). Selection only;
+no execution until owner authorizes.
 
 ## Closeout corrections (2026-10-19, lake-only)
 
@@ -72,10 +108,12 @@ BF/workload count-distribution endpoint vs B0 by -0.02818 count-RPS
 acceptance WITH LIMITATION; no production promotion or betting-performance
 claim.
 
-## Next action
+## Historical: Chat 2 review scope (closed 2026-10-19)
 
-Chat 2 independent integrity review of the executed canonical scoring run
-(CHAT2_HANDOFF.md + the EXECUTED-RUN record in EXPERIMENT_CARD.md), with
-the 17:15 incident blinding question (C3.6) still open. Results stay
-PRELIMINARY; no reruns, model promotion, or production changes until the
-owner accepts the review.
+The Chat 2 independent integrity review of the executed canonical scoring
+run (CHAT2_HANDOFF.md + the EXECUTED-RUN record in EXPERIMENT_CARD.md),
+including the 17:15 incident blinding question (C3.6), has been resolved:
+the market review is CLOSED per the completed-item pointers above
+(de-vig market dominates both PA arms at matched contracts). The evidence
+records below are preserved as-is; the PRELIMINARY label on the scoring
+run is superseded by the closed review outcome for this round.
