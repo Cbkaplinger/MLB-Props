@@ -1,0 +1,100 @@
+{
+  "registration_id": "bf-lane-v1-b1-ridge-workload-challenger",
+  "registration_version": "1.0",
+  "registered_utc": "2026-10-16",
+  "status": "FROZEN - NOT EXECUTED (no fit, no scoring, no real-data run)",
+  "realizes_candidate_stub": "count-eval-v2-spec/harness/CANDIDATE_MAP.md B1_ridge_bf",
+  "challenger": {
+    "name": "B1_ridge_workload_v1",
+    "grain": "(game_pk, side, pitcher) first-pitcher-of-record starts",
+    "target": "realized BF per start",
+    "population": {
+      "assessment_window": {"start": "2024-07-01", "end": "2025-12-31"},
+      "n_starts": 7194,
+      "n_slate_dates": 272
+    },
+    "features_predeclared": [
+      {"name": "prior_mean_bf", "source": "bf_forecasts.parquet prior_mean", "definition": "mean BF over the pitcher's prior starts, 2023-01-01-onward pool; null iff prior_n==0"},
+      {"name": "prior_n", "source": "bf_forecasts.parquet prior_n", "definition": "prior start count (registered list's 'prior n' and 'prior start count' are this ONE column)"},
+      {"name": "lg_mean", "source": "bf_forecasts.parquet lg_mean", "definition": "league mean BF over ALL starts strictly before game_date"},
+      {"name": "rest_days_since_last_start", "source": "derived", "definition": "(game_date - max prior start game_date).days; defined iff prior_n>=1; uncapped"},
+      {"name": "season_progression", "source": "derived", "definition": "game_date ISO day-of-year (deterministic, no data dependence)"}
+    ],
+    "availability_states": {
+      "own_distribution": {"definition": "prior_n>=10", "count": 6059, "handling": "scored by Ridge"},
+      "insufficient_history_league_pool": {"definition": "1<=prior_n<=9", "count": 966, "handling": "scored by Ridge; short prior outings PRESERVED"},
+      "career_debut_league_pool": {"definition": "prior_n==0; prior_mean+rest undefined", "count": 169, "handling": "EXCLUDED from Ridge scored rows (prior-history-only decision); B1 forecast = B0 PMF unchanged"},
+      "failed_join": {"definition": "cohort start missing bf_forecasts row or start_metrics_v2 realized-BF match", "count": 0, "handling": "would be excluded, reason-coded"},
+      "unavailable_lineup_starter_inputs": {"definition": "not applicable - lineup-free construction", "count": 0, "status": "not_applicable_lineup_free"}
+    },
+    "n_ridge_scored_rows": 7025,
+    "preprocessing": "StandardScaler fit on base_train ONLY, one scaler per fold; career-debut rows excluded before fitting; no imputation",
+    "estimator": "sklearn Ridge(alpha=1.0, fit_intercept=True, default solver)",
+    "ridge_alpha": 1.0,
+    "search": "NONE (no alpha/hyperparameter/feature/window/calibration search)",
+    "calibration_stage": "NONE (PA-lane 60-day cal sub-block not used by B1)"
+  },
+  "folds": {
+    "source": "specs/count-eval-v2-spec/harness/comparison.py BLOCKS (verbatim anchors)",
+    "grain": "start (base_train = starts with game_date <= train_end from the 14,574-row 2023-2025 builder frame)",
+    "folds": [
+      {"name": "block_2024H2", "base_train": ["2023-01-01", "2024-06-30"], "assessment": ["2024-07-01", "2024-12-31"], "role": "dev-scored"},
+      {"name": "block_2025H1", "base_train": ["2023-01-01", "2024-12-31"], "assessment": ["2025-01-01", "2025-06-30"], "role": "dev-scored"},
+      {"name": "block_2024H1", "base_train": ["2023-01-01", "2023-12-31"], "assessment": ["2024-01-01", "2024-06-30"], "role": "0 cohort starts (cohort begins 2024-07-01) - declared empty"},
+      {"name": "confirm_2025H2", "base_train": ["2023-01-01", "2025-06-30"], "assessment": ["2025-07-01", "2025-09-28"], "role": "EXCLUDED - NOT SCORED in dev run"},
+      {"name": "2026", "role": "CLOSED (no 2026 loads)"}
+    ],
+    "training_labels": "realized_bf of training-window starts (past outcomes as labels for past rows; no assessment-window or later outcome in any fit)"
+  },
+  "uncertainty_representation": {
+    "type": "B0 BASE empirical BF PMF recentered on the Ridge predicted mean (documented construction, NOT a new distributional model)",
+    "steps": [
+      "p37 = stored BASE pmf37 (B0 arm, unmodified)",
+      "p_ext = kcount_combiner.bf_pmf_from_37(p37) (frozen combiner, exact support 1..60, cap 60)",
+      "m0 = expected_bf(p_ext); m1 = Ridge predicted mean clipped to [1.0, 60.0]",
+      "s = round(m1 - m0), round-half-away-from-zero (deterministic integer shift)",
+      "p'_ext[n] = p_ext[n-s] for n=1..60; mass shifted out of range DROPPED, result renormalized to sum 1",
+      "registered guard: dropped mass > 0.01 -> row flagged recenter_mass_loss_flag, reported, never silently accepted",
+      "s == 0 -> row unchanged"
+    ]
+  },
+  "count_integration": {
+    "path": "identical to the audited lineage (B0_AUDIT.md): BF PMF (B0: bf_pmf_from_37(pmf37); B1: recentered p'_ext) -> combine_count k_max 24 -> count_rps (summed convention) + count_logscore + milestone Brier 6/8/10/12",
+    "p_bar_registered": "frozen scalar shrunk pitcher K rate, w=150 log5 form (kcount-integration I3b prior construction; pa-k prior_rates W=150, pool = completed PAs strictly before game_date under the pa-k label convention), rebuilt per start, hash-recorded at run time; IDENTICAL for both arms so the paired contrast is invariant to it",
+    "p_bar_explicitly_not_reused": "the realized-sequence diagnostic's realized-PA p_bar (NOT pregame-valid)"
+  },
+  "paired_uncertainty": {
+    "n_boot": 2000,
+    "seed": 20261001,
+    "method": "block-stratified slate-date bootstrap, ONE shared draw stream across arms and contrasts (PA-harness C3.8 convention)",
+    "predeclared_contrasts": ["C_b1_ridge_vs_b0_empirical on count-RPS"],
+    "test": "null-centered approximate bootstrap test, Holm at family level 0.05; ordinary percentile CIs UNADJUSTED"
+  },
+  "hard_rules": [
+    "no current/eventual BF in pregame construction (features strictly prior; verified by B0 prior-pool recompute for stored columns)",
+    "no realized lineup or any lineup/batter-level input in B1 pregame construction (lineup-free)",
+    "no outcome-dependent feature availability (the only exclusion, career debut prior_n==0, is decided by strictly-prior history)",
+    "short prior outings preserved: 1<=prior_n<=9 scored, never excluded; their outcomes stay in the pools",
+    "explicit availability states persisted per row",
+    "no real-data run at registration: freeze only; execution requires owner authorization after exact-head CI + SELF-CHECK gate"
+  ],
+  "persistence_registered": [
+    "forecast-row IDs (game_pk, side, pitcher) + as-of timestamps (forecast_as_of = game_date; reconstructed deterministic cutoff, labelled - no captured pregame timestamps in this 2024-25 lineage)",
+    "feature availability/missingness states + per-row feature values",
+    "BF predictive distributions, NOT merely means: full 37-cat BASE PMF (B0) + full recentered extended PMF (B1) per scored row",
+    "observed BF per scored row",
+    "mean bias / MAE / RMSE of both arms' mean forecasts (per fold + pooled dev)",
+    "calibration: predicted-mean decile reliability (10 quantile bins) + milestone exceedance Brier (K>=6/8/10/12) per arm",
+    "interval coverage/width: central P10-P90 and P25-P75 from each arm's extended PMF, empirical coverage + mean width",
+    "distributional score: count-RPS + count-logscore per arm (per fold + pooled dev)",
+    "count-integration inputs/outputs: per-row p_bar (hash-recorded) + 24-bucket count PMFs both arms",
+    "paired RPS evidence: per-date paired draws, contrast delta, null-centered 95% CI, p, Holm p (2000, seed 20261001, shared stream)",
+    "per-fold row-count assertions; Ridge-vs-B0 row difference = the counted career-debut exclusion only, never silent",
+    "write-once run dir under MLB-Props-Research/bf-lane-v1/<run_id>/ via the shared track_and_verify.py chain (compare once -> save -> log MLflow -> verify fresh-process), sha256 inventory in metrics.json"
+  ],
+  "b0_reference": {
+    "audit": "B0_AUDIT.md",
+    "audit_json": "b0_audit.json",
+    "verdict": "PASS - available and pregame-valid for all 7,194 starts"
+  }
+}

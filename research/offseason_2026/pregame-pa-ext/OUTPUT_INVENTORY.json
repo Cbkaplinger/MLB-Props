@@ -1,0 +1,116 @@
+{
+  "record": "Hashed inventory of every file in the frozen first-run-v1 canonical run dir",
+  "generated_utc": "2026-10-15T14:34:57.148600+00:00",
+  "generator_script": "generate_output_inventory.py",
+  "run_dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+  "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+  "packet_run_id": "first-run-v1-e59da946da21",
+  "run_manifest_untouched": true,
+  "run_manifest_note": "The original run_manifest.json is preserved byte-for-byte; this inventory references its declared hashes rather than rewriting or re-annotating it. A self-hash of run_manifest.json appears here only as recomputed evidence.",
+  "file_count": 15,
+  "files": [
+    {
+      "name": "metrics.json",
+      "size_bytes": 10571,
+      "sha256": "e0d590870b8a400c341c3da2b0bd12c122b83ae60f8dc5306146495aa08f52e4",
+      "mtime_utc": "2026-10-15T05:20:29.914189+00:00"
+    },
+    {
+      "name": "metrics.md",
+      "size_bytes": 1601,
+      "sha256": "ae9d6f1b0df46a3d40f2b10118460c3957e9d983761882634c67d04c0c4ebb55",
+      "mtime_utc": "2026-10-15T05:20:29.921188+00:00"
+    },
+    {
+      "name": "preds_block_2024H1__P0_log5.parquet",
+      "size_bytes": 1054667,
+      "sha256": "86cd6e69eb82f22f9ed22e0de703e482e59416ec370c08c0c87b24adc44ee2a6",
+      "mtime_utc": "2026-10-15T05:20:07.857679+00:00"
+    },
+    {
+      "name": "preds_block_2024H1__P1_B_logreg.parquet",
+      "size_bytes": 1666307,
+      "sha256": "59ffaefc6c0e064b82442d8a9977603acad9a5a07239926bef9c349dc7800a54",
+      "mtime_utc": "2026-10-15T05:20:14.859693+00:00"
+    },
+    {
+      "name": "preds_block_2024H1__P1_H3_incumbent_refit.parquet",
+      "size_bytes": 1683243,
+      "sha256": "812864764ae0dd3ea677f4ccfcc4df5c2e1934299c84df2fe1aa10ed00698c01",
+      "mtime_utc": "2026-10-15T05:20:15.244218+00:00"
+    },
+    {
+      "name": "preds_block_2024H2__P0_log5.parquet",
+      "size_bytes": 972754,
+      "sha256": "8cd1dc38fa2e27b8036561e0b86292f9efe0a91a68e2bbb044cf9b116ad563d0",
+      "mtime_utc": "2026-10-15T05:20:15.364129+00:00"
+    },
+    {
+      "name": "preds_block_2024H2__P1_B_logreg.parquet",
+      "size_bytes": 1548299,
+      "sha256": "723182d489d02913d5b81ddf6eb7bcec763a49d8db8d1a12ddedab44721c1ea4",
+      "mtime_utc": "2026-10-15T05:20:15.803179+00:00"
+    },
+    {
+      "name": "preds_block_2024H2__P1_H3_incumbent_refit.parquet",
+      "size_bytes": 1549915,
+      "sha256": "89de1fca976703732559ec46cf71f25847bb157d97f241ff0f3128f8bad740c0",
+      "mtime_utc": "2026-10-15T05:20:16.362926+00:00"
+    },
+    {
+      "name": "preds_block_2025H1__P0_log5.parquet",
+      "size_bytes": 1064659,
+      "sha256": "d23d3ca18822cd9b63ca2812591d669fc5fc9fb77ef7bd6e04dec40a7c52656d",
+      "mtime_utc": "2026-10-15T05:20:16.492382+00:00"
+    },
+    {
+      "name": "preds_block_2025H1__P1_B_logreg.parquet",
+      "size_bytes": 1698879,
+      "sha256": "a39e80e754880d61a5a3e5bf70bcb03ac20d4807d1bd746f9400c4cb612a7c8a",
+      "mtime_utc": "2026-10-15T05:20:17.029769+00:00"
+    },
+    {
+      "name": "preds_block_2025H1__P1_H3_incumbent_refit.parquet",
+      "size_bytes": 1700750,
+      "sha256": "c8fbfc4ce0257527d9156d7d256ea584008513df169b040771c376dc63834ce0",
+      "mtime_utc": "2026-10-15T05:20:17.759636+00:00"
+    },
+    {
+      "name": "preds_confirm_2025H2__P0_log5.parquet",
+      "size_bytes": 959590,
+      "sha256": "7b9e35e7a583f28b14704d7dbf84927ac4e234f2b47fad125b5fa99c2dba8399",
+      "mtime_utc": "2026-10-15T05:20:17.890392+00:00"
+    },
+    {
+      "name": "preds_confirm_2025H2__P1_B_logreg.parquet",
+      "size_bytes": 1523148,
+      "sha256": "8ca8de5cd8a88591c243d8703187e188924fb1c4746f8bfeb1537c3428914d64",
+      "mtime_utc": "2026-10-15T05:20:18.521403+00:00"
+    },
+    {
+      "name": "preds_confirm_2025H2__P1_H3_incumbent_refit.parquet",
+      "size_bytes": 1523555,
+      "sha256": "854008b720e372fca6b7f59b9945b907796eee06ab62238e878ebefde56c1e16",
+      "mtime_utc": "2026-10-15T05:20:19.351057+00:00"
+    },
+    {
+      "name": "run_manifest.json",
+      "size_bytes": 10400,
+      "sha256": "897070f8acc593038a8f37126e1693d3a5f25389ce3e4b7d941592db817711c9",
+      "mtime_utc": "2026-10-15T05:20:29.927197+00:00"
+    }
+  ],
+  "external_hash_references": {
+    "run_manifest.json": {
+      "declared_in": "SEQUENCE_DEVIATION.md + ablation_row.json evidence + ablation_record_authoritative.json evidence",
+      "declared_sha256": "897070f8acc593038a8f37126e1693d3a5f25389ce3e4b7d941592db817711c9",
+      "matches": true
+    },
+    "metrics.json": {
+      "declared_in": "SEQUENCE_DEVIATION.md + ablation_row.json evidence + ablation_record_authoritative.json evidence",
+      "declared_sha256": "e0d590870b8a400c341c3da2b0bd12c122b83ae60f8dc5306146495aa08f52e4",
+      "matches": true
+    }
+  },
+  "all_external_refs_match": true
+}
