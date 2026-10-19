@@ -1,3 +1,5 @@
+> **SUPERSEDED (working draft, noncanonical):** this pre-freeze working copy is superseded by the registered final [i5-tail-challenger.md](i5-tail-challenger.md). draft diverges most from the registered final (similarity 0.81); substantive differences preserved below as historical evidence. Content below is preserved unmodified; the final is the authoritative version.
+
 # I5 deep-tail challenger - DRAFT (2026-10-08, readiness round)
 
 > **Status: DRAFT (frozen-ready).** Owner-directed readiness only; no
