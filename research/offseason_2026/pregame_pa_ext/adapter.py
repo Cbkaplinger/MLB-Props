@@ -31,6 +31,14 @@ Lineage (read-only; this module reimplements nothing new and tunes nothing):
   (bf-workload-v1 BASE empirical build, extended by
   ``kcount_combiner.bf_pmf_from_37``): H3-raw cycled-prefix-mean arm and
   LOG5 corrected arm, mixed over binomial conditionals (24 buckets, 0..23).
+  ``run_real`` wires the registered bf-workload-v1 artifact
+  (``data/bf_forecasts.parquet``, start grain (game_pk, side, pitcher),
+  ``pmf37_0..36``) through ``load_bf_forecasts`` (sha256 provenance gate
+  against the registered pin) and ``validate_bf37_by_start`` (unique start
+  keys, coverage of every scored start, finite/nonnegative/normalized
+  pmf37 rows, registered cap-60 geometric-tail conversion check). Missing
+  or mismatched BF inputs fail loud -- no invented replacement
+  distributions.
 
 Design rules:
 - Every core function is pure over injected frames (no file I/O), so
@@ -611,6 +619,126 @@ def start_count_pmfs(p9_h3: np.ndarray, p9_l5: np.ndarray,
     return out
 
 
+# ------------------------------------------------------------ BF37 wiring
+BF37_TOL = 1e-9
+PMF37_COLS = [f"pmf37_{j}" for j in range(37)]
+START_KEYS = ["game_pk", "side", "pitcher"]
+
+
+def validate_bf37_by_start(
+    bf: pl.DataFrame, starts: pl.DataFrame
+) -> tuple[pl.DataFrame, dict]:
+    """Registered BF-PMF wiring validation (pure over injected frames).
+
+    bf: bf-workload-v1 ``bf_forecasts.parquet`` frame -- start grain
+        (game_pk, side, pitcher) with ``pmf37_0..36`` (the registered
+        artifact is also unique on (game_pk, pitcher); both grains are
+        enforced).
+    starts: fully-scored projected starts (game_pk, side, pitcher[, 
+        game_date]).
+
+    Fail-loud guards (a missing or mismatched input NEVER produces an
+    invented replacement distribution):
+    - required columns present -> ``BF_PMF_COLUMNS_MISSING``;
+    - duplicate start keys on either registered grain ->
+      ``BF_PMF_DUPLICATE_START_KEYS``;
+    - every scored start must have a complete BF PMF row ->
+      ``BF_PMF_COVERAGE_MISSING``;
+    - artifact ``game_date`` must match the projected start's when both
+      frames carry it -> ``BF_PMF_DATE_MISMATCH``;
+    - matched pmf37 rows finite, nonnegative, summing to 1 ->
+      ``BF_PMF_DISTRIBUTION_INVALID``;
+    - the registered bucket/tail conversion
+      (``kcount_combiner.bf_pmf_from_37``, cap 60, geometric tail) must
+      succeed per matched start -> ``BF_PMF_CONVERSION_FAILED``.
+
+    Returns (starts frame with the 37 pmf37 columns attached, provenance
+    meta dict)."""
+    keys = list(START_KEYS)
+    pmf37_cols = list(PMF37_COLS)
+    for c in keys + pmf37_cols:
+        if c not in bf.columns:
+            raise AdapterError(
+                f"BF_PMF_COLUMNS_MISSING: BF PMF frame lacks column {c!r}")
+    for grain in (keys, ["game_pk", "pitcher"]):
+        dups = bf.group_by(grain).agg(n=pl.len()).filter(pl.col("n") > 1)
+        if dups.height:
+            raise AdapterError(
+                "BF_PMF_DUPLICATE_START_KEYS: %d duplicate %s key(s) in the "
+                "BF PMF frame (sample: %s)"
+                % (dups.height, "+".join(grain),
+                   dups.select(*grain).head(3).rows()))
+    bf_sel = bf.select(*keys, *pmf37_cols,
+                       *(["game_date"] if "game_date" in bf.columns else []))
+    if "game_date" in bf.columns:
+        bf_sel = bf_sel.with_columns(
+            pl.col("game_date").alias("bf_game_date"))
+    j = starts.join(bf_sel, on=keys, how="left")
+    missing = j.filter(
+        pl.any_horizontal([pl.col(c).is_null() for c in pmf37_cols]))
+    if missing.height:
+        sample = missing.select(*keys).head(5).rows()
+        raise AdapterError(
+            "BF_PMF_COVERAGE_MISSING: %d scored start(s) have no complete "
+            "BF PMF row in the registered bf-workload-v1 artifact "
+            "(sample: %s); no replacement distribution may be invented"
+            % (missing.height, sample))
+    if "bf_game_date" in j.columns and "game_date" in j.columns:
+        mm = j.filter(pl.col("bf_game_date") != pl.col("game_date"))
+        if mm.height:
+            raise AdapterError(
+                "BF_PMF_DATE_MISMATCH: BF PMF game_date differs from the "
+                "projected start game_date on %d start(s)" % mm.height)
+    mat = j.select(*pmf37_cols).to_numpy().astype(np.float64)
+    if mat.shape[0] == 0:
+        # no fully-scored starts (all contain a cold-start slot): nothing
+        # to validate or attach; PMFs stay absent with the explicit
+        # cold-slot exclusion counts
+        meta = {
+            "n_scored_starts": int(starts.height),
+            "n_starts_bf_matched": 0,
+            "bf_extension": (
+                "kcount_combiner.bf_pmf_from_37 (cap 60, geometric tail)"),
+            "kcount_cap": KCOUNT_CAP,
+            "k_max": K_MAX,
+        }
+        return j, meta
+    if not np.isfinite(mat).all():
+        raise AdapterError(
+            "BF_PMF_DISTRIBUTION_INVALID: non-finite pmf37 entry on a "
+            "matched start")
+    if float(mat.min()) < 0.0:
+        raise AdapterError(
+            "BF_PMF_DISTRIBUTION_INVALID: negative pmf37 entry on a "
+            "matched start")
+    dev = np.abs(mat.sum(axis=1) - 1.0)
+    if float(dev.max()) > BF37_TOL:
+        raise AdapterError(
+            "BF_PMF_DISTRIBUTION_INVALID: pmf37 row deviates from sum=1 "
+            "(max abs dev %.3e)" % float(dev.max()))
+    for i in range(mat.shape[0]):
+        try:
+            ext = bf_pmf_from_37(mat[i])
+        except (ValueError, AssertionError) as exc:
+            raise AdapterError(
+                "BF_PMF_CONVERSION_FAILED: the registered bucket/tail "
+                "conversion kcount_combiner.bf_pmf_from_37 (cap 60, "
+                "geometric tail) rejected matched start %d: %s" % (i, exc))
+        if ext.shape != (KCOUNT_CAP,) or abs(float(ext.sum()) - 1.0) > BF37_TOL:
+            raise AdapterError(
+                "BF_PMF_CONVERSION_FAILED: invalid cap-60 extension for "
+                "matched start %d" % i)
+    meta = {
+        "n_scored_starts": int(starts.height),
+        "n_starts_bf_matched": int(j.height),
+        "bf_extension": (
+            "kcount_combiner.bf_pmf_from_37 (cap 60, geometric tail)"),
+        "kcount_cap": KCOUNT_CAP,
+        "k_max": K_MAX,
+    }
+    return j, meta
+
+
 # ----------------------------------------------------------- unseen pairs
 def unseen_pairs_report(pf: pl.DataFrame, pa: pl.DataFrame) -> dict:
     """Document projected (pitcher, batter) pairs that never occur in the
@@ -747,12 +875,11 @@ def build_projected_pa_probs(
         "unseen_pairs": unseen,
     }
     if bf37_by_start is not None:
-        pmf37_cols = [f"pmf37_{j}" for j in range(37)]
+        pmf37_cols = list(PMF37_COLS)
         missing = [c for c in ["game_pk", "side", "pitcher", *pmf37_cols]
                    if c not in bf37_by_start.columns]
         if missing:
             raise AdapterError(f"BF PMF frame missing columns: {missing}")
-        bf = bf37_by_start.select("game_pk", "side", "pitcher", *pmf37_cols)
         per_start = pf.group_by("game_pk", "side", "pitcher").agg(
             n_scored=(pl.col("exclusion_reason").is_null()).sum(),
             n_cold=(pl.col("source_type") == SOURCE_TYPE_COLD_NO_PRIOR).sum(),
@@ -776,11 +903,15 @@ def build_projected_pa_probs(
             starts_ok, on=["game_pk", "side", "pitcher"], how="semi")
         starts = scored_rows.sort("slot").group_by(
             "game_pk", "side", "pitcher").agg(
+            pl.col("game_date").first().alias("game_date"),
             pl.col("p_h3_raw").sort_by("slot").alias("p9_h3"),
             pl.col("p_l5_raw").sort_by("slot").alias("p9_l5"),
-        ).join(bf, on=["game_pk", "side", "pitcher"], how="inner")
-        if starts.filter(pl.col("pmf37_0").is_null()).height:
-            raise AdapterError("BF PMF missing for projected starts")
+        )
+        # Registered BF wiring validation: unique start keys, complete
+        # coverage of every scored start, valid pmf37 distributions, and
+        # the registered cap-60 geometric-tail conversion. Fail-loud; no
+        # invented replacement distributions.
+        starts, bf_meta = validate_bf37_by_start(bf37_by_start, starts)
         pmf_h3, pmf_l5, mk_h3, mk_l5 = [], [], [], []
         for row in starts.iter_rows(named=True):
             p9_h3 = np.asarray(row["p9_h3"], dtype=np.float64)
@@ -829,6 +960,7 @@ def build_projected_pa_probs(
         pf = pf.drop("start_has_cold_slot")
         summary["n_starts_pmf_computed"] = starts.height
         summary["n_starts_pmf_excluded_cold_slot"] = n_pmf_excluded_starts
+        summary["bf37"] = bf_meta
     if out_path is not None:
         write_once(pf, out_path)
     return pf, summary
@@ -847,6 +979,53 @@ PAEXT_OUT_DIR = Path(os.environ.get(
 CHECKPOINT_PATH = Path(os.environ.get(
     "PAEXT_V2_CHECKPOINT_PATH",
     str(PAEXT_OUT_DIR / "checkpoints" / "h3_raw_checkpoint.json")))
+BF_WORKLOAD_DIR = Path(os.environ.get(
+    "BF_WORKLOAD_V1_DIR",
+    r"C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1"))
+BF_FORECASTS_RELPATH = Path("data") / "bf_forecasts.parquet"
+# Registered pin (bf_lane/COUNT_REGISTRATION.md; bf-workload-v1 report.json
+# inputs_sha256 -- identical value, independently registered).
+REGISTERED_BF_FORECASTS_SHA256 = (
+    "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679")
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_bf_forecasts(directory: Path | None = None
+                      ) -> tuple[pl.DataFrame, dict]:
+    """Load the registered bf-workload-v1 BF PMF artifact
+    (``data/bf_forecasts.parquet``) with provenance validation:
+    - the artifact must exist -> ``BF_PMF_ARTIFACT_MISSING``;
+    - its sha256 must equal the registered pin
+      (``REGISTERED_BF_FORECASTS_SHA256``) -> ``BF_PMF_SHA_MISMATCH``.
+    No fallback and no substitute distribution."""
+    d = Path(directory) if directory else BF_WORKLOAD_DIR
+    p = d / BF_FORECASTS_RELPATH
+    if not p.exists():
+        raise AdapterError(
+            "BF_PMF_ARTIFACT_MISSING: registered BF PMF artifact not "
+            f"found: {p}")
+    sha = sha256_file(p)
+    if sha != REGISTERED_BF_FORECASTS_SHA256:
+        raise AdapterError(
+            "BF_PMF_SHA_MISMATCH: BF PMF artifact sha256 %s does not match "
+            "the registered pin %s for %s"
+            % (sha, REGISTERED_BF_FORECASTS_SHA256, p))
+    bf = pl.read_parquet(p)
+    meta = {
+        "artifact": "bf-workload-v1/data/bf_forecasts.parquet",
+        "path": str(p),
+        "sha256": sha,
+        "registered_sha256": REGISTERED_BF_FORECASTS_SHA256,
+        "n_rows": int(bf.height),
+    }
+    return bf, meta
 
 
 def load_projected_lineups(directory: Path | None = None) -> pl.DataFrame:
@@ -872,12 +1051,23 @@ def run_real(out_name: str = "projected_pa_probs_v1.parquet") -> dict:
     gate at build time, sha256-pinned). The adapter NEVER refits and NEVER
     reconstructs at execution time: a missing artifact fails loud with
     MISSING_CHECKPOINT_ARTIFACT (no league-rate fallback, no
-    reconstruction fallback). Output is write-once."""
+    reconstruction fallback). Output is write-once.
+
+    BF37 wiring: loads the registered bf-workload-v1 BF PMF artifact
+    (``load_bf_forecasts``: sha256 provenance gate against the registered
+    pin) and passes it to ``build_projected_pa_probs``, whose
+    ``validate_bf37_by_start`` enforces unique start keys, complete
+    coverage of every scored start, finite/nonnegative/normalized pmf37
+    rows, and the registered cap-60 geometric-tail conversion. Missing or
+    mismatched BF inputs fail loud."""
     proj = load_projected_lineups()
     pa = load_pa_table()
     models, ck = load_serialized_checkpoint()
-    pf, summary = build_projected_pa_probs(proj, pa, models)
+    bf, bf_meta = load_bf_forecasts()
+    pf, summary = build_projected_pa_probs(proj, pa, models,
+                                           bf37_by_start=bf)
     out = write_once(pf, PAEXT_OUT_DIR / "outputs" / out_name)
     summary["checkpoint"] = ck
+    summary["bf37_artifact"] = bf_meta
     summary["output"] = str(out)
     return summary

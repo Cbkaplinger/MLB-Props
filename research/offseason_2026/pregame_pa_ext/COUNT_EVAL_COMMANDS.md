@@ -1,9 +1,11 @@
 # COUNT EVAL COMMANDS — pregame-pa-ext-v2 (2026-10-19)
 
-**Status: SPECIFIED-NOT-EXECUTED.** Two distinct commands, deliberately
-separated per the owner instruction recorded in commit `6feb32e`:
-checkpoint RECONSTRUCTION runs once against the private lake; adapter
-SCORING loads only the serialized artifact and never refits. Neither
+**Status: EXECUTABLE END-TO-END (b); SPECIFIED-NOT-EXECUTED on real
+data.** Two distinct commands, deliberately separated per the owner
+instruction recorded in commit `6feb32e`: checkpoint RECONSTRUCTION runs
+once against the private lake; adapter SCORING loads only the serialized
+artifact and never refits, and now wires the registered bf-workload-v1
+BF-PMF artifact (bf37) end to end (see command (b), input 4). Neither
 command has been executed on real data. Any execution stays behind the
 owner's projected-batter scoring gate (`docs/PROJECT_STATE.md`).
 
@@ -78,27 +80,47 @@ Inputs consumed:
    outcome can reach a projected feature (strictly-prior shift + hard
    cutoff gate: every source date strictly before the start's
    `game_date`, else STOP).
-4. **BF PMFs** — both registered RAW count-PMF arms (H3-raw
-   cycled-prefix-mean + LOG5 corrected) are mixed over the shared BF
-   workload PMF (bf-workload-v1 BASE empirical `pmf37_0..36`, extended
-   by `kcount_combiner.bf_pmf_from_37`; 24 buckets, tail absorbed at
-   k>=23), attached per start via the `bf37_by_start` argument of
-   `build_projected_pa_probs`. **Wiring note:** the committed
-   `run_real()` convenience driver does not yet wire a bf37 source; the
-   BF-PMF-attached pass requires supplying `bf37_by_start` (keys
-   `game_pk, side, pitcher` + 37 pmf37 columns from the bf-workload-v1
-   `bf_forecasts.parquet`) at the call boundary. Per the preflight 5d
-   convention, that literal wiring/command must itself be committed and
-   reviewed before any real-data execution. Starts containing a
-   cold-start slot are EXCLUDED from the PMF arms with explicit counts
-   (never league-rate filled).
+4. **BF PMFs (WIRED — executable end-to-end)** — both registered RAW
+   count-PMF arms (H3-raw cycled-prefix-mean + LOG5 corrected) are mixed
+   over the shared BF workload PMF (bf-workload-v1 BASE empirical
+   `pmf37_0..36`, extended by `kcount_combiner.bf_pmf_from_37`; 24
+   buckets, tail absorbed at k>=23). `run_real()` now wires the artifact
+   itself: `load_bf_forecasts` reads
+   `C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\bf_forecasts.parquet`
+   (dir overridable via `BF_WORKLOAD_V1_DIR`; start grain
+   `(game_pk, side, pitcher)`, also unique on `(game_pk, pitcher)`; the
+   registered artifact carries the `side` column directly) and gates its
+   sha256 against the registered pin
+   `c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679`
+   (`BF_PMF_SHA_MISMATCH` on any mismatch; verified matching on disk
+   2026-10-19, 14,574 rows). `validate_bf37_by_start` then enforces, per
+   scored start, fail-loud with NO invented replacement distributions:
+   unique start keys on both registered grains
+   (`BF_PMF_DUPLICATE_START_KEYS`), complete BF coverage of every scored
+   start (`BF_PMF_COVERAGE_MISSING`), artifact-vs-projected `game_date`
+   match (`BF_PMF_DATE_MISMATCH`), finite/nonnegative/normalized pmf37
+   rows (`BF_PMF_DISTRIBUTION_INVALID`), and the registered cap-60
+   geometric-tail conversion (`BF_PMF_CONVERSION_FAILED`). Starts
+   containing a cold-start slot remain EXCLUDED from the PMF arms with
+   explicit counts (never league-rate filled). Synthetic end-to-end
+   coverage: `tests/test_bf37_wiring.py` (run_real on synthetic lake
+   fixtures produces the registered count-PMF artifacts; negative tests
+   for missing coverage, duplicate keys, sha mismatch, invalid
+   distribution, conversion failure, missing checkpoint).
 
 Output destination (write-once):
 
 - `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\outputs\projected_pa_probs_v1.parquet`
   — `write_once` refuses to overwrite an existing parquet. Rows keyed
   `(game_pk, pitcher, batter, slot, game_date)`, identity-gated unique;
-  per-slot `source_type` + `exclusion_reason` provenance columns.
+  per-slot `source_type` + `exclusion_reason` provenance columns; per
+  start, the registered count-PMF / evaluation artifacts
+  `pmf_h3_raw` / `pmf_l5_raw` (24-bucket combined count PMFs, 0..23,
+  tail absorbed at k>=23) plus `mean_k_h3_raw` / `mean_k_l5_raw`; null
+  PMFs only on cold-start rows / rows of cold-slot starts. The run
+  summary additionally records `bf37_artifact` (source identity, path,
+  input sha256, registered pin, artifact rows) and `bf37` (scored/matched
+  start counts, registered extension identity, kcount cap, k_max).
 
 ## Spec linkage — accepted ruling (2026-10-19)
 
@@ -134,4 +156,6 @@ CRLF-dependent failure**,
 line-ending-dependent byte mismatch in the freeze's runner pin).
 Classification: pre-existing, UNRELATED to the pregame-pa-ext-v2 lane.
 **Not fixed, not worked around.** The pregame-pa-ext adapter suite
-passes: 20/20 (`tests/test_pregame_pa_adapter.py`).
+passes: 20/20 (`tests/test_pregame_pa_adapter.py`), and the bf37 wiring
+suite passes: 17/17 (`tests/test_bf37_wiring.py`, synthetic-only,
+CI-safe).
