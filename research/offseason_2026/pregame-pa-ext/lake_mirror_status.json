@@ -1,0 +1,13 @@
+{
+  "record": "Lake mirror status check for the first-run-v1 canonical run dir",
+  "checked_utc": "2026-10-15T14:20:00Z",
+  "canonical_dir": "C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+  "finding": "CANONICAL-ONLY-IN-LAKE",
+  "statement": "The canonical run dir IS the lake copy: it exists only under C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\. No mirror copies were found (searched Downloads/Personal-Projects including the repo and all worktrees, and C:\\Users\\ckaplinger\\MLB-Props-Research recursively) - there are no stale mirrors to mark. Run outputs are not tracked in git (untracked by design; write-once lake policy).",
+  "search_scope": [
+    "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects (recursive, dirs matching 0cda7bdd* and first-run-v1)",
+    "C:\\Users\\ckaplinger\\MLB-Props-Research (recursive, dirs matching 0cda7bdd*)"
+  ],
+  "mirrors_found": 0,
+  "stale_mirrors": []
+}

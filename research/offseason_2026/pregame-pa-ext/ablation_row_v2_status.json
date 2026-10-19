@@ -1,0 +1,21 @@
+{
+  "identity": {
+    "row_id": "ablation-001__P1_H3_incumbent_refit__vs__P0_log5",
+    "packet_run_id": "first-run-v1-e59da946da21",
+    "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+    "config_sha256": "e59da946da218bd43af05d0dde3ddeace5b30c3280b249767158eec94ab15fc1",
+    "git_sha": "b2be3c9c6a3f29d47f44b2c769bd933023491d4e",
+    "branch": "research/market-eval-v2",
+    "interface_version": "count-eval-v2-comparison-1.0",
+    "status_version": 2,
+    "created_utc": "2026-10-15T13:19:51Z",
+    "supersedes_row": "ablation_row.json (frozen, preserved unmodified; sha256 d8540f559ee810557eaefa387ed6e75dd7d58390c0a7ca595ba240a798de605a)"
+  },
+  "decision": {
+    "verdict": "RESULT-PENDING-INDEPENDENT-REVIEW",
+    "supersedes": "ablation_row.json decision.verdict 'ADOPT-SIGNAL' (marked superseded-by-v2-status in SEQUENCE_DEVIATION.md; the v1 row itself is NOT mutated)",
+    "basis": "first-run-v1 executed before Chat 2's exact-SHA READY verdict; all eval-identity hashes, pooled + per-fold metrics and paired CIs were known to the builder before review; adoption cannot be claimed until independent post-execution reconciliation succeeds",
+    "pointer": "SEQUENCE_DEVIATION.md (this directory)",
+    "gate": "independent review must reconcile/accept the frozen outputs before any adoption signal is recognized; if reconciliation fails the provisional retention lapses"
+  }
+}
