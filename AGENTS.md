@@ -17,6 +17,8 @@ That backlog is the single holy work-state file (APPROVED / BLOCKED / waiting / 
 | Paper / portfolio summary | `docs/paper/manuscript.md`, `docs/paper/resume-summary.md` |
 | Skill provenance/catalog/evals | `docs/agent/skills-provenance.md`, `docs/agent/skills-catalog.md`, `docs/agent/skills-evaluations.md` |
 | Ops contracts (Checkpoint A) | `docs/reference/reports/ops_contracts_2026-09-30.md` | Settlement + dashboard contracts, OPS-1/OPS-2 cards; remote deployment UNVERIFIED |
+| PR workflow | `docs/reference/pr_workflow.md` | How to make/document/review/merge PRs; what CI green means; identity-block template |
+| Cleanup skills | `.cursor/skills/repo-*` | Evidence-first cleanup program: `repo-garbage-collector` (umbrella, routes; 11-phase policy stays at `.agents` copy) + 5 specialists + setup; glossary in `repo-garbage-collector/LANGUAGE.md` |
 
 Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); never `git push` (`.cursor/rules/git-push-policy.mdc`).
 
@@ -44,3 +46,5 @@ Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); never `git push`
 - Always-on rule: `.cursor/rules/agent-context.mdc` -> backlog + `docs/reference/repo_canonical_map.md`
 - Historical CLV API research: `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`
 - Live odds remain SharpAPI (`SHARPAPI_KEY`); do not confuse with historical backfill vendors
+
+See [AGENTS_ROLES.md](docs/AGENTS_ROLES.md) for the full role map.

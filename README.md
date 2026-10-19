@@ -23,6 +23,7 @@ Start here: [Technical manuscript](docs/paper/manuscript.md) ·
 - Command routing: `production/INDEX.md`, `production/RUNBOOK.md`
 - Governance policy: `production/ops/kpi_policy.json`
 - Model card: `docs/reference/model-card.md`
+- PR workflow (make/review/merge + CI): `docs/reference/pr_workflow.md`
 
 ## Active architecture
 
