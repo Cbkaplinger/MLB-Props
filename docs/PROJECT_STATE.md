@@ -6,12 +6,18 @@ PRs, and lake files — not duplicated here.
 
 ## As-of
 
-- **2026-10-19**, state frozen at this file's latest commit.
+- **2026-10-19** (state correction pass), state frozen at this file's latest
+  commit.
 - `068e9df6d8c8901ddc7dd85647d6641933d4302c` (also published on branch
   `research/project-state-20261016`) is a **HISTORICAL EVIDENCE CHECKPOINT**
   only — it is NOT the current dashboard revision.
+- Separation rule: **experimental completion is tracked in "Closed"; PR
+  integration state is tracked in "Integration owner" — the two are kept
+  separate.** An experiment's completion (or a lane's closure) never implies
+  its PR is merged, and a merged PR never retroactively approves an
+  experiment.
 
-## Closed
+## Closed (experimental work — complete regardless of PR state)
 
 | Item | Canonical evidence |
 | --- | --- |
@@ -23,38 +29,81 @@ PRs, and lake files — not duplicated here.
 | Recovery finalization = **CLOSED LIMITATION** | analysis accepted with limitation; NOT an open execution blocker — no further execution required |
 | RECOUNT metric-context scorecard published | `8f8c0f5` |
 | Market review CLOSED (de-vig dominates both PA arms at matched contracts) | scorecard at `8f8c0f5`; Brier ordering **0.4469 (market) < 0.4663 (LOG5) < 0.4684 (H3)** |
+| B1 Ridge run executed once + reconciled (ACCEPT WITH LIMITATION, max dev 4.44e-16); count lane closed | backlog 2026-10-16 entry, commit `6ee8544`; lake `bf-lane-v1\b1_run_v1\` |
 
-## Active
+## Withdrawn (stale request)
 
-- **Chat 1:** hold for projected-batter authorization (see Blocked).
-- **Chat 2:** review #15, then #14.
-- **Chat 3:** address those reviews, integrate eligible cleanup PRs, then
-  hand off blocked slices.
+- **Count-execution request WITHDRAWN 2026-10-19.** The first-run packet
+  (`research/offseason_2026/specs/count-eval-v2-spec/harness/
+  FIRST_RUN_CONFIG.md`, status "NOT-EXECUTED — awaiting owner
+  authorization") is stale: the count lane closed with recovery finalization
+  = CLOSED LIMITATION ("no further execution required") and the B1 count
+  challenger was already executed once and closed 2026-10-16. The question
+  that packet was registered to answer has been answered by other means. The
+  frozen packet and its hashes remain as evidence only — **no run is
+  authorized, expected, or pending**; do not execute it without a new,
+  explicit owner order.
+
+## Active (assignments as of 2026-10-19)
+
+- **Chat 1:** projected-lineup implementation proposal prep — advance
+  `research/offseason_2026/bf_lane/PROJECTED_LINEUP_SPEC.md` (registered
+  SPECIFIED-NOT-IMPLEMENTED, no code) toward an implementation proposal.
+  Prep only: no code execution, no scoring; any execution stays behind the
+  owner's run gate.
+- **Chat 2:** (a) #2/#3 live-state review — current PR states, merge
+  receipts, and role-document integration at origin/main (first pass:
+  `MLB-Props-Research\CHAT2_INTEGRATION_REVIEW.md`, post-change review, not
+  retroactive pre-merge approval); (b) score_v2 integrity review.
+- **Chat 3:** **CLOSED after handoff (2026-10-19).** Branch
+  `maintenance/quality-baseline-20261016` published at `f6a5e056` (four
+  terminal commits on origin); S-B/S-C recorded owner-blocked. No further
+  work in this lane.
 
 ## Blocked (owner decisions needed)
 
-- Projected-batter scoring authorization (gates Chat 1).
-- S-B / S-C dependency declarations.
+- **S-B (dependency declarations, T13):** OWNER-BLOCKED — needs owner
+  approval of tier placement (`requests` research-tier recommendation;
+  `sage` verify-or-retire call). Spec:
+  `docs/reference/reports/maintenance_slice_specs_2026-10-16.md`.
+- **S-C (dead-module ruling brief, T15):** OWNER-BLOCKED — needs the owner's
+  one-word answer (are `ballpark` / `batter_features` / `batter_rolling` /
+  `identity` / `reliability` invoked outside the tracked tree?).
+- Projected-lineup EXECUTION authorization (any projected-batter/lineup
+  scoring run; does not gate Chat 1's proposal prep).
+
+## Process deviations (recorded 2026-10-19, not retroactively approved)
+
+1. **Direct push to main for role docs.** `1321b72` ("docs: consolidate role
+   map into AGENTS_ROLES.md; AGENTS.md points to it") landed on
+   `origin/main` with no PR, no review, and no CI gate — against the
+   standing never-push rule and `AGENTS_ROLES.md`'s own "Push/PR/merge: only
+   on an explicit owner order naming the branch". Recorded for the ledger.
+2. **Merge of PR #10 despite Chat 3's assigned ownership.** `AGENTS_ROLES.md`
+   assigns cleanup-PR integration to Chat 3 ("owns approved cleanup
+   branches, cleanup-PR integration, and the final handoff"); PR #10
+   (maintenance/pr-handbook-20261016) was merged without that lane. Recorded
+   for the ledger.
 
 ## Protected
 
 - **Immutable evidence:** sealed pilot outputs, frozen packets, registered
   runners, lake write-once run dirs (`count_b1_recovery_v1\` and siblings),
-  lake `CLOSEOUT_CORRECTIONS.md`.
+  lake `CLOSEOUT_CORRECTIONS.md`, frozen count-eval packets (incl. the
+  withdrawn first-run packet — evidence only).
 - **Do not edit without owner order:** `docs/EXECUTION_BACKLOG.md`,
   production paths (`src/Python/market.py`, `count_layer.py`,
   `live_assembly.py`, `odds_ledger.py`, `production/ops/*.json`,
   `production/odds/`, `artifacts/models/`), CI workflows
   (`.github/workflows/`).
-- **Prohibited:** unauthorized reruns, model promotion, live-path changes,
-  committing `data/` / `artifacts/`, agent `git push` to main.
+- **Prohibited:** unauthorized reruns (including the withdrawn first-run
+  packet), model promotion, live-path changes, committing `data/` /
+  `artifacts/`, agent `git push` to main.
 
-## Integration owner (merge queue)
+## Integration owner (merge queue — PR state only)
 
-| PR | State | Owner |
-| --- | --- | --- |
-| #2 (paired slate-date uncertainty repair) | OPEN | owner to confirm |
-| #3 (`research/market-eval-v2`, research-only) | OPEN draft | owner to confirm |
-| #8 | OPEN | owner to confirm |
-| #14 | OPEN | Chat 2 reviews; merge owner to confirm |
-| #15 | OPEN | Chat 2 reviews; Chat 3 merges |
+| PR | State (2026-10-19) | Head | Note |
+| --- | --- | --- | --- |
+| #2 (`research/paired-uncertainty-v2`, paired slate-date uncertainty repair) | OPEN | `2c4d9bb2` | mergeStateStatus UNKNOWN; needs rebase onto current main — branch predates the role-doc consolidation and would remove `docs/AGENTS_ROLES.md` |
+| #3 (`research/market-eval-v2`, research-only) | OPEN draft | `2c335246` | mergeStateStatus UNKNOWN; needs rebase — carries the older 2026-10-14 `AGENTS_ROLES.md` (no Chat 3 role) |
+| #8, #14, #15 | MERGED | — | per the 2026-10-19 GitHub reconciliation receipt (maintenance branch `f6a5e056`) |
