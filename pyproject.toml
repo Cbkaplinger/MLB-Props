@@ -23,6 +23,7 @@ research = [
     "jupyterlab",
     "lightgbm",
     "matplotlib",
+    "mlflow",
     "nbconvert",
     "playwright",
     "pybaseball",

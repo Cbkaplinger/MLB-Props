@@ -1,0 +1,62 @@
+{
+  "record": "lake_mirror_status_v2",
+  "status_version": 2,
+  "created_utc": "2026-10-15T15:11:29Z",
+  "supersedes": "lake_mirror_status.json (v1, preserved unmodified in this directory; v1 finding CANONICAL-ONLY-IN-LAKE for the frozen run dir remains in force)",
+  "purpose": "Closeout correction per Chat 2 review (findings file sha256 790953b5946e8c2ae4954372f77b886066ae535ea11fab64462b624ac3bf90c7): classify the lake harness code snapshot and identify the authoritative source for each artifact type. Nothing in the frozen run dir is modified.",
+  "execution_code_snapshot": {
+    "classification": "HISTORICAL EXECUTED-CODE",
+    "what": "the harness code snapshot in C:\\Users\\ckaplinger\\MLB-Props-Research\\count-eval-v2-spec\\harness\\ (comparison.py et al.) is the code that EXECUTED canonical run first-run-v1-e59da946da21 on 2026-10-15T05:20:07Z",
+    "bytes": "comparison.py sha256 8143b4fc85e01a3adb981c6f14f56a125d370d1b4186dcfc31247228cf0c245a = commit 5bb0c2c bytes (matches Chat 2's stale-mirror hash 8143b4fc exactly)",
+    "not_a_stale_mirror": "the reviewer's 'lake harness mirror STALE' condition is resolved by CLASSIFICATION, not refresh: the snapshot must stay at the executed bytes so the canonical run remains reproducible; refreshing it would destroy the executed-code record",
+    "new_adapters_live_only_in_repo": "the EW-only ablation adapters (P1_H3_pitcher_ew_only / P1_H3_batter_ew_only) and every later change exist ONLY in the repo/research copy and NEVER executed against real data; executed-run bytes remain canonical for the executed run (Chat 2 supplement finding 6)"
+  },
+  "authoritative_source_by_artifact_type": {
+    "interface_spec_card": {
+      "authoritative": "lake: C:\\Users\\ckaplinger\\MLB-Props-Research\\count-eval-v2-spec\\COMPARISON_INTERFACE_SPEC.md",
+      "note": "card; recency-batch registration added as section 9 (2026-10-15)"
+    },
+    "executed_code_frozen_at_run_time": {
+      "authoritative": "lake: C:\\Users\\ckaplinger\\MLB-Props-Research\\count-eval-v2-spec\\harness\\ (snapshot at executed bytes; comparison.py 8143b4fc...c245a = 5bb0c2c)",
+      "note": "HISTORICAL EXECUTED-CODE; do not refresh"
+    },
+    "current_development_code_adapters_tests": {
+      "authoritative": "repo: research/offseason_2026/specs/count-eval-v2-spec/harness/ on branch research/market-eval-v2",
+      "hashes_at_record_time": {
+        "comparison.py": "88852784b0a445654866fa92930405434d5b110bc86e39bb89ae8c909db72921",
+        "test_comparison.py": "f08a1a7514743c57a02c782f4e108897f5998f1c0c413da0a6fec71f1010af30"
+      },
+      "note": "adds include_confirm exclusion control + 2 synthetic tests (27 total in the harness suite); hashes are point-in-time (this turn's commit)"
+    },
+    "candidate_registrations": {
+      "authoritative": "repo: harness/CANDIDATE_MAP.md (current; sha256 at record time 850d5c4546ca7ae5a7c975d3a9a1debeba725eb0d96999bd64beeabc51d0d2ea, now including the two EW-only rows)",
+      "historical": "lake: harness/CANDIDATE_MAP.md (sha256 d00171099dda46a2326439dc8fdc20970a5c6976769f568ad9f67011e48c8ec5) = as-of-execution copy"
+    },
+    "frozen_canonical_run_outputs": {
+      "authoritative": "lake: C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57\\",
+      "note": "CANONICAL-ONLY-IN-LAKE (v1 record stands); write-once; run_manifest.json 897070f8...711c9 / metrics.json e0d59087...f52e4 re-verified unchanged by OUTPUT_INVENTORY.json"
+    },
+    "status_and_decision_records": {
+      "authoritative": "lake: first-run-v1\\ (SEQUENCE_DEVIATION.md, ablation_row.json frozen v1, ablation_row_v2_status.json, ablation_row_v3_status.json, lake_mirror_status.json v1, lake_mirror_status_v2.json)",
+      "mirror": "repo: research/offseason_2026/pregame-pa-ext/ (byte-identical copies, committed additively)",
+      "current_decision": "ablation_row_v3_status.json = CANONICAL-WITH-RECORDED-SEQUENCE-DEVIATION (status_version 3)"
+    },
+    "frozen_configs": {
+      "authoritative": "repo: harness/ (first_run_packet_v1.json, config sha256 e59da946...5fc1; freeze_recency_batch_v1.json, config sha256 4b11e4b7...f810, file sha256 a90c894f40ba41f24b2262e3cd5ba02041de041cf4950792fb365cef0f9749e2, status FROZEN - NOT EXECUTED)",
+      "note": "registered configs are repo artifacts; the executed packet's frozen copy is cited inside the run manifest"
+    },
+    "mlflow_tracking_store": {
+      "authoritative": "lake: C:\\Users\\ckaplinger\\MLB-Props-Research\\mlflow.db (sqlite; experiment pa-k-probability-v1, parent e2194b6b...; 20 children verified 20/20 vs frozen preds at tol 1e-9)",
+      "observed_discrepancy": "declared ./mlruns artifact store never materialized (importer logged params/metrics/tags only); recorded, not repaired"
+    },
+    "generator_and_importer_scripts": {
+      "authoritative": "lake-only per precedent (generate_ablation_row.py, generate_ablation_record_authoritative.py, generate_supplemental_metrics.py, generate_output_inventory.py, mlflow_import.py, mlflow_reconcile.py, parquet_roundtrip_pyarrow24.py)"
+    }
+  },
+  "freeze_recency_batch_v1": {
+    "status": "FROZEN - NOT EXECUTED (development-only; 3 dev folds; confirm_2025H2 excluded; no half-life search)",
+    "config_sha256": "4b11e4b71cec3ab6c68235ea8966cf0f3f02f9a81cfc7d7bd209c6236c1af810",
+    "exclusion_control": "RunConfig.include_confirm=False, synthetic-tested (differential proof: flipped confirm labels leave metrics.json byte-identical; no preds_confirm file written)"
+  },
+  "preservation": "v1 record lake_mirror_status.json preserved unmodified; frozen run dir untouched"
+}
