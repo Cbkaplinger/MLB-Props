@@ -578,3 +578,111 @@ def test_real_key_verification_gate_still_enforced(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="verification FAILED"):
         br.main(["--verify-keys-only", "--pa-table", str(pat),
                  "--ledger", str(led)])
+
+
+# ----------------------------------------------- forecast-input no-leakage
+def test_no_outcome_leakage_into_forecast_features(tmp_path):
+    """VERIFICATION (review): the challenger probability for a projected
+    slot uses ONLY pre-forecast information. Same-day OUTCOMES of the
+    forecast game cannot move the features (the frozen asof convention
+    excludes the game date's own rows from the prior state); pre-forecast
+    outcomes DO move them (the inputs are genuinely history). Observed
+    membership only selects the evaluation population - it never feeds the
+    features, and the slot identity comes from the preserved ledger."""
+    dirs = _synth_runner_lake(tmp_path)
+    pa = dirs["pa"]
+    ledger = dirs["ledger"].with_columns(
+        pl.when(pl.col("game_date") <= pl.date(2024, 12, 31))
+        .then(pl.lit("block_2024H2"))
+        .when(pl.col("game_date") <= pl.date(2025, 6, 30))
+        .then(pl.lit("block_2025H1"))
+        .otherwise(pl.lit("confirm_2025H2")).alias("block"))
+    elig = br.eligible_slots_from_ledger(ledger, br.DEV_BLOCKS)
+    slot = elig.filter(pl.col("batter") == 100).head(1)
+    gpk, t, b = slot["game_pk"][0], slot["game_date"][0], slot["batter"][0]
+
+    def feat(pa_frame):
+        return br.challenger_feature_frame(
+            slot.with_columns(pl.lit(0.0).alias("p_baseline")), pa_frame)
+
+    f1 = feat(pa)
+    # 1. flip the SAME-DAY outcomes of the forecast game for this batter:
+    #    features must be bit-identical (no outcome leakage)
+    pa_flip = pa.with_columns(
+        pl.when((pl.col("game_pk") == gpk) & (pl.col("batter") == b)
+                & (pl.col("game_date") == t))
+        .then(pl.lit(1, dtype=pl.Int8)).otherwise(pl.col("y"))
+        .cast(pl.Int8).alias("y"))
+    assert pa_flip["y"].to_list() != pa["y"].to_list()  # perturbation real
+    f2 = feat(pa_flip)
+    for c in ("p_batt_recent", "p_batt_anchor", "k_batt_win", "n_batt_win",
+              "mass_anchor", "wk_anchor"):
+        assert f1[c][0] == f2[c][0], c
+    # 2. sanity: flipping a PRE-forecast outcome (a real game date inside
+    #    the recent window, NOT the last game date whose own row the frozen
+    #    convention excludes) DOES move the recent component - the
+    #    invariance is not vacuous. The date is picked from the batter's
+    #    ACTUAL in-window game dates (the fixture grid is sparse).
+    in_window = sorted(set(pa.filter(
+        (pl.col("batter") == b) & (pl.col("game_date") < t)
+        & (pl.col("game_date") > t - timedelta(days=60))
+        & (pl.col("y") == 0))["game_date"].to_list()))
+    assert in_window, "fixture must contain in-window y==0 history"
+    d_pre = in_window[-1]
+    pa_pre = pa.with_columns(
+        pl.when((pl.col("batter") == b) & (pl.col("game_date") == d_pre)
+                & (pl.col("y") == 0))
+        .then(pl.lit(1, dtype=pl.Int8)).otherwise(pl.col("y"))
+        .cast(pl.Int8).alias("y"))
+    f3 = feat(pa_pre)
+    assert f1["p_batt_recent"][0] != f3["p_batt_recent"][0]
+    # 3. removing OTHER slots' observed PAs (shrinking the evaluation
+    #    population) leaves this slot's features unchanged
+    others = pa.filter((pl.col("batter") != b) & (pl.col("game_pk") == gpk))
+    pa_drop = pa.join(others.select("game_pk", "at_bat_number"),
+                      on=["game_pk", "at_bat_number"], how="anti")
+    f4 = feat(pa_drop)
+    for c in ("p_batt_recent", "p_batt_anchor", "n_batt_win",
+              "mass_anchor"):
+        assert f1[c][0] == f4[c][0], c
+
+
+# --------------------------------------- training/calibration split mirror
+def test_training_cal_split_mirrors_frozen_recipe(tmp_path):
+    """VERIFICATION (review): the challenger training frame mirrors the
+    frozen recipe's train/cal split EXACTLY - same cal_first formula, the
+    calibration partition [cal_first, train_end] is EXCLUDED from training
+    (it cannot silently become extra fitting data), the PA identity sets
+    match the frozen recipe's split, and the challenger fit function has
+    NO calibration parameter at all."""
+    import inspect
+    from pregame_pa_ext import build_checkpoint as bc
+
+    dirs = _synth_runner_lake(tmp_path)
+    pa = dirs["pa"]
+    for b, (te_y, te_m, te_d) in br.DEV_BLOCK_TRAIN_END.items():
+        f = br.challenger_training_frame(pa, (te_y, te_m, te_d))
+        # the frozen recipe's own split, computed with its exact logic
+        feat = bc.build_feature_frame(pa)
+        cal_last = feat.filter(
+            (pl.col("game_date") >= pl.date(2023, 1, 1))
+            & (pl.col("game_date") <= pl.date(te_y, te_m, te_d))
+        )["game_date"].max()
+        cal_first = cal_last - timedelta(days=59)
+        train_frozen = feat.filter(
+            (pl.col("game_date") >= pl.date(2023, 1, 1))
+            & (pl.col("game_date") < cal_first))
+        # identical PA-identity sets and row counts
+        k1 = sorted(zip(f["game_pk"].to_list(), f["at_bat_number"].to_list(),
+                        f["batter"].to_list()))
+        k2 = sorted(zip(train_frozen["game_pk"].to_list(),
+                        train_frozen["at_bat_number"].to_list(),
+                        train_frozen["batter"].to_list()))
+        assert k1 == k2
+        # the calibration partition is excluded from training
+        assert f.filter(pl.col("game_date") >= cal_first).height == 0
+        assert f["game_date"].max() < cal_first
+    # the challenger fit function has no calibration parameter: the cal
+    # partition cannot enter fitting even in principle
+    assert set(inspect.signature(br.fit_challenger_models).parameters) == {
+        "train"}
