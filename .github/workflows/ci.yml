@@ -54,3 +54,35 @@ jobs:
         with:
           name: pytest-report
           path: pytest_report.xml
+
+  tracking:
+    # Portable tracking CI lane: the shared-wrapper tracking module is fully
+    # synthetic (temp sqlite store; the canonical research mlflow.db and the
+    # private lake are never touched) but imports mlflow via importorskip,
+    # which silently skipped in the main suite. This job installs mlflow and
+    # enforces a NON-VACUOUS result: skips fail, the module must actually run.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies + MLflow
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]" scipy joblib scikit-learn lightgbm statsmodels mlflow
+
+      - name: Run the tracking module
+        run: |
+          python -m pytest tests/test_pregame_pa_tracking.py -q --junitxml=tracking_report.xml
+
+      - name: Enforce zero-skip non-vacuous result
+        if: always()
+        run: |
+          python -c "import xml.etree.ElementTree as ET; s = ET.parse('tracking_report.xml').getroot().find('testsuite'); a = s.attrib; stats = {k: int(a.get(k, 0)) for k in ('tests', 'skipped', 'failures', 'errors')}; print(stats); assert stats['tests'] >= 6, 'tracking module under-collected - the lane must execute the complete module'; assert stats['skipped'] == 0, 'SKIP DETECTED: the tracking module must not silently skip (mlflow importorskip would mask the tracking-coverage gap)'; assert stats['failures'] == 0 and stats['errors'] == 0, 'tracking module red'"
