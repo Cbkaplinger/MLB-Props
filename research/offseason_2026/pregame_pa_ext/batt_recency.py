@@ -462,6 +462,117 @@ def verify_published_keys(ledger: pl.DataFrame, pa: pl.DataFrame) -> dict:
     return report
 
 
+# ------------------------------------------- frozen abstention record
+# Classification evidence (FROZEN, existing):
+# report_debut_pitcher_reconciliation_2026-10-20.md - Chat 2 authoritative
+# check, independently confirmed from raw statcast 2015-2021 files. No
+# debut-date re-query happens at diagnostic time: this classification is
+# used verbatim.
+ABSTENTION_VETERANS = [
+    {"pitcher": 608650, "name": "Dietrich Enns", "game_pk": 777351,
+     "side": "Top", "mlb_debut": "2017-08-10"},
+    {"pitcher": 606996, "name": "Kyle Hart", "game_pk": 778499,
+     "side": "Top", "mlb_debut": "2020-08-13"},
+]
+# Expected counts against the preserved ledger's exclusions (existing
+# exclusion evidence; asserted only on real-data runs where
+# verify_published=True).
+ABSTENTION_EXPECTED = {"total": 59, "newcomers": 57, "veterans": 2,
+                       "development": 43, "confirmation": 16}
+
+
+def build_abstention_record(ledger: pl.DataFrame,
+                            expected: dict | None = None) -> dict:
+    """Machine-readable abstention record from the preserved run ledger's
+    excluded rows (exclusion_reason non-null): all excluded start keys,
+    their frozen classification, and block membership. Development and
+    confirmation-block abstentions are counted SEPARATELY - the full-run
+    total is never a development count."""
+    out = ledger.with_columns(
+        pl.when(pl.col("game_date") <= pl.date(2024, 12, 31))
+        .then(pl.lit("block_2024H2"))
+        .when(pl.col("game_date") <= pl.date(2025, 6, 30))
+        .then(pl.lit("block_2025H1"))
+        .otherwise(pl.lit("confirm_2025H2"))
+        .alias("block")
+    )
+    exc = (out.filter(pl.col("exclusion_reason").is_not_null())
+           .select("game_pk", "side", "pitcher", "game_date", "block",
+                   "exclusion_reason")
+           .unique(subset=["game_pk", "side", "pitcher", "game_date"],
+                   keep="first")
+           .sort("game_date", "game_pk", "side"))
+    vet_by_key = {(v["game_pk"], v["side"]): v for v in ABSTENTION_VETERANS}
+    entries = []
+    for r in exc.iter_rows(named=True):
+        key = (r["game_pk"], r["side"])
+        vet = vet_by_key.get(key)
+        entries.append({
+            "game_pk": r["game_pk"], "side": r["side"],
+            "pitcher": r["pitcher"], "game_date": str(r["game_date"]),
+            "block": r["block"], "development": r["block"] in DEV_BLOCKS,
+            "classification": ("window_limited_veteran" if vet
+                               else "debut_date_newcomer"),
+            "veteran": ({"name": vet["name"],
+                         "mlb_debut": vet["mlb_debut"]} if vet else None),
+            "exclusion_reason": r["exclusion_reason"],
+        })
+    dev = [e for e in entries if e["development"]]
+    n_vet = sum(1 for e in entries
+                if e["classification"] == "window_limited_veteran")
+    record = {
+        "source": ("report_debut_pitcher_reconciliation_2026-10-20.md "
+                   "(Chat 2 authoritative check; raw-statcast confirmation)"),
+        "full_run_total": len(entries),
+        "development_total": len(dev),
+        "confirmation_total": len(entries) - len(dev),
+        "classification_totals": {
+            "debut_date_newcomer": len(entries) - n_vet,
+            "window_limited_veteran": n_vet,
+        },
+        "starts": entries,
+    }
+    if expected:
+        for k, want in expected.items():
+            got = (record["full_run_total"] if k == "total" else
+                   record["classification_totals"]["debut_date_newcomer"]
+                   if k == "newcomers" else
+                   record["classification_totals"]["window_limited_veteran"]
+                   if k == "veterans" else
+                   record["development_total"] if k == "development" else
+                   record["confirmation_total"])
+            if got != want:
+                raise ValueError(
+                    f"abstention record INCONSISTENT with the frozen "
+                    f"exclusion evidence: {k} = {got}, expected {want}")
+        missing = [v["pitcher"] for v in ABSTENTION_VETERANS
+                   if (v["game_pk"], v["side"])
+                   not in {(e["game_pk"], e["side"]) for e in entries}]
+        if missing:
+            raise ValueError(
+                "abstention record INCONSISTENT: window-limited-veteran "
+                f"keys missing from the ledger exclusions: {missing}")
+    return record
+
+
+def validate_abstention_record(record: dict) -> None:
+    """Structural validation of the abstention record (an omitted or
+    malformed record prevents acceptance)."""
+    for s in ("source", "full_run_total", "development_total",
+              "confirmation_total", "classification_totals", "starts"):
+        if s not in record or record[s] in (None, "", [], {}):
+            raise ValueError(
+                f"incomplete abstention record: missing/empty '{s}'")
+    if record["full_run_total"] != len(record["starts"]):
+        raise ValueError(
+            "inconsistent abstention record: full_run_total != len(starts)")
+    if (record["development_total"]
+            + record["confirmation_total"]) != record["full_run_total"]:
+        raise ValueError(
+            "inconsistent abstention record: development + confirmation "
+            "!= full_run_total")
+
+
 # --------------------------------------------------------------- gated runner
 def challenger_training_frame(pa: pl.DataFrame, train_end) -> pl.DataFrame:
     """ONE dev block's training frame: the FROZEN recipe's realized-PA fit
@@ -602,11 +713,23 @@ def evaluation_metrics(ev: pl.DataFrame, *, n_boot: int = 2000,
             gaps.append(abs(p_c[m].mean() - y[m].mean()))
     cal["challenger_max_decile_gap"] = float(max(gaps)) if gaps else None
     out["calibration"] = cal
+    # coverage note: the development/full-run abstention distinction is
+    # explicit; metric tables never imply all abstentions are development
+    out["coverage"] = {
+        "abstention_record": "abstentions.json",
+        "development_abstaining_starts": None,
+        "full_run_abstaining_starts": None,
+        "note": ("development metrics cover the eligible development "
+                 "starts only; abstentions.json itemizes development and "
+                 "confirmation-block abstentions separately - the "
+                 "full-run total is not a development count"),
+    }
     return out
 
 
 REQUIRED_RECEIPT_SECTIONS = ("inputs", "code_config", "dev_keys", "fits",
-                             "metrics", "outputs", "acceptance")
+                             "metrics", "outputs", "abstentions",
+                             "acceptance")
 
 
 def validate_receipt(receipt: dict) -> None:
@@ -653,6 +776,9 @@ def run_diagnostic(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir,
     if out_table.exists():
         raise ValueError(f"write-once violation: {out_table} exists")
 
+    # frozen abstention record (machine-readable; referenced by the receipt
+    # and the human-readable outputs - never duplicated into them)
+
     # 1. eligibility (unchanged policy) + frozen dev keys
     out = ledger.with_columns(
         pl.when(pl.col("game_date") <= pl.date(2024, 12, 31))
@@ -674,6 +800,16 @@ def run_diagnostic(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir,
                 or dev_keys["slot_keys_n"] != PUBLISHED_DEV_SLOT_KEYS_N:
             raise ValueError("frozen dev slot keys do not match the "
                              "published pins; refusing")
+
+    # abstention record: verified against the frozen exclusion evidence on
+    # real-data runs; an omission or inconsistency prevents acceptance
+    abst = build_abstention_record(
+        out, expected=(ABSTENTION_EXPECTED if verify_published else None))
+    validate_abstention_record(abst)
+    abst_path = out_dir / "abstentions.json"
+    abst_path.write_text(json.dumps(abst, indent=1, sort_keys=True),
+                         encoding="utf-8")
+    abst_hash = ad.sha256_file(abst_path)
 
     # 2. per-block training frames (frozen lineage, original PA identity)
     trains = challenger_training_frames(pa)
@@ -732,6 +868,10 @@ def run_diagnostic(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir,
 
     # 4. metrics (registered machinery)
     metrics = evaluation_metrics(ev, n_boot=n_boot, seed=seed)
+    metrics["coverage"]["development_abstaining_starts"] = \
+        abst["development_total"]
+    metrics["coverage"]["full_run_abstaining_starts"] = \
+        abst["full_run_total"]
 
     # 5. write-once outputs
     ev.write_parquet(out_table)
@@ -755,6 +895,14 @@ def run_diagnostic(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir,
                               "features": list(CHALLENGER_FEATURES)},
     }
     receipt = {
+        "abstentions": {
+            "file": "abstentions.json",
+            "sha256": abst_hash,
+            "full_run_total": abst["full_run_total"],
+            "development_total": abst["development_total"],
+            "confirmation_total": abst["confirmation_total"],
+            "classification_totals": abst["classification_totals"],
+        },
         "inputs": inputs,
         "code_config": code_config,
         "dev_keys": dev_keys,
@@ -777,6 +925,9 @@ def run_diagnostic(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir,
                             encoding="utf-8")
     reread = json.loads(receipt_path.read_text(encoding="utf-8"))
     validate_receipt(reread)
+    if ad.sha256_file(abst_path) != reread["abstentions"]["sha256"]:
+        raise ValueError(
+            "abstention record hash mismatch after write; run rejected")
     return {"out_dir": str(out_dir), "receipt": receipt,
             "receipt_complete": True}
 

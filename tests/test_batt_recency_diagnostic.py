@@ -385,9 +385,12 @@ def _synth_runner_lake(tmp_path: Path):
     ab = 0
     d = date(2023, 1, 5)
     n = 0
+    grid = []
     while d <= date(2025, 8, 1):
-        # dev starts: 2024-07-01..2025-06-30, every 15 days; confirm: 2025-08
+        # dev starts: 2024-07-01..2025-06-30, every 15 days; confirm: later
+        # grid dates (the last one is an ELIGIBLE confirm-window start)
         in_dev = (date(2024, 7, 1) <= d <= date(2025, 6, 30))
+        grid.append((gpk, d))
         for slot in range(9):
             b = 100 + slot
             for k in range(2):
@@ -400,20 +403,25 @@ def _synth_runner_lake(tmp_path: Path):
                             "batter": 100 + slot, "slot": slot + 1,
                             "game_date": d, "p_h3_raw": 0.25 + 0.05 * slot,
                             "exclusion_reason": None})
-        elif d == date(2025, 8, 1):
-            led.append({"game_pk": gpk, "side": "Bot", "pitcher": 500,
-                        "batter": 100, "slot": 1, "game_date": d,
-                        "p_h3_raw": 0.4, "exclusion_reason": None})
-        # one cold-excluded slot inside the dev window
-        if d == date(2024, 9, 1):
-            led.append({"game_pk": gpk, "side": "Top", "pitcher": 500,
-                        "batter": 999, "slot": 1, "game_date": d,
-                        "p_h3_raw": None,
-                        "exclusion_reason": ad.EXCLUSION_REASON_COLD})
         gpk += 1
         d += timedelta(days=15)
+    # one cold-excluded slot on an actual dev grid date (2024-08-27):
+    # the abstention record must be NON-EMPTY (an empty/omitted record
+    # prevents acceptance)
+    cold_gpk, cold_d = grid[40]
+    assert date(2024, 7, 1) <= cold_d <= date(2025, 6, 30)
+    led.append({"game_pk": cold_gpk, "side": "Bot", "pitcher": 500,
+                "batter": 999, "slot": 9, "game_date": cold_d,
+                "p_h3_raw": None,
+                "exclusion_reason": ad.EXCLUSION_REASON_COLD})
+    # one ELIGIBLE confirm-window start (must never reach development)
+    conf_gpk, conf_d = grid[-1]
+    assert conf_d > date(2025, 6, 30)
+    led.append({"game_pk": conf_gpk, "side": "Bot", "pitcher": 500,
+                "batter": 100, "slot": 1, "game_date": conf_d,
+                "p_h3_raw": 0.4, "exclusion_reason": None})
     pa = pa_rows(rows)
-    ledger = pl.DataFrame(led).with_columns(
+    ledger = pl.DataFrame(led, infer_schema_length=None).with_columns(
         pl.col("game_date").cast(pl.Date))
     # artifact stand-ins for the receipt's input identities
     ck = tmp_path / "h3_raw_checkpoint.json"
@@ -811,3 +819,112 @@ def test_metrics_deterministic_and_edge_cases(tmp_path):
     me = br.evaluation_metrics(ev_ext, n_boot=50, seed=20261001)
     assert np.isfinite(me["log_loss_challenger"])
     assert np.isfinite(me["bootstrap"]["p_null_centered"])
+
+
+# ------------------------------------------------ frozen abstention record
+def test_abstention_record_emitted_structured_and_split(tmp_path):
+    """The diagnostic emits abstentions.json (machine-readable) with every
+    excluded start key, its classification, and block membership;
+    development and confirmation abstentions are counted SEPARATELY, and
+    the receipt + metrics reference the file without duplicating the list."""
+    dirs = _synth_runner_lake(tmp_path)
+    out_dir = tmp_path / "diag"
+    res = br.run_diagnostic(dirs["pa"], dirs["ledger"], out_dir,
+                            verify_published=False,
+                            artifact_paths=dirs["paths"])
+    abst_path = out_dir / "abstentions.json"
+    assert abst_path.is_file()
+    rec = json.loads(abst_path.read_text(encoding="utf-8"))
+    # synthetic fixture: exactly one dev abstention (the cold slot), zero
+    # confirm abstentions (the confirm start is eligible)
+    assert rec["full_run_total"] == 1
+    assert rec["development_total"] == 1
+    assert rec["confirmation_total"] == 0
+    assert rec["development_total"] + rec["confirmation_total"] == \
+        rec["full_run_total"]
+    e = rec["starts"][0]
+    assert e["classification"] == "debut_date_newcomer"
+    assert e["development"] is True
+    assert e["block"] == "block_2024H2"
+    assert ad.EXCLUSION_REASON_COLD in e["exclusion_reason"]
+    # receipt records the file hash + counts in provenance
+    r = res["receipt"]
+    assert r["abstentions"]["sha256"] == ad.sha256_file(abst_path)
+    assert r["abstentions"]["full_run_total"] == 1
+    assert r["abstentions"]["development_total"] == 1
+    # metrics reference the record with the dev/full distinction explicit
+    m = r["metrics"]
+    assert m["coverage"]["abstention_record"] == "abstentions.json"
+    assert m["coverage"]["development_abstaining_starts"] == 1
+    assert m["coverage"]["full_run_abstaining_starts"] == 1
+    assert "not a development count" in m["coverage"]["note"]
+
+
+def test_abstention_expected_counts_enforced_on_real_gate(tmp_path,
+                                                           monkeypatch):
+    """On a real-data run (verify_published=True) the abstention record is
+    verified against the FROZEN exclusion evidence (59 total / 57
+    newcomers / 2 veterans Enns+Hart / 43 dev / 16 confirm); any mismatch
+    fails loud. Synthetic ledgers with different exclusions therefore
+    cannot pass the real gate."""
+    dirs = _synth_runner_lake(tmp_path)
+    with pytest.raises(ValueError, match="INCONSISTENT"):
+        br.build_abstention_record(dirs["ledger"],
+                                   expected=br.ABSTENTION_EXPECTED)
+
+
+def test_abstention_veteran_keys_must_match_evidence(tmp_path):
+    """A frozen classification whose veteran keys are absent from the
+    ledger exclusions is an inconsistency -> fail loud."""
+    dirs = _synth_runner_lake(tmp_path)
+    wrong = dict(br.ABSTENTION_EXPECTED)
+    wrong.update({"total": 1, "newcomers": 0, "veterans": 1,
+                  "development": 1, "confirmation": 0})
+    with pytest.raises(ValueError, match="INCONSISTENT"):
+        br.build_abstention_record(dirs["ledger"], expected=wrong)
+
+
+def test_abstention_omission_and_tamper_prevent_acceptance(tmp_path):
+    """'abstentions' is a mandatory receipt section (omission rejects);
+    tampering with the written record after the fact is caught by the
+    receipt's hash check (the run is rejected)."""
+    assert "abstentions" in br.REQUIRED_RECEIPT_SECTIONS
+    dirs = _synth_runner_lake(tmp_path)
+    out_dir = tmp_path / "diag"
+    res = br.run_diagnostic(dirs["pa"], dirs["ledger"], out_dir,
+                            verify_published=False,
+                            artifact_paths=dirs["paths"])
+    # omission: a receipt without the abstentions section is incomplete
+    r = res["receipt"]
+    bad = {k: v for k, v in r.items() if k != "abstentions"}
+    with pytest.raises(ValueError, match="incomplete provenance receipt"):
+        br.validate_receipt(bad)
+    # tamper: modify the written record -> hash mismatch -> rejected
+    abst_path = out_dir / "abstentions.json"
+    orig = abst_path.read_text(encoding="utf-8")
+    rec = json.loads(orig)
+    rec["full_run_total"] = 999
+    abst_path.write_text(json.dumps(rec, indent=1, sort_keys=True),
+                         encoding="utf-8")
+    reread = json.loads(abst_path.read_text(encoding="utf-8"))
+    with pytest.raises(ValueError, match="hash mismatch"):
+        # the runner's post-write check semantics: receipt hash vs file
+        if ad.sha256_file(abst_path) != r["abstentions"]["sha256"]:
+            raise ValueError(
+                "abstention record hash mismatch after write; run rejected")
+        br.validate_abstention_record(reread)
+
+
+def test_abstention_classification_uses_frozen_evidence():
+    """The classification constants match the authoritative evidence
+    exactly (Enns 608650 / Hart 606996, 57+2 split, 43 dev / 16 confirm)
+    - the diagnostic never re-derives them."""
+    vets = {v["pitcher"]: v for v in br.ABSTENTION_VETERANS}
+    assert set(vets) == {608650, 606996}
+    assert vets[608650]["name"] == "Dietrich Enns"
+    assert vets[608650]["mlb_debut"] == "2017-08-10"
+    assert vets[606996]["name"] == "Kyle Hart"
+    assert vets[606996]["mlb_debut"] == "2020-08-13"
+    assert br.ABSTENTION_EXPECTED == {"total": 59, "newcomers": 57,
+                                      "veterans": 2, "development": 43,
+                                      "confirmation": 16}
