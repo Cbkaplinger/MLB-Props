@@ -147,10 +147,21 @@ Key surfaces read in full this pass: root README, docs/README, canonical map
 
 ## Findings (confirmed vs merely unreferenced)
 
-1. **`scripts/prune_artifacts.py` == `production/ops/prune_artifacts.py`
-   content-identical (CRLF/LF only).** Genuine duplicate; entry-point
-   deletion needs owner nod + living-pointer update (canonical map cites the
-   scripts path). Batch 2.
+1. ~~`scripts/prune_artifacts.py` == `production/ops/prune_artifacts.py`
+   content-identical (CRLF/LF only).~~ **SUPERSEDED 2026-10-20: WRONG - Chat 2
+   is correct, the two files are different utilities.** Blob identities at
+   `f85e7c8`: `scripts/prune_artifacts.py` = blob `8b32de0856a5` (3,297 bytes,
+   122 lines - age-based pruning of dated artifact files, dry-run by default);
+   `production/ops/prune_artifacts.py` = blob `59626eda907c` (7,505 bytes,
+   220 lines - content-hash dedupe of `artifacts/odds_log`, report-first
+   workflow, polars). 23 diff hunks; different docstrings, logic, and ROOT
+   resolution. Both referenced by living docs (canonical map + waste-sweep
+   checklist cite `scripts/`; INDEX, RUNBOOK, production/README cite
+   `production/ops/`). **Deletion proposal WITHDRAWN; both retained.** Root
+   cause of the false claim: my comparison extracted both files through
+   PowerShell `>` redirection (UTF-16-LE re-encoding corrupted the samples);
+   the git-plumbing blob comparison above is authoritative. Batch-2 item (a)
+   is DROPPED.
 2. **`report/` top-level dir holds ONE file**
    (`recency_batch_results_table.md`), referenced by the backlog (Chat 1
    sole-writer) + the recency-batch card. Move to
@@ -1250,7 +1261,7 @@ read this pass; **validated** = claims checked against the tree/registry; **chan
 | Root README, docs/README, canonical map, ci.yml, AGENTS_ROLES, this plan | 6 | read + validated |
 | Diagrams (00-index, 01, 02, 03, 04, 05, 06, README) | 8 | read (index + entry-point reconciliation): **all 9 referenced entry points exist on main** — no broken diagram references; per-flow reconciliation vs actual artifact flows continues batch 4 |
 | Documentation relative links | 96 in 305 md | **validated by script: 2 genuinely broken**, both in `maintenance_inventory_2026-10-15.md` (`../EXECUTION_BACKLOG.md` -> `../../EXECUTION_BACKLOG.md`; `repo_canonical_map.md` -> `../repo_canonical_map.md`) — historical 10-15 report delivered via #4; repair planned batch 2 (pointer fix, content untouched) |
-| `prune_artifacts.py` pair | 2 | read + validated: content-identical modulo CRLF/LF; consumers = living docs (canonical map cites the scripts path) + dated census reports (historical, untouched) |
+| `prune_artifacts.py` pair | 2 | read + validated: **two DIFFERENT utilities** (superseding correction above) - my earlier content-identical claim was an artifact of corrupted extraction (PowerShell redirection); deletion withdrawn, both retained |
 | `odds_board.py` pair | 2 | read (headers/imports): production/odds is the docs-canonical ops surface; src/Python is imported by `test_safety_invariants`; both protected — separate track |
 | `report/` single file | 1 | validated: referenced by backlog (Chat 1) + recency-batch card; move deferred to coordinated batch 2 |
 | Count reconciliation | — | changed: PR-body category list omitted 3 rows (other-text 30, csv 11, 3 of 36 non-figure binaries); complete 15-kind table sums to 982; exhaustive path listing appended (this commit) |

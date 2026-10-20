@@ -195,3 +195,33 @@ Section 15 above repeats two superseded findings from Chat 1's reconciliation re
 4. **Unchanged from section 15 (re-affirmed):** the run `239394021...` is MLflow-VERIFIED for artifact integrity and FAILED scientific acceptance (531 excluded slots / 59 pitcher-cold starts vs required zero); output PRESERVED UNACCEPTED; no rerun, no replacement destination, no downstream evaluation authorized; next owner decision = abstain vs must-handle; batter-recency challenger stays an unapproved draft (no fitting/branch/worktree).
 
 **Review head for this PR: `2d546a2`'s successor carrying this section (see current PR head).** Chat 2 reviews the current head; section 15 stands as the superseded earlier record, not as the authoritative classification.
+
+## 17. Worktree disposition table - 2026-10-20 (Chat 3, consolidation ownership; verified live this pass)
+
+**Exact current count: 6 worktrees INCLUDING the primary checkout** (5 secondary
+checkouts under `MLB-Props-worktrees\`). Earlier "20" figures in circulation are
+stale or miscounted; no receipt of this lane ever recorded 20 — the verified
+sequence this day was 10 -> 6 -> 5 -> 6 (each point-in-time). New-worktree
+creation is FROZEN without explicit owner approval.
+
+| # | Path | branch @ head | active owner / task | dirty/untracked | unpushed (vs upstream) | preservation | Disposition |
+|---|---|---|---|---|---|---|---|
+| 1 | `MLB-Props\` (primary) | `preserve/legacy-pending-20261005` @ `d311b75` | none — intentional preservation state | 0 tracked-dirty; legacy untracked set snapshot-covered | 0 (local-only branch by design) | safety snapshot `legacy-dirty-20261015` + this branch IS the preservation | **KEEP** (preservation blocker: the legacy branch itself is the artifact; read current truth from origin/main) |
+| 2 | `...\distribution-spec` | `agent/distribution-spec` @ `52379dd` = origin | other lane — WIP awaiting owner disposition | **18** | 0 | head durable on origin; the 18 dirty/untracked files are the WIP | **KEEP — BLOCKED on owner disposition** (removal would discard the WIP; not mine to commit) |
+| 3 | `...\main-active` | `research/paired-uncertainty-v2` @ `b70ebfc` | Chat 1 — classification of 2 local-only commits (`b70ebfc`, `beb146b`) + 6 local files (M `AGENTS.md`; 5 untracked docs incl. the historical `run_bf_ab_score.py` v1) | **6** | 5 vs upstream `2c4d9bb`, of which **3 are durable via `origin/research/market-eval-v2`** (0 unique-durability risk); truly local-only: `b70ebfc`, `beb146b` + the 6 files | classification packet delivered; v1-scorer provenance finding recorded | **KEEP — BLOCKED on Chat 1 classification** (PUBLISH items: Chat 1 pushes/commits; Chat 3 must not commit another agent's WIP) |
+| 4 | `...\maintenance-dep-declarations` | `chat3/repo-sweep-20261020` @ `d787ada` | **Chat 3 — ACTIVE: repository sweep + cleanup (PR #24)** | 0 | 1 (PR #24 head, under review) | n/a (active) | **KEEP — active task** (reuse of this existing checkout sanctioned; no new worktree) |
+| 5 | `...\paext-v2` | `research/paext-v2-scoring-run` @ `792ae52` (advanced twice during this audit — Chat 1 actively working) | Chat 1 — research implementation (PR #25 lane) | 0 | 0 (origin current at audit time; moving fast) | n/a (active) | **KEEP — active agent checkout; do not touch** |
+| 6 | `...\repo-review-paext-registration` | detached @ `1b3bfd3` (advanced from `1b3bfd3` to `48155ec` detached during audit — reviewer moved it) | Chat 2 — PR #21 review (closure condition MET: verdict posted + #21 merged at `ccd0148`) | 0 | n/a (detached; `1b3bfd3` merged into main) | head merged; nothing unique | **REMOVE-eligible — BLOCKED on Chat 2's explicit path confirmation** (owner rule: confirm the other agent's exact path before removal; Chat 2 may have repurposed the checkout — the detached head moved to `48155ec` during this audit, so it is NOT verifiably idle) |
+
+**Stale registrations audit:** no registration in this ledger names a worktree
+that still exists with wrong metadata. Historical receipts (removed worktrees
+from the 10->6 batch, paext-v1, etc.) are chronology records, not live
+registrations — they remain accurate as history. The one registration whose
+closure condition is MET and whose checkout may be stale is #6 above
+(`repo-review-paext-registration`) — held for Chat 2 confirmation because its
+detached head moved during the audit.
+
+**Removals this pass: none** (no owner-confirmed inactive worktree met the
+durability + confirmation bar; #6 is the only candidate and awaits Chat 2).
+Before count 6 -> removed 0 -> remaining 6. No branches deleted, no
+`git clean`, no prune, no `--force` anywhere.
