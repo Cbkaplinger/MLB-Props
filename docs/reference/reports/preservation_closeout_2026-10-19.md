@@ -109,6 +109,7 @@ Count after batch: **6** (main checkout + 5 worktrees).
 - `preservation_closeout` section 2 PUBLISH items: `chat2-tooling` and `market-eval-v2` are now RESOLVED (content durable on origin; worktrees removed above). Remaining PUBLISH: `main-active` (Chat 1).
 - Standing constraint stands: no branch deletion, no history rewriting, no removals beyond the owner-released set above; `paext-v1` and `main-active` removal blocked until their unique content is pushed or owner-dispositioned.
 
+
 ---
 
 # Ledger corrections + integration receipts - 2026-10-20 (later; Chat 3; chronology preserved, append-only)
