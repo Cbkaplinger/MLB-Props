@@ -191,3 +191,108 @@ registered evaluation.
 - Extension remains a separate registered proposal (minimal PA-outcome layer,
   per-season validation, seasonal compatibility checks per section 8); it is
   not a prerequisite for this card and not part of this challenger.
+
+## v3.1 - IMPLEMENTATION APPENDIX (2026-10-20): deterministic key
+## serialization resolved; implementation + synthetic tests complete
+
+Implementation commit (this one) on research/paext-v2-scoring-run,
+refreshed onto current main at the coordinated integration point
+(merge of origin/main #4/#22-state: merge commit 55e2105; the paext lane
+and harness were byte-identical across the merge). Published implementation
+SHA: see the backlog receipt for this turn.
+
+### Deterministic serialization (resolves the review finding)
+
+- Both development key sets serialize as: encoding UTF-8; field separator
+  | (U+007C); line separator LF (0x0A); NO trailing newline after the
+  final line; NO header; no padding; ordering ascending by the NUMERIC
+  tuple (game_pk, side-ASCII, slot) for slot keys and (game_pk,
+  at_bat_number) for evaluation keys; each set MUST be duplicate-free
+  (duplicates fail loud as construction defects); NO dates in the key
+  stream ((game_pk, side, slot) uniquely determines game_date inside the
+  frozen lineup artifact - asserted at verification, so a date column is
+  redundant, not identity-bearing).
+- Slot key line: {game_pk}|{side}|{slot}; evaluation key line:
+  {game_pk}|{at_bat_number}. Hash = sha256 over the exact byte stream.
+- RELATION TO THE EARLIER ABBREVIATED PINS: the provisional pins
+  published with v3 (82592f18..., c6568151...) were computed with THIS
+  exact byte format; what was missing was the declaration. The
+  recomputation under the now-declared format REPRODUCES both hashes
+  byte-for-byte (--verify-keys-only PASSED 2026-10-20): slot keys
+  43,407 -> 82592f18f824359e9a48848acf7662c040edc5e3284ed6f4a1741137606318ef;
+  evaluation keys 82,817 ->
+  c65681512d5de924e842e80d7c7f27369889590f1c46111eec11e25acb50f902.
+  No serialization was chosen to force a match: the format is the minimal
+  identifying tuple with a numeric total order and a canonical encoding;
+  the recomputation under an INDEPENDENTLY WRITTEN reimplementation of
+  these rules reproduces the pins, and the pins would have been replaced
+  with an old->new explanation had they not reproduced. One subtlety
+  surfaced and fixed during the declaration: the ordering is NUMERIC by
+  (game_pk, at_bat_number), not lexicographic line order (variable-width
+  at_bat_number); the serializers sort tuples, never lines, and
+  duplicate-key inputs fail loud.
+- Implementation: research/offseason_2026/pregame_pa_ext/batt_recency.py
+  (canonical serializers + verify_published_keys + --verify-keys-only).
+
+### Implementation (gated, synthetic-tested only)
+
+- batt_recency.py: challenger feature builder (attach_batt_recency)
+  reusing the adapter's state machinery conventions; challenger model
+  family (StandardScaler + LogisticRegression(C=1.0, max_iter=1000) on
+  the 8 CHALLENGER_FEATURES); observed-PA identity join with
+  (game_pk, at_bat_number) uniqueness guard; eligible-slot ledger filter
+  (never re-admits an excluded row); CLI with --verify-keys-only and a
+  HARD GATE (--i-accept-fitting-execution absent -> refusal, exit 2,
+  contract text printed). The fitting/evaluation stage has NEVER run.
+- One convention note discovered by the synthetic tests: the frozen asof
+  convention takes the prior state strictly before the entity's LAST
+  game date L <= t (prior_n = rows < L). The challenger splits THAT
+  SAME set (recent = (t-60d, L); anchor = <= t-60d and < L), so
+  n_win + n_anchor_raw == adapter prior_n exactly. On the diagnostic's
+  evaluation population (observed PAs on the game date, L = t) the
+  convention is exactly 'all PAs strictly before t'.
+
+### Synthetic test results (CI-safe, no lake, no mlflow)
+
+tests/test_batt_recency_diagnostic.py: 14 collected / 14 passed (1.5s),
+covering: cross-season continuity; empty/short history (feature default
+vs permission distinction asserted); long inactivity (mass decays, anchor
+-> league); recent/anchor boundary (PA at exactly t-60d -> anchor; same-
+day PA -> neither); no double counting (n_win + n_anchor_raw == adapter
+prior_n across random forecast dates); forecast-relative decay (mass
+exactly halves at +90d); strictly-prior source dates; identical
+training/inference construction (same builder, bit-equal); unique
+pitcher-matched observed-PA joins incl. the 777417-style cross-side
+duplicate projection (each PA once; unobserved side contributes 0; a
+defective same-PA-two-slots projection fails loud); exclusion policy
+unchanged (excluded rows never re-admitted); baseline artifacts
+byte-identical around diagnostic calls; canonical hash determinism,
+numeric-order sensitivity, duplicate rejection.
+
+### Bounded execution contract (proposed, NOT authorized)
+
+One authorized real-data run of this diagnostic would execute EXACTLY:
+(1) --verify-keys-only gate: both published hashes + counts assert; (2)
+feature build over the 4,823 dev-eligible starts / 43,407 slots from the
+preserved ledger (read-only); (3) fit ONE primary challenger (R=60d,
+m=30) per dev block on rebuilt historical training rows (2023-01-01..
+block cal_first - the frozen recipe's training-row selection); (4)
+evaluate LOG LOSS primary (paired by evaluation row on the 82,817 frozen
+keys, slate-date bootstrap n=2000 seed 20261001, null-centered + Holm
+m=1) + Brier/calibration supporting; (5) write-once outputs to a NEW
+diagnostics directory (pregame-pa-ext-v2/diagnostics/batt_recency_v1/)
+- the preserved parquet is never written and never modified; (6) the 59
+abstaining starts (57 debut-date newcomers + Enns 608650 / Hart 606996)
+prominently reported in every output; (7) confirm_2025H2 untouched; (8)
+tracking optional through the shared wrapper; (9) any acceptance failure
+stops all downstream use. No population-policy change; no backfill; no
+comparative-claims language beyond the registered primary/supporting
+scores.
+
+### Future count-aggregation work (queued as a specification note only)
+
+note_count_aggregation_future_2026-10-20.md distinguishes (A) unequal-
+batter-probability aggregation (the cycled prefix-mean treats slots as
+exchangeable) from (B) workload/performance dependence (the BF-N x per-PA
+p independence assumption). Neither is implemented; each needs its own
+registered card; they must never be changed at once.
