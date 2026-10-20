@@ -36,6 +36,16 @@ cohort.
 
 ## 3. Missing-lineup fallback
 
+> **Annotation (2026-10-19, cold-start owner decision PENDING):** the
+> paext-v2 adapter path (`research/offseason_2026/pregame_pa_ext/`)
+> currently implements cold-start handling as **EXCLUSION (provisional
+> approach)**: a slot with no entity history gets a null PA probability,
+> an explicit `exclusion_reason`, and is excluded from scoring. This does
+> NOT supersede this section — the league-rate fill below remains the
+> registered candidate fallback for this lane, and the choice between
+> exclusion and league-rate fallback is BLOCKED awaiting an explicit
+> owner decision.
+
 - Where a start has no projected lineup, fill per the **accepted recipe:
   league-rate fill** (league-rate p̄ per slot in place of a lineup-derived
   value), consistent with the league-pool fallback convention used for
