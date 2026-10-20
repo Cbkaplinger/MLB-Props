@@ -1,0 +1,237 @@
+{
+  "batch": "lgbm-equal-info-v2",
+  "batch_id": "lgbm-equal-info-v2",
+  "batch_name": "corrected equal-information LightGBM packet (matched exposure + persisted eval history + full persistence)",
+  "registered_date": "2026-10-16",
+  "config_sha256": "0c3466c9772e5c27a6031f51e37abd7d030b582a0c8f61f2c66dfaadd7aec95d",
+  "config_hash_definition": "sha256 over json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8') of the 'config' object in this file",
+  "config": {
+    "interface_version": "lgbm-equal-info-v2-frozen-command-1.0",
+    "text_source_identity_convention": "TEXT-SOURCE IDENTITY CONVENTION (amendment-2, 2026-10-15): declared text-source files (extensions .json, .md, .py) are identified by sha256 over their LF-NORMALIZED content (every CRLF and lone CR is normalized to LF before hashing), so a registered text identity is reproducible across git EOL materializations (core.autocrlf / eol attributes). Declared binary files (extensions .joblib, .npy, .parquet, .pkl) and any other extension are identified BYTE-EXACT (sha256 over the raw file bytes). Byte-exact values registered under the prior amendment-1 convention are preserved as historical records and are not re-verified against disk; verification uses the normalized value for text-source files and the byte-exact value for binary files.",
+    "eol_and_identity_note": "IDENTITY/EOL CONVENTION for this batch: declared text-source files (.py/.json/.md) are hashed LF-NORMALIZED (every CRLF and lone CR normalized to LF before sha256) so registered text identities are reproducible across git EOL materializations; declared binary files (.parquet/.pkl/.joblib/.npy) and all registered inputs are BYTE-EXACT; the execution record (run_manifest.json) states this convention on every run",
+    "correction_of": {
+      "supersedes": "lgbm-equal-info-v1 run b8bc222c703a4a60e1eb0736143800e34601f61db0ced84cc067597b7796fd05 (NONCONFORMING execution, DEVELOPMENT DIAGNOSTIC, REVIEW PENDING)",
+      "assessment": "MLB-Props-Research\\lgbm-equal-info-v1\\RUN_ASSESSMENT.md (2026-10-16): training-row asymmetry confirmed (LightGBM fit consumed ~20% fewer rows than the logistic in every fold); eval history unrecorded; best_iteration=1 not established",
+      "v1_defects_fixed": [
+        "MATCHED EXPOSURE: selection on the training-only inner carve-out, then FRESH LightGBM refit on the FULL base_train at the chosen fixed iteration; logistic reference fit on the SAME full base_train",
+        "per-round inner evaluation history persisted via lgb.record_evaluation",
+        "first_metric_only=True on the FIRST registered metric (binary_logloss) declared as a PREDECLARED DIAGNOSTIC",
+        "full persistence: keyed RAW+CAL preds/labels both arms, per-arm training-row IDs/counts, per-fold + pooled metrics, paired bootstrap draws/contrasts/intervals/p-values, booster.save_model per fold, logistic reference models"
+      ]
+    },
+    "lgbm_hyperparameters": {
+      "interface": "count-eval-v1-lgbm-equal-info-1.0",
+      "objective": "binary",
+      "learning_rate": 0.05,
+      "num_leaves": 31,
+      "min_data_in_leaf": 100,
+      "feature_fraction": 1.0,
+      "bagging_fraction": 1.0,
+      "bagging_freq": 0,
+      "lambda_l1": 0.0,
+      "lambda_l2": 0.0,
+      "seed": 20261001,
+      "feature_fraction_seed": 20261001,
+      "data_random_seed": 20261001,
+      "deterministic": true,
+      "force_row_wise": true,
+      "num_boost_round": 400,
+      "early_stopping_rounds": 50,
+      "early_stopping_data": "inner_block(base_train carve-out) ONLY",
+      "class_weighting": "NONE (no scale_pos_weight, no is_unbalance)",
+      "verbosity": -1,
+      "metric": [
+        "binary_logloss",
+        "binary_error"
+      ]
+    },
+    "lgbm_hyperparameters_source": "BYTE-IDENTICAL to lake count-eval-v1 lgbm_equal_info_adapter.py LGBM_EQUAL_INFO_CONFIG (adapter config_sha256 f7e3726a5259920ef28f73b1ad7fa58d505488cd07304cc95e8044bccc91ffd0, re-verified against the v1 freeze's registered adapter.config_sha256 at generation time): original hyperparameters, UNCHANGED; the v2 correction changes the procedure, not the hyperparameters",
+    "adapter": {
+      "path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\market-eval-v2\\research\\offseason_2026\\specs\\count-eval-v2-spec\\harness\\run_lgbm_equal_info_v2.py",
+      "file_sha256": "7c2477459be062c0e22d953691c2f0f2e617a3441753bab8a10ae61fd2ca6808",
+      "file_sha256_normalized": "7c2477459be062c0e22d953691c2f0f2e617a3441753bab8a10ae61fd2ca6808",
+      "config_sha256": "f7e3726a5259920ef28f73b1ad7fa58d505488cd07304cc95e8044bccc91ffd0",
+      "note": "the v2 runner IS the corrected comparison implementation (single owner: iteration selection -> fresh refit -> reference on the same rows -> persistence); it exposes config_sha256() and LGBM_EQUAL_INFO_CONFIG for the shared identity verifier"
+    },
+    "iteration_selection_procedure": {
+      "selection_data": "training-only inner carve-out of base_train (last 20% of distinct base_train slate dates); the calibration sub-block and the assessment frames are NEVER visible to selection",
+      "history": "per-round evaluation history on the inner block persisted via lgb.record_evaluation (both registered metrics, binary_logloss + binary_error) to inner_eval_history_<fold>.json",
+      "selected_iteration": "booster.best_iteration under first_metric_only=True (fallback num_boost_round), persisted per fold",
+      "refit": "FRESH LightGBM refit on the FULL base_train at the chosen fixed iteration; NO early stopping, no valid sets, no callbacks in the refit; scoring uses ONLY this refit booster (asserted num_trees == chosen iteration)",
+      "first_metric_only_diagnostic": "PREDECLARED DIAGNOSTIC: early stopping tracks the FIRST registered metric (binary_logloss) only (lgb.early_stopping(first_metric_only=True)); binary_error stays registered and is recorded in the persisted eval history as a descriptive diagnostic. Declared BEFORE execution; addresses the v1 RUN_ASSESSMENT mechanism-2 confound (coarse binary_error trigger). A diagnostic declaration, not a hyperparameter change"
+    },
+    "matched_exposure_contract": {
+      "contract": "BOTH arms consume the SAME fit rows per fold: the LightGBM scoring model is a FRESH refit on the FULL base_train and the both-EW logistic reference is fit on the SAME full base_train (closes the v1 fit-row asymmetry 98,466/176,080/245,633 vs 123,081/219,078/306,791)",
+      "assertion": "per-fold assertion n_fit_rows(LightGBM refit) == n_fit_rows(logistic) == n(base_train); training-row IDs persisted per arm per fold (fit_rows_<fold>__<candidate>.parquet) and hash-compared",
+      "calibration_rows": "calibration sub-block rows equal for both arms (unchanged from v1); eval rows equal (unchanged from v1)"
+    },
+    "no_search": "no hyperparameter/feature/window/calibration search anywhere in this batch: hyperparameters are the recorded v1 frozen values, the feature set is the registered 8 both-EW columns, the folds are the existing chronological dev folds, calibration is the same sigmoid definition - all recorded, none searched",
+    "equal_information_contract": {
+      "features": [
+        "p_pitcher_prior_w150",
+        "p_batter_prior_w150",
+        "lg_rate",
+        "n_prior_pitcher",
+        "n_prior_batter",
+        "cold_start",
+        "ew_pitcher",
+        "ew_batter"
+      ],
+      "features_binding": "identical to the both-EW logistic reference P1_H3_incumbent_refit (6 frozen B features + ew_pitcher + ew_batter; comparison.py FEAT_H3)",
+      "rows": "identical rows for both candidates per fold at EVERY stage: same full base_train for the LightGBM refit and the logistic fit (matched exposure), same calibration sub-block, same eval frame; per-fold eval identity hash (sorted (game_pk, at_bat_number, batter)) persisted and identical across candidates",
+      "folds_binding": "same registered dev folds as the both-EW logistic reference (block_2024H1 / block_2024H2 / block_2025H1), same fold_calibration_rule (60 PA-bearing-day sigmoid sub-block), same metric definitions"
+    },
+    "training_only_tuning": {
+      "early_stopping": "permitted on ONE inner block carved out of base_train ONLY (last 20% of distinct base_train slate dates), for ITERATION SELECTION only; the selected iteration is then re-used in a fresh full-base_train refit",
+      "prohibited_sources": "no early stopping on the calibration sub-block, no early stopping on or any label use from the dev-assessment frames; the eval frame is never visible to fitting",
+      "no_search": "no hyperparameter search outside the inner-carve-out iteration selection; the frozen config is recorded, not searched",
+      "dev_assessment_labels": "dev-assessment labels are NEVER used for training, stopping, scaling, or calibration"
+    },
+    "evaluation": {
+      "seed": 20261001,
+      "n_boot": 2000,
+      "bootstrap": "paired slate-date bootstrap, block-stratified, shared draw stream; 1-D replicate shape assertions before elementwise subtraction; the replicate draws are persisted (bootstrap/contrast_draws__<contrast>.parquet)",
+      "p_values": "null-centered approximate bootstrap p-values + Holm step-down across the registered contrast family per the registered C3.8 method (comparison.py null_centered_contrast_test / holm_adjust)",
+      "primary_metric": "Brier on RAW (pred_raw lane, PRINCIPAL)",
+      "secondary_metric": "log loss on RAW (descriptive secondary)",
+      "calibration_lane": "CAL SEPARATE: sigmoid calibration on the calibration sub-block ONLY, same definition as the executed logistic adapters; reported separately, never merged with RAW; no CAL contrast claims"
+    },
+    "baseline_binding": {
+      "reference": "P1_H3_incumbent_refit (both-EW logistic) fit with the EXECUTED comparison.py procedure (C=1.0 max_iter=1000, StandardScaler base_train only, block sigmoid cal) - on the SAME full base_train as the LightGBM refit",
+      "contrast_definition": "contrast = P2_lgbm_equal_info_v2 - P1_H3_incumbent_refit on identical pooled rows under the same shared draw stream",
+      "per_contrast_interval_reporting": "EVERY registered contrast carries its own explicit unadjusted 95% percentile interval plus its own null-centered p-value; no contrast may be registered without interval reporting",
+      "registered_contrasts": [
+        {
+          "id": "C_lgbm_v2_vs_both_EW_logistic",
+          "contrast": "P2_lgbm_equal_info_v2 minus P1_H3_incumbent_refit",
+          "interval_reporting": "EXPLICIT: ci95_unadjusted percentile interval + null_centered p_value + p_holm emitted per contrast"
+        }
+      ],
+      "interval_coverage_verification": "verified at freeze time: every entry in registered_contrasts has explicit interval reporting (the registered set is exactly {C_lgbm_v2_vs_both_EW_logistic}); Holm applies across the registered family (one contrast: p_holm == p_value); adding a contrast later requires adding its interval reporting in the same registration"
+    },
+    "folds": {
+      "block_2024H1": {
+        "train_end": [
+          2023,
+          12,
+          31
+        ],
+        "assess": [
+          "2024 1 1",
+          "2024 6 30"
+        ]
+      },
+      "block_2024H2": {
+        "train_end": [
+          2024,
+          6,
+          30
+        ],
+        "assess": [
+          "2024 7 1",
+          "2024 12 31"
+        ]
+      },
+      "block_2025H1": {
+        "train_end": [
+          2024,
+          12,
+          31
+        ],
+        "assess": [
+          "2025 1 1",
+          "2025 6 30"
+        ]
+      },
+      "confirm_2025H2": {
+        "status": "EXCLUDED - NOT SCORED"
+      },
+      "confirm_and_2026_exclusion": "confirm_2025H2 excluded - not scored; 2026 rows remain CLOSED (no 2026 loads, no 2026 tuning)"
+    },
+    "persistence_contract": {
+      "mandatory": [
+        "keyed RAW + CAL predictions AND labels for BOTH arms per fold (preds_<fold>__<candidate>.parquet: identity cols + game_date + y + pred_raw + pred_cal)",
+        "training-row IDs/counts per arm per fold (fit_rows_<fold>__<candidate>.parquet)",
+        "inner validation history + selected iteration per fold (inner_eval_history_<fold>.json, per-round values)",
+        "per-fold + pooled metrics (metrics.json: both arms, RAW + log-loss + CAL lanes)",
+        "paired bootstrap draws/contrasts/intervals/p-values (2000 resamples, seed 20261001, block-stratified, null-centered + Holm; draws persisted as parquet)",
+        "saved boosters/models where practical (booster.save_model per fold under boosters/; logistic reference fits under reference_models/)",
+        "sha256 inventory of every persisted output (metrics.json 'persistence'; byte-exact binaries, LF-normalized also recorded for text outputs)",
+        "MLflow full metric/artifact inventory with fresh-process retrieval + hash verification via the SHARED wrapper (track_and_verify.track_and_verify - the executed path)"
+      ],
+      "write_once": "the output destination and every run dir inside it are write-once; a re-run with the same identity refuses (WriteOnceError)"
+    },
+    "output_destination": "C:\\Users\\ckaplinger\\MLB-Props-Research\\lgbm-equal-info-v2",
+    "output_destination_confirmed_nonexistent": {
+      "confirmed": true,
+      "date": "2026-10-16",
+      "method": "directory listing of MLB-Props-Research + explicit existence check: lgbm-equal-info-v2 absent at freeze generation time"
+    },
+    "output_write_once_note": "write-once: never overwrite a prior run; the run dir is the sha256 of the run identity (batch_id + freeze config hash + input hashes + adapter/comparison/wrapper hashes)",
+    "readiness_gate": "PENDING READINESS GATE: not yet READY. The standing conditional authorization applies after READY; until then no real-data fit or score happens under this config. (The v1 run's nonconforming self-READY execution is exactly what this v2 packet must NOT repeat.)",
+    "authorization": {
+      "execution_status": "PENDING READINESS GATE",
+      "note": "the standing conditional authorization applies after READY; nothing in this freeze authorizes a run before READY"
+    },
+    "registered_inputs": {
+      "pa_table": {
+        "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\p1-harness-v2\\data\\pa_table.parquet",
+        "sha256": "e30d8561d8d0fbb9ab0eae562076312a29eeb1476172d533c3d93570959a85f0",
+        "identity_class": "binary (byte-exact per TEXT_SOURCE_IDENTITY_CONVENTION)",
+        "role": "PA-row grain + realized labels for the registered dev folds"
+      },
+      "features_v3": {
+        "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\overnight-p2\\data\\features_v3.parquet",
+        "sha256": "163ad43356e66649274682a473a4015c71f04be6c2f074f15e417c3d49b7e8f8",
+        "identity_class": "binary (byte-exact per TEXT_SOURCE_IDENTITY_CONVENTION)",
+        "role": "canonical feature frame (carries the ew_pitcher / ew_batter EW-90d columns)"
+      },
+      "start_metrics_outcome_source": {
+        "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\bf-workload-v1\\data\\start_metrics_v2.parquet",
+        "sha256": "af6814ec7ea73b4ac941dd52f185139062b987762d639203b867e15bb4817fde",
+        "identity_class": "binary (byte-exact per TEXT_SOURCE_IDENTITY_CONVENTION)",
+        "join_status": "REGISTERED-PATH-ONLY - registered for a LATER registered join; NOT read, NOT joined by the frozen command (no join now)"
+      }
+    },
+    "tracking_wrapper": {
+      "path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\paext-v2\\research\\offseason_2026\\specs\\count-eval-v2-spec\\harness\\track_and_verify.py",
+      "file_sha256": "30d80f8245eb60b8176aecc5e37e4e30bdc1289b61a303552bbe904a6e2f5437",
+      "file_sha256_normalized": "30d80f8245eb60b8176aecc5e37e4e30bdc1289b61a303552bbe904a6e2f5437"
+    },
+    "builder_worktree_harness": {
+      "comparison_path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\market-eval-v2\\research\\offseason_2026\\specs\\count-eval-v2-spec\\harness\\comparison.py",
+      "comparison_sha256": "5ad04c3299bf83f67c15d428460cfcf122b4b3553462486b70fc7bffd71bb24d",
+      "comparison_sha256_normalized": "5ad04c3299bf83f67c15d428460cfcf122b4b3553462486b70fc7bffd71bb24d",
+      "runner_sha256": "7c2477459be062c0e22d953691c2f0f2e617a3441753bab8a10ae61fd2ca6808",
+      "runner_sha256_normalized": "7c2477459be062c0e22d953691c2f0f2e617a3441753bab8a10ae61fd2ca6808"
+    },
+    "tracking": {
+      "backend": "MLflow research-only tracking mirror (ADR-0007)",
+      "tracking_uri": "sqlite:///C:/Users/ckaplinger/MLB-Props-Research/mlflow.db",
+      "experiment": "pa-k-probability-v1",
+      "status_record": "<out_dir>\\tracking_status.json (VERIFIED / LOGGED / tracking_failed)"
+    },
+    "execution": {
+      "command": "python research/offseason_2026/specs/count-eval-v2-spec/harness/run_lgbm_equal_info_v2.py --freeze research/offseason_2026/specs/count-eval-v2-spec/harness/freeze_lgbm_equal_info_v2.json --tracking-uri sqlite:///C:/Users/ckaplinger/MLB-Props-Research/mlflow.db --i-accept-real-data-execution",
+      "gate": "refuses exit 2 without --i-accept-real-data-execution (the --i-accept-outcome-scoring equivalent); real-data execution additionally requires the owner readiness gate"
+    },
+    "final_fit_declaration": "predictions come from a FRESH LightGBM refit on the FULL base_train at the chosen fixed iteration (selected on the training-only inner carve-out with persisted eval history); NO early stopping in the refit; the logistic reference is fit on the SAME full base_train (matched exposure; fit rows asserted equal per fold)",
+    "first_metric_only_diagnostic": "PREDECLARED DIAGNOSTIC (declared in the freeze BEFORE execution): early stopping tracks the FIRST registered metric (binary_logloss) only (lgb.early_stopping(first_metric_only=True)); binary_error stays registered and is recorded in the persisted eval history as a descriptive diagnostic. Addresses the v1 RUN_ASSESSMENT mechanism-2 confound (coarse binary_error trigger); it is a DIAGNOSTIC declaration, not a hyperparameter change.",
+    "build_status": {
+      "status": "FROZEN - NOT EXECUTED (synthetic-tested only)",
+      "note": "built + frozen + synthetic-tested 2026-10-16 (worktree market-eval-v2); NO real-data execution performed or authorized by this build; the literal command above is recorded for later authorization"
+    },
+    "amendment_3": {
+      "id": "amendment-3-wrapper-tags-param",
+      "date": "2026-10-19",
+      "supersedes": "amendment-2-portable-text-identity registration (this file, prior config_sha256 preserved in git history)",
+      "reason": "RE-REGISTERS THE SHARED WRAPPER FILE IDENTITY ONLY; NO SCIENTIFIC FIELD CHANGES. track_and_verify.log_run gains one OPTIONAL trailing keyword parameter tags (default None) for phase/pipeline_id dual-phase linkage (paext-v2 reconstruction+scoring runs share a pipeline_id tag). When tags is omitted the logged run is IDENTICAL to before (no tags are set), so the frozen command behavior is unchanged; log_run/verify_run signatures stay backward compatible for all existing call sites (positional args unchanged). The wrapper file identity (file_sha256 / file_sha256_normalized) is updated to the amended file; config_sha256 recomputed. No rerun of any executed registration is implied."
+    },
+    "amendment_4": {
+      "id": "amendment-4-wrapper-path-self-contained",
+      "date": "2026-10-19",
+      "supersedes": "amendment-3-wrapper-tags-param registration (config_sha256 0e805a387b349da406d64bdee40837fb6d1f8ac76236262b3639e59a1d94c674, preserved in git history and as the in-file test constant AMENDMENT3_CONFIG_SHA256)",
+      "reason": "REGISTRATION PATH CORRECTION ONLY; NO FILE IDENTITY, CONTENT OR SCIENTIFIC FIELD CHANGES. Same defect class as the v1 freeze amendment-4: amendment-3 re-registered the amended wrapper file identity (30d80f82... - the tags-kwarg wrapper committed in the paext-v2 worktree harness) but left tracking_wrapper.path pointing at the market-eval-v2 worktree, whose committed track_and_verify.py (7fab5f18...) is the pre-tags wrapper owned by a different branch; verify_registered_identities therefore failed loud on the registered identity vs the bytes at the registered path. amendment-4 re-points tracking_wrapper.path to the paext-v2 worktree harness copy that carries exactly the registered identity; file_sha256 / file_sha256_normalized are UNCHANGED (30d80f82...); config_sha256 recomputed. The registered adapter/comparison identities (7c247745... / 5ad04c32...) and their market-eval-v2 paths are UNCHANGED (on-disk bytes verify identical in both worktrees). No rerun of any executed registration is implied; the executed run f5564ee6... and its execution_receipt.json evidence are preserved untouched."
+    }
+  }
+}

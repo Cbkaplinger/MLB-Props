@@ -1,3 +1,5 @@
+> **SUPERSEDED (working draft, noncanonical):** this pre-freeze working copy is superseded by the registered final [pregame-opportunity-contract.md](pregame-opportunity-contract.md). draft diverges from the registered final (similarity 0.975); substantive differences preserved below as historical evidence. Content below is preserved unmodified; the final is the authoritative version.
+
 # Pregame lineup/opportunity contract - DRAFT (2026-10-08)
 
 > **Status: DRAFT.** Owner-directed (post-integration task, step 3-4).

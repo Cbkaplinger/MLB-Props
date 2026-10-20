@@ -1,0 +1,70 @@
+{
+  "receipt": "MLFLOW_RETRIEVAL_RECEIPT for the recency-batch-v1 MLflow post-run import",
+  "written_utc": "2026-10-15T19:20:00Z",
+  "written_by_session": "market-eval-v2 follow-up (retrieval verification)",
+  "scope_statement": "This receipt establishes HISTORICAL TRACKING PARITY only: the frozen recency-batch-v1 run's metrics, params, and artifacts are retrievable from and byte-consistent with the MLflow tracking store. It does NOT establish automatic harness integration; the count-eval-v1 harness does not log to MLflow on its own. Automatic-path proof is the separate test_auto_tracking.py synthetic exercise.",
+  "tracking": {
+    "tracking_uri": "sqlite:///C:/Users/ckaplinger/MLB-Props-Research/mlflow.db",
+    "mlflow_version": "3.17.1",
+    "experiment_id": 1,
+    "experiment_name": "pa-k-probability-v1",
+    "parent_run_id": "160768ae41b242d1a595a4ca235b2a95",
+    "parent_run_name": "recency-batch-v1-c09890ae",
+    "parent_status": "FINISHED",
+    "parent_tags_inherited": {
+      "run_id": "recency-batch-v1-c09890ae",
+      "harness_run_id": "c09890ae6c3d111f187fcd35d5b2bca17f27fa24fd13f683a9489bf5d3d0c3eb",
+      "git_sha": "aed7f36cd349233212bb0f04c908c1190cc00610",
+      "import_kind": "post-run-import",
+      "exposure": "development-only",
+      "confirm_block_status": "EXCLUDED-BY-CONFIG (include_confirm=False)",
+      "review_status": "reconciliation-closed-2026-10-15"
+    },
+    "child_run_ids": [
+      "98ac94347ac44305bb1827a89ebeedce",
+      "93762d831f924323b9b7af8b32a5cceb",
+      "e9eb97ffa0d045738daf4f2b2d356a1b",
+      "7993b8f089f34d6a8e4c1c4ad1b3a353",
+      "4f0a72fed5d64fba9d2c8e611a2249de",
+      "05ab78b5694d4d63adec42e2de2d5d56",
+      "e66907dc71644460b5ad90901ff19c20",
+      "d17929096caa408298d44ad3a51da314",
+      "4b41e824cc50402f9374c085e1acfe9a",
+      "dd3ba9a817404428b4fa9401856d93ec",
+      "c26e5f3888ae4756b741557d1ca16642",
+      "f2e6c8d0560a49588cc82564138eeaa5"
+    ],
+    "child_shape": "4 candidates x 3 dev blocks x raw lane = 12; all FINISHED; confirm_2025H2 excluded by config (nothing to import)"
+  },
+  "verification": {
+    "method": "fresh independent session queried mlflow.db directly, then recomputed brier / log loss / n / n_dates per candidate x block and pooled per candidate from the 12 frozen preds parquets (pred_raw lane, no clipping beyond harness eps convention) and compared against both metrics.json and the DB-logged metrics",
+    "metric_agreement_result": {
+      "status": "EXACT-AGREEMENT",
+      "max_abs_delta_across_all_cells": 0.0,
+      "cells_compared": "4 candidates x 3 blocks x {brier, log_loss, n, n_dates} = 48 per-fold cells + 4 candidates x {brier, log_loss} pooled = 8 pooled cells; DB-logged metrics also equal recomputed values",
+      "detail_file": "_recompute_result.json"
+    },
+    "artifact_retrieval_and_hash_result": {
+      "status": "VERIFIED",
+      "artifact": "canonical/metrics.json",
+      "method": "MlflowClient.download_artifacts via the MLflow artifact API (tracking URI above), not a direct file copy",
+      "top_level_artifacts": ["canonical/file_inventory.json", "canonical/metrics.json", "canonical/run_manifest.json"],
+      "retrieved_sha256": "5de64d7b854043f2e346491a3de78ba1f94e6fe0b3d1451d7716525de8031554",
+      "frozen_source_sha256": "5de64d7b854043f2e346491a3de78ba1f94e6fe0b3d1451d7716525de8031554",
+      "hash_match": true,
+      "retrieved_to": "_artifact_api_dl/metrics.json"
+    }
+  },
+  "timestamps": {
+    "execution_created_utc": "2026-10-15T17:35:41.547395+00:00",
+    "import_executed_utc": "2026-10-15T18:25:34.872869+00:00",
+    "import_record_written_utc": "2026-10-15T18:25:39.653642+00:00",
+    "this_retrieval_verification_utc": "2026-10-15",
+    "note": "execution vs import timestamps preserved separately; retrieval verification performed in a distinct later session against the already-imported store"
+  },
+  "prior_records": {
+    "import_record": "C:/Users/ckaplinger/MLB-Props-Research/recency-batch-v1/mlflow_import_record.json",
+    "importer_script": "C:/Users/ckaplinger/MLB-Props-Research/recency-batch-v1/mlflow_import_recency.py",
+    "importer_sha256": "53ab6fc5b7ff32d676171803899a3130ca9b320c08dfab2174b58dae08744b38"
+  }
+}

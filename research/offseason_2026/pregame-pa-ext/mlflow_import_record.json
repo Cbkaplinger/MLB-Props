@@ -1,0 +1,40 @@
+{
+  "record": "mlflow post-run import of the frozen first-run-v1 canonical run",
+  "written_utc": "2026-10-15T13:35:00Z",
+  "canonical": {
+    "harness_run_label": "first-run-v1-e59da946da21",
+    "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+    "run_manifest_sha256": "897070f8acc593038a8f37126e1693d3a5f25389ce3e4b7d941592db817711c9",
+    "implementation_git_sha": "b2be3c9c6a3f29d47f44b2c769bd933023491d4e",
+    "config_sha256": "e59da946da218bd43af05d0dde3ddeace5b30c3280b249767158eec94ab15fc1"
+  },
+  "importer": {
+    "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1\\mlflow_import.py",
+    "sha256": "374ef61beb341ed1f0aedd6a1b63d2c168679304d5a6429449e3ce773f4d0de3",
+    "idempotency": "added 2026-10-15 (additive): searches experiment for existing run tagged run_id == first-run-v1-e59da946da21 before creating; second import verified as no-op"
+  },
+  "mlflow": {
+    "version": "3.17.1",
+    "installed_in": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props\\.venv (pip install mlflow --quiet)",
+    "environment_note": "mlflow install pulled pyarrow 25.0.1 conflicting with the pre-existing streamlit pin (<25); pyarrow restored to 24.0.0 (corrective downgrade, no other package changes)",
+    "tracking_uri": "sqlite:///C:/Users/ckaplinger/MLB-Props-Research/mlflow.db",
+    "artifact_store": "filesystem, ./mlruns under first-run-v1",
+    "experiment": "pa-k-probability-v1 (experiment_id 1)",
+    "parent_run_id": "e2194b6b0f7c4f1da59db2a967af1e2b",
+    "parent_tags": {
+      "run_id": "first-run-v1-e59da946da21",
+      "git_sha": "b2be3c9c6a3f29d47f44b2c769bd933023491d4e",
+      "config_hash": "e59da946da218bd43af05d0dde3ddeace5b30c3280b249767158eec94ab15fc1",
+      "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+      "exposure": "development+inspected_confirmation",
+      "review_status": "RESULT-PENDING-INDEPENDENT-REVIEW"
+    },
+    "child_runs": 20,
+    "child_shape": "candidate x fold x lane (12 raw lanes + 8 derived cal lanes); each child carries params (candidate/fold/lane/seed/n_boot/features/hyperparams/scaler/prior_weight_w/ew_half_life_days) and metrics (log_loss/brier/n/n_dates)",
+    "parent_start_utc": "2026-10-15T13:29:57.149Z",
+    "parent_end_utc": "2026-10-15T13:29:59.036Z",
+    "idempotency_verified": "second import 2026-10-15 ~13:31Z returned ALREADY_IMPORTED, child count unchanged at 20"
+  },
+  "review_status": "RESULT-PENDING-INDEPENDENT-REVIEW",
+  "status_pointer": "SEQUENCE_DEVIATION.md + ablation_row_v2_status.json (this directory)"
+}

@@ -1,0 +1,28 @@
+{
+  "identity": {
+    "row_id": "ablation-001__P1_H3_incumbent_refit__vs__P0_log5",
+    "packet_run_id": "first-run-v1-e59da946da21",
+    "harness_run_id": "0cda7bdd4b9edbdcf395a5cd8d7a96164b066bd71c9d71cc034ff6a5eba19f57",
+    "config_sha256": "e59da946da218bd43af05d0dde3ddeace5b30c3280b249767158eec94ab15fc1",
+    "git_sha": "b2be3c9c6a3f29d47f44b2c769bd933023491d4e",
+    "branch": "research/market-eval-v2",
+    "interface_version": "count-eval-v2-comparison-1.0",
+    "status_version": 3,
+    "created_utc": "2026-10-15T15:11:29Z",
+    "supersedes_row": "ablation_row_v2_status.json (status_version 2, preserved unmodified; sha256 5076d359382679d95e049f8c2eb84296dda45737052fa90f5361fa63cd5e05cb); ablation_row.json (frozen v1, preserved unmodified; sha256 d8540f559ee810557eaefa387ed6e75dd7d58390c0a7ca595ba240a798de605a)"
+  },
+  "decision": {
+    "verdict": "CANONICAL-WITH-RECORDED-SEQUENCE-DEVIATION",
+    "supersedes": "ablation_row_v2_status.json decision.verdict 'RESULT-PENDING-INDEPENDENT-REVIEW' (v2 file preserved unmodified); v1 'ADOPT-SIGNAL' remains superseded and was never a valid adoption claim",
+    "basis": "Chat 2 independent post-execution reconciliation + closeout supplements review ACCEPTED: 'OVERALL RECOMMENDATION: CANONICAL WITH RECORDED SEQUENCE DEVIATION' (verdicts: specification fidelity PASS, numerical correctness PASS, publication status PASS-WITH-LIMITATIONS, procedural compliance FAIL under the one-time recorded owner exception) and 'CLOSEOUT SUPPLEMENTS REVIEW (2026-10-15, Chat 2) ... Verdict: CANONICAL WITH RECORDED SEQUENCE DEVIATION - AFFIRMED'. Cited findings file: chat2-review-overnight-20261013/market_eval/CANONICAL_FINDINGS_2026-10-14.md, sha256 790953b5946e8c2ae4954372f77b886066ae535ea11fab64462b624ac3bf90c7",
+    "review_conditions_status": {
+      "a_deviation_record_and_stale_status_superseded": "DONE - SEQUENCE_DEVIATION.md committed (24a3a0f, extended this turn); v1/v2 status superseded by this record",
+      "b_mechanical_ablation_row": "DONE - ablation_row.json generated mechanically from the frozen artifacts (sha256 d8540f55...de605a, generated 2026-10-15T05:24:21Z)",
+      "c_calibrated_lane_gap": "DONE - supplemental_metrics.json/.md (RAW reproduces metrics.json bit-exactly 12/12; CAL per-fold + pooled dev; P0_log5 CAL undefined)",
+      "d_lake_mirror": "DONE - lake_mirror_status_v2.json (this directory): the lake harness code snapshot is recorded as HISTORICAL EXECUTED-CODE (not a stale mirror) with the authoritative source per artifact type; prior record lake_mirror_status.json preserved unmodified",
+      "push_and_candidate_map": "DONE - CANDIDATE_MAP.md rows added for P1_H3_pitcher_ew_only / P1_H3_batter_ew_only (closeout finding 7); branch pushed this turn"
+    },
+    "pointer": "SEQUENCE_DEVIATION.md (this directory); findings file sha256 790953b5946e8c2ae4954372f77b886066ae535ea11fab64462b624ac3bf90c7",
+    "gate": "canonical status is conditional on the recorded sequence deviation remaining on record: execution preceded the exact-SHA READY verdict; one-time recorded owner exception, NOT a precedent; the review gate remains binding for every future canonical run"
+  }
+}

@@ -1,0 +1,122 @@
+{
+ "repository": "Cbkaplinger/MLB-Props",
+ "observed_at_utc": "2026-10-19T17:49:19.465635+00:00",
+ "method": "gh api (live), all fields from GitHub; no pasted reports used",
+ "pull_requests": {
+  "14": {
+   "state": "closed",
+   "merged": true,
+   "head": "8ef5e0f4d5f1d7cba9022ad8e4af91898eef36ef",
+   "merge_commit_sha": "e1de88c6ba1c9925196870ae31cf980bc163ea26",
+   "merged_at": "2026-10-19T17:38:21Z",
+   "draft": false,
+   "title": "test(o3): settlement-path characterization tests + PROPOSED ",
+   "comments": [
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/14#issuecomment-6273279219",
+     "author": "cbkaplinger-lenovo",
+     "created_at": "2026-10-19T17:34:04Z",
+     "body_head": "**Chat 2 independent review: PASS**\n\nReviewed head: \\8ef5e0f4d5f1d7cba9022ad8e4af91898eef36ef\\ (CI test-and-validate SUCCESS, run 39289520573, 1m2s).\n"
+    }
+   ],
+   "reviews": [
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/14#pullrequestreview-5575350568",
+     "author": "cbkaplinger-lenovo",
+     "state": "COMMENTED",
+     "submitted_at": "2026-10-19T17:36:15Z",
+     "body_head": "Verdict: **test-only delivery authorized** (reviewed head 8ef5e0f4d5f1d7cba9022ad8e4af91898eef36ef).\n\n- Boundary confirmed: PR touches exactly 2 files"
+    }
+   ]
+  },
+  "15": {
+   "state": "closed",
+   "merged": true,
+   "head": "be067bee285fb114f99ad26eaf28ad9050ef734d",
+   "merge_commit_sha": "eebd645335149f066345b2290289171fb2b2b336",
+   "merged_at": "2026-10-19T17:37:47Z",
+   "draft": false,
+   "title": "docs(t6): SUPERSEDED banners on the 6 prereg working drafts ",
+   "comments": [
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/15#issuecomment-6273082868",
+     "author": "cbkaplinger-lenovo",
+     "created_at": "2026-10-19T17:23:57Z",
+     "body_head": "\ufeff**Review request (Chat 3, integration owner) \u2014 one missing check only.**\n\nThe banner slice is review-ready: head `be067bee285fb114f99ad26eaf28ad9050e"
+    },
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/15#issuecomment-6273286470",
+     "author": "cbkaplinger-lenovo",
+     "created_at": "2026-10-19T17:34:22Z",
+     "body_head": "**Chat 2 independent review: PASS**\n\nReviewed head: \\\be067bee285fb114f99ad26eaf28ad9050ef734d\\ (CI test-and-validate SUCCESS, run 39289718522, 46s).\n\n"
+    }
+   ],
+   "reviews": [
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/15#pullrequestreview-5575356109",
+     "author": "cbkaplinger-lenovo",
+     "state": "COMMENTED",
+     "submitted_at": "2026-10-19T17:36:45Z",
+     "body_head": "\ufeffVerdict: **APPROVED -- banners are authorized working-copy markers** (reviewed head be067bee285fb114f99ad26eaf28ad9050ef734d).\n\nProtection check (pat"
+    }
+   ]
+  },
+  "8": {
+   "state": "closed",
+   "merged": true,
+   "head": "59092c80cf875ddf75ecf49a355877a28c61ab79",
+   "merge_commit_sha": "655fa3f8af5103a5988c2d33075c9cd29983cb13",
+   "merged_at": "2026-10-19T17:38:54Z",
+   "draft": false,
+   "title": "tooling: machine-generated results index (declared-metadata ",
+   "comments": [],
+   "reviews": [
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/8#pullrequestreview-5575365426",
+     "author": "cbkaplinger-lenovo",
+     "state": "COMMENTED",
+     "submitted_at": "2026-10-19T17:37:30Z",
+     "body_head": "\ufeffVerdict: **tooling delivery authorized; mergeable as-is** (reviewed head 59092c80cf875ddf75ecf49a355877a28c61ab79).\n\nLive state at verdict time:\n- He"
+    }
+   ]
+  },
+  "10": {
+   "state": "open",
+   "merged": false,
+   "head": "2547cdb70344a12f1d4620ae5a7ec450c79c81e1",
+   "merge_commit_sha": null,
+   "merged_at": null,
+   "draft": true,
+   "title": "docs: PR workflow standard + CI optimization notes (owner-as",
+   "comments": [],
+   "reviews": [
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/10#pullrequestreview-5575361981",
+     "author": "cbkaplinger-lenovo",
+     "state": "COMMENTED",
+     "submitted_at": "2026-10-19T17:37:14Z",
+     "body_head": "\ufeffVerdict: **exact-head review passes; merge is blocked by a merge conflict, not by review findings** (reviewed head 2547cdb70344a12f1d4620ae5a7ec450c7"
+    }
+   ]
+  },
+  "2": {
+   "state": "open",
+   "merged": false,
+   "head": "2c4d9bb2618cdb6ca76a319dd1e431d69ea6be51",
+   "merge_commit_sha": "5e33ebfa7484c2aa1b996c96a68796aca07cd99b",
+   "merged_at": null,
+   "draft": false,
+   "title": "research(p1): paired slate-date uncertainty repair - block-s",
+   "comments": [
+    {
+     "url": "https://github.com/Cbkaplinger/MLB-Props/pull/2#issuecomment-6184466524",
+     "author": "cbkaplinger-lenovo",
+     "created_at": "2026-10-15T04:32:16Z",
+     "body_head": "**Reviewer status note (2026-10-14, Chat 2 \u2014 appends context, body preserved):**\n\n- Description verified accurate after the earlier bootstrap-descript"
+    }
+   ],
+   "reviews": []
+  }
+ },
+ "main_sha": "655fa3f8af5103a5988c2d33075c9cd29983cb13"
+}
