@@ -1237,3 +1237,22 @@ N notebook, V csv, F figure, B binary-data, K model-binary, Z pdf, ? other).
 - [T] tests/test_vif_cluster_reduction.py
 - [T] tests/test_wf_comparison.py
 - [T] tests/test_workload_spine.py
+
+## Sweep status ledger (2026-10-20, later — read-only inspection batch; statuses per owner taxonomy)
+
+Statuses: **classified** = kind/top-level assigned; **read** = file content actually
+read this pass; **validated** = claims checked against the tree/registry; **changed**
+= modified on this branch; **reviewed** = Chat 2 verdict posted.
+
+| Surface | Files | Status |
+|---|---|---|
+| All tracked files | 982 | classified (exhaustive path listing above) |
+| Root README, docs/README, canonical map, ci.yml, AGENTS_ROLES, this plan | 6 | read + validated |
+| Diagrams (00-index, 01, 02, 03, 04, 05, 06, README) | 8 | read (index + entry-point reconciliation): **all 9 referenced entry points exist on main** — no broken diagram references; per-flow reconciliation vs actual artifact flows continues batch 4 |
+| Documentation relative links | 96 in 305 md | **validated by script: 2 genuinely broken**, both in `maintenance_inventory_2026-10-15.md` (`../EXECUTION_BACKLOG.md` -> `../../EXECUTION_BACKLOG.md`; `repo_canonical_map.md` -> `../repo_canonical_map.md`) — historical 10-15 report delivered via #4; repair planned batch 2 (pointer fix, content untouched) |
+| `prune_artifacts.py` pair | 2 | read + validated: content-identical modulo CRLF/LF; consumers = living docs (canonical map cites the scripts path) + dated census reports (historical, untouched) |
+| `odds_board.py` pair | 2 | read (headers/imports): production/odds is the docs-canonical ops surface; src/Python is imported by `test_safety_invariants`; both protected — separate track |
+| `report/` single file | 1 | validated: referenced by backlog (Chat 1) + recency-batch card; move deferred to coordinated batch 2 |
+| Count reconciliation | — | changed: PR-body category list omitted 3 rows (other-text 30, csv 11, 3 of 36 non-figure binaries); complete 15-kind table sums to 982; exhaustive path listing appended (this commit) |
+| Ledger repair (#23) | — | changed on `chat3/ledger-corrections-20261020` @ `5b9ccbe`: mechanical joiner-newline restoration; delta vs `ff5fde7` = exactly the two disclosed conversions; routed to Chat 2 |
+| CI/CD | 1 workflow, 2 jobs | read + mapped; optimization candidate (docs-only tracking bypass) requires classification-correctness tests before proposal (batch 3) — "zero redundancy" narrowed to: no redundant jobs/steps found in the 2 mapped jobs; overlapping collection/installation not yet audited |
