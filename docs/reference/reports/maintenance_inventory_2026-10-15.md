@@ -9,7 +9,7 @@
 > [`maintenance_pass2_preservation_inventory_2026-10-15.md`](maintenance_pass2_preservation_inventory_2026-10-15.md).
 
 Point-in-time maintenance/integration-prep record. **Not a queue** — work
-sequencing lives only in [`../../EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md).
+sequencing lives only in [`../../EXECUTION_BACKLOG.md`](../../EXECUTION_BACKLOG.md).
 Chat 1 owns harness/LightGBM implementation; Chat 2 owns review; Chat 1 remains
 integration owner. Nothing here was merged, pushed, or moved.
 
@@ -27,7 +27,7 @@ integration owner. Nothing here was merged, pushed, or moved.
 
 ## 1. Repository map (verified against origin/main @ 72d7923)
 
-Classification protocol and non-targets: [`repo_canonical_map.md`](repo_canonical_map.md).
+Classification protocol and non-targets: [`repo_canonical_map.md`](../repo_canonical_map.md).
 This is the same partition, re-verified 2026-10-15; no contradictions found.
 
 | Class | Surfaces |

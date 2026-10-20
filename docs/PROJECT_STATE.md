@@ -107,3 +107,31 @@ PRs, and lake files — not duplicated here.
 | #2 (`research/paired-uncertainty-v2`, paired slate-date uncertainty repair) | OPEN | `2c4d9bb2` | mergeStateStatus UNKNOWN; needs rebase onto current main — branch predates the role-doc consolidation and would remove `docs/AGENTS_ROLES.md` |
 | #3 (`research/market-eval-v2`, research-only) | OPEN draft | `2c335246` | mergeStateStatus UNKNOWN; needs rebase — carries the older 2026-10-14 `AGENTS_ROLES.md` (no Chat 3 role) |
 | #8, #14, #15 | MERGED | — | per the 2026-10-19 GitHub reconciliation receipt (maintenance branch `f6a5e056`) |
+
+
+## Integration owner update - 2026-10-20 (Chat 3; supersedes the merge-queue rows above for PR state; "Closed" experimental rows unchanged)
+
+- **Merged (receipts):** #16 `a16a51a`->`9c60c70`; #17 `a3bd3a7`->`07d1b1d`;
+  #21 `1b3bfd3`->`ccd0148`; #4 `b1411b0`->`cab0f02`; #22 `5b2ea4c`->`3c62655`;
+  #6 `dd0ec36`->`4e764ab`; #23 `5b9ccbe`->`f85e7c8`. The #2/#3 OPEN rows in the
+  table above are SUPERSEDED - both merged 2026-10-19 (2026-10-19 GitHub
+  reconciliation receipt).
+- **Open PRs:** #24 cleanup batches (Chat 3, head advancing under exact-head
+  review); #25 batter-history challenger implementation (Chat 1, gated,
+  synthetic tests only, no fitting).
+- **Active assignments (supersede the 2026-10-19 rows):** Chat 1 - PR #25
+  implementation; Chat 2 - cleanup-PR delta reviews (#24); Chat 3 - cleanup
+  lane ACTIVE again (the "CLOSED after handoff" note above is superseded by
+  the owner's reassignment; maintenance/quality-baseline history unchanged).
+- **Owner decisions (current):** (a) abstain-vs-handle for the 59
+  pitcher-cold starts (57 debut-date newcomers + Enns 608650 / Hart 606996)
+  after the scoring run's FAILED zero-exclusion acceptance - output
+  UNACCEPTED, preserved, no rerun authorized; (b) S-C dead-module ruling
+  (unchanged); (c) distribution-spec workspace disposition (requested once
+  2026-10-20, pending).
+- **Resolved since 2026-10-19:** S-B tier approval GRANTED and MERGED (PR #17:
+  requests/xgboost/optuna/catboost = research; pymupdf/markdown = paper;
+  modal = deploy; sage undeclared by design) - the S-B owner-blocked row
+  above is superseded.
+- **Worktrees (verified 2026-10-20, 6 incl. primary):** preservation ledger
+  section 17 (`docs/reference/reports/preservation_closeout_2026-10-19.md`).
