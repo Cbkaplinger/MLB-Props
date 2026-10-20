@@ -1,7 +1,10 @@
 # Index — MLB Props research map
 
-Five phase diagrams (01-05) plus the three coordinated views below. Open each file for detail; this index only shows how they
+Five phase diagrams (01-05), the three coordinated views below, and the
+count-eval-v2 harness diagram (06). Open each file for detail; this index only shows how they
 relate.
+
+> **Current research state (2026-10-16):** [`../reference/current_state_2026-10-16.md`](../reference/current_state_2026-10-16.md) — PA population, harness mechanics, closed model-family question, test sequence. The dated snapshots below are lineage records; when they disagree with the current-state page, the current-state page describes now.
 
 > Live ops / approvals / deferred work: [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md).
 > This index is a research-status map, not the work queue.
@@ -22,17 +25,20 @@ flowchart TB
   C["03 Modeling & evaluation<br/>chrono · freeze · governance"]:::built
   D["04 Roadmap<br/>holdout growth · retest gates"]:::next
   E["05 Live prediction flow<br/>crons → board → ledger → grading (2026-09-24)"]:::built
+  F["06 Count-eval-v2 harness<br/>data → folds → adapters → bootstrap → outputs (2026-10-16)"]:::built
 
   IDX --> A
   IDX --> B
   IDX --> C
   IDX --> D
   IDX --> E
+  IDX --> F
 
   A -.->|"feeds"| C
   B -.->|"constraints"| A
   B -.->|"constraints"| D
   C -.->|"gates"| D
+  F -.->|"supersedes narrative for"| C
 ```
 
 **Status snapshot (2026-09-11, replay era):**

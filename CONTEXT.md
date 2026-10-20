@@ -20,7 +20,12 @@ Shared domain language for agents. Read this before any model, experiment, or ar
 | Ledger | `artifacts/odds_log/ledger.parquet`. Canonical money = `dedupe_ledger_props` (one slip per signal at best edge). |
 | Board | `production/odds/odds_board.py` output (`recommendations.parquet`). Open polling is parity-locked via `--from-recommendations`. |
 | Open / close / morning | Friend open (commence -12h/-6h, ends 2026-07-10) / paid morning (commence -5h request, vendor ts governs) / paid close (commence -5min request). Live = SharpAPI; historical lake = Odds API. Never mix. |
-| PA overhaul | 2026 offseason program rebuilding the K signal at PA grain: PA-1A (batter tendency) -> P3-log5 promoted baseline -> L3 ridge logistic = frozen development PA baseline -> tree challenger KILLED (ties L3; stop rule applied, 2026-09-30). Verified: full feature lineage in `docs/reference/reports/phase8_5_truth_sync_2026-09-30.md`. Next frontier: count-distribution experiment (Poisson-binomial vs Poisson), then 2025 validation lanes A-D. |
+| PA overhaul | 2026 offseason program rebuilding the K signal at PA grain. Arc: PA-1A (batter tendency) -> P3-log5 -> L3 ridge logistic (development baseline) -> tree challenger KILLED (ties L3; 2026-09-30) -> kcount integration (I3b retained; full BF PMF beat point exposure) -> count-eval-v2 harness (4 chrono folds, RAW+CAL lanes, paired slate-date bootstrap) -> LightGBM equal-information CLOSED (no detectable dev advantage vs logistic on the 8 both-EW features; logistic stays the PA representative). Next: BF lane B0 bit-identity audit -> B1 Ridge workload challenger (B2/B3 only if warranted). Current state: `docs/reference/current_state_2026-10-16.md`. |
+| count-eval-v2 | Registered comparison harness: 4 chronological walk-forward folds with runtime-derived 60-PA-bearing-day calibration spans; identical assessment rows across candidates (identity-hash asserted); RAW principal + separate CAL lane; pooled dev = row-weighted mean over concatenated rows; paired slate-date (game_date cluster) bootstrap, 2000 draws, seed 20261001, shared draw stream; null-centered approximate tests + Holm. |
+| both-EW features | The 8 PA features inherited from the overnight-p2 ladder: two w150 shrinkage priors (pitcher/batter), lg_rate, two support counts, cold_start flag, two EW-90d recency rates. `pitcher_role` is loaded but is a feature in NO registered candidate. |
+| w150 prior | Fixed-width shrinkage toward the league rate with weight 150 regardless of actual prior PAs; support carried separately via `n_prior_pitcher`/`n_prior_batter` + `cold_start`. Support-adaptive priors are a registered-ablation idea, never a silent change. |
+| Mixed-role frame | The eligible 2023-2025 training population (549,296 PAs = 319,714 starter + 229,582 reliever) used by count-eval-v2; first-pitcher-only restriction was the older pa-k prespec. Downstream K contracts are starter props — role-restricted training is an open registered-experiment question. |
+| BF lane | Workload-distribution program (starter-focused): B0 bit-identity audit of existing BF forecasts through the scaffold -> combiner -> RPS seam; B1 one chronological Ridge challenger vs B0 with BF PMFs (not means), pregame-valid features only, short prior outings preserved, missing-history states explicit. |
 | 2023-24 / 2025 / 2026 locked / 2027 | Train seasons (2023-24 only) / historical benchmark, never pristine / locked retrospective, never tuned / future free-forward set (SharpAPI + Kalshi keyless + Novig). |
 
 ## Lifecycle
@@ -49,7 +54,10 @@ Research lane (frozen inference, never a re-spin): `score_historical_range.py` -
 - `docs/` -- `EXECUTION_BACKLOG.md` (master queue, wins all fights), `reference/` (living standards), `paper/manuscript.md`, `adr/` (decisions), `agent/` (skill provenance/catalog/evaluations), `diagrams/`, `archive/` (history only).
 - Generated/ignored: `data/processed/`, `artifacts/`, `.venv/`. Never commit; never glob parquet to "discover" the repo.
 
-## PA-overhaul status (2026-09-29 record)
+## PA-overhaul status (2026-09-29 record — SUPERSEDED for current state)
+
+The record below is the 2026-09-29 point-in-time state, retained for lineage.
+**Current research state (count-eval-v2 harness, closed LightGBM equal-information question, BF lane B0/B1 next): [`docs/reference/current_state_2026-10-16.md`](docs/reference/current_state_2026-10-16.md).**
 
 PA-1A supports one narrow claim: shrunk batter tendency improved PA logloss/Brier over pitcher-only M1 in both 2024 chrono blocks (E1/E2), game-date-clustered CIs exclude zero. M1 as constructed is weaker than the league constant in E1 (cold-start problem). Not tested: aggregation, pregame xK, count distributions, calibrators, frozen-stack comparison, odds/policy. Open: PA-1B-O reconciliation spec, pitcher-prior card, frozen-comparator replay contract, PA-1B-P projected-lineup lane. Source: `docs/reference/reports/pa_overhaul_phase4_5_record_2026-09-29.md`.
 
