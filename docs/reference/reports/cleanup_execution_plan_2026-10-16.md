@@ -1278,3 +1278,39 @@ duplicate") is preserved verbatim in git history at `3c9dfed` and earlier;
 this note is the required append-only acknowledgment. The corrected finding
 stands as written at `7579876` (two different utilities; deletion withdrawn;
 blob evidence at `f85e7c8`). No further in-place edits to superseded text.
+
+## Sweep status ledger update (2026-10-20, evening — diagram reconciliation + long-tail reads)
+
+- **Diagrams (reference integrity): COMPLETE — 0 stale references across all
+  6 substantive diagrams + index/README.** Every `production/`, `src/`,
+  `models/`, `research/`, `docs/` path cited by 01-06 exists on main
+  (17 unique paths checked; the earlier "1 MISS" was my grep truncating a
+  `docs/research/...` prefix — corrected, reference exists).
+- **Diagram flows validated:** 05 (live prediction) and 06 (count-eval-v2
+  harness) reconciled claim-by-claim against `modal_app.py` cron constants
+  and the merged harness structure — exact. Remaining: per-flow depth for
+  01 (architecture layers), 02 (leakage), 03 (modeling/eval), 04 (roadmap) —
+  their file references are verified; the remaining work is flow-claim depth.
+- **Operational trio consistency:** INDEX/RUNBOOK/production README command
+  surfaces spot-checked — both prune utilities correctly documented under
+  their distinct purposes; core daily commands (refresh_statcast,
+  refresh_features, score_slate, run_daily, kpi_daily_action,
+  run_daily_kpi_loop) all resolve to existing tracked files.
+- **Checkout question resolved:** Chat 2 confirmed
+  `repo-review-paext-registration` ACTIVE (PR #25 runner review) — ledger
+  row 6 updated, retained, no re-asking.
+- **Living-doc navigation hard limit added** (reference README): living docs
+  never override frozen registrations, protocols, packets, pins, or
+  historical results — frozen artifacts authoritative, prose gets
+  supersession labels.
+- **Remaining per-path read coverage:** production/ 191 (trio + both prune
+  utilities + cron block read; ~180 remaining), tests/ 97, models/ 79,
+  src/ 54, scripts/ 28, dotfiles 47 — classified, long-tail reads continue.
+- **Chat 1 preservation disposition (received):** 2 local commits proposed
+  for publication; preregistration receipt must be preserved;
+  `run_bf_ab_score.py` v1 needs verified archival before any removal;
+  administrative drafts may be archived; AGENTS.md redundancy unverified.
+  Chat 3 holds: byte-exact preservation + commit reachability + archive
+  recovery verification BEFORE any removal; archival permission != deletion
+  permission. Consolidated backlog patch supplied to Chat 1 (one patch,
+  sole-writer applies).
