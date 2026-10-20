@@ -56,8 +56,8 @@ owner rules.
 
 ## Correction (2026-10-19, later same day): repo-review-pa-ext-v2 removal + provenance + count annotation
 
-1. **epo-review-pa-ext-v2 WAS removed** by the Chat 3 consolidation batch (listed in the removal set). It was Chat 2's ACTIVE review checkout for PR #16 — my "Chat 2-released" classification was an unconfirmed inference and was wrong for this checkout. Remediated: restored the same day at SHA 6feb32e (clean, byte-identical checkout), same path.
-2. **Provenance discrepancy corrected:** Chat 2 reported the active checkout at eee4f18; the worktree actually removed was at 6feb32e (a later checkout of that lane). Restoration was therefore at 6feb32e, not eee4f18. Chat 2 selects the current review head from here — origin/research/pregame-pa-ext-v2 is at 46c5f7 (ahead of both).
+1. **epo-review-pa-ext-v2 WAS removed** by the Chat 3 consolidation batch (listed in the removal set). It was Chat 2's ACTIVE review checkout for PR #16 â€” my "Chat 2-released" classification was an unconfirmed inference and was wrong for this checkout. Remediated: restored the same day at SHA 6feb32e (clean, byte-identical checkout), same path.
+2. **Provenance discrepancy corrected:** Chat 2 reported the active checkout at eee4f18; the worktree actually removed was at 6feb32e (a later checkout of that lane). Restoration was therefore at 6feb32e, not eee4f18. Chat 2 selects the current review head from here â€” origin/research/pregame-pa-ext-v2 is at 46c5f7 (ahead of both).
 3. **Count annotation:** the preservation table's "Remaining 9" is the inventory **at that observation** (2026-10-19), not a continuously current count. Chat 1 owns **four** paths (main-active, market-eval-v2, paext-v1, paext-v2), not three. Worktree count is point-in-time and must be re-verified at each observation (verified 10 at this correction).
 
 ---
@@ -108,7 +108,6 @@ Count after batch: **6** (main checkout + 5 worktrees).
 - PR #4, #6, #17 descriptions refreshed with current status (stale bases, deferral gate, checkout release). No PR closed: none demonstrably superseded.
 - `preservation_closeout` section 2 PUBLISH items: `chat2-tooling` and `market-eval-v2` are now RESOLVED (content durable on origin; worktrees removed above). Remaining PUBLISH: `main-active` (Chat 1).
 - Standing constraint stands: no branch deletion, no history rewriting, no removals beyond the owner-released set above; `paext-v1` and `main-active` removal blocked until their unique content is pushed or owner-dispositioned.
-
 
 ---
 
