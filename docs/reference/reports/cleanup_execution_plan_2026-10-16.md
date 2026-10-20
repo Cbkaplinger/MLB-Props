@@ -1339,3 +1339,26 @@ Marked deferred, NOT read. Research-status content is out of this lane.
 - Changed this pass: 1 skill pointer (navigation repair, load-bearing path
   NOT relocated). All fixes within the low-risk documentation/navigation
   authorization; entry points untouched.
+
+## Sweep status ledger update (2026-10-20, night - batch 3: production spine)
+
+- **PR #24 merged** (`c4a3240` -> `e5367c3`); post-merge check of the corrected
+  head requested from Chat 2 (disclosed: no exact approval existed for the
+  corrected head - reviewer-prescribed fixes + green CI only). Future batches:
+  independent approval of final content BEFORE merge.
+- **Read COMPLETE (production spine, full reads):** production/odds 8/8,
+  production/cloud 2/2 (modal_app 268 lines full), INDEX + RUNBOOK (374 lines
+  full), production/README. market_research/ (~110 dated research scripts)
+  survey-level via find_doc_claims/reference_graph indexes - full reads batch 4.
+- **Concrete staleness fixes (behavior-neutral, presentation-only):**
+  1. `modal_app.py` module docstring said "STAGED - not deployed; needs owner
+     modal token new" while the same file states cloud has been LIVE primary
+     since 2026-09-16 - corrected to LIVE-primary wording. Protected path
+     flagged in the PR: docstring/comment ONLY - CRON_*/schedule=/timeout=
+     verified untouched by diff inspection.
+  2. `RUNBOOK.md` q20min -> q5min at both stale sites (canonical daily-process
+     timing + watcher section); actual cadence = */5 12-22 per CRON_SWEEP.
+- **Remaining in-scope reads:** production/ops core scripts (~40; frozen_edge_watch,
+  heal_stale_slate, build_automation_self_check next) + market_research deep
+  reads (batch 4), tests/ 96, models/ 79, docs/ ~180, diagram flow depth 01-04
+  (reference-level complete).
