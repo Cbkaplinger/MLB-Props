@@ -184,3 +184,39 @@ owner decision is required before any accepted run can exist.
   evaluation was performed for this report (existing artifacts only).
 - Open owner decisions: (1) debut-pitcher handling for the 59 starts; (2) any
   accepted re-run after that decision (write-once destination decision needed).
+
+## ADDENDUM (2026-10-20, later the same day): CORRECTED CLASSIFICATION - 57 genuine debutants + 2 window-limited veterans
+
+Chat 2's authoritative spot-check SUPERSEDES the section-3 inference above for
+two cases. The original sections remain as written; this addendum corrects
+their conclusion.
+
+- CORRECTED COUNT: 57 genuine MLB debutants + 2 window-limited veterans.
+- The two veterans (identified by Chat 2, INDEPENDENTLY CONFIRMED here from
+  existing raw sources - data/Savant-Data/regular/2015-2021 statcast parquets,
+  read-only inspection, no backfill performed):
+
+| pitcher | MLBAM | start key (in the 59) | MLB career debut | pre-window MLB appearances | first frozen-table row |
+| --- | --- | --- | --- | --- | --- |
+| Dietrich Enns | 608650 | game_pk=777351, Top, 2025-06-26 | 2017-08-10 | 2017 (2 games), 2021 (9 games) | 2025-06-26 (his 2025 return) |
+| Kyle Hart | 606996 | game_pk=778499, Top, 2025-03-31 | 2020-08-13 | 2020 (4 games) | 2025-03-31 (his 2025 return) |
+
+- Evidence source: raw statcast regular-season parquets already on disk
+  (statcast_2017_regular.parquet, statcast_2020/2021_regular.parquet) show the
+  two pitchers' earlier MLB pitching appearances; the third low-MLBAM-ID
+  candidate (608372) has NO pre-2022 MLB record in RAW and remains a genuine
+  debutant. All other 57: unchanged classification.
+- LESSON RECORDED: four seasons without an appearance did NOT prove a career
+  debut - a pre-2022-04-07 MLB career is invisible to the frozen table's
+  2022-04-07 coverage boundary. Classification of 'genuine newcomer' requires
+  evidence beyond the frozen table for any low-tenure-coverage case.
+- For the two veterans, older history (2017/2020, already on disk in raw form)
+  could restore information, but its AGE matters: 2017 observations at a 2025
+  forecast carry ~2^(-8y/90d) decay weight - recovering it does not
+  automatically make it a strong current prior. This motivates the explicit
+  staleness-confidence rule in the revised challenger card (v2).
+
+Consequences for the counts in this report: the 59-start abstention list is
+UNCHANGED (same keys, same exclusions); only the interpretation changes:
+57 genuine newcomers + 2 veterans whose pre-window history is reconstructible
+from existing raw files but was never in the frozen table.
