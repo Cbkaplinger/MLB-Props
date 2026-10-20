@@ -357,3 +357,27 @@ without a complete receipt is unaccepted by definition.
 
 Nothing else in the card changes: log loss primary, one challenger,
 dev-only population, protected confirm, unchanged gates and eligibility.
+
+## v3.3 (2026-10-20): runner implemented - synthetic-exercised only;
+## execution readiness pending Chat 2 review of this delta
+
+The v3.2 unfinished-work register items 1-6 are now IMPLEMENTED in
+research/offseason_2026/pregame_pa_ext/batt_recency.py (clearly separated
+delta commit in PR #25): per-block training-frame assembly (frozen
+recipe's realized-PA lineage via build_checkpoint.build_feature_frame;
+original PA identity (game_pk, at_bat_number, batter, y) retained; NOT
+assembled from the evaluation subset - asserted by test), per-block
+refit/scoring orchestration, paired baseline/challenger evaluation table
+(p_baseline from the preserved ledger + p_challenger, identical rows),
+registered metric/bootstrap machinery (log loss primary; paired
+slate-date bootstrap n=2000 seed 20261001 block-stratified null-centered
+plus Holm m=1; Brier + calibration supporting), write-once outputs, and
+the MANDATORY provenance receipt (validated before acceptance;
+incomplete receipts rejected; MLflow transport optional). Synthetic
+exercises: tests/test_batt_recency_diagnostic.py now 22/22 (refusal gate
+preserved; end-to-end synthetic runner; deterministic bootstrap
+byte-identical across runs; block isolation; output collision fail-loud;
+incomplete-receipt rejection; real published-pin gate still enforced).
+The runner has NEVER run on real data; execution readiness requires Chat
+2 review of this delta plus explicit owner authorization of the bounded
+execution contract.

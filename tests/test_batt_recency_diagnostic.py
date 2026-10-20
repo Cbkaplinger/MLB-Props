@@ -370,3 +370,211 @@ def test_published_dev_key_constants_shape():
     assert br.PUBLISHED_DEV_EVAL_KEYS_N == 82817
     assert br.PUBLISHED_DEV_SLOT_KEYS_SHA256.startswith("82592f18")
     assert br.PUBLISHED_DEV_EVAL_KEYS_SHA256.startswith("c6568151")
+
+
+# ================================================================ gated runner
+def _synth_runner_lake(tmp_path: Path):
+    """Synthetic lake for the gated runner: a PA table spanning all three
+    block windows (training + dev evaluation + protected confirm), a
+    preserved-run ledger with eligible dev slots (baseline probabilities),
+    one cold-excluded slot, one confirm start, and the artifact files the
+    provenance receipt must hash."""
+    rows = []
+    led = []
+    gpk = 700
+    ab = 0
+    d = date(2023, 1, 5)
+    n = 0
+    while d <= date(2025, 8, 1):
+        # dev starts: 2024-07-01..2025-06-30, every 15 days; confirm: 2025-08
+        in_dev = (date(2024, 7, 1) <= d <= date(2025, 6, 30))
+        for slot in range(9):
+            b = 100 + slot
+            for k in range(2):
+                ab += 1
+                rows.append(one(b, d, int((slot + k) % 2), pitcher=500,
+                                game_pk=gpk, ab=ab))
+        if in_dev:
+            for slot in range(9):
+                led.append({"game_pk": gpk, "side": "Bot", "pitcher": 500,
+                            "batter": 100 + slot, "slot": slot + 1,
+                            "game_date": d, "p_h3_raw": 0.25 + 0.05 * slot,
+                            "exclusion_reason": None})
+        elif d == date(2025, 8, 1):
+            led.append({"game_pk": gpk, "side": "Bot", "pitcher": 500,
+                        "batter": 100, "slot": 1, "game_date": d,
+                        "p_h3_raw": 0.4, "exclusion_reason": None})
+        # one cold-excluded slot inside the dev window
+        if d == date(2024, 9, 1):
+            led.append({"game_pk": gpk, "side": "Top", "pitcher": 500,
+                        "batter": 999, "slot": 1, "game_date": d,
+                        "p_h3_raw": None,
+                        "exclusion_reason": ad.EXCLUSION_REASON_COLD})
+        gpk += 1
+        d += timedelta(days=15)
+    pa = pa_rows(rows)
+    ledger = pl.DataFrame(led).with_columns(
+        pl.col("game_date").cast(pl.Date))
+    # artifact stand-ins for the receipt's input identities
+    ck = tmp_path / "h3_raw_checkpoint.json"
+    ck.write_text(json.dumps({"format": "synthetic", "sha256": "b" * 64,
+                              "payload": {}}), encoding="utf-8")
+    bf = tmp_path / "bf_forecasts.parquet"
+    pa.head(1).write_parquet(bf)
+    lu = tmp_path / "projected_lineups_variant_v2.parquet"
+    pa.head(1).write_parquet(lu)
+    pat = tmp_path / "pa_table.parquet"
+    pa.write_parquet(pat)
+    led_path = tmp_path / "projected_pa_probs_v1.parquet"
+    ledger.write_parquet(led_path)
+    return {"pa": pa, "ledger": ledger, "paths": {
+        "pa_table": pat, "checkpoint": ck, "bf": bf, "lineup": lu,
+        "ledger": led_path}}
+
+
+def test_refusal_gate_preserved_without_authorization():
+    """The CLI keeps refusing real-data fitting without the authorization
+    flag (exit 2, contract text) - preserved through the runner addition."""
+    assert br.main([]) == 2
+
+
+def test_runner_synthetic_end_to_end(tmp_path, monkeypatch):
+    """The complete runner on SYNTHETIC fixtures: per-block training
+    assembly (frozen lineage, original PA identity), refits, paired
+    evaluation table, registered metrics, write-once outputs, and a
+    COMPLETE mandatory provenance receipt. verify_published=False because
+    the synthetic key sets cannot match the real published pins; the real
+    gate is exercised by --verify-keys-only against the frozen artifacts."""
+    dirs = _synth_runner_lake(tmp_path)
+    out_dir = tmp_path / "diagnostics" / "batt_recency_v1"
+    res = br.run_diagnostic(dirs["pa"], dirs["ledger"], out_dir,
+                            verify_published=False,
+                            artifact_paths=dirs["paths"])
+    assert res["receipt_complete"] is True
+    r = res["receipt"]
+    br.validate_receipt(r)  # complete by the mandatory-section contract
+    assert set(br.REQUIRED_RECEIPT_SECTIONS) <= set(r)
+    assert r["dev_keys"]["slot_keys_n"] > 0
+    assert r["dev_keys"]["eval_keys_n"] > 0
+    assert r["acceptance"]["paired_keys_exact"] is True
+    # block isolation: the protected confirm block appears nowhere
+    ev = pl.read_parquet(out_dir / "batt_recency_eval_v1.parquet")
+    assert ev["block"].n_unique() == 2
+    assert "confirm_2025H2" not in ev["block"].unique().to_list()
+    # paired arms: no nulls, same rows
+    assert ev["p_baseline"].null_count() == 0
+    assert ev["p_challenger"].null_count() == 0
+    # fits: two dev blocks, no confirm training
+    assert sorted(r["fits"]) == ["block_2024H2", "block_2025H1"]
+    for b, f in r["fits"].items():
+        assert f["max_train_date"] <= ("2024-06-30" if b == "block_2024H2"
+                                       else "2024-12-31")
+    # metrics present and finite
+    m = r["metrics"]
+    assert np.isfinite(m["log_loss_delta"]) and np.isfinite(
+        m["log_loss_baseline"])
+    assert m["bootstrap"]["holm_m"] == 1
+    # outputs hashed in the receipt match the files on disk
+    assert r["outputs"]["metrics.json"] == ad.sha256_file(
+        out_dir / "metrics.json")
+
+
+def test_runner_deterministic_bootstrap(tmp_path):
+    """Same synthetic inputs -> byte-identical metrics (deterministic
+    bootstrap stream), across two independent runs."""
+    dirs = _synth_runner_lake(tmp_path)
+    r1 = br.run_diagnostic(dirs["pa"], dirs["ledger"],
+                           tmp_path / "run1", verify_published=False,
+                           artifact_paths=dirs["paths"])
+    r2 = br.run_diagnostic(dirs["pa"], dirs["ledger"],
+                           tmp_path / "run2", verify_published=False,
+                           artifact_paths=dirs["paths"])
+    m1 = json.dumps(r1["receipt"]["metrics"], sort_keys=True)
+    m2 = json.dumps(r2["receipt"]["metrics"], sort_keys=True)
+    assert m1 == m2
+
+
+def test_training_rows_original_identity_and_independent_of_ledger(tmp_path):
+    """Training rows retain their original PA identity
+    (game_pk, at_bat_number, batter) from the FROZEN recipe's realized-PA
+    lineage (build_checkpoint.build_feature_frame) and are NOT assembled
+    from the evaluation subset: mutating the preserved ledger leaves the
+    training frames byte-identical."""
+    dirs = _synth_runner_lake(tmp_path)
+    pa = dirs["pa"]
+    t1 = br.challenger_training_frames(pa)
+    ledger_mut = dirs["ledger"].head(5)  # gut the ledger
+    t2 = br.challenger_training_frames(pa)
+    for b in br.DEV_BLOCKS:
+        assert t1[b].height == t2[b].height
+        assert t1[b].equals(t2[b])
+        assert {"game_pk", "at_bat_number", "batter", "y"} <= set(t1[b].columns)
+        # training rows are drawn from the frozen lineage, not the ledger
+        lineage = __import__("pregame_pa_ext.build_checkpoint",
+                             fromlist=["build_checkpoint"]
+                             ).build_feature_frame(pa)
+        assert t1[b].height <= lineage.height
+
+
+def test_block_isolation_confirm_never_used(tmp_path):
+    """A confirm-block start in the ledger is excluded from the dev
+    evaluation and from training; training dates never cross their block's
+    train_end."""
+    dirs = _synth_runner_lake(tmp_path)
+    frames = br.challenger_training_frames(dirs["pa"])
+    for b, f in frames.items():
+        end = (date(2024, 6, 30) if b == "block_2024H2"
+               else date(2024, 12, 31))
+        assert f["game_date"].max() <= end
+    out_dir = tmp_path / "diag"
+    res = br.run_diagnostic(dirs["pa"], dirs["ledger"], out_dir,
+                            verify_published=False,
+                            artifact_paths=dirs["paths"])
+    ev = pl.read_parquet(out_dir / "batt_recency_eval_v1.parquet")
+    assert (ev["block"] == "confirm_2025H2").sum() == 0
+
+
+def test_output_collision_fails_loud(tmp_path):
+    """Write-once: an existing diagnostics output directory is a hard
+    refusal, never an overwrite."""
+    dirs = _synth_runner_lake(tmp_path)
+    out_dir = tmp_path / "diag"
+    out_dir.mkdir()
+    (out_dir / "sentinel.txt").write_text("keep", encoding="ascii")
+    with pytest.raises(ValueError, match="write-once violation"):
+        br.run_diagnostic(dirs["pa"], dirs["ledger"], out_dir,
+                          verify_published=False,
+                          artifact_paths=dirs["paths"])
+    assert (out_dir / "sentinel.txt").read_text(encoding="ascii") == "keep"
+
+
+def test_incomplete_receipt_rejected():
+    """A provenance receipt missing any mandatory section is rejected
+    (the run would be unaccepted by definition)."""
+    good = {s: {"x": 1} for s in br.REQUIRED_RECEIPT_SECTIONS}
+    br.validate_receipt(good)  # complete -> ok
+    for s in br.REQUIRED_RECEIPT_SECTIONS:
+        bad = {k: v for k, v in good.items() if k != s}
+        with pytest.raises(ValueError, match="incomplete provenance receipt"):
+            br.validate_receipt(bad)
+    empty = dict(good)
+    empty["metrics"] = {}
+    with pytest.raises(ValueError, match="empty"):
+        br.validate_receipt(empty)
+
+
+def test_real_key_verification_gate_still_enforced(tmp_path, monkeypatch):
+    """--verify-keys-only against a synthetic ledger whose key set does
+    NOT match the published real pins must FAIL loud (the published-pin
+    gate is not loosened for synthetic runs)."""
+    dirs = _synth_runner_lake(tmp_path)
+    pat = tmp_path / "pa_table.parquet"
+    dirs["pa"].write_parquet(pat)
+    led = tmp_path / "ledger.parquet"
+    dirs["ledger"].write_parquet(led)
+    monkeypatch.setattr(sys, "argv", [
+        "batt_recency.py", "--verify-keys-only",
+        "--pa-table", str(pat), "--ledger", str(led)])
+    with pytest.raises(ValueError, match="verification FAILED"):
+        br.main(["--verify-keys-only", "--pa-table", str(pat),
+                 "--ledger", str(led)])

@@ -72,7 +72,7 @@ import argparse
 import hashlib
 import json
 import sys
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -94,6 +94,8 @@ CHALLENGER_FEATURES = [
 DROPPED_BATTER_FEATURES = ["p_batter_prior_w150", "ew_batter"]
 
 DEV_BLOCKS = ["block_2024H2", "block_2025H1"]
+DEV_BLOCK_TRAIN_END = {"block_2024H2": (2024, 6, 30),
+                       "block_2025H1": (2024, 12, 31)}
 PROTECTED_BLOCK = "confirm_2025H2"
 
 # Published deterministic hashes (sha256 over the canonical byte streams
@@ -386,8 +388,11 @@ def observed_pa_join(eligible_slots: pl.DataFrame,
     if not need.issubset(eligible_slots.columns):
         raise ValueError(
             f"eligible slots missing columns: {sorted(need - set(eligible_slots.columns))}")
+    # carry the required identity columns PLUS any extra slot columns
+    # (e.g., the baseline probability) through to every observed PA row
+    carry = [c for c in eligible_slots.columns if c not in need]
     j = eligible_slots.select(
-        "game_pk", "side", "pitcher", "batter", "slot", "game_date"
+        sorted(need) + carry
     ).join(
         pa.select("game_pk", "at_bat_number", "pitcher", "batter",
                   "game_date", "y"),
@@ -456,6 +461,306 @@ def verify_published_keys(ledger: pl.DataFrame, pa: pl.DataFrame) -> dict:
     return report
 
 
+# --------------------------------------------------------------- gated runner
+def challenger_training_frame(pa: pl.DataFrame, train_end) -> pl.DataFrame:
+    """ONE dev block's training frame: the FROZEN recipe's realized-PA fit
+    lineage (build_checkpoint.build_feature_frame: realized rows from
+    2023-01-01, original PA identity (game_pk, at_bat_number, batter, y)
+    retained, lg-finite filter, same train/cal split) with the challenger
+    batter features rebuilt AS OF each row's own date. NOT assembled from
+    the outcome-observable evaluation subset: the row set is derived from
+    the frozen pa_table lineage alone and is independent of the preserved
+    run ledger."""
+    from pregame_pa_ext import build_checkpoint as bc
+
+    feat = bc.build_feature_frame(pa)
+    te_y, te_m, te_d = train_end
+    end = date(te_y, te_m, te_d)
+    cal_last = feat.filter(
+        (pl.col("game_date") >= pl.date(2023, 1, 1))
+        & (pl.col("game_date") <= pl.date(te_y, te_m, te_d))
+    )["game_date"].max()
+    cal_first = cal_last - timedelta(days=59)
+    train = feat.filter(
+        (pl.col("game_date") >= pl.date(2023, 1, 1))
+        & (pl.col("game_date") < cal_first))
+    if train.height == 0:
+        raise ValueError("empty training frame for train_end " + str(train_end))
+    if train["game_date"].max() > end:
+        raise ValueError("training rows leak past the block train_end")
+    if train["game_date"].max() >= cal_first:
+        raise ValueError("training rows overlap the calibration window")
+    rows = train.select("game_pk", "at_bat_number", "batter", "pitcher",
+                        "game_date", "y")
+    f = challenger_feature_frame(rows, pa)
+    if f.height != train.height:
+        raise ValueError("training frame row count changed in feature build")
+    ident_nulls = f.select(["game_pk", "at_bat_number", "batter"]
+                           ).null_count().row(0)
+    if f["y"].null_count() or any(ident_nulls):
+        raise ValueError("training frame lost PA identity or label")
+    return f
+
+
+def challenger_training_frames(pa: pl.DataFrame) -> dict:
+    """Both DEV blocks' training frames (block_2024H2, block_2025H1).
+    confirm_2025H2 is PROTECTED: never a training block."""
+    return {b: challenger_training_frame(pa, te)
+            for b, te in DEV_BLOCK_TRAIN_END.items()}
+
+
+def _log_loss(y, p):
+    pc = np.clip(p, ad.P_CLIP, 1.0 - ad.P_CLIP)
+    return -(y * np.log(pc) + (1 - y) * np.log1p(-pc))
+
+
+def _brier(y, p):
+    return (p - y) ** 2
+
+
+def evaluation_metrics(ev: pl.DataFrame, *, n_boot: int = 2000,
+                       seed: int = 20261001) -> dict:
+    """Registered machinery, paired by evaluation row: LOG LOSS primary
+    (paired slate-date bootstrap, block-stratified, shared deterministic
+    draw stream, null-centered two-sided p, Holm m=1 = family of one),
+    Brier + calibration supporting (never selectable)."""
+    y = ev["y"].to_numpy().astype(int)
+    p_b = ev["p_baseline"].to_numpy().astype(float)
+    p_c = ev["p_challenger"].to_numpy().astype(float)
+    ll_b = _log_loss(y, p_b)
+    ll_c = _log_loss(y, p_c)
+    d_row = ll_c - ll_b
+    out = {
+        "n_evaluation_rows": int(ev.height),
+        "log_loss_baseline": float(ll_b.mean()),
+        "log_loss_challenger": float(ll_c.mean()),
+        "log_loss_delta": float(d_row.mean()),
+        "brier_baseline": float(_brier(y, p_b).mean()),
+        "brier_challenger": float(_brier(y, p_c).mean()),
+        "brier_delta": float((_brier(y, p_c) - _brier(y, p_b)).mean()),
+    }
+    slates = (ev.select("block", "game_date").unique()
+              .with_columns(pl.col("game_date").cast(pl.Utf8))
+              .sort(["block", "game_date"]))
+    slate_keys = list(zip(slates["block"].to_list(),
+                          slates["game_date"].to_list()))
+    row_idx_by_slate = {}
+    for i, (b, g) in enumerate(zip(ev["block"].to_list(),
+                                   ev["game_date"].to_list())):
+        row_idx_by_slate.setdefault((b, str(g)), []).append(i)
+    grouped = {b: [row_idx_by_slate[(b, g)] for g in
+                   [k[1] for k in slate_keys if k[0] == b]]
+               for b in sorted(set(k[0] for k in slate_keys))}
+    rng = np.random.default_rng(seed)
+    deltas = np.empty(n_boot, dtype=np.float64)
+    for rep in range(n_boot):
+        idx = []
+        for b in sorted(grouped):
+            picks = rng.integers(0, len(grouped[b]), len(grouped[b]))
+            for pk in picks:
+                idx.extend(grouped[b][pk])
+        idx = np.asarray(idx, dtype=np.int64)
+        deltas[rep] = d_row[idx].mean()
+    out["bootstrap"] = {
+        "n_boot": n_boot, "seed": seed,
+        "ci95": [float(np.percentile(deltas, 2.5)),
+                 float(np.percentile(deltas, 97.5))],
+        "p_null_centered": float(min(1.0, 2.0 * min(
+            (deltas <= 0).mean(), (deltas >= 0).mean()))),
+        "holm_m": 1,
+    }
+    cal = {"baseline_mean_pred": float(p_b.mean()),
+           "baseline_observed": float(y.mean()),
+           "challenger_mean_pred": float(p_c.mean()),
+           "challenger_observed": float(y.mean())}
+    q = np.quantile(p_c, np.linspace(0, 1, 11))
+    bins = np.clip(np.searchsorted(q, p_c, side="right") - 1, 0, 9)
+    gaps = []
+    for k in range(10):
+        m = bins == k
+        if m.any():
+            gaps.append(abs(p_c[m].mean() - y[m].mean()))
+    cal["challenger_max_decile_gap"] = float(max(gaps)) if gaps else None
+    out["calibration"] = cal
+    return out
+
+
+REQUIRED_RECEIPT_SECTIONS = ("inputs", "code_config", "dev_keys", "fits",
+                             "metrics", "outputs", "acceptance")
+
+
+def validate_receipt(receipt: dict) -> None:
+    """A run without a COMPLETE receipt is unaccepted by definition."""
+    if not isinstance(receipt, dict):
+        raise ValueError("provenance receipt is not a JSON object")
+    for s in REQUIRED_RECEIPT_SECTIONS:
+        if s not in receipt:
+            raise ValueError(f"incomplete provenance receipt: missing '{s}'")
+        v = receipt[s]
+        if v is None or (isinstance(v, (dict, list)) and not v):
+            raise ValueError(f"incomplete provenance receipt: empty '{s}'")
+
+
+def _sha_or_missing(p) -> str:
+    p = Path(p)
+    if p.exists():
+        return ad.sha256_file(p)
+    return "NOT_AVAILABLE"
+
+
+def br_lf_bytes() -> bytes:
+    raw = Path(__file__).read_bytes()
+    return raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def run_diagnostic(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir,
+                   *, verify_published: bool = True,
+                   artifact_paths: dict | None = None,
+                   n_boot: int = 2000, seed: int = 20261001) -> dict:
+    """GATED diagnostic runner (synthetic-tested only; real-data execution
+    requires --i-accept-fitting-execution via the CLI AND owner
+    authorization). Write-once: refuses an existing output directory.
+    Produces: evaluation parquet (paired baseline/challenger on the frozen
+    dev keys), metrics.json, and the MANDATORY provenance receipt
+    (validated before the run is accepted; MLflow transport optional,
+    receipt mandatory)."""
+    out_dir = Path(out_dir)
+    if out_dir.exists():
+        raise ValueError(
+            f"write-once violation: diagnostics output dir exists: {out_dir}")
+    out_dir.mkdir(parents=True)
+    out_table = out_dir / "batt_recency_eval_v1.parquet"
+    if out_table.exists():
+        raise ValueError(f"write-once violation: {out_table} exists")
+
+    # 1. eligibility (unchanged policy) + frozen dev keys
+    out = ledger.with_columns(
+        pl.when(pl.col("game_date") <= pl.date(2024, 12, 31))
+        .then(pl.lit("block_2024H2"))
+        .when(pl.col("game_date") <= pl.date(2025, 6, 30))
+        .then(pl.lit("block_2025H1"))
+        .otherwise(pl.lit("confirm_2025H2"))
+        .alias("block")
+    )
+    elig = eligible_slots_from_ledger(out, DEV_BLOCKS)
+    slot_keys = [(int(r["game_pk"]), str(r["side"]), int(r["slot"]))
+                 for r in elig.iter_rows(named=True)]
+    dev_keys = {
+        "slot_keys_n": len(slot_keys),
+        "slot_keys_sha256": sha256_stream(serialize_slot_keys(slot_keys)),
+    }
+    if verify_published:
+        if dev_keys["slot_keys_sha256"] != PUBLISHED_DEV_SLOT_KEYS_SHA256 \
+                or dev_keys["slot_keys_n"] != PUBLISHED_DEV_SLOT_KEYS_N:
+            raise ValueError("frozen dev slot keys do not match the "
+                             "published pins; refusing")
+
+    # 2. per-block training frames (frozen lineage, original PA identity)
+    trains = challenger_training_frames(pa)
+    fits = {}
+    models = {}
+    for b in DEV_BLOCKS:
+        f = trains[b]
+        if (f["block"] == PROTECTED_BLOCK).any():
+            raise ValueError(f"protected block rows in training frame {b}")
+        models[b] = fit_challenger_models(f)
+        coef_blob = json.dumps(models[b], sort_keys=True,
+                               separators=(",", ":")).encode("utf-8")
+        fits[b] = {"n_train_rows": int(f.height),
+                   "max_train_date": str(f["game_date"].max()),
+                   "coefficients_sha256": hashlib.sha256(coef_blob)
+                   .hexdigest()}
+
+    # 3. evaluation table: baseline + challenger on the SAME rows
+    slots = elig.join(
+        ledger.select("game_pk", "side", "pitcher", "batter", "slot",
+                      "game_date", "p_h3_raw"),
+        on=["game_pk", "side", "pitcher", "batter", "slot", "game_date"],
+        how="left").with_columns(
+        pl.col("p_h3_raw").alias("p_baseline"))
+    if slots["p_h3_raw"].null_count():
+        raise ValueError("eligible slot without a baseline probability")
+    slot_feats = challenger_feature_frame(slots, pa)
+    p_c = np.full(slot_feats.height, np.nan)
+    for b in DEV_BLOCKS:
+        m = (slot_feats["block"] == b).to_numpy()
+        if m.any():
+            p_c[m] = apply_challenger(slot_feats.filter(pl.Series(m)),
+                                      models[b])
+    if np.isnan(p_c).any():
+        raise ValueError("evaluation slot outside the dev block models")
+    slot_feats = slot_feats.with_columns(pl.Series("p_challenger", p_c))
+    ev = observed_pa_join(slots, pa).join(
+        slot_feats.select("game_pk", "side", "pitcher", "batter", "slot",
+                          "game_date", "p_challenger"),
+        on=["game_pk", "side", "pitcher", "batter", "slot", "game_date"],
+        how="inner")
+    if ev["p_baseline"].null_count() or ev["p_challenger"].null_count():
+        raise ValueError("paired evaluation rows missing an arm")
+    eval_keys = sorted(set(zip(ev["game_pk"].to_list(),
+                               ev["at_bat_number"].to_list())))
+    dev_keys["eval_keys_n"] = len(eval_keys)
+    dev_keys["eval_keys_sha256"] = sha256_stream(
+        serialize_eval_keys(eval_keys))
+    if verify_published and (
+            dev_keys["eval_keys_sha256"] != PUBLISHED_DEV_EVAL_KEYS_SHA256
+            or dev_keys["eval_keys_n"] != PUBLISHED_DEV_EVAL_KEYS_N):
+        raise ValueError("frozen dev evaluation keys do not match the "
+                         "published pins; refusing")
+    if (ev["block"] == PROTECTED_BLOCK).any():
+        raise ValueError("protected confirm block in the evaluation table")
+
+    # 4. metrics (registered machinery)
+    metrics = evaluation_metrics(ev, n_boot=n_boot, seed=seed)
+
+    # 5. write-once outputs
+    ev.write_parquet(out_table)
+    metrics_path = out_dir / "metrics.json"
+    metrics_path.write_text(json.dumps(metrics, indent=1, sort_keys=True),
+                            encoding="utf-8")
+
+    # 6. MANDATORY provenance receipt (validated; MLflow transport optional
+    # and NOT exercised here)
+    ap = artifact_paths or {}
+    inputs = {k: _sha_or_missing(v) for k, v in ap.items()}
+    if not inputs:
+        inputs = {"note": "no artifact paths supplied (synthetic run)"}
+    code_config = {
+        "batt_recency_py_lf_sha256": sha256_stream(br_lf_bytes()),
+        "adapter_py_lf_sha256": sha256_stream(
+            Path(ad.__file__).read_bytes()
+            .replace(b"\r\n", b"\n").replace(b"\r", b"\n")),
+        "challenger_config": {"R_days": RECENT_DAYS, "m_pseudo": M_PSEUDO,
+                              "anchor_w": ANCHOR_W,
+                              "features": list(CHALLENGER_FEATURES)},
+    }
+    receipt = {
+        "inputs": inputs,
+        "code_config": code_config,
+        "dev_keys": dev_keys,
+        "fits": fits,
+        "metrics": metrics,
+        "outputs": {
+            "batt_recency_eval_v1.parquet": ad.sha256_file(out_table),
+            "metrics.json": ad.sha256_file(metrics_path),
+        },
+        "acceptance": {
+            "verify_published": bool(verify_published),
+            "paired_keys_exact": True,
+            "block_isolation": True,
+            "exclusion_policy_unchanged": True,
+        },
+    }
+    validate_receipt(receipt)
+    receipt_path = out_dir / "provenance_receipt.json"
+    receipt_path.write_text(json.dumps(receipt, indent=1, sort_keys=True),
+                            encoding="utf-8")
+    reread = json.loads(receipt_path.read_text(encoding="utf-8"))
+    validate_receipt(reread)
+    return {"out_dir": str(out_dir), "receipt": receipt,
+            "receipt_complete": True}
+
+
 # ------------------------------------------------------------------- CLI
 CONTRACT_TEXT = (
     "REFUSING to fit: the batter-history challenger's fitting/evaluation "
@@ -490,6 +795,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ledger", default=None,
                     help="override preserved-run ledger path (synthetic "
                          "tests only)")
+    ap.add_argument("--out-dir", default=None,
+                    help="diagnostics output directory override (defaults "
+                         "to PAEXT_OUT_DIR/diagnostics/batt_recency_v1)")
     args = ap.parse_args(argv)
 
     if args.verify_keys_only:
@@ -507,11 +815,19 @@ def main(argv: list[str] | None = None) -> int:
         print(CONTRACT_TEXT)
         return 2
 
-    print("fitting/execution stage reached but NOT IMPLEMENTED for real "
-          "data: this turn delivers specification implementation + "
-          "synthetic tests only. Synthetic callers use the module functions "
-          "directly.")
-    return 3
+    out_dir = (Path(args.out_dir) if args.out_dir else
+               ad.PAEXT_OUT_DIR / "diagnostics" / "batt_recency_v1")
+    pa = pl.read_parquet(args.pa_table) if args.pa_table else ad.load_pa_table()
+    ledger_path = (Path(args.ledger) if args.ledger else
+                   ad.PAEXT_OUT_DIR / "outputs"
+                   / "projected_pa_probs_v1.parquet")
+    ledger = pl.read_parquet(ledger_path)
+    result = run_diagnostic(pa, ledger, out_dir, verify_published=True)
+    print(json.dumps({"out_dir": result["out_dir"],
+                      "receipt_complete": result["receipt_complete"],
+                      "log_loss_delta": result["receipt"]["metrics"]
+                      ["log_loss_delta"]}, indent=1, sort_keys=True))
+    return 0
 
 
 if __name__ == "__main__":
