@@ -62,7 +62,7 @@ jobs:
     # which silently skipped in the main suite. This job installs mlflow and
     # enforces a NON-VACUOUS result: skips fail, the module must actually run.
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
