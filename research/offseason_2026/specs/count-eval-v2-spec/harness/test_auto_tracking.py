@@ -41,17 +41,17 @@ import numpy as np
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# sys.path order matters (amendment-2): the lake count-eval-v1 dir holds a
-# HISTORICAL amendment-1 mirror of track_and_verify.py (preserved, not
-# updated), so it is inserted FIRST and the builder-worktree harness dir is
-# inserted LAST so the REGISTERED harness modules (track_and_verify,
-# comparison) shadow the stale mirror; the lake dir still supplies
-# lgbm_equal_info_adapter (registered there and nowhere else).
+# sys.path order matters: the lake count-eval-v1 dir holds a HISTORICAL
+# amendment-1 mirror of track_and_verify.py (preserved, not updated), so it
+# is inserted FIRST and this builder-worktree harness dir (which holds the
+# REGISTERED harness modules: track_and_verify, comparison, runner) is
+# inserted LAST so they shadow the stale mirror; the lake dir still supplies
+# lgbm_equal_info_adapter (registered there and nowhere else). The harness
+# mirror in THIS worktree is the registered wrapper/comparison/runner
+# identity source (amendment-4 registered the wrapper path here); no import
+# reaches into another branch's worktree.
 sys.path.insert(0, r"C:\Users\ckaplinger\MLB-Props-Research\count-eval-v1")
 sys.path.insert(0, HERE)
-sys.path.insert(0, (r"C:\Users\ckaplinger\Downloads\Personal-Projects"
-                    r"\MLB-Props-worktrees\market-eval-v2\research"
-                    r"\offseason_2026\specs\count-eval-v2-spec\harness"))
 
 LOG_MODE = "log"
 VERIFY_MODE = "verify"
@@ -63,8 +63,28 @@ ORIGINAL_CONFIG_SHA256 = (
 AMENDMENT1_CONFIG_SHA256 = (
     "b33e2a845c929f5f6dafba9c0adfcab49b4ee26655ed42e4f09428d9a2a100cf")
 
+# Superseded amendment-2 registration (2026-10-15), preserved in-file per
+# the historical-registration convention: amendment-3 superseded it and the
+# freeze file keeps the prior config_sha256 in git history (present at
+# eee4f18), so this constant is the durable in-tree record of that value.
 AMENDMENT2_CONFIG_SHA256 = (
     "bcfc2a15a4351f9bff44fb55a3830c9715360ac8d9e60870039c05b4e75ef260")
+
+# Superseded amendment-3 registration (2026-10-19): the tags-kwarg wrapper
+# identity was re-registered but tracking_wrapper.path still pointed at the
+# market-eval-v2 worktree (pre-tags wrapper bytes there), which
+# verify_registered_identities fails loud on. Superseded by amendment-4;
+# the amendment-3 config object is preserved in git history and this
+# in-file constant per the historical-registration convention.
+AMENDMENT3_CONFIG_SHA256 = (
+    "e1b473002f25ef54b4fdc230c297c5d3c3f1aac367ceb8ea8017bb5919657d53")
+
+# Current registration: amendment-4-wrapper-path-self-contained (2026-10-19)
+# - tracking_wrapper.path re-pointed to the paext-v2 worktree harness copy
+# that carries exactly the registered 30d80f82... identity; file identities
+# and all scientific fields unchanged; config_sha256 recomputed.
+AMENDMENT4_CONFIG_SHA256 = (
+    "e8e957d16c04e0563718b01559bd0e76e98cde3a1e5e85f205f1cede64fd87c0")
 
 EXECUTED_RUN_ID = (
     "b8bc222c703a4a60e1eb0736143800e34601f61db0ced84cc067597b7796fd05")
@@ -367,21 +387,36 @@ def test_verify_registered_identities_synthetic_ok_and_tamper(tmp_path):
 
 
 def test_amended_freeze_registration_integrity():
-    """The REAL amended freeze (amendment-2): hash integrity, historical
-    preservation (both superseded registrations), the declared text-source
-    identity convention, D-3 declaration, literal command, and full on-disk
-    identity verification against the registered files."""
+    """The REAL amended freeze (amendment-4): hash integrity, historical
+    preservation (both verbatim-prior registrations preserved in
+    historical_registrations; the superseded amendment-2 and amendment-3
+    config_sha256 values preserved in-file above, their full configs kept
+    in git history per each amendment's supersedes note), the declared
+    text-source identity convention, D-3 declaration, literal command, and
+    full on-disk identity verification against the registered files."""
     import lgbm_equal_info_adapter as ad
     import track_and_verify as tv
 
     freeze_path = os.path.join(HERE, "freeze_lgbm_equal_info_v1.json")
     freeze = json.loads(open(freeze_path, encoding="utf-8").read())
     cfg = freeze["config"]
-    assert freeze["config_sha256"] == AMENDMENT2_CONFIG_SHA256
+    assert freeze["config_sha256"] == AMENDMENT4_CONFIG_SHA256
     assert tv.freeze_config_sha256(cfg) == freeze["config_sha256"]
 
+    # amendment-4 superseded the amendment-3 registration (config_sha256
+    # e1b47300... preserved in-file above): amendment-3 registered the
+    # amended wrapper file identity (30d80f82...) but left
+    # tracking_wrapper.path at the market-eval-v2 worktree whose committed
+    # wrapper is the pre-tags file owned by a different branch;
+    # amendment-4 re-pointed the registered wrapper path to this worktree's
+    # harness copy (identity hashes unchanged). The amendment-3 config
+    # object is preserved in git history, not in this file's
+    # historical_registrations array (amendment-3 precedent).
+
     # amendment-2: the declared text-source identity convention is registered
-    # verbatim (single owner: track_and_verify.TEXT_SOURCE_IDENTITY_CONVENTION)
+    # verbatim (single owner: track_and_verify.TEXT_SOURCE_IDENTITY_CONVENTION;
+    # unchanged by the amendment-3 wrapper-tags and amendment-4 path
+    # re-registrations)
     assert cfg["text_source_identity_convention"] == \
         tv.TEXT_SOURCE_IDENTITY_CONVENTION
 

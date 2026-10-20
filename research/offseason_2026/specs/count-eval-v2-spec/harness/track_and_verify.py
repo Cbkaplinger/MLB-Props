@@ -191,8 +191,11 @@ def default_describe(result: dict, out_dir=None, saved: dict | None = None,
 
 def log_run(tracking_uri: str, experiment: str, run_name: str,
             params: dict, metrics: dict, artifacts: list,
-            artifact_location: str | None = None) -> str:
-    """Log one run; returns the run_id. Raises on any MLflow failure."""
+            artifact_location: str | None = None,
+            tags: dict | None = None) -> str:
+    """Log one run; returns the run_id. Raises on any MLflow failure.
+    Optional ``tags`` (e.g. phase / pipeline_id dual-phase linkage) are
+    set on the run; omitting them leaves behavior unchanged."""
     import mlflow
 
     mlflow.set_tracking_uri(tracking_uri)
@@ -206,6 +209,8 @@ def log_run(tracking_uri: str, experiment: str, run_name: str,
     else:
         exp_id = mlflow.set_experiment(experiment).experiment_id
     with mlflow.start_run(run_name=run_name, experiment_id=exp_id) as run:
+        if tags:
+            mlflow.set_tags({str(k): str(v) for k, v in tags.items()})
         for k, v in params.items():
             mlflow.log_param(k, v)
         for k, v in metrics.items():
