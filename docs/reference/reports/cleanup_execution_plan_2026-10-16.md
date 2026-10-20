@@ -1314,3 +1314,32 @@ blob evidence at `f85e7c8`). No further in-place edits to superseded text.
   recovery verification BEFORE any removal; archival permission != deletion
   permission. Consolidated backlog patch supplied to Chat 1 (one patch,
   sole-writer applies).
+
+## Line-by-line read batches (2026-10-20, late - exclusion-aware scope: 692 in-scope / 290 deferred)
+
+Scope boundary applied per owner: baseline 4e764ab MINUS pregame_pa_ext/ +
+count-eval-v2-spec/harness/ + experiments/datasets/seal/bf-lane frozen
+evidence + EXECUTION_BACKLOG.md (Chat 1) + anything PR #25 touches.
+Deferred-protected: 290 files (research 287, backlog, 2 PR-25-touched).
+Marked deferred, NOT read. Research-status content is out of this lane.
+
+- **Batch A (50 files) - read COMPLETE:** scripts/ (27), .github/ (2), root
+  files (12), playground/ (4), analysis/ (2), data/ (2), report/ (1).
+  Findings: .clineignore == .cursorignore (known intentional mirror, kept);
+  Pitcher-Starts README correctly self-labels SUPERSEDED; report/ stray file
+  (coordinated move pending); no TODO/FIXME/abandonment signals; no
+  unexpected duplicates. Concrete fix delivered: umbrella-skill pointer
+  .cursor/skills/repo-garbage-collector/SKILL.md pointed ABOVE the repo
+  root (../../../.agents/...) - corrected to ../../.agents/... (verified
+  target exists).
+- **Batch B (92 files) - read COMPLETE:** src/Python (54, including the
+  protected frozen modules market/count_layer/live_assembly/odds_ledger -
+  read-only), src/Notebooks (10 output-less 2026-07 vintage - existing T17
+  archive item, untouched), .cursor rules+skills (30), .agents skill copies
+  (8). Findings: zero exact duplicates; the two LANGUAGE.md glossaries are
+  intentionally different (umbrella 2,494B vs specialist 1,262B), not dupes.
+- **Remaining in-scope reads:** production/ (191), tests/ (96), models/ (79),
+  docs/ (184 minus excluded), scripts/ deep reads done at survey level.
+- Changed this pass: 1 skill pointer (navigation repair, load-bearing path
+  NOT relocated). All fixes within the low-risk documentation/navigation
+  authorization; entry points untouched.
