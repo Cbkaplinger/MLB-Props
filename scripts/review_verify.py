@@ -337,7 +337,10 @@ def main(argv=None) -> int:
     # ---- 7. MLflow agreement (optional) -------------------------------------
     if not args.skip_mlflow:
         try:
-            con = sqlite3.connect(args.mlflow_db)
+            # Read-only contract: the reviewer tool never writes the tracking
+            # store, so open it in explicit read-only mode (Chat 2 finding 2).
+            con = sqlite3.connect(f"file:{Path(args.mlflow_db).as_posix()}?mode=ro",
+                                  uri=True)
             cur = con.cursor()
             label = M.get("run_label")
             # Importer tag convention: run_id tag = "<label>" (first-run) or
