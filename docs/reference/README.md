@@ -33,9 +33,16 @@ Each says what it measured and what followed. History, not instructions.
 - **Historical evidence (cite, do not obey):** everything under `reports/`
   with a date in its name. Dated reports describe what was true at their
   timestamp; later merged work supersedes individual claims. When a dated
-  report conflicts with a living doc above, the living doc wins and the
-  conflict should be labeled in the living doc (not by editing the dated
-  report).
+  report conflicts with a living doc above on a current-state claim, the
+  living doc wins and the conflict should be labeled in the living doc (not
+  by editing the dated report).
+- **Hard limit on that rule:** living docs NEVER override frozen
+  registrations, pre-registration protocols (experiment SOP), frozen
+  packets, registered pins/hashes, or historical RESULTS. Those are
+  immutable evidence; where prose and a frozen artifact disagree, the
+  frozen artifact is authoritative and the prose gets a supersession
+  label (precedent: the freeze JSON status string left byte-identical,
+  supersession recorded in prose).
 - The 2026-10-16 census/sweep cluster (`*_2026-10-16.md`, ~20 files) is
   point-in-time evidence for that date's repository state; use it as a map of
   what existed then, not as current counts.
