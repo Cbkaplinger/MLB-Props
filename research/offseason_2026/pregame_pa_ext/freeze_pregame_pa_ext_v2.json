@@ -1,7 +1,70 @@
 {
   "freeze_id": "pregame-pa-ext-v2",
   "freeze_utc": "2026-10-19",
-  "registration_status": "PROVISIONAL; checkpoint_sha256_expected is a PLACEHOLDER (null) until build_checkpoint.py reconstructs on REAL data and the printed hash is registered here; while null, SCORING (adapter run_real) is REFUSED with CHECKPOINT_PIN_NOT_REGISTERED, but RECONSTRUCTION (build_checkpoint.py) does not require the pin",
+  "registration_status": "CHECKPOINT RECONSTRUCTED (2026-10-20; one authorized deterministic run, verified, tracked; see checkpoint_registration); REGISTRATION PENDING REVIEW (follow-up PR); SCORING NOT AUTHORIZED. Registering the reconstructed checkpoint artifact does NOT approve any population policy: the cold-start fallback-vs-exclusion decision remains a SEPARATE blocked owner decision, and nothing here authorizes adapter scoring (run_real).",
   "checkpoint_artifact": "checkpoints/h3_raw_checkpoint.json",
-  "checkpoint_sha256_expected": null
+  "checkpoint_sha256_expected": "176fb18bc3b06328f4425175907506ea0dbcea45727e8879ff06249a751decfe",
+  "checkpoint_registration": {
+    "registered_date": "2026-10-20",
+    "state": "checkpoint reconstructed; registration pending review; scoring NOT authorized",
+    "pin_scope": "checkpoint_sha256_expected is the CANONICAL PAYLOAD hash (checkpoint_sha256 over the artifact's 'payload' object: sha256 over json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')) - the value load_serialized_checkpoint verifies on every load (CHECKPOINT_REGISTERED_PIN_MISMATCH on mismatch). It is a FIXED registered literal; it is never computed dynamically from whatever artifact scoring happens to load.",
+    "canonical_payload_sha256": "176fb18bc3b06328f4425175907506ea0dbcea45727e8879ff06249a751decfe",
+    "raw_file_sha256": "d266a1cd108633012e2bdec8c93dd467759fd966191c71aed9d790b74d1c68c6",
+    "raw_file_sha256_role": "sha256 over the artifact file's raw bytes; used ONLY for the MLflow artifact byte-verification of the reconstruction run (track_and_verify.verify_run); NOT the scoring pin",
+    "artifact_path": "checkpoints/h3_raw_checkpoint.json",
+    "reconstruction": {
+      "date": "2026-10-20",
+      "command": "python research/offseason_2026/pregame_pa_ext/build_checkpoint.py --tracking-uri sqlite:///<canonical research mlflow.db>",
+      "executions": 1,
+      "worktree_head": "c12c7e7f95c6d2c6f821bec3db36b92d5e6cd1e0",
+      "n_fit_rows": 730841,
+      "round_trip": "serialize -> reload reproduced the verified coefficients exactly; no refit after serialization"
+    },
+    "mlflow": {
+      "experiment": "pa-k-probability-v1",
+      "run_id": "903be7a257c04ade9eb3614ad7fd9d7b",
+      "run_status": "FINISHED",
+      "verification_status": "VERIFIED (track_and_verify.verify_run: exact metric round-trip + artifact byte hash on fresh retrieval)",
+      "phase": "reconstruction",
+      "pipeline_id": "paext-v2-20261020T141540Z",
+      "run_started_utc": "2026-10-20T14:15:50Z",
+      "store": "canonical research MLflow store (path per COUNT_EVAL_COMMANDS.md)"
+    },
+    "registered_inputs": {
+      "pa_table": {
+        "path": "overnight-p2/data/pa_table.parquet",
+        "sha256": "1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff"
+      },
+      "preds_block_2024H2": {
+        "path": "overnight-p2/data/preds_block_2024H2.parquet",
+        "sha256": "a311f4429457ced383b8ef834846978b4682b912e53bb46319107efc0cd980d3"
+      },
+      "preds_block_2025H1": {
+        "path": "overnight-p2/data/preds_block_2025H1.parquet",
+        "sha256": "6187d232e8917ce40b481feda5521cecefa0ce8418741ef65aff7dfc8702cbd7"
+      },
+      "preds_confirm_2025H2": {
+        "path": "overnight-p2/data/preds_confirm_2025H2.parquet",
+        "sha256": "e60b5aa306dcd5e2157d0de61392681c287a190607330461b98cf91701c88d2a"
+      }
+    },
+    "verification": {
+      "tolerance": "max abs diff <= 1e-8 vs the stored overnight-p2 pred_H3_raw checkpoints (fail-closed STOP before serialization)",
+      "blocks": {
+        "block_2024H2": {
+          "n_rows": 87808,
+          "max_abs_diff": 7.216449660063518e-16
+        },
+        "block_2025H1": {
+          "n_rows": 95357,
+          "max_abs_diff": 8.881784197001252e-16
+        },
+        "confirm_2025H2": {
+          "n_rows": 87569,
+          "max_abs_diff": 7.216449660063518e-16
+        }
+      }
+    },
+    "policy_note": "Registering the reconstructed checkpoint does NOT approve any population policy: cold-start fallback-vs-exclusion remains a separate blocked owner decision; scoring (adapter run_real) is NOT authorized by this registration."
+  }
 }

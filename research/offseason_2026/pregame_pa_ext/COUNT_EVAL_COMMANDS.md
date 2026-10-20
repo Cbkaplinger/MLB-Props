@@ -48,17 +48,24 @@ Output artifact path + sha256 pin:
 
 - Path (default `PAEXT_V2_CHECKPOINT_PATH`):
   `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\checkpoints\h3_raw_checkpoint.json`
-  (ABSENT as of 2026-10-19).
+  (reconstructed 2026-10-20: one authorized deterministic run, all three
+  blocks verified <=1e-8, MLflow VERIFIED; write-once, never overwritten).
 - The artifact embeds a `sha256` pin computed over its canonical JSON
   payload (`checkpoint_sha256`, sort-keys + compact separators). The
-  pin value is printed at build time and MUST be registered as
+  reconstruction printed and REGISTERED this canonical payload hash as
   `checkpoint_sha256_expected` in
   `freeze_pregame_pa_ext_v2.json` (this directory; the freeze/registration
-  config) before any scoring run. The registered value is currently
-  `null` = PLACEHOLDER, gate DISABLED (no real reconstruction has run
-  yet). When non-null, `load_serialized_checkpoint` verifies the artifact
-  sha256 against it and fails loud with
-  `CHECKPOINT_REGISTERED_PIN_MISMATCH` on mismatch.
+  config) — see the file's `checkpoint_registration` record for the full
+  receipt: canonical payload hash (the scoring pin) vs the distinct
+  raw-file sha256 (MLflow artifact byte-verification only), pipeline ID,
+  MLflow run ID, input identities, and per-block verification results.
+  Registration is PENDING REVIEW and does NOT authorize scoring: while
+  the owner has not authorized scoring, `run_real` must not be executed.
+  On every scoring load, `load_serialized_checkpoint` verifies the
+  artifact's canonical payload hash against the registered pin and fails
+  loud with `CHECKPOINT_REGISTERED_PIN_MISMATCH` on mismatch; the pin is
+  a fixed literal, never computed dynamically from whatever artifact
+  scoring happens to load.
 
 Dual-phase MLflow tracking (optional flags; same SHARED D-1 wrapper as
 the frozen LightGBM command):
