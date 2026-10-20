@@ -1,4 +1,4 @@
-"""Modal cloud scaffold (STAGED — not deployed; needs owner `modal token new`).
+"""Modal cloud app (LIVE primary since the 2026-09-16 standby cutover; deployed, heartbeat-verified, schedules ET-local).
 
 Hosts the daily chain on Modal Starter ($0): image carries code + deps,
 a Volume carries state, Secrets carry keys. No policy logic lives here —

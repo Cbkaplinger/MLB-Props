@@ -39,7 +39,7 @@ Optional post-score automation (free-tier MLOps):
 1. **03:00** settle (post-game only) → **05:30** drift + grading → **08:00**
    morning (heal → projections → board → poll → always-fire alert) →
    **09:00–22:00** hourly (heal → re-log on fresh lineups → board → poll →
-   watch → flips-only alert) → **q20min 12:00–22:12** close sweeps →
+   watch → flips-only alert) → **q5min 12:00–22:12** close sweeps →
    next 03:00. All ET (`America/New_York` on Modal; see cloud README timing).
 
 Backwards restart paths (in order, stop at the first that fixes it):
@@ -93,7 +93,7 @@ Diagnostics-first risk gating (optional, not default):
 
 ## CLV Close Watcher
 
-> Laptop daemon = fallback only. Cloud close sweeps (q20min, ET-gated) are
+> Laptop daemon = fallback only. Cloud close sweeps (q5min, ET-gated) are
 > primary since the 2026-09-16 cutover. Keep the daemon files; do not run
 > both primaries at once.
 
