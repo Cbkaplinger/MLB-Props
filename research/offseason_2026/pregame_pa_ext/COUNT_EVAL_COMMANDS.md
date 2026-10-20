@@ -1,13 +1,7 @@
 # COUNT EVAL COMMANDS — pregame-pa-ext-v2 (2026-10-19)
 
-**Status: EXECUTABLE END-TO-END (b); SPECIFIED-NOT-EXECUTED on real
-data.** Two distinct commands, deliberately separated per the owner
-instruction recorded in commit `6feb32e`: checkpoint RECONSTRUCTION runs
-once against the private lake; adapter SCORING loads only the serialized
-artifact and never refits, and now wires the registered bf-workload-v1
-BF-PMF artifact (bf37) end to end (see command (b), input 4). Neither
-command has been executed on real data. Any execution stays behind the
-owner's projected-batter scoring gate (`docs/PROJECT_STATE.md`).
+**Status 2026-10-20 (status/pointer update; command and pin sections below unchanged): both commands have now executed once.** RECONSTRUCTION ran once (2026-10-20, verified <=1e-8, serialized, tracked; registered pin armed - registration MERGED via PR #21 at `ccd0148`). SCORING ran once (`run_real`, MLflow run `2393940213154b718124b0b323c62ff9`, pipeline_id `paext-v2-20261020T141540Z`, phase=scoring, VERIFIED for artifact integrity) and **FAILED its zero-exclusion acceptance gate**: 531 pitcher-side cold-start PA exclusions and 59 pitcher-cold starts (7,135 of 7,194 starts fully scored) - authoritatively classified as 57 debut-date newcomers plus two window-limited veterans (Dietrich Enns 608650, Kyle Hart 606996). The output parquet is PRESERVED UNACCEPTED (write-once, untouched). NO further real-data execution is authorized; the abstain-vs-handle population decision is the open owner gate. The separation below (reconstruction once vs scoring repeatable, serialized artifact only, never refits) still governs any future authorized run.
+
 
 Lane: `research/offseason_2026/pregame_pa_ext/` (branch
 `research/pregame-pa-ext-v2`). Worktree:
@@ -59,8 +53,14 @@ Output artifact path + sha256 pin:
   receipt: canonical payload hash (the scoring pin) vs the distinct
   raw-file sha256 (MLflow artifact byte-verification only), pipeline ID,
   MLflow run ID, input identities, and per-block verification results.
-  Registration is PENDING REVIEW and does NOT authorize scoring: while
-  the owner has not authorized scoring, `run_real` must not be executed.
+  Registration MERGED (PR #21, `ccd0148`) and does NOT authorize scoring:
+  the scoring run above is the only execution on record and it failed
+  acceptance; `run_real` must not be executed again without a new
+  explicit owner authorization. (The freeze JSON registration_status
+  string still reads PENDING REVIEW - authored before the merge; the
+  merged state supersedes it. The freeze JSON is deliberately unedited:
+  its `config_sha256` covers the top-level config including that string,
+  and rewriting it would invalidate the registered config hash.)
   On every scoring load, `load_serialized_checkpoint` verifies the
   artifact's canonical payload hash against the registered pin and fails
   loud with `CHECKPOINT_REGISTERED_PIN_MISMATCH` on mismatch; the pin is
@@ -179,6 +179,15 @@ Output destination (write-once):
 - Unseen (pitcher, batter) pairs with full entity history ARE scored:
   the H3-raw checkpoint consumes the 8 features only, never player IDs
   (feature-based scoring, ID-blind).
+
+## Local suite status (2026-10-20 refresh; suite/head evidence)
+
+Affected-suite evidence at the reviewed/merged head `1b3bfd3` (Chat 2
+exact-head review): tracking 6/6 + checkpoint pin 10/10 = 16/16 affected
+tests (549.13s, mlflow installed); CI `test-and-validate` PASS; the
+portable tracking CI lane executes the complete tracking module with a
+zero-skip guard (PR #22, merged `3c62655`). Suite counts carry their
+suite + head per the reporting rule.
 
 ## Local suite status (retained failure — receipt note)
 

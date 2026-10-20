@@ -1267,3 +1267,14 @@ read this pass; **validated** = claims checked against the tree/registry; **chan
 | Count reconciliation | — | changed: PR-body category list omitted 3 rows (other-text 30, csv 11, 3 of 36 non-figure binaries); complete 15-kind table sums to 982; exhaustive path listing appended (this commit) |
 | Ledger repair (#23) | — | changed on `chat3/ledger-corrections-20261020` @ `5b9ccbe`: mechanical joiner-newline restoration; delta vs `ff5fde7` = exactly the two disclosed conversions; routed to Chat 2 |
 | CI/CD | 1 workflow, 2 jobs | read + mapped; optimization candidate (docs-only tracking bypass) requires classification-correctness tests before proposal (batch 3) — "zero redundancy" narrowed to: no redundant jobs/steps found in the 2 mapped jobs; overlapping collection/installation not yet audited |
+
+
+## Append-only correction note (2026-10-20, per Chat 2's #24 verdict)
+
+The prune_artifacts superseding correction (finding 1) was applied as an
+IN-PLACE edit at commit `7579876`, not the required append-only form. The
+original incorrect wording ("content-identical (CRLF/LF only)... Genuine
+duplicate") is preserved verbatim in git history at `3c9dfed` and earlier;
+this note is the required append-only acknowledgment. The corrected finding
+stands as written at `7579876` (two different utilities; deletion withdrawn;
+blob evidence at `f85e7c8`). No further in-place edits to superseded text.
