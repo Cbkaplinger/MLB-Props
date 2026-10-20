@@ -116,3 +116,98 @@ From `dynamic_import_resolution`, `ci_coverage_map`, `entrypoint_inventory`,
   entry points vs pipeline registry's 10 schedules; registry is design-only).
 - **T11 superseded by T17.** All other ranks unchanged; T3 still first at the
   next free CI-family slot after the count run finalizes.
+
+---
+
+# Repository sweep 2026-10-20 — coverage record + ordered plan (Chat 3, integration/maintenance owner)
+
+Baseline: `origin/main` @ `4e764ab` (post #6). This section is the sweep
+record required by the owner's deep-clean assignment; it extends this plan
+document (no new audit-packet collection). Machine-readable inventory:
+session artifact; compact figures below are the durable record.
+
+## Coverage (982 tracked files, all classified)
+
+| kind | count | kind | count |
+|---|---|---|---|
+| doc (md/txt) | 305 | config (yaml/toml/json) | 101 |
+| production-code | 153 | test | 96 |
+| research-code | 92 | model-code | 70 |
+| source (src/) | 42 | other-text | 30 |
+| script | 24 | notebook | 22 |
+| csv | 11 | binary-figure | 10 |
+| binary-data | 10 | other | 14 |
+| binary-pdf | 2 | | |
+
+Top-level spread: research 287, production 191, docs 185, tests 97, models 79,
+src 54, dotfiles 47, scripts 28, playground 4, analysis 2, data 2, report 1.
+Key surfaces read in full this pass: root README, docs/README, canonical map
+(pointer scan), ci.yml (2 jobs), AGENTS_ROLES operating rules, cleanup plan
+(this doc), diagrams index pointers. Long-tail reads continue per batch.
+
+## Findings (confirmed vs merely unreferenced)
+
+1. **`scripts/prune_artifacts.py` == `production/ops/prune_artifacts.py`
+   content-identical (CRLF/LF only).** Genuine duplicate; entry-point
+   deletion needs owner nod + living-pointer update (canonical map cites the
+   scripts path). Batch 2.
+2. **`report/` top-level dir holds ONE file**
+   (`recency_batch_results_table.md`), referenced by the backlog (Chat 1
+   sole-writer) + the recency-batch card. Move to
+   `docs/reference/reports/` requires a coordinated backlog pointer edit.
+   Batch 2 with Chat 1 coordination.
+3. **Two `odds_board.py`** (`production/odds/` 8.9KB — docs-canonical,
+   protected; `src/Python/` — imported by `test_safety_invariants`). Both
+   protected paths; relationship needs consumer analysis before any
+   proposal. Separate substantive-refactor track, NOT batch work.
+4. **`docs/reference/` = 121 files**, many dated 2026-10-16 census/sweep
+   reports now partially superseded by merged work (#18, #4, #16, #21, #22,
+   #6). Superseded statements must be labeled in living docs; the dated
+   reports themselves stay as evidence (historical layer, already the
+   established convention).
+5. **Root layout is functional** (17 top-level entries, all load-bearing or
+   referenced); the UI clutter is directory-internal (docs/reference,
+   research), not root-level loose files. Root README is current and
+   correctly linked (current_state doc landed via #4).
+6. **CI/CD:** 2 jobs mapped (test-and-validate: checkout, pip install
+   `.[dev]`+scipy/joblib/sklearn/lightgbm/statsmodels, compileall production,
+   full pytest with junitxml upload; tracking: mlflow install, complete
+   tracking module, zero-skip guard). Redundancy: none found; gap: tracking
+   job runs on every PR (~9-10 min) — change-category gating (docs-only
+   paths skip tracking) is a candidate optimization that does NOT weaken
+   mandatory coverage (the module still runs on every code-path change).
+   Batch 3, CI-only, no deployment/secret changes.
+7. **Notebooks:** 22 tracked; results_dashboard.ipynb (1.5MB) and
+   results_pnl_clv.ipynb (0.9MB) carry executed outputs — operator surfaces
+   per prior rulings (keep; artifact-census 2026-10-16 T17 covers the
+   src/Notebooks archive separately).
+8. **Committed experiment data** (pa_table 4.8MB, prediction parquets ~6.5MB
+   total) are frozen-registration evidence — path-sensitive, untouched.
+
+## Ordered batches (one cleanup PR active at a time; Chat 2 exact-head review)
+
+- **Batch 1 (this PR, docs-only):** this sweep record + plan. No moves, no
+  deletions. Establishes the plan-of-record in the canonical document.
+- **Batch 2 (after Chat 2 verdict on batch 1):** (a) delete
+  `scripts/prune_artifacts.py` (content-identical duplicate) + update the
+  canonical-map pointer to the production/ops path; (b) move
+  `report/recency_batch_results_table.md` ->
+  `docs/reference/reports/` with card pointer update + Chat 1 backlog
+  coordination (sole-writer applies the backlog line on their side);
+  (c) living-doc supersession labels for the 10-16 census claims that later
+  merges overtook. Deletion + move = entry-point/path changes — owner sees
+  this plan before batch 2 executes.
+- **Batch 3:** CI change-category gating for the tracking job (docs-only
+  diffs skip tracking; all code paths keep it) + any coverage-gap fixes;
+  evidence = before/after job timings.
+- **Batch 4:** stale-doc sweep results from the long-tail read (docs dated
+  pre-2026-10 with current-state claims), duplicate-explanation merges,
+  broken-link repairs (link checker run recorded).
+- **Separate track (not batch):** odds_board.py relationship proposal;
+  src/Notebooks archive (existing T17).
+- **Preservation invariants:** main-active unique commits + the historical
+  `run_bf_ab_score.py` v1 preserved before any removal (owner already holds
+  the classification packet); no untracked/ignored/local-only deletions
+  without owner disposition; frozen/path-sensitive files (registrations,
+  model artifacts, production entry points) untouched without consumer +
+  registration checks.
