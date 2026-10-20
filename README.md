@@ -10,19 +10,23 @@ rebuilt-panel truth; 9/11 pre-WS1c values `+15.5%`→`+15.6%` superseded),
 board-to-ledger parity lock, and a 345+ test suite with a regression pin
 on the live stack.
 
-Start here: [Technical manuscript](docs/paper/manuscript.md) ·
+Start here: [Current research state](docs/reference/current_state_2026-10-16.md) ·
+[Technical manuscript](docs/paper/manuscript.md) ·
 [Resume summary](docs/paper/resume-summary.md) ·
 [Freeze playbook](docs/reference/reports/freeze_playbook_2026-09-11.md)
 
 ## Current source of truth
 
 - **Work queue / agent plan:** [`docs/EXECUTION_BACKLOG.md`](docs/EXECUTION_BACKLOG.md) (holy file — open first; see also [`AGENTS.md`](AGENTS.md))
+- **Research model-stack state:** [`docs/reference/current_state_2026-10-16.md`](docs/reference/current_state_2026-10-16.md) (PA population, count-eval-v2 harness, closed model-family question, B0→B1 test sequence)
 - Code repository: [github.com/Cbkaplinger/MLB-Props](https://github.com/Cbkaplinger/MLB-Props)
 - Paper: [Technical manuscript (`docs/paper/manuscript.md`)](docs/paper/manuscript.md)
 - Daily operations: `production/README.md`
 - Command routing: `production/INDEX.md`, `production/RUNBOOK.md`
 - Governance policy: `production/ops/kpi_policy.json`
 - Model card: `docs/reference/model-card.md`
+- Canonical surfaces map: `docs/reference/repo_canonical_map.md`
+- Research map / diagrams: `docs/diagrams/00-index.md`
 - PR workflow (make/review/merge + CI): `docs/reference/pr_workflow.md`
 
 ## Active architecture
