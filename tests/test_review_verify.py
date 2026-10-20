@@ -126,6 +126,30 @@ def _run_tool(run: Path, pkt: Path, tmp_path: Path, extra: list[str] | None = No
     return code, rep
 
 
+def _run_tool_clean_subprocess(run: Path, pkt: Path, tmp_path: Path,
+                               extra: list[str] | None = None):
+    """Invoke the tool in a fresh interpreter so no ambient `comparison`
+    module (a live harness inserted on sys.path by earlier test modules)
+    and no sys.modules cache can satisfy the resampling-source probes."""
+    import subprocess
+    db = tmp_path / "mlflow_test.db"
+    out = tmp_path / "report.json"
+    argv = ["--run-dir", str(run), "--packet", str(pkt),
+            "--mlflow-db", str(db), "--skip-mlflow",
+            "--json-out", str(out)] + (extra or [])
+    driver = tmp_path / "run_review_verify.py"
+    driver.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, r'{HERE / 'scripts'}')\n"
+        "import review_verify as rv\n"
+        f"sys.exit(rv.main({argv!r}))\n",
+        encoding="utf-8")
+    proc = subprocess.run([sys.executable, str(driver)], cwd=str(tmp_path),
+                          capture_output=True, text=True)
+    rep = json.loads(out.read_text(encoding="utf-8"))
+    return proc.returncode, rep
+
+
 def test_all_pass_on_consistent_synthetic_run(tmp_path):
     run, pkt = _build_run(tmp_path)
     code, rep = _run_tool(run, pkt, tmp_path)
@@ -134,7 +158,11 @@ def test_all_pass_on_consistent_synthetic_run(tmp_path):
     assert rep["checks"]["confirmation"]["confirm_pred_files"] == []
     assert rep["checks"]["identities_and_shared_rows"]["shared_rows_labels_across_candidates"] is True
     assert rep["checks"]["pooled_row_weighted_recompute_match"] is True
-    assert rep["checks"]["resampling_implementation"] == "fallback-mirror"
+    # Ambient harness availability varies with tree state (the merged repo
+    # carries the live harness; earlier test modules may put it on sys.path),
+    # so both implementations satisfy ALL-CHECKS-PASS. The deterministic
+    # fallback condition is pinned separately below.
+    assert rep["checks"]["resampling_implementation"] in ("live-harness", "fallback-mirror")
 
 
 def test_confirm_leak_fails_when_excluded(tmp_path):
@@ -153,8 +181,12 @@ def test_tampered_predictions_fail_metric_recompute(tmp_path):
 
 def test_missing_mlflow_is_informational_by_default(tmp_path):
     run, pkt = _build_run(tmp_path)
-    code, rep = _run_tool(run, pkt, tmp_path, extra=["--require-live-resampling"])
-    # no --harness-path -> fallback mirror; require-live-resampling must fail
+    # Deterministic fallback pin: a clean subprocess guarantees no ambient
+    # `comparison` module and no sys.modules cache, so with no --harness-path
+    # the tool must fall back to the vendored mirror and --require-live-
+    # resampling must fail rather than let the mirror silently substitute.
+    code, rep = _run_tool_clean_subprocess(
+        run, pkt, tmp_path, extra=["--require-live-resampling"])
     assert code == 1
     assert any("fallback mirror" in d for d in rep["discrepancies"])
     assert rep["checks"]["resampling_implementation"] == "fallback-mirror"
