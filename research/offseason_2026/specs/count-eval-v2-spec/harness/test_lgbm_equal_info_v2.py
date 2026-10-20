@@ -51,6 +51,23 @@ LOG_MODE = "log"
 VERIFY_MODE = "verify"
 HANDOFF = "v2_auto_tracking_handoff.json"
 
+# Superseded amendment-3 registration (2026-10-19), preserved in-file per
+# the historical-registration convention (mirrors test_auto_tracking.py):
+# the tags-kwarg wrapper identity was re-registered but
+# tracking_wrapper.path still pointed at the market-eval-v2 worktree
+# (pre-tags wrapper bytes there). Superseded by amendment-4; the
+# amendment-3 config object is preserved in git history per its supersedes
+# note (this file has no historical_registrations array).
+AMENDMENT3_CONFIG_SHA256 = (
+    "0e805a387b349da406d64bdee40837fb6d1f8ac76236262b3639e59a1d94c674")
+
+# Current registration: amendment-4-wrapper-path-self-contained (2026-10-19)
+# - tracking_wrapper.path re-pointed to the paext-v2 worktree harness copy
+# that carries exactly the registered 30d80f82... identity; file identities
+# and all scientific fields unchanged; config_sha256 recomputed.
+AMENDMENT4_CONFIG_SHA256 = (
+    "0c3466c9772e5c27a6031f51e37abd7d030b582a0c8f61f2c66dfaadd7aec95d")
+
 import comparison as cmp_mod  # noqa: E402  (registered harness modules win)
 import run_lgbm_equal_info_v2 as runner  # noqa: E402
 import track_and_verify as tv  # noqa: E402
@@ -505,6 +522,13 @@ def test_mlflow_fresh_process_roundtrip(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_v2_freeze_registration_integrity():
+    """The REAL v2 freeze (amendment-4): pinned registration hash + recompute,
+    historical preservation (the superseded amendment-3 config_sha256
+    preserved in-file above), the declared text-source identity convention,
+    D-3 declaration, literal command, ARTIFACT PRESERVATION of the executed
+    run's write-once evidence (run dir + execution receipt, asserted intact,
+    never treated as test debris), and full on-disk identity verification
+    against the registered files."""
     import json as _json
 
     freeze_path = os.path.join(HERE, "freeze_lgbm_equal_info_v2.json")
@@ -513,7 +537,12 @@ def test_v2_freeze_registration_integrity():
     freeze = _json.loads(open(freeze_path, encoding="utf-8").read())
     cfg = freeze["config"]
     assert freeze["batch_id"] == "lgbm-equal-info-v2"
+    # pinned current registration (amendment-4) + self-consistent recompute
+    assert freeze["config_sha256"] == AMENDMENT4_CONFIG_SHA256
     assert tv.freeze_config_sha256(cfg) == freeze["config_sha256"]
+    # amendment-4 superseded the amendment-3 registration (config_sha256
+    # 0e805a38... preserved in-file above; its config object is preserved in
+    # git history, not in a historical_registrations array)
     assert cfg["text_source_identity_convention"] == \
         tv.TEXT_SOURCE_IDENTITY_CONVENTION
     # original hyperparameters: byte-identical to the v1 adapter's frozen
@@ -536,16 +565,34 @@ def test_v2_freeze_registration_integrity():
     # literal command + gate flag
     assert "run_lgbm_equal_info_v2.py" in cfg["execution"]["command"]
     assert "--i-accept-real-data-execution" in cfg["execution"]["command"]
-    # destination confirmed nonexistent at registration; write-once: if it
-    # exists now (post-execution), every child is a valid run dir
+    # destination confirmed nonexistent at registration; write-once. ARTIFACT
+    # PRESERVATION CHECK - separate from the registration-integrity checks
+    # below: the executed run's evidence in the owner lake is asserted INTACT
+    # and is never treated as test debris (do not delete, rename, overwrite
+    # or bypass it):
+    #   - each DIRECTORY child is a write-once run dir with canonical outputs
+    #   - the execution receipt FILE (execution_receipt.json, written at the
+    #     2026-10-16 closeout of the executed run f5564ee6...) is preserved
+    #     evidence and is asserted present and parseable
+    #   - any OTHER file child still fails loud (write-once discipline)
     reg = cfg["output_destination_confirmed_nonexistent"]
     assert reg["confirmed"] is True and "2026-10-16" in reg["date"]
     dest = Path(cfg["output_destination"])
     if dest.exists():
         for child in dest.iterdir():
-            assert (child / "metrics.json").is_file()
-            assert (child / "run_manifest.json").is_file()
-    # full on-disk identity verification (real files, this machine)
+            if child.is_dir():
+                assert (child / "metrics.json").is_file()
+                assert (child / "run_manifest.json").is_file()
+        receipt = dest / "execution_receipt.json"
+        assert receipt.is_file()
+        receipt_data = _json.loads(receipt.read_text(encoding="utf-8"))
+        assert receipt_data["batch"] == "lgbm-equal-info-v2"
+        other_files = [c for c in dest.iterdir()
+                       if c.is_file() and c.name != "execution_receipt.json"]
+        assert not other_files, other_files
+    # REGISTRATION-INTEGRITY CHECK: full on-disk identity verification (real
+    # files, this machine) - separate concern from the artifact-preservation
+    # checks above
     out = tv.verify_registered_identities(
         freeze_path, adapter_module=runner,
         runner_path=os.path.join(HERE, "run_lgbm_equal_info_v2.py"))

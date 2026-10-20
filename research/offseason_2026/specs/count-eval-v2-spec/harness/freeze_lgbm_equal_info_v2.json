@@ -3,7 +3,7 @@
   "batch_id": "lgbm-equal-info-v2",
   "batch_name": "corrected equal-information LightGBM packet (matched exposure + persisted eval history + full persistence)",
   "registered_date": "2026-10-16",
-  "config_sha256": "0e805a387b349da406d64bdee40837fb6d1f8ac76236262b3639e59a1d94c674",
+  "config_sha256": "0c3466c9772e5c27a6031f51e37abd7d030b582a0c8f61f2c66dfaadd7aec95d",
   "config_hash_definition": "sha256 over json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8') of the 'config' object in this file",
   "config": {
     "interface_version": "lgbm-equal-info-v2-frozen-command-1.0",
@@ -194,7 +194,7 @@
       }
     },
     "tracking_wrapper": {
-      "path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\market-eval-v2\\research\\offseason_2026\\specs\\count-eval-v2-spec\\harness\\track_and_verify.py",
+      "path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\paext-v2\\research\\offseason_2026\\specs\\count-eval-v2-spec\\harness\\track_and_verify.py",
       "file_sha256": "30d80f8245eb60b8176aecc5e37e4e30bdc1289b61a303552bbe904a6e2f5437",
       "file_sha256_normalized": "30d80f8245eb60b8176aecc5e37e4e30bdc1289b61a303552bbe904a6e2f5437"
     },
@@ -226,6 +226,12 @@
       "date": "2026-10-19",
       "supersedes": "amendment-2-portable-text-identity registration (this file, prior config_sha256 preserved in git history)",
       "reason": "RE-REGISTERS THE SHARED WRAPPER FILE IDENTITY ONLY; NO SCIENTIFIC FIELD CHANGES. track_and_verify.log_run gains one OPTIONAL trailing keyword parameter tags (default None) for phase/pipeline_id dual-phase linkage (paext-v2 reconstruction+scoring runs share a pipeline_id tag). When tags is omitted the logged run is IDENTICAL to before (no tags are set), so the frozen command behavior is unchanged; log_run/verify_run signatures stay backward compatible for all existing call sites (positional args unchanged). The wrapper file identity (file_sha256 / file_sha256_normalized) is updated to the amended file; config_sha256 recomputed. No rerun of any executed registration is implied."
+    },
+    "amendment_4": {
+      "id": "amendment-4-wrapper-path-self-contained",
+      "date": "2026-10-19",
+      "supersedes": "amendment-3-wrapper-tags-param registration (config_sha256 0e805a387b349da406d64bdee40837fb6d1f8ac76236262b3639e59a1d94c674, preserved in git history and as the in-file test constant AMENDMENT3_CONFIG_SHA256)",
+      "reason": "REGISTRATION PATH CORRECTION ONLY; NO FILE IDENTITY, CONTENT OR SCIENTIFIC FIELD CHANGES. Same defect class as the v1 freeze amendment-4: amendment-3 re-registered the amended wrapper file identity (30d80f82... - the tags-kwarg wrapper committed in the paext-v2 worktree harness) but left tracking_wrapper.path pointing at the market-eval-v2 worktree, whose committed track_and_verify.py (7fab5f18...) is the pre-tags wrapper owned by a different branch; verify_registered_identities therefore failed loud on the registered identity vs the bytes at the registered path. amendment-4 re-points tracking_wrapper.path to the paext-v2 worktree harness copy that carries exactly the registered identity; file_sha256 / file_sha256_normalized are UNCHANGED (30d80f82...); config_sha256 recomputed. The registered adapter/comparison identities (7c247745... / 5ad04c32...) and their market-eval-v2 paths are UNCHANGED (on-disk bytes verify identical in both worktrees). No rerun of any executed registration is implied; the executed run f5564ee6... and its execution_receipt.json evidence are preserved untouched."
     }
   }
 }
