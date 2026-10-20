@@ -398,9 +398,28 @@ def test_missing_checkpoint_artifact_fails_loud(tmp_path):
         ad.load_serialized_checkpoint(tmp_path / "absent.json")
 
 
-def test_checkpoint_serialize_load_roundtrip(pa, models, tmp_path):
+def _null_registration(monkeypatch, tmp_path):
+    """Synthetic gate-DISABLED registration for artifact-format tests:
+    these round-trip tests exercise the serialize/load format itself and
+    must be independent of the COMMITTED registration (which now pins the
+    real reconstructed checkpoint's canonical payload hash; a synthetic
+    artifact would refuse to load against it)."""
+    import json
+
+    cfg = tmp_path / "freeze_pregame_pa_ext_v2_synth.json"
+    cfg.write_text(json.dumps({
+        "freeze_id": "pregame-pa-ext-v2-synth",
+        "checkpoint_artifact": "checkpoints/h3_raw_checkpoint.json",
+        "checkpoint_sha256_expected": None,
+    }, indent=2), encoding="utf-8")
+    monkeypatch.setattr(ad, "FREEZE_CONFIG_RELPATH", str(cfg))
+
+
+def test_checkpoint_serialize_load_roundtrip(pa, models, tmp_path,
+                                             monkeypatch):
     """serialize_checkpoint -> load_serialized_checkpoint reproduces the
     verified coefficients exactly and records the matching sha256 pin."""
+    _null_registration(monkeypatch, tmp_path)
     verification = {"block_2025H1": {"n_rows": 10, "max_abs_diff": 0.0}}
     out = tmp_path / "h3_raw_checkpoint.json"
     ad.serialize_checkpoint(models, verification, out)
@@ -428,10 +447,12 @@ def test_checkpoint_hash_pin_rejects_tamper(pa, models, tmp_path):
         ad.load_serialized_checkpoint(out)
 
 
-def test_checkpoint_roundtrip_via_build_checkpoint_module(models, tmp_path):
+def test_checkpoint_roundtrip_via_build_checkpoint_module(models, tmp_path,
+                                                          monkeypatch):
     """build_checkpoint.reconstruct's serialize/load round-trip helpers are
     importable and consistent with the adapter's artifact format (no lake
     access: only serialization is exercised)."""
+    _null_registration(monkeypatch, tmp_path)
     sys.path.insert(0, str(HERE / "research" / "offseason_2026"))
     from pregame_pa_ext import build_checkpoint as bc  # noqa: E402
     out = tmp_path / "h3_raw_checkpoint.json"
