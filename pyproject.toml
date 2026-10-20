@@ -28,12 +28,18 @@ research = [
     "playwright",
     "pybaseball",
     "plotly",
+    "requests",
     "scikit-learn",
     "scipy",
     "seaborn",
     "statsmodels",
     "streamlit",
+    "xgboost",
+    "optuna",
+    "catboost",
 ]
+paper = ["pymupdf", "markdown"]
+deploy = ["modal"]
 dev = ["pytest", "pre-commit", "hypothesis"]
 
 [tool.setuptools.packages.find]
