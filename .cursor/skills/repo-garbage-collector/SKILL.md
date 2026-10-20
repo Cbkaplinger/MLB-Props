@@ -10,7 +10,7 @@ execution path, or test. **This skill routes; specialists execute.** The full
 11-phase methodology (baseline → evidence graph → docs GC → backlog contract →
 Python GC → notebooks → static+deps → artifacts → metrics/populations → batches
 → verify) remains authoritative at
-[`.agents/skills/repo-garbage-collector/SKILL.md`](../../.agents/skills/repo-garbage-collector/SKILL.md)
+[`.agents/skills/repo-garbage-collector/SKILL.md`](../../../.agents/skills/repo-garbage-collector/SKILL.md)
 with its references (`cleanup-policy.md`, `metric-invariants.md`,
 `verification-checklist.md`) — point, then read. Glossary: [LANGUAGE.md](LANGUAGE.md).
 

@@ -1332,11 +1332,7 @@ Marked deferred, NOT read. Research-status content is out of this lane.
   .cursor/skills/repo-garbage-collector/SKILL.md pointed ABOVE the repo
   root (../../../.agents/...) - corrected to ../../.agents/... (verified
   target exists).
-- **Batch B (92 files) - read COMPLETE:** src/Python (54, including the
-  protected frozen modules market/count_layer/live_assembly/odds_ledger -
-  read-only), src/Notebooks (10 output-less 2026-07 vintage - existing T17
-  archive item, untouched), .cursor rules+skills (30), .agents skill copies
-  (8). Findings: zero exact duplicates; the two LANGUAGE.md glossaries are
+- **Batch B (92 files) - read COMPLETE:** src/ 54 TOTAL (of which src/Notebooks 10 output-less 2026-07 vintage - existing T17 archive item, untouched; the protected frozen modules market/count_layer/live_assembly/odds_ledger read-only), .cursor rules+skills (30), .agents skill copies (8). Findings: zero exact duplicates; the two LANGUAGE.md glossaries are
   intentionally different (umbrella 2,494B vs specialist 1,262B), not dupes.
 - **Remaining in-scope reads:** production/ (191), tests/ (96), models/ (79),
   docs/ (184 minus excluded), scripts/ deep reads done at survey level.
