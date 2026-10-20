@@ -16,6 +16,7 @@ start keys, sha-pin mismatch, invalid distribution, conversion failure).
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -142,6 +143,21 @@ def synth_lake(tmp_path: Path, pa: pl.DataFrame, proj: pl.DataFrame,
     }
 
 
+def register_test_pin(dirs: dict, monkeypatch) -> None:
+    """Synthetic tests supply an explicit TEST registration: the pin is
+    the serialized SYNTHETIC artifact's own sha256 (no real hash is
+    invented). run_real refuses a null registered pin
+    (CHECKPOINT_PIN_NOT_REGISTERED), so every scoring-path test must
+    register a pin."""
+    doc = json.loads(dirs["checkpoint_path"].read_text(encoding="utf-8"))
+    p = dirs["out_dir"] / "freeze_pregame_pa_ext_v2_synth.json"
+    p.write_text(json.dumps({
+        "freeze_id": "pregame-pa-ext-v2-synth",
+        "checkpoint_sha256_expected": doc["sha256"],
+    }, indent=2), encoding="utf-8")
+    monkeypatch.setattr(ad, "FREEZE_CONFIG_RELPATH", str(p))
+
+
 def wire_lake(monkeypatch, dirs: dict, models: dict,
               registered_sha: str) -> None:
     verification = {"block_2025H1": {"n_rows": 10, "max_abs_diff": 0.0}}
@@ -153,6 +169,7 @@ def wire_lake(monkeypatch, dirs: dict, models: dict,
     monkeypatch.setattr(ad, "CHECKPOINT_PATH", dirs["checkpoint_path"])
     monkeypatch.setattr(ad, "REGISTERED_BF_FORECASTS_SHA256",
                         registered_sha)
+    register_test_pin(dirs, monkeypatch)
 
 
 def sha_of(path: Path) -> str:

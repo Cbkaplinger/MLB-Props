@@ -12,6 +12,7 @@ byte-hash verification. The canonical mlflow.db is never touched.
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 from datetime import date, timedelta
@@ -134,6 +135,20 @@ def synth_lake(tmp_path: Path, pa: pl.DataFrame, proj: pl.DataFrame,
     }
 
 
+def register_test_pin(dirs: dict, monkeypatch, sha: str) -> None:
+    """Synthetic tests supply an explicit TEST registration: the pin is
+    the serialized SYNTHETIC checkpoint artifact's own sha256 (no real
+    hash is invented). run_real refuses a null registered pin
+    (CHECKPOINT_PIN_NOT_REGISTERED), so every scoring-path test must
+    register a pin."""
+    p = dirs["out_dir"] / "freeze_pregame_pa_ext_v2_synth.json"
+    p.write_text(json.dumps({
+        "freeze_id": "pregame-pa-ext-v2-synth",
+        "checkpoint_sha256_expected": sha,
+    }, indent=2), encoding="utf-8")
+    monkeypatch.setattr(ad, "FREEZE_CONFIG_RELPATH", str(p))
+
+
 def wire_lake(monkeypatch, dirs: dict, models: dict,
               registered_sha: str) -> None:
     verification = {"block_2025H1": {"n_rows": 10, "max_abs_diff": 0.0}}
@@ -146,6 +161,9 @@ def wire_lake(monkeypatch, dirs: dict, models: dict,
                         dirs["bf_path"].parent.parent)
     monkeypatch.setattr(ad, "REGISTERED_BF_FORECASTS_SHA256",
                         registered_sha)
+    ck_sha = json.loads(
+        dirs["checkpoint_path"].read_text(encoding="utf-8"))["sha256"]
+    register_test_pin(dirs, monkeypatch, ck_sha)
 
 
 def sha_of(path: Path) -> str:
@@ -274,7 +292,8 @@ def wire_lake_existing_checkpoint(monkeypatch, dirs: dict,
     """Wire the synthetic lake WITHOUT serializing a checkpoint: the
     caller places the reconstructed artifact at dirs['checkpoint_path']
     itself (the scoring phase must consume the reconstruction's
-    serialized artifact, not build a new one)."""
+    serialized artifact, not build a new one). Registers the reconstructed
+    artifact's own sha256 as the TEST pin (run_real refuses a null pin)."""
     monkeypatch.setattr(ad, "PREGAME_STATE_DIR", dirs["pregame_state_dir"])
     monkeypatch.setattr(ad, "OVERNIGHT_P2_DIR", dirs["overnight_p2_dir"])
     monkeypatch.setattr(ad, "PAEXT_OUT_DIR", dirs["out_dir"])
@@ -283,6 +302,9 @@ def wire_lake_existing_checkpoint(monkeypatch, dirs: dict,
                         dirs["bf_path"].parent.parent)
     monkeypatch.setattr(ad, "REGISTERED_BF_FORECASTS_SHA256",
                         registered_sha)
+    ck_sha = json.loads(
+        dirs["checkpoint_path"].read_text(encoding="utf-8"))["sha256"]
+    register_test_pin(dirs, monkeypatch, ck_sha)
 
 
 @pytest.fixture(scope="module")
@@ -356,9 +378,9 @@ def test_dual_phase_reconstruction_then_scoring_retrievable_by_pipeline_id(
     summary = ad.run_real(tracking_uri=tracking_uri, experiment=exp,
                           pipeline_id=pid, artifact_location=art_loc)
     assert summary["tracking"]["status"] == "VERIFIED"
-    # placeholder registered pin: gate disabled, recorded in the summary
-    assert summary["checkpoint"]["registered_pin"] is None
-    assert summary["checkpoint"]["registered_pin_enforced"] is False
+    # the TEST registration pin is enforced on the scoring path
+    assert summary["checkpoint"]["registered_pin"] == report["sha256"]
+    assert summary["checkpoint"]["registered_pin_enforced"] is True
 
     # both phases retrievable by the shared pipeline_id tag
     from mlflow.tracking import MlflowClient

@@ -220,8 +220,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  artifact: {report['artifact']}")
     print(f"  sha256: {report['sha256']}")
     print("  REGISTER this hash as checkpoint_sha256_expected in "
-          "freeze_pregame_pa_ext_v2.json before any scoring run (null = "
-          "registered-pin gate disabled)")
+          "freeze_pregame_pa_ext_v2.json to un-block scoring (run_real "
+          "refuses a null pin with CHECKPOINT_PIN_NOT_REGISTERED; this "
+          "reconstruction itself does not require the pin)")
     if args.tracking_uri:
         pipeline_id = args.pipeline_id or new_pipeline_id()
         verdict = track_reconstruction(

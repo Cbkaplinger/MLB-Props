@@ -503,10 +503,14 @@ def load_freeze_config(path: Path | None = None) -> dict:
 def registered_checkpoint_pin(path: Path | None = None) -> str | None:
     """The registered expected checkpoint sha256
     (``checkpoint_sha256_expected`` in the freeze/registration config).
-    ``None`` (the current registered value) = gate DISABLED: the artifact
-    has not been produced by a real-data reconstruction yet, so no pin
-    exists to enforce. A non-null value MUST be a 64-char hex sha256
-    (anything else fails loud as CHECKPOINT_PIN_MALFORMED)."""
+    ``None`` (the current registered value) = no hash registered yet: the
+    artifact has not been produced by a real-data reconstruction. Loading
+    a checkpoint DIRECTLY (as the reconstruction round-trip in
+    build_checkpoint.py does) treats null as gate-disabled, but a SCORING
+    run must never proceed on an unregistered checkpoint -- ``run_real``
+    enforces that via ``require_registered_checkpoint_pin``. A non-null
+    value MUST be a 64-char hex sha256 (anything else fails loud as
+    CHECKPOINT_PIN_MALFORMED)."""
     cfg = load_freeze_config(path)
     pin = cfg.get("checkpoint_sha256_expected")
     if pin is None:
@@ -519,6 +523,28 @@ def registered_checkpoint_pin(path: Path | None = None) -> str | None:
     return pin.lower()
 
 
+def require_registered_checkpoint_pin(path: Path | None = None) -> str:
+    """SCORING-side registered-pin gate (run_real only, FIRST gate before
+    any inference or output write): a null registered pin raises
+    ``CHECKPOINT_PIN_NOT_REGISTERED`` -- no real-data reconstruction has
+    produced and registered the checkpoint sha256 yet, so scoring on an
+    unregistered checkpoint is refused. RECONSTRUCTION does not require
+    the pin: build_checkpoint.py produces the artifact and prints the
+    hash that is then registered as checkpoint_sha256_expected (which is
+    what un-blocks this gate)."""
+    pin = registered_checkpoint_pin(path)
+    if pin is None:
+        raise AdapterError(
+            "CHECKPOINT_PIN_NOT_REGISTERED: checkpoint_sha256_expected is "
+            "null in the freeze/registration config -- no real-data "
+            "reconstruction has registered the checkpoint sha256 yet, so "
+            "scoring is refused BEFORE inference or any output write. Run "
+            "build_checkpoint.py once on the private lake and register the "
+            "printed hash in freeze_pregame_pa_ext_v2.json (reconstruction "
+            "itself does not require the pin)")
+    return pin
+
+
 def load_serialized_checkpoint(path: Path | None = None) -> tuple[dict, dict]:
     """Load the SERIALIZED frozen checkpoint (the only coefficient source
     at adapter execution time). Fails loud:
@@ -529,8 +555,11 @@ def load_serialized_checkpoint(path: Path | None = None) -> tuple[dict, dict]:
     - CHECKPOINT_REGISTERED_PIN_MISMATCH when the artifact sha256 does
       not match the REGISTERED pin (checkpoint_sha256_expected in the
       freeze/registration config) while that pin is non-null. The
-      registered pin is a PLACEHOLDER (null = gate disabled) until a
-      real-data reconstruction registers the artifact hash."""
+      registered pin is a PLACEHOLDER (null) until a real-data
+      reconstruction registers the artifact hash: a DIRECT load (as the
+      reconstruction round-trip in build_checkpoint.py performs) treats
+      null as gate-disabled, while SCORING (run_real) refuses a null pin
+      outright via require_registered_checkpoint_pin."""
     p = Path(path) if path else CHECKPOINT_PATH
     if not p.exists():
         raise AdapterError(
@@ -1112,6 +1141,13 @@ def run_real(
     pipeline_id: str | None = None,
 ) -> dict:
     """Real-lineage driver (private lake required; never runs in CI).
+    REGISTERED-PIN GATE (first gate, before any inference or output
+    write): a null ``checkpoint_sha256_expected`` in the
+    freeze/registration config raises ``CHECKPOINT_PIN_NOT_REGISTERED`` --
+    scoring is refused until a real-data reconstruction
+    (``build_checkpoint.py``) has produced the artifact and its printed
+    hash is registered. Reconstruction itself does NOT require the pin.
+
     Loads the SERIALIZED frozen checkpoint artifact produced ONCE by
     ``build_checkpoint.py`` (deterministic refit + <=1e-8 verification
     gate at build time, sha256-pinned). The adapter NEVER refits and NEVER
@@ -1142,6 +1178,7 @@ def run_real(
     ``pipeline_id=<id>`` so the scoring run and the matching
     ``phase=reconstruction`` run logged by ``build_checkpoint.py`` are
     retrievable as ONE pipeline (dual-phase linkage)."""
+    require_registered_checkpoint_pin()
     proj = load_projected_lineups()
     pa = load_pa_table()
     models, ck = load_serialized_checkpoint()

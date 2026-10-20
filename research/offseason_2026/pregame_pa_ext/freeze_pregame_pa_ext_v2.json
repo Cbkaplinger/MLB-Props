@@ -1,7 +1,7 @@
 {
   "freeze_id": "pregame-pa-ext-v2",
   "freeze_utc": "2026-10-19",
-  "registration_status": "PROVISIONAL; checkpoint_sha256_expected is a PLACEHOLDER (null) until build_checkpoint.py reconstructs on REAL data and the printed hash is registered here; while null the registered-pin gate is DISABLED",
+  "registration_status": "PROVISIONAL; checkpoint_sha256_expected is a PLACEHOLDER (null) until build_checkpoint.py reconstructs on REAL data and the printed hash is registered here; while null, SCORING (adapter run_real) is REFUSED with CHECKPOINT_PIN_NOT_REGISTERED, but RECONSTRUCTION (build_checkpoint.py) does not require the pin",
   "checkpoint_artifact": "checkpoints/h3_raw_checkpoint.json",
   "checkpoint_sha256_expected": null
 }
