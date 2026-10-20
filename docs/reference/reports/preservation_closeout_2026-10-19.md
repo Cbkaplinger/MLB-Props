@@ -56,8 +56,8 @@ owner rules.
 
 ## Correction (2026-10-19, later same day): repo-review-pa-ext-v2 removal + provenance + count annotation
 
-1. **epo-review-pa-ext-v2 WAS removed** by the Chat 3 consolidation batch (listed in the removal set). It was Chat 2's ACTIVE review checkout for PR #16 — my "Chat 2-released" classification was an unconfirmed inference and was wrong for this checkout. Remediated: restored the same day at SHA 6feb32e (clean, byte-identical checkout), same path.
-2. **Provenance discrepancy corrected:** Chat 2 reported the active checkout at eee4f18; the worktree actually removed was at 6feb32e (a later checkout of that lane). Restoration was therefore at 6feb32e, not eee4f18. Chat 2 selects the current review head from here — origin/research/pregame-pa-ext-v2 is at 46c5f7 (ahead of both).
+1. **epo-review-pa-ext-v2 WAS removed** by the Chat 3 consolidation batch (listed in the removal set). It was Chat 2's ACTIVE review checkout for PR #16 â€” my "Chat 2-released" classification was an unconfirmed inference and was wrong for this checkout. Remediated: restored the same day at SHA 6feb32e (clean, byte-identical checkout), same path.
+2. **Provenance discrepancy corrected:** Chat 2 reported the active checkout at eee4f18; the worktree actually removed was at 6feb32e (a later checkout of that lane). Restoration was therefore at 6feb32e, not eee4f18. Chat 2 selects the current review head from here â€” origin/research/pregame-pa-ext-v2 is at 46c5f7 (ahead of both).
 3. **Count annotation:** the preservation table's "Remaining 9" is the inventory **at that observation** (2026-10-19), not a continuously current count. Chat 1 owns **four** paths (main-active, market-eval-v2, paext-v1, paext-v2), not three. Worktree count is point-in-time and must be re-verified at each observation (verified 10 at this correction).
 
 ---
@@ -108,3 +108,90 @@ Count after batch: **6** (main checkout + 5 worktrees).
 - PR #4, #6, #17 descriptions refreshed with current status (stale bases, deferral gate, checkout release). No PR closed: none demonstrably superseded.
 - `preservation_closeout` section 2 PUBLISH items: `chat2-tooling` and `market-eval-v2` are now RESOLVED (content durable on origin; worktrees removed above). Remaining PUBLISH: `main-active` (Chat 1).
 - Standing constraint stands: no branch deletion, no history rewriting, no removals beyond the owner-released set above; `paext-v1` and `main-active` removal blocked until their unique content is pushed or owner-dispositioned.
+
+
+---
+
+# Ledger corrections + integration receipts - 2026-10-20 (later; Chat 3; chronology preserved, append-only)
+
+Live-verified this pass (`git fetch --prune` first). Every correction below keeps the original text intact above; statuses that changed over time are recorded as a sequence, never rewritten.
+
+## 8. Correction for Chat 2's PR #20 post-change review (corrections-required item)
+
+**Original receipt text (section 6, as authored):** "`paext-v1` | `e03f238` | **NOT REMOTELY DURABLE - do not remove.** No origin branch carries it..."
+
+**Chronology of what actually happened, in order:**
+1. Receipt authored 2026-10-20 with the non-durability flag TRUE at authoring time.
+2. Owner confirmation obtained (question answered YES) -> `origin/research/pregame-pa-ext-v1` pushed at exactly `e03f238` (verified via ls-remote). Flag premise resolved by this push.
+3. Chat 2's PR #20 post-change review (2026-10-20, PASS + one corrections-required) independently verified the branch exists at `e03f238` and that the divergence-from-`v1-legacy dfd8f17` claim stands; flagged the recorded non-durability claim as stale NOW.
+4. Owner granted the explicit inactive-path release; pre-removal checks clean (0 dirty/untracked, 0 non-trivial ignored); checkout removed normally, no force. **Branch kept durable on origin; no merge.**
+
+**Corrected standing status:** paext-v1 head IS remotely durable at `origin/research/pregame-pa-ext-v1 == e03f238`; removal disposition = RESOLVED (owner release + durability verified); the do-not-remove rationale reverts from durability to nothing - history preserved on the legacy branch, checkout gone.
+
+## 9. PR #21 integration receipt (scientific lane)
+
+| Stage | SHA |
+| --- | --- |
+| Reviewed head (Chat 2 exact-head PASS after the fixture fix; earlier BLOCKED at 83d27a2 superseded by the single-commit delta) | `1b3bfd3` |
+| Merge commit = resulting origin/main | `ccd0148` |
+
+- Registered checkpoint pin `176fb18b...` (canonical payload hash) is on main; the freeze registration explicitly states scoring NOT authorized and population policy (cold-start fallback-vs-exclusion) remains a separate blocked owner decision.
+- Chat 1's existing checkout coordinated onto the integrated implementation WITHOUT creating a worktree or discarding work: whole-tree diff vs merged main was EMPTY (byte-identical), head an ancestor, clean status. Sole-writer branch advance left to Chat 1.
+- No prediction/scoring execution by Chat 3; no replacement output directory created. Next gate per owner: the abstain-vs-handle decision for the uncovered cases, not another run of the same command.
+
+## 10. PR #17 merge receipt (dependency tiers)
+
+| Stage | SHA |
+| --- | --- |
+| Reviewed (Chat 2 exact-head delta re-review: PASS/READY; delta verified main-merge only, PR content byte-identical since the recorded PASS) | `a3bd3a7` |
+| Merge commit = resulting origin/main | `07d1b1d` |
+
+Gates: owner tier approval APPROVED AS DECLARED (research: requests/xgboost/optuna/catboost; new paper: pymupdf/markdown; new deploy: modal; sage deliberately undeclared) + delta re-review PASS + CI green at the head. Merge = normal merge commit, branch NOT deleted. Worktree `maintenance-dep-declarations` release deferred to the consolidation resumption (worktrees held stable through the queue per owner).
+
+## 11. Worktree registration (rule 6) - `repo-review-paext-registration`
+
+- Owner: Chat 2. Task: PR #21 exact-head review (head advanced 83d27a2 -> 1b3bfd3 during the review; rule 5 delta review applied). Closure condition: verdict posted + PR #21 merged or withdrawn.
+- **Status: closure condition MET 2026-10-20 (verdict posted at 1b3bfd3; PR #21 merged at `ccd0148`).** Checkout RETAINED at Chat 2's discretion (owner: do not remove either active checkout); release belongs to the steady-state consolidation (three active + one integration).
+- Process gap acknowledged and recorded: the checkout's creation was not documented with an owner-approved approval in the supplied report. Registered now per rule 6; workspace NOT deleted; no repeat of the earlier removal disruption.
+
+## 12. PR #22 deliverable chronology (two-lane tracking coverage)
+
+1. First deliverable (head `54b6215`): portable registration-identity guard (5 tests). Honest scope note recorded on the PR at the owner's inspection question: it did NOT install MLflow and did NOT execute the tracking module; it closes the amendment-3/4 registration-drift class, not the tracking-coverage gap; its repo-file identity checks make no claim about unavailable lake paths.
+2. Amendment (head `7132bbc`, same PR): Lane B added - ci.yml `tracking` job installing MLflow and executing the COMPLETE `test_pregame_pa_tracking.py` module (6 synthetic tests, temp sqlite store, canonical mlflow.db + private lake untouched) with a junit-XML zero-skip guard: any skip, under-collection (<6), or failure FAILS the job. Distinction stated once: Lane A lake-only omissions are declared skips by design; Lane B treats any skip as failure.
+3. Timeout correction (head `5b2ea4c`): observed 9m25s ran against the ACTUAL pushed limit of 20m (~2x headroom), not 10m as carried in the coordination note - corrected with chronology preserved; limit raised to 30m (owner-directed), coverage unchanged.
+- Both CI jobs green at the amended head. Awaiting Chat 2's independent review verdict; Chat 3 merges on verdict + current-head checks.
+
+## 13. Worktree count chronology (point-in-time, rule from the 2026-10-19 correction)
+
+10 (start of day) -> 6 (first consolidation batch: chat2-tooling, repo-review-pa-ext-v2, governance-operating-rules, market-eval-v2 removed) -> 5 (paext-v1 released + removed) -> **6** (Chat 2's `repo-review-paext-registration` created; gap acknowledged, registered above). Current live count verified 6: main checkout, distribution-spec (owner disposition pending), main-active (Chat 1 classification pending - preservation resumed AFTER the queue per owner), maintenance-dep-declarations (task closed, release deferred to consolidation resumption), paext-v2 (Chat 1 active), repo-review-paext-registration (Chat 2, closure met, retained).
+
+## 14. PR #4 handoff correction - standing record
+
+`chat3_final_handoff_2026-10-19.md:62` recorded "PR #4 merged" - **that statement was FALSE at the time it was written** (PR #4 was OPEN at `f4fb5b5`, base stale, head not an ancestor of main). PR #4 remains OPEN (head `b1411b0` after the owner-ordered merge-forward; CI green; awaiting Chat 2's independent review). The actual merge date/SHA will be appended here when it merges; the false status is corrected as a historical inaccuracy, not retro-justified by any later merge.
+
+
+## 15. Authorized scoring-run status + debut correction (carried into this receipt per owner; no separate administrative packet)
+
+**Status 2026-10-20 (from Chat 1's lane, commits `72991c4`/`c9c0841` on `research/paext-v2-scoring-run`; the record of authority is the reconciliation report `report_debut_pitcher_reconciliation_2026-10-20.md` in that lane):**
+
+- The owner-authorized scored evaluation of the unchanged registered population **executed ONCE and FAILED its acceptance gate**: required ZERO exclusions, observed **531 pitcher-side cold-start PA exclusions and 59 career-debut starts** (output 64,746 rows = 7,194 starts x 9 slots; 64,215 scored; PMF arms on 7,135 starts). Output PRESERVED UNACCEPTED (write-once, untouched); downstream stopped.
+- **Failed-run status is recorded as EVIDENCE, not hidden:** MLflow scoring run `239394021...` (phase=scoring, same pipeline_id as the reconstruction) status VERIFIED - tracked deliberately as evidence of the unaccepted execution. Tracking success and acceptance failure are separate judgments.
+- **Debut correction (factual):** the 59 starts are ACTUAL in-window MLB career debuts (first recorded pitcher appearance), a strict subset of the BF lane's 169 career-debut rows - the difference is DEFINITION SPAN (PA-table pool starts 2023-03-30 vs BF's 2022-04-07), not a data conflict. The registered adapter exclusion rule vs the implementation behavior is quoted verbatim in the reconciliation report; the scoping correction (coverage check was batter-side only) is disclosed there.
+- **Investigation verdict (Chat 1):** the exclusions are a POPULATION PROPERTY (career-cumulative priors mean genuine debuts have no strictly-prior history), not an extraction/runner defect. Next decision is the owner's: whether the model ABSTAINS on these cases or MUST HANDLE them - not whether to run the same command again. No replacement output directory created; no rerun.
+- The bounded batter-recency challenger in the same lane is a PRE-REGISTRATION DRAFT (no fitting, no worktree, no branch action) - per owner, no new experiment branch/worktree/PR until the card is approved and an owner assigned.
+- No evaluation metrics exist for the unaccepted run (PA probabilities + count distributions + provenance only, per Chat 2's deliverable enumeration); any future acceptance claim is owner-gated and separate.
+
+
+## 16. SUPERSEDING CORRECTION to section 15 (2026-10-20, later; owner-directed; Chat 2's authoritative check supersedes Chat 1's inference - chronology preserved, section 15 kept as written)
+
+Section 15 above repeats two superseded findings from Chat 1's reconciliation report. They are corrected here, in place, in the same receipt:
+
+1. **Debut classification corrected.** Section 15's "the 59 starts are ACTUAL in-window MLB career debuts" is SUPERSEDED. Authoritative split per Chat 2's check: **57 genuine debut-date newcomers plus two window-limited veterans** - Dietrich Enns (608650) and Kyle Hart (606996) - whose long appearance gaps did not prove a career debut. All-59-career-debuts language must not be relied on. For the two veterans, older history could restore information, but its age matters; recovering it does not automatically make it a strong current prior. (The required correction to Chat 1's existing report is Chat 1's lane action.)
+
+2. **Source spans corrected (they were reversed in section 15).** PA history begins **2022-04-07**; the BF pool begins **2023-03-30**. Section 15 stated the reverse pairing.
+
+3. **Provisional exclusion vs population policy - distinguished.** The cold-start/debut exclusion in the executed run is the IMPLEMENTED PROVISIONAL approach only. Owner-approved population policy (abstain vs must-handle; fallback vs exclusion) remains UNDECIDED. Nothing in the failed run or this receipt settles it.
+
+4. **Unchanged from section 15 (re-affirmed):** the run `239394021...` is MLflow-VERIFIED for artifact integrity and FAILED scientific acceptance (531 excluded slots / 59 pitcher-cold starts vs required zero); output PRESERVED UNACCEPTED; no rerun, no replacement destination, no downstream evaluation authorized; next owner decision = abstain vs must-handle; batter-recency challenger stays an unapproved draft (no fitting/branch/worktree).
+
+**Review head for this PR: `2d546a2`'s successor carrying this section (see current PR head).** Chat 2 reviews the current head; section 15 stands as the superseded earlier record, not as the authoritative classification.
