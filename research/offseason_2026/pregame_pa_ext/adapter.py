@@ -476,13 +476,61 @@ def serialize_checkpoint(
     return out_path
 
 
+FREEZE_CONFIG_RELPATH = "freeze_pregame_pa_ext_v2.json"
+_FREEZE_CONFIG_CACHE: dict = {}
+
+
+def load_freeze_config(path: Path | None = None) -> dict:
+    """Load the freeze/registration config (freeze_pregame_pa_ext_v2.json)
+    that carries the REGISTERED expected checkpoint sha256 pin. Cached per
+    resolved path."""
+    p = (Path(path) if path
+         else Path(__file__).resolve().parent / FREEZE_CONFIG_RELPATH)
+    p = p.resolve()
+    if not p.exists():
+        raise AdapterError(
+            f"FREEZE_CONFIG_MISSING: registration config not found: {p}")
+    key = str(p)
+    if key not in _FREEZE_CONFIG_CACHE:
+        cfg = json.loads(p.read_text(encoding="utf-8"))
+        if not isinstance(cfg, dict):
+            raise AdapterError(
+                f"FREEZE_CONFIG_INVALID: not a JSON object: {p}")
+        _FREEZE_CONFIG_CACHE[key] = cfg
+    return _FREEZE_CONFIG_CACHE[key]
+
+
+def registered_checkpoint_pin(path: Path | None = None) -> str | None:
+    """The registered expected checkpoint sha256
+    (``checkpoint_sha256_expected`` in the freeze/registration config).
+    ``None`` (the current registered value) = gate DISABLED: the artifact
+    has not been produced by a real-data reconstruction yet, so no pin
+    exists to enforce. A non-null value MUST be a 64-char hex sha256
+    (anything else fails loud as CHECKPOINT_PIN_MALFORMED)."""
+    cfg = load_freeze_config(path)
+    pin = cfg.get("checkpoint_sha256_expected")
+    if pin is None:
+        return None
+    if (not isinstance(pin, str) or len(pin) != 64
+            or any(c not in "0123456789abcdef" for c in pin.lower())):
+        raise AdapterError(
+            "CHECKPOINT_PIN_MALFORMED: checkpoint_sha256_expected must be "
+            f"null or a 64-char hex sha256; got {pin!r}")
+    return pin.lower()
+
+
 def load_serialized_checkpoint(path: Path | None = None) -> tuple[dict, dict]:
     """Load the SERIALIZED frozen checkpoint (the only coefficient source
     at adapter execution time). Fails loud:
     - MISSING_CHECKPOINT_ARTIFACT when the file does not exist (no
-      league-rate fallback, no reconstruction fallback), and
+      league-rate fallback, no reconstruction fallback),
     - CHECKPOINT_HASH_MISMATCH when the sha256 pin over the payload does
-      not match (corrupted or tampered artifact)."""
+      not match (corrupted or tampered artifact), and
+    - CHECKPOINT_REGISTERED_PIN_MISMATCH when the artifact sha256 does
+      not match the REGISTERED pin (checkpoint_sha256_expected in the
+      freeze/registration config) while that pin is non-null. The
+      registered pin is a PLACEHOLDER (null = gate disabled) until a
+      real-data reconstruction registers the artifact hash."""
     p = Path(path) if path else CHECKPOINT_PATH
     if not p.exists():
         raise AdapterError(
@@ -501,6 +549,13 @@ def load_serialized_checkpoint(path: Path | None = None) -> tuple[dict, dict]:
         raise AdapterError(
             f"CHECKPOINT_HASH_MISMATCH: sha256 pin mismatch for {p}: "
             f"declared {pin}, computed {actual}")
+    expected = registered_checkpoint_pin()
+    if expected is not None and expected != actual:
+        raise AdapterError(
+            "CHECKPOINT_REGISTERED_PIN_MISMATCH: checkpoint artifact sha256 "
+            f"{actual} does not match the REGISTERED pin {expected} "
+            f"(checkpoint_sha256_expected in the freeze/registration config) "
+            f"for {p}; refusing to load")
     if payload.get("features") != list(FEAT_H3):
         raise AdapterError(
             f"CHECKPOINT_FEATURE_MISMATCH: artifact features "
@@ -512,6 +567,8 @@ def load_serialized_checkpoint(path: Path | None = None) -> tuple[dict, dict]:
         "path": str(p),
         "sha256": pin,
         "verification": payload.get("verification"),
+        "registered_pin": expected,
+        "registered_pin_enforced": expected is not None,
     }
     return models, meta
 
@@ -1044,7 +1101,16 @@ def load_pa_table(directory: Path | None = None) -> pl.DataFrame:
     return pl.read_parquet(p)
 
 
-def run_real(out_name: str = "projected_pa_probs_v1.parquet") -> dict:
+def run_real(
+    out_name: str = "projected_pa_probs_v1.parquet",
+    *,
+    tracking_uri: str | None = None,
+    experiment: str = "pa-k-probability-v1",
+    run_name: str = "pregame-pa-ext-v2-run_real",
+    artifact_location: str | None = None,
+    wrapper_path: Path | None = None,
+    pipeline_id: str | None = None,
+) -> dict:
     """Real-lineage driver (private lake required; never runs in CI).
     Loads the SERIALIZED frozen checkpoint artifact produced ONCE by
     ``build_checkpoint.py`` (deterministic refit + <=1e-8 verification
@@ -1059,7 +1125,23 @@ def run_real(out_name: str = "projected_pa_probs_v1.parquet") -> dict:
     ``validate_bf37_by_start`` enforces unique start keys, complete
     coverage of every scored start, finite/nonnegative/normalized pmf37
     rows, and the registered cap-60 geometric-tail conversion. Missing or
-    mismatched BF inputs fail loud."""
+    mismatched BF inputs fail loud.
+
+    Tracking (D-1 harness, count-eval-v1): when ``tracking_uri`` is given,
+    the finalized run is logged through the SHARED count-eval-v1 tracking
+    wrapper (``track_and_verify.log_run`` + ``verify_run`` -- the same
+    module the frozen LightGBM command uses; no hand-replicated mlflow
+    calls here). Logging happens strictly AFTER the canonical output is
+    written write-once, so a tracking failure NEVER triggers a refit: the
+    canonical outputs stay untouched on disk and ``TrackingFailure``
+    surfaces to the caller. ``verify_run`` re-retrieves the run through a
+    fresh MlflowClient (exact metric round-trip + output artifact
+    byte-hash) and only a VERIFIED verdict is attached to the summary
+    under ``summary["tracking"]``. The scoring run is tagged
+    ``phase=scoring``; when ``pipeline_id`` is given it is also tagged
+    ``pipeline_id=<id>`` so the scoring run and the matching
+    ``phase=reconstruction`` run logged by ``build_checkpoint.py`` are
+    retrievable as ONE pipeline (dual-phase linkage)."""
     proj = load_projected_lineups()
     pa = load_pa_table()
     models, ck = load_serialized_checkpoint()
@@ -1070,4 +1152,87 @@ def run_real(out_name: str = "projected_pa_probs_v1.parquet") -> dict:
     summary["checkpoint"] = ck
     summary["bf37_artifact"] = bf_meta
     summary["output"] = str(out)
+    if tracking_uri is not None:
+        tv = load_track_wrapper(wrapper_path)
+        params, metrics, artifacts = describe_paext_run(summary, out)
+        tags = {"phase": "scoring"}
+        if pipeline_id is not None:
+            tags["pipeline_id"] = str(pipeline_id)
+        try:
+            run_id = tv.log_run(tracking_uri, experiment, run_name,
+                                params, metrics, artifacts,
+                                artifact_location=artifact_location,
+                                tags=tags)
+            verdict = tv.verify_run(
+                tracking_uri, run_id, metrics,
+                "outputs/" + Path(out).name, tv.sha256_file(out),
+                PAEXT_OUT_DIR / "outputs" / "retrieved")
+        except Exception as exc:
+            raise tv.TrackingFailure(
+                "tracking failed after canonical outputs finalized "
+                f"({out}); outputs preserved untouched, no refit"
+            ) from exc
+        if verdict["status"] != "VERIFIED":
+            raise tv.TrackingFailure(
+                "tracking verification MISMATCH: "
+                + json.dumps(verdict, sort_keys=True))
+        summary["tracking"] = verdict
     return summary
+
+
+# -------------------------------------------------------- tracking (D-1)
+TRACKING_WRAPPER_RELPATH = (Path("specs") / "count-eval-v2-spec" / "harness"
+                            / "track_and_verify.py")
+_TRACK_WRAPPER_CACHE: dict = {}
+
+
+def load_track_wrapper(path: Path | None = None):
+    """Import the SHARED count-eval-v1 tracking wrapper (D-1) by path --
+    the identical module the frozen LightGBM command invokes; the adapter
+    never re-implements logging, verification, or the failure contract.
+    Cached per resolved path so exception classes keep a stable identity
+    across call sites."""
+    p = (Path(path) if path
+         else Path(__file__).resolve().parents[1] / TRACKING_WRAPPER_RELPATH)
+    p = p.resolve()
+    if not p.exists():
+        raise AdapterError(f"TRACKING_WRAPPER_MISSING: {p}")
+    mod = _TRACK_WRAPPER_CACHE.get(str(p))
+    if mod is not None:
+        return mod
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "pregame_pa_ext_track_and_verify", str(p))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _TRACK_WRAPPER_CACHE[str(p)] = mod
+    return mod
+
+
+def describe_paext_run(summary: dict, out_path: Path) -> tuple[dict, dict,
+                                                               list]:
+    """Map a run_real summary + finalized output to
+    (params, metrics, artifacts) for the shared wrapper's log_run."""
+    ck = summary.get("checkpoint", {}) or {}
+    bf = summary.get("bf37_artifact", {}) or {}
+    params = {
+        "adapter": "pregame-pa-ext-v2",
+        "output": Path(out_path).name,
+        "checkpoint_sha256": str(ck.get("sha256", "")),
+        "bf_pmf_sha256": str(bf.get("sha256", "")),
+    }
+    metrics = {
+        "n_projected_starts": float(summary["n_projected_starts"]),
+        "n_pa_rows_scored": float(summary["n_pa_rows_scored"]),
+        "n_pa_rows_excluded_cold_start": float(
+            summary["n_pa_rows_excluded_cold_start"]),
+    }
+    if "n_starts_pmf_computed" in summary:
+        metrics["n_starts_pmf_computed"] = float(
+            summary["n_starts_pmf_computed"])
+    if "n_starts_pmf_excluded_cold_slot" in summary:
+        metrics["n_starts_pmf_excluded_cold_slot"] = float(
+            summary["n_starts_pmf_excluded_cold_slot"])
+    artifacts = [(str(out_path), "outputs")]
+    return params, metrics, artifacts

@@ -1,7 +1,7 @@
 {
   "batch": "freeze_lgbm_equal_info_v1",
   "batch_id": "lgbm-equal-info-v1",
-  "config_sha256": "bcfc2a15a4351f9bff44fb55a3830c9715360ac8d9e60870039c05b4e75ef260",
+  "config_sha256": "e1b473002f25ef54b4fdc230c297c5d3c3f1aac367ceb8ea8017bb5919657d53",
   "config_hash_definition": "sha256 over json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8') of the 'config' object in this file",
   "historical_registrations": [
     {
@@ -558,11 +558,11 @@
     },
     "tracking_wrapper": {
       "path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\market-eval-v2\\research\\offseason_2026\\specs\\count-eval-v2-spec\\harness\\track_and_verify.py",
-      "file_sha256": "7fab5f182b1acebe6fd94912f2abf0ed8b9608341c44b67a22da3e941a65c402",
+      "file_sha256": "30d80f8245eb60b8176aecc5e37e4e30bdc1289b61a303552bbe904a6e2f5437",
       "contract": "shared D-1 wrapper: compare -> save (canonical outputs finalize) -> log(MLflow) -> verify (fresh retrieve + exact metric round-trip + artifact byte hash); the frozen command invokes it and never hand-replicates logging calls",
       "failure_contract": "an MLflow failure surfaces to the caller (TrackingFailure; CLI exit nonzero), the computed canonical outputs are preserved untouched, status tracking_failed is recorded in <out_dir>\\tracking_status.json so the batch is never reported fully successful, and an upload failure NEVER triggers a refit (compare runs exactly once)",
       "identity_gate": "verify_registered_identities() re-derives the freeze config hash + registered input/adapter/comparison/wrapper/runner hashes from disk BEFORE any fitting and fails loud on the first mismatch",
-      "file_sha256_normalized": "7fab5f182b1acebe6fd94912f2abf0ed8b9608341c44b67a22da3e941a65c402"
+      "file_sha256_normalized": "30d80f8245eb60b8176aecc5e37e4e30bdc1289b61a303552bbe904a6e2f5437"
     },
     "builder_worktree_harness": {
       "comparison_path": "C:\\Users\\ckaplinger\\Downloads\\Personal-Projects\\MLB-Props-worktrees\\market-eval-v2\\research\\offseason_2026\\specs\\count-eval-v2-spec\\harness\\comparison.py",
@@ -596,6 +596,12 @@
       "reason": "PORTABILITY REPAIR: amendment-1 registered text-source files (.py) byte-exact, so verify_registered_identities fails on a fresh worktree checkout whose git EOL materialization differs from the registration-time bytes (comparison.py was CRLF-materialized at registration, wrapper/runner LF). Amendment-2 declares TEXT_SOURCE_IDENTITY_CONVENTION (LF-normalized sha256 for .py/.json/.md; byte-exact for .parquet/.pkl/.joblib/.npy and undeclared extensions), re-registers the text identities with both old (historical) and LF-normalized values, and pins harness/*.py text eol=lf in .gitattributes so fresh checkouts match the LF-registered bytes.",
       "unchanged": "lgbm hyperparameters, equal-information contract, training-only-tuning rules, folds, evaluation, baseline binding, seeds, n_boot, the output destination and the final-fit declaration are UNCHANGED from amendment-1",
       "execution_note": "DATED NOTE (2026-10-15): the completed real-data run (run_id b8bc222c703a4a60e1eb0736143800e34601f61db0ced84cc067597b7796fd05, output dir C:\\Users\\ckaplinger\\MLB-Props-Research\\lgbm-equal-info-v1\\<run_id>, MLflow run 170f7f46080947c6adc25b198159eb1f, tracking VERIFIED) PREDATES this amendment-2 text-source identity convention: it was executed under the amendment-1 registration and identity gate. It is NOT retroactively labeled as executed under the amended (amendment-2) registration, and its run_manifest identities (amendment-1 byte-exact values) remain the historical record for that run."
+    },
+    "amendment_3": {
+      "id": "amendment-3-wrapper-tags-param",
+      "date": "2026-10-19",
+      "supersedes": "amendment-2-portable-text-identity registration (this file, prior config_sha256 preserved in git history)",
+      "reason": "RE-REGISTERS THE SHARED WRAPPER FILE IDENTITY ONLY; NO SCIENTIFIC FIELD CHANGES. track_and_verify.log_run gains one OPTIONAL trailing keyword parameter tags (default None) for phase/pipeline_id dual-phase linkage (paext-v2 reconstruction+scoring runs share a pipeline_id tag). When tags is omitted the logged run is IDENTICAL to before (no tags are set), so the frozen command behavior is unchanged; log_run/verify_run signatures stay backward compatible for all existing call sites (positional args unchanged). The wrapper file identity (file_sha256 / file_sha256_normalized) is updated to the amended file; config_sha256 recomputed. No rerun of any executed registration is implied."
     }
   }
 }

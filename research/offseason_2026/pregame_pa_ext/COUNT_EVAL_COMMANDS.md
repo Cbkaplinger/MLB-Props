@@ -51,9 +51,35 @@ Output artifact path + sha256 pin:
   (ABSENT as of 2026-10-19).
 - The artifact embeds a `sha256` pin computed over its canonical JSON
   payload (`checkpoint_sha256`, sort-keys + compact separators). The
-  pin value is printed at build time and MUST be registered before any
-  scoring run; the loader refuses a tampered artifact with
-  `CHECKPOINT_HASH_MISMATCH`.
+  pin value is printed at build time and MUST be registered as
+  `checkpoint_sha256_expected` in
+  `freeze_pregame_pa_ext_v2.json` (this directory; the freeze/registration
+  config) before any scoring run. The registered value is currently
+  `null` = PLACEHOLDER, gate DISABLED (no real reconstruction has run
+  yet). When non-null, `load_serialized_checkpoint` verifies the artifact
+  sha256 against it and fails loud with
+  `CHECKPOINT_REGISTERED_PIN_MISMATCH` on mismatch.
+
+Dual-phase MLflow tracking (optional flags; same SHARED D-1 wrapper as
+the frozen LightGBM command):
+
+```
+python research/offseason_2026/pregame_pa_ext/build_checkpoint.py \
+    --tracking-uri sqlite:///<path>/mlflow.db \
+    [--pipeline-id <batch-id>]
+```
+
+The reconstruction run is logged tagged `phase=reconstruction` +
+`pipeline_id` (batch id + UTC timestamp by default) with the
+verification gate result (per-block `verification_max_abs_diff__*`
+metrics) and the serialized artifact (byte-hash verified on retrieval).
+The adapter scoring run (`run_real(..., tracking_uri=...,
+pipeline_id=...)`) is tagged `phase=scoring` with the same
+`pipeline_id`, so both phases are retrievable as ONE pipeline
+(`tags.pipeline_id = '<id>'`). A tracking failure in either phase
+surfaces as `TrackingFailure` AFTER the phase's canonical artifact is
+written; the artifact stays untouched on disk and no refit is
+triggered.
 
 ## Command (b) — scoring (adapter execution, repeatable)
 
@@ -122,17 +148,18 @@ Output destination (write-once):
   input sha256, registered pin, artifact rows) and `bf37` (scored/matched
   start counts, registered extension identity, kcount cap, k_max).
 
-## Spec linkage — accepted ruling (2026-10-19)
+## Spec linkage — cold-start handling (owner decision PENDING)
 
-- **Cold-start behavior = EXCLUSION, not fallback.** A slot whose
-  pitcher or batter has no PA-table history carries
+- **Cold-start handling: EXCLUSION implemented as a provisional approach;
+  owner decision pending on fallback vs exclusion.** A slot whose pitcher
+  or batter has no PA-table history carries
   `source_type = cold_start_no_prior`, a null PA probability, and an
-  explicit `exclusion_reason`; it is EXCLUDED from scoring. This
-  implements the accepted ruling and SUPERSEDES the league-rate fill
-  design in `research/offseason_2026/bf_lane/PROJECTED_LINEUP_SPEC.md`
-  section 3 for the paext-v2 adapter path (that spec section describes
-  the earlier candidate registration, not the implemented frozen
-  behavior).
+  explicit `exclusion_reason`; it is EXCLUDED from scoring. This is NOT a
+  ruling and does NOT supersede the league-rate fill design in
+  `research/offseason_2026/bf_lane/PROJECTED_LINEUP_SPEC.md` section 3:
+  that spec section remains the registered candidate fallback, and the
+  choice between exclusion and league-rate fallback is BLOCKED awaiting an
+  explicit owner decision.
 - **The frozen recipe consumes NO league-rate fallback.** A missing
   checkpoint artifact never falls back to league-rate scoring
   (`MISSING_CHECKPOINT_ARTIFACT`); a missing entity history never
@@ -156,6 +183,11 @@ CRLF-dependent failure**,
 line-ending-dependent byte mismatch in the freeze's runner pin).
 Classification: pre-existing, UNRELATED to the pregame-pa-ext-v2 lane.
 **Not fixed, not worked around.** The pregame-pa-ext adapter suite
-passes: 20/20 (`tests/test_pregame_pa_adapter.py`), and the bf37 wiring
+passes: 20/20 (`tests/test_pregame_pa_adapter.py`), the bf37 wiring
 suite passes: 17/17 (`tests/test_bf37_wiring.py`, synthetic-only,
-CI-safe).
+CI-safe), the registered-pin gate suite passes: 5/5
+(`tests/test_pregame_pa_checkpoint_pin.py`), and the tracking suite
+passes: 6/6 (`tests/test_pregame_pa_tracking.py`, synthetic-only,
+CI-safe: shared-wrapper verification, no-tracking default, scoring-phase
+TrackingFailure, dual-phase pipeline_id retrieval, reconstruction-phase
+failure preserves the checkpoint with no refit).
