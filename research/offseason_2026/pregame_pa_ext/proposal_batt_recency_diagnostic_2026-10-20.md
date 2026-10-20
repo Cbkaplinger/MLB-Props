@@ -381,3 +381,30 @@ incomplete-receipt rejection; real published-pin gate still enforced).
 The runner has NEVER run on real data; execution readiness requires Chat
 2 review of this delta plus explicit owner authorization of the bounded
 execution contract.
+
+## v3.4 (2026-10-20): Chat 2 blocker RESOLVED - registered primitive
+## replaces the forked bootstrap; frozen harness untouched
+
+evaluation_metrics no longer implements its own bootstrap. It now calls
+the REGISTERED harness primitive through the established import path
+(load_registered_comparison -> comparison.py in
+specs/count-eval-v2-spec/harness/): slate_date_draws (the registered
+per-block multinomial DATE-DRAW construction, shared across names),
+null_centered_contrast_test (signed contrast challenger minus baseline,
+the (B + 1) finite-resample null-centering, Holm m=1 = family of one),
+and null_centered_p_value semantics. The unadjusted percentile interval
+on the replicate deltas (delta_rep = res[challenger] - res[baseline]) is
+retained, consistent with the specification. Brier/calibration remain
+SUPPORTING point summaries. Bounded diff: evaluation_metrics rewritten;
+load_registered_comparison plus HARNESS_RELPATH added; nothing else
+changed. The frozen harness file is UNTOUCHED (git status clean on the
+harness path; adapter/pin/harness-comparison suites 57/57). New tests:
+test_metrics_equal_registered_harness_direct (wrapper results identical
+to calling the harness primitives directly on the same rows),
+test_registered_harness_import_path_and_frozen_file (import path
+resolves to the registered comparison.py; constants 20261001/2000),
+test_metrics_deterministic_and_edge_cases (deterministic seed behavior;
+identical arms give p_null 1.0; clipped extremes finite; tiny slate sets
+finite). The leakage and training/cal verification tests from the
+previous delta are included in this review handoff.
+tests/test_batt_recency_diagnostic.py 27/27.

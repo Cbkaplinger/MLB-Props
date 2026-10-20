@@ -93,6 +93,7 @@ CHALLENGER_FEATURES = [
 ]
 DROPPED_BATTER_FEATURES = ["p_batter_prior_w150", "ew_batter"]
 
+HARNESS_RELPATH = Path("specs") / "count-eval-v2-spec" / "harness"
 DEV_BLOCKS = ["block_2024H2", "block_2025H1"]
 DEV_BLOCK_TRAIN_END = {"block_2024H2": (2024, 6, 30),
                        "block_2025H1": (2024, 12, 31)}
@@ -518,12 +519,31 @@ def _brier(y, p):
     return (p - y) ** 2
 
 
+def load_registered_comparison():
+    """Established import path to the REGISTERED count-eval-v1 harness
+    module: comparison.py owns the slate-date block-stratified bootstrap
+    (slate_date_draws), the (B+1) finite-resample null-centering
+    (null_centered_p_value), null_centered_contrast_test, and Holm. The
+    frozen harness is IMPORTED AND CALLED - never modified, never
+    re-implemented (Chat 2 blocker resolution)."""
+    h = Path(__file__).resolve().parents[1] / HARNESS_RELPATH
+    if str(h) not in sys.path:
+        sys.path.insert(0, str(h))
+    import comparison
+
+    return comparison
+
+
 def evaluation_metrics(ev: pl.DataFrame, *, n_boot: int = 2000,
                        seed: int = 20261001) -> dict:
     """Registered machinery, paired by evaluation row: LOG LOSS primary
-    (paired slate-date bootstrap, block-stratified, shared deterministic
-    draw stream, null-centered two-sided p, Holm m=1 = family of one),
-    Brier + calibration supporting (never selectable)."""
+    evaluated with the REGISTERED harness primitive
+    (comparison.slate_date_draws + null_centered_contrast_test: the
+    registered per-block multinomial date-draw construction, the (B+1)
+    finite-resample null-centering, Holm m=1 = family of one), plus the
+    unadjusted percentile interval on the replicate deltas. Brier +
+    calibration are SUPPORTING point summaries (never selectable, never
+    gated)."""
     y = ev["y"].to_numpy().astype(int)
     p_b = ev["p_baseline"].to_numpy().astype(float)
     p_c = ev["p_challenger"].to_numpy().astype(float)
@@ -539,35 +559,35 @@ def evaluation_metrics(ev: pl.DataFrame, *, n_boot: int = 2000,
         "brier_challenger": float(_brier(y, p_c).mean()),
         "brier_delta": float((_brier(y, p_c) - _brier(y, p_b)).mean()),
     }
-    slates = (ev.select("block", "game_date").unique()
-              .with_columns(pl.col("game_date").cast(pl.Utf8))
-              .sort(["block", "game_date"]))
-    slate_keys = list(zip(slates["block"].to_list(),
-                          slates["game_date"].to_list()))
-    row_idx_by_slate = {}
-    for i, (b, g) in enumerate(zip(ev["block"].to_list(),
-                                   ev["game_date"].to_list())):
-        row_idx_by_slate.setdefault((b, str(g)), []).append(i)
-    grouped = {b: [row_idx_by_slate[(b, g)] for g in
-                   [k[1] for k in slate_keys if k[0] == b]]
-               for b in sorted(set(k[0] for k in slate_keys))}
-    rng = np.random.default_rng(seed)
-    deltas = np.empty(n_boot, dtype=np.float64)
-    for rep in range(n_boot):
-        idx = []
-        for b in sorted(grouped):
-            picks = rng.integers(0, len(grouped[b]), len(grouped[b]))
-            for pk in picks:
-                idx.extend(grouped[b][pk])
-        idx = np.asarray(idx, dtype=np.int64)
-        deltas[rep] = d_row[idx].mean()
+    # REGISTERED hypothesis test through the established import path: the
+    # two arms enter as candidates (per-row log loss), the single
+    # pre-declared contrast is signed challenger - baseline, the date
+    # draws are the harness's own per-block multinomial construction, and
+    # the null-centering uses the harness's (B + 1) finite-resample
+    # correction. Holm m=1: the family is exactly the one pre-declared
+    # contrast.
+    cmp = load_registered_comparison()
+    values = {"baseline": ll_b, "challenger": ll_c}
+    dates = ev["game_date"].to_list()
+    blocks = ev["block"].to_list()
+    res = cmp.slate_date_draws(values, dates, blocks, n_boot=n_boot,
+                               seed=seed)
+    idx = {n: i for i, n in enumerate(values)}
+    delta_rep = res[:, idx["challenger"]] - res[:, idx["baseline"]]
+    test = cmp.null_centered_contrast_test(
+        values, [("C_batt_recency_vs_baseline", "challenger", "baseline")],
+        dates, blocks, n_boot=n_boot, seed=seed, res=res)
+    primary = test["contrasts"]["C_batt_recency_vs_baseline"]
     out["bootstrap"] = {
-        "n_boot": n_boot, "seed": seed,
-        "ci95": [float(np.percentile(deltas, 2.5)),
-                 float(np.percentile(deltas, 97.5))],
-        "p_null_centered": float(min(1.0, 2.0 * min(
-            (deltas <= 0).mean(), (deltas >= 0).mean()))),
-        "holm_m": 1,
+        "primitive": ("registered harness comparison.py: "
+                      "slate_date_draws + null_centered_contrast_test"),
+        "contrast": "C_batt_recency_vs_baseline",
+        "delta": primary["delta"],
+        "ci95": [float(np.percentile(delta_rep, 2.5)),
+                 float(np.percentile(delta_rep, 97.5))],
+        "p_null_centered": primary["p_value"],
+        "p_holm": primary["p_holm"],
+        "n_boot": n_boot, "seed": seed, "holm_m": 1,
     }
     cal = {"baseline_mean_pred": float(p_b.mean()),
            "baseline_observed": float(y.mean()),

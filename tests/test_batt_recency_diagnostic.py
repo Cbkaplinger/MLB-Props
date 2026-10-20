@@ -686,3 +686,128 @@ def test_training_cal_split_mirrors_frozen_recipe(tmp_path):
     # partition cannot enter fitting even in principle
     assert set(inspect.signature(br.fit_challenger_models).parameters) == {
         "train"}
+
+
+# ---------------------------------- registered primitive (no fork) evidence
+def test_metrics_equal_registered_harness_direct(tmp_path):
+    """The wrapper's hypothesis-test results are IDENTICAL to calling the
+    registered harness primitives directly on the same evaluation rows:
+    slate_date_draws + null_centered_contrast_test + Holm, same seed."""
+    dirs = _synth_runner_lake(tmp_path)
+    frames = br.challenger_training_frames(dirs["pa"])
+    models = {b: br.fit_challenger_models(f) for b, f in frames.items()}
+    ledger = dirs["ledger"].with_columns(
+        pl.when(pl.col("game_date") <= pl.date(2024, 12, 31))
+        .then(pl.lit("block_2024H2"))
+        .when(pl.col("game_date") <= pl.date(2025, 6, 30))
+        .then(pl.lit("block_2025H1"))
+        .otherwise(pl.lit("confirm_2025H2")).alias("block"))
+    elig = br.eligible_slots_from_ledger(ledger, br.DEV_BLOCKS)
+    slots = elig.join(
+        ledger.select("game_pk", "side", "pitcher", "batter", "slot",
+                      "game_date", "p_h3_raw"),
+        on=["game_pk", "side", "pitcher", "batter", "slot", "game_date"],
+        how="left").with_columns(pl.col("p_h3_raw").alias("p_baseline"))
+    slot_feats = br.challenger_feature_frame(slots, dirs["pa"])
+    p_c = np.full(slot_feats.height, np.nan)
+    for b in br.DEV_BLOCKS:
+        m = (slot_feats["block"] == b).to_numpy()
+        p_c[m] = br.apply_challenger(slot_feats.filter(pl.Series(m)),
+                                     models[b])
+    slot_feats = slot_feats.with_columns(pl.Series("p_challenger", p_c))
+    ev = br.observed_pa_join(slots, dirs["pa"]).join(
+        slot_feats.select("game_pk", "side", "pitcher", "batter", "slot",
+                          "game_date", "p_challenger"),
+        on=["game_pk", "side", "pitcher", "batter", "slot", "game_date"],
+        how="inner")
+    m = br.evaluation_metrics(ev, n_boot=500, seed=20261001)
+
+    # harness called DIRECTLY on the same columns
+    cmp_mod = br.load_registered_comparison()
+    y = ev["y"].to_numpy().astype(int)
+    ll_b = br._log_loss(y, ev["p_baseline"].to_numpy())
+    ll_c = br._log_loss(y, ev["p_challenger"].to_numpy())
+    values = {"baseline": ll_b, "challenger": ll_c}
+    res = cmp_mod.slate_date_draws(values, ev["game_date"].to_list(),
+                                   ev["block"].to_list(), n_boot=500,
+                                   seed=20261001)
+    direct = cmp_mod.null_centered_contrast_test(
+        values, [("C", "challenger", "baseline")], ev["game_date"].to_list(),
+        ev["block"].to_list(), n_boot=500, seed=20261001, res=res)
+    d_rep = res[:, 1] - res[:, 0]
+
+    assert m["bootstrap"]["delta"] == pytest.approx(
+        direct["contrasts"]["C"]["delta"])
+    assert m["bootstrap"]["p_null_centered"] ==         direct["contrasts"]["C"]["p_value"]
+    assert m["bootstrap"]["p_holm"] == direct["contrasts"]["C"]["p_holm"]
+    assert m["bootstrap"]["ci95"] == [
+        float(np.percentile(d_rep, 2.5)), float(np.percentile(d_rep, 97.5))]
+
+
+def test_registered_harness_import_path_and_frozen_file():
+    """The established import path resolves to the REGISTERED harness file
+    in this repository (never another copy), and the primitive entry
+    points exist. The frozen harness bytes are not touched by this lane."""
+    cmp_mod = br.load_registered_comparison()
+    expected = (Path(br.__file__).resolve().parents[1]
+                / "specs" / "count-eval-v2-spec" / "harness"
+                / "comparison.py")
+    assert Path(cmp_mod.__file__).resolve() == expected.resolve()
+    for entry in ("slate_date_draws", "null_centered_p_value",
+                  "null_centered_contrast_test", "holm_adjust",
+                  "N_BOOT", "SEED_BOOTSTRAP"):
+        assert hasattr(cmp_mod, entry)
+    assert cmp_mod.SEED_BOOTSTRAP == 20261001 and cmp_mod.N_BOOT == 2000
+
+
+def test_metrics_deterministic_and_edge_cases(tmp_path):
+    """Deterministic seed behavior (two calls identical) and edge cases:
+    identical arms -> p_null = 1.0 with zero delta; clipped extreme
+    probabilities stay finite; a tiny slate set stays finite (the B+1
+    finite-resample correction is in the registered primitive)."""
+    dirs = _synth_runner_lake(tmp_path)
+    frames = br.challenger_training_frames(dirs["pa"])
+    models = {b: br.fit_challenger_models(f) for b, f in frames.items()}
+    ledger = dirs["ledger"].with_columns(
+        pl.when(pl.col("game_date") <= pl.date(2024, 12, 31))
+        .then(pl.lit("block_2024H2"))
+        .when(pl.col("game_date") <= pl.date(2025, 6, 30))
+        .then(pl.lit("block_2025H1"))
+        .otherwise(pl.lit("confirm_2025H2")).alias("block"))
+    elig = br.eligible_slots_from_ledger(ledger, br.DEV_BLOCKS)
+    slots = elig.join(
+        ledger.select("game_pk", "side", "pitcher", "batter", "slot",
+                      "game_date", "p_h3_raw"),
+        on=["game_pk", "side", "pitcher", "batter", "slot", "game_date"],
+        how="left").with_columns(pl.col("p_h3_raw").alias("p_baseline"))
+    j = br.observed_pa_join(slots, dirs["pa"])
+    slot_feats = br.challenger_feature_frame(slots, dirs["pa"])
+    p_c = np.full(slot_feats.height, np.nan)
+    for b in br.DEV_BLOCKS:
+        m = (slot_feats["block"] == b).to_numpy()
+        p_c[m] = br.apply_challenger(slot_feats.filter(pl.Series(m)),
+                                     models[b])
+    slot_feats = slot_feats.with_columns(pl.Series("p_challenger", p_c))
+    ev = j.join(slot_feats.select(
+        "game_pk", "side", "pitcher", "batter", "slot", "game_date",
+        "p_challenger"),
+        on=["game_pk", "side", "pitcher", "batter", "slot", "game_date"],
+        how="inner")
+    m1 = br.evaluation_metrics(ev, n_boot=100, seed=20261001)
+    m2 = br.evaluation_metrics(ev, n_boot=100, seed=20261001)
+    assert json.dumps(m1["bootstrap"], sort_keys=True) == \
+        json.dumps(m2["bootstrap"], sort_keys=True)
+
+    # identical arms -> delta 0, p_null 1.0 (the >= tie rule + B+1)
+    ev_same = ev.with_columns(pl.col("p_challenger").alias("p_baseline"))
+    ms = br.evaluation_metrics(ev_same, n_boot=100, seed=20261001)
+    assert ms["log_loss_delta"] == 0.0
+    assert ms["bootstrap"]["p_null_centered"] == 1.0
+
+    # clipped extreme probabilities stay finite (edge case)
+    ev_ext = ev.with_columns(
+        pl.when(pl.col("y") == 1).then(pl.lit(1e-9)).otherwise(pl.lit(1.0))
+        .alias("p_challenger"))
+    me = br.evaluation_metrics(ev_ext, n_boot=50, seed=20261001)
+    assert np.isfinite(me["log_loss_challenger"])
+    assert np.isfinite(me["bootstrap"]["p_null_centered"])
