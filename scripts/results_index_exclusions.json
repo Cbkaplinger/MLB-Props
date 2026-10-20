@@ -1,0 +1,4 @@
+{
+  "comment": "Directories under research/offseason_2026/experiments/ excluded from the generated results index. Every entry needs a reason and an authorization. The CI test asserts every experiment directory is either indexed or listed here.",
+  "exclusions": []
+}

@@ -27,6 +27,7 @@ Start here: [Current research state](docs/reference/current_state_2026-10-16.md)
 - Model card: `docs/reference/model-card.md`
 - Canonical surfaces map: `docs/reference/repo_canonical_map.md`
 - Research map / diagrams: `docs/diagrams/00-index.md`
+- PR workflow (make/review/merge + CI): `docs/reference/pr_workflow.md`
 
 ## Active architecture
 

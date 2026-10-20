@@ -1,0 +1,201 @@
+{
+  "batch": "freeze_recency_batch_v1",
+  "batch_id": "recency-batch-v1",
+  "config_sha256": "05c7790ac039579ce0e19bae7720c19aa0803ddf0d22746e1b0f6a07dcce9104",
+  "config_hash_definition": "sha256 over json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8') of the 'config' object in this file",
+  "config": {
+    "interface_version": "count-eval-v2-comparison-1.0",
+    "batch_name": "recency-batch-v1",
+    "registered_date": "2026-10-15",
+    "scope": "DEVELOPMENT-ONLY EW-RECENCY ABLATION (three dev folds). No confirm claim, no adoption claim, no production promotion; 2026 rows remain CLOSED. Execution requires owner authorization per spec section 8.",
+    "status": "FROZEN - NOT EXECUTED",
+    "registered_in": {
+      "card": "count-eval-v2 card registration section 9 (lake COMPARISON_INTERFACE_SPEC.md; repo mirror harness/RECENCY_BATCH_REGISTRATION.md)",
+      "candidate_map": "harness/CANDIDATE_MAP.md (EW-only rows registered 2026-10-15)"
+    },
+    "inputs": {
+      "pa_table_path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\p1-harness-v2\\data\\pa_table.parquet",
+      "pa_table_sha256": "e30d8561d8d0fbb9ab0eae562076312a29eeb1476172d533c3d93570959a85f0",
+      "features_path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\overnight-p2\\data\\features_v3.parquet",
+      "features_sha256": "163ad43356e66649274682a473a4015c71f04be6c2f074f15e417c3d49b7e8f8",
+      "note": "identical canonical inputs to first-run packet v1 (config sha256 e59da946...5fc1); features_v3 carries the EW-90d columns"
+    },
+    "reference_candidate": "P1_B_logreg",
+    "candidate_order": [
+      "P1_B_logreg",
+      "P1_H3_pitcher_ew_only",
+      "P1_H3_batter_ew_only",
+      "P1_H3_incumbent_refit"
+    ],
+    "candidates": {
+      "P1_B_logreg": {
+        "role": "REFERENCE (6-feature B logistic, no EW column)",
+        "fitted_features": [
+          "p_pitcher_prior_w150",
+          "p_batter_prior_w150",
+          "lg_rate",
+          "n_prior_pitcher",
+          "n_prior_batter",
+          "cold_start"
+        ],
+        "definition": "LogisticRegression(C=1.0, max_iter=1000) on the 6 frozen B features",
+        "preprocessing": "StandardScaler fit on base_train ONLY, one scaler per fold",
+        "calibration": "block sigmoid (1-D unpenalized logistic of y on logit(p)) fit on the calibration sub-block ONLY - the 60 PA-bearing calendar days [cal_first..cal_last] per fold, derived at runtime (cal_last = max game_date <= train_end; cal_first = cal_last - 59 days). RAW and CAL lanes BOTH output, BOTH labeled, reported separately.",
+        "hyperparameters": {
+          "C": 1.0,
+          "max_iter": 1000
+        }
+      },
+      "P1_H3_pitcher_ew_only": {
+        "role": "TREATMENT ARM 1",
+        "fitted_features": [
+          "p_pitcher_prior_w150",
+          "p_batter_prior_w150",
+          "lg_rate",
+          "n_prior_pitcher",
+          "n_prior_batter",
+          "cold_start",
+          "ew_pitcher"
+        ],
+        "definition": "7 features = the 6 B_logreg features + exactly one EW-90d column (ew_pitcher); unchanged fitting/calibration procedure (see P1_B_logreg)",
+        "preprocessing": "StandardScaler fit on base_train ONLY, one scaler per fold",
+        "calibration": "identical block sigmoid on the 60 PA-bearing-day calibration sub-block; RAW + CAL lanes separate",
+        "hyperparameters": {
+          "C": 1.0,
+          "max_iter": 1000
+        }
+      },
+      "P1_H3_batter_ew_only": {
+        "role": "TREATMENT ARM 2",
+        "fitted_features": [
+          "p_pitcher_prior_w150",
+          "p_batter_prior_w150",
+          "lg_rate",
+          "n_prior_pitcher",
+          "n_prior_batter",
+          "cold_start",
+          "ew_batter"
+        ],
+        "definition": "7 features = the 6 B_logreg features + exactly one EW-90d column (ew_batter); unchanged fitting/calibration procedure (see P1_B_logreg)",
+        "preprocessing": "StandardScaler fit on base_train ONLY, one scaler per fold",
+        "calibration": "identical block sigmoid on the 60 PA-bearing-day calibration sub-block; RAW + CAL lanes separate",
+        "hyperparameters": {
+          "C": 1.0,
+          "max_iter": 1000
+        }
+      },
+      "P1_H3_incumbent_refit": {
+        "role": "INCUMBENT-PROCEDURE REFIT (8 H3 features)",
+        "h3_label": "incumbent-procedure refit - re-executes the frozen H3 fitting procedure on the registered folds; NOT proven prediction-equivalent to historical incumbent outputs (pred_H3_raw)",
+        "fitted_features": [
+          "p_pitcher_prior_w150",
+          "p_batter_prior_w150",
+          "lg_rate",
+          "n_prior_pitcher",
+          "n_prior_batter",
+          "cold_start",
+          "ew_pitcher",
+          "ew_batter"
+        ],
+        "definition": "same logistic spec as P1_B_logreg on the 8 H3 features",
+        "preprocessing": "StandardScaler fit on base_train ONLY, one scaler per fold",
+        "calibration": "identical block sigmoid on the 60 PA-bearing-day calibration sub-block; RAW + CAL lanes separate",
+        "hyperparameters": {
+          "C": 1.0,
+          "max_iter": 1000
+        }
+      }
+    },
+    "frozen_feature_construction_constants": {
+      "prior_weight_w": 150,
+      "ew_half_life_days": 90,
+      "ew_half_life_policy": "FIXED at 90 days; NO half-life search is permitted in this batch (no sweep, no tuning, no sensitivity lane)",
+      "note": "inherited from the incumbent feature build (features_v3); not refit or retuned by this batch"
+    },
+    "folds": {
+      "block_2024H1": {
+        "train_end": [2023, 12, 31],
+        "assess": [[2024, 1, 1], [2024, 6, 30]]
+      },
+      "block_2024H2": {
+        "train_end": [2024, 6, 30],
+        "assess": [[2024, 7, 1], [2024, 12, 31]]
+      },
+      "block_2025H1": {
+        "train_end": [2024, 12, 31],
+        "assess": [[2025, 1, 1], [2025, 6, 30]]
+      },
+      "confirm_2025H2": {
+        "status": "EXCLUDED - NOT SCORED in this batch",
+        "exclusion_control": "RunConfig.include_confirm=False (implemented and synthetic-tested: test_confirm_exclusion_control_proves_no_confirm_rows_in_fits_or_bootstrap proves no confirm_2025H2 row reaches any fit, calibration sub-block or bootstrap)"
+      }
+    },
+    "dev_blocks": [
+      "block_2024H1",
+      "block_2024H2",
+      "block_2025H1"
+    ],
+    "fold_calibration_rule": "cal_last = max game_date <= train_end; cal_first = cal_last - 59 days (60 PA-bearing calendar days); derived at runtime; UNCHANGED from the executed first-run-v1 procedure",
+    "shared_populations": "identical rows/labels across all candidates: the per-fold eval identity hash (sha256 over sorted (game_pk, at_bat_number, batter)) is asserted identical for every candidate; one loaded frame supplies y to every candidate; no per-candidate population differences",
+    "evaluation": {
+      "seed": 20261001,
+      "n_boot": 2000,
+      "bootstrap": "paired slate-date bootstrap, block-stratified, row-weighted num/den ratio; ONE draw stream shared across candidates; pooled dev = the 3 dev folds ONLY",
+      "primary_metric": "Brier",
+      "secondary_metric": "log_loss",
+      "lanes": {
+        "RAW": "PRINCIPAL lane: all registered intervals, contrasts and family claims are computed on pred_raw",
+        "CAL": "reported SEPARATELY as derived point estimates (no CIs, no contrast claims); never merged with RAW"
+      },
+      "contrasts_predeclared": [
+        {
+          "id": "C1_pitcher_ew_vs_B",
+          "contrast": "P1_H3_pitcher_ew_only minus P1_B_logreg"
+        },
+        {
+          "id": "C2_batter_ew_vs_B",
+          "contrast": "P1_H3_batter_ew_only minus P1_B_logreg"
+        },
+        {
+          "id": "C3_both_vs_pitcher_only",
+          "contrast": "P1_H3_incumbent_refit minus P1_H3_pitcher_ew_only"
+        },
+        {
+          "id": "C4_both_vs_batter_only",
+          "contrast": "P1_H3_incumbent_refit minus P1_H3_batter_ew_only"
+        }
+      ],
+      "multiplicity_rule": "family of 4 predeclared contrasts. Registered reporting rule: report each contrast's ORDINARY (unadjusted) 95% percentile interval AND the Holm-adjusted family result SEPARATELY; any family-level claim across the 4 contrasts must come from the Holm-adjusted result, never from the ordinary intervals.",
+      "no_search": "no hyperparameter search, no half-life search, no feature-set search beyond the 4 registered candidates; the 4 contrasts are the only registered comparisons"
+    },
+    "hypothesis_test": {
+      "amendment": "C3.8, registered 2026-10-15 (EXPERIMENT_CARD.md section C3.8 + this section); additive amendment only - candidates, inputs, folds, seed, n_boot and output destination are UNCHANGED",
+      "scope": "the 4 predeclared RAW Brier contrasts only (C1_pitcher_ew_vs_B, C2_batter_ew_vs_B, C3_both_vs_pitcher_only, C4_both_vs_batter_only), each as a SIGNED RAW Brier difference (numerator arm minus denominator arm exactly as registered in evaluation.contrasts_predeclared)",
+      "estimand": "fold aggregation = the EXISTING block-stratified row-weighted pooled dev estimand (sum of per-row Brier contributions / count of rows over all pooled dev rows, dev blocks 2024H1/2024H2/2025H1 only); the observed contrast delta_j is the difference of the two candidates' pooled RAW Brier point estimates on the identical shared rows",
+      "resampling": {
+        "design_verification": "the resampling design SUPPORTS this inference and is verified: the resampling unit is the SLATE DATE (game_date) and the fold aggregation is the block-stratified row-weighted pooled estimand; both are explicitly identified and appropriate for the dependence structure - within-slate cross-row dependence is absorbed by resampling whole dates (multinomial over each block's original date count), block composition is fixed by block-stratified draws so block weights cannot shift across replicates, and the row-weighted num/den pooling keeps the replicate statistic on the same per-row scale as the point estimate",
+        "scheme": "the EXISTING paired slate-date bootstrap, block-stratified, row-weighted num/den ratio, n_boot=2000, seed=20261001; the per-block date draws depend only on (blocks, dates, n_boot, seed), so ONE draw stream is shared across candidates AND contrasts; contrast replicate deltas are differences of candidate replicate statistics under the SAME draws",
+        "paired": "paired resampling shared across candidates and contrasts is a registered requirement of the test"
+      },
+      "test": {
+        "name": "NULL-CENTERED APPROXIMATE BOOTSTRAP TEST",
+        "label": "approximate centered-bootstrap test, NOT an exact randomization test; NO finite-sample-validity guarantee",
+        "definition": "for each contrast j with observed delta Delta_j and bootstrap replicate Delta*_jb: centered errors e_jb = Delta*_jb - Delta_j; two-sided p_j = (1 + sum_b 1{|e_jb| >= |Delta_j|}) / (B + 1) with B = n_boot = 2000; the >= keeps ties in the numerator; the B + 1 denominator is the finite-resample correction",
+        "multiplicity": "Holm step-down across the 4 RAW Brier contrasts at family level 0.05 (monotone adjusted p-values); the ordinary percentile CIs remain explicitly UNADJUSTED; log loss and CAL lanes are DESCRIPTIVE ONLY (no test, no claim)"
+      },
+      "implementation": "comparison.py: HYPOTHESIS_TEST_CONTRASTS, null_centered_p_value, holm_adjust, null_centered_contrast_test; synthetic tests in harness/test_null_centered.py"
+    },
+    "output_destination": "C:\\Users\\ckaplinger\\MLB-Props-Research\\recency-batch-v1",
+    "output_destination_confirmed_nonexistent": "2026-10-15",
+    "output_write_once_note": "write-once: run_comparison refuses to overwrite an existing output dir (WriteOnceError). The harness creates <output_destination>\\<64-hex harness run_id>\\ and records this batch_id as run_label.",
+    "execution": {
+      "working_directory": "market-eval-v2 worktree root",
+      "command": "python -c \"import json,sys; d='research/offseason_2026/specs/count-eval-v2-spec/harness'; sys.path.insert(0,d); from comparison import RunConfig, run_comparison; p=json.load(open(d+'/freeze_recency_batch_v1.json',encoding='utf-8')); c=p['config']; print(run_comparison(RunConfig(pa_table_path=c['inputs']['pa_table_path'],features_path=c['inputs']['features_path'],candidates=c['candidate_order'],include_confirm=False,output_root=c['output_destination'],run_label=p['batch_id'])))\"",
+      "note": "NOT EXECUTED; owner authorization required (spec section 8). include_confirm=False is part of the frozen command and is backed by the synthetic exclusion-control tests."
+    },
+    "authorization": {
+      "execution_status": "NOT-EXECUTED - awaiting owner authorization",
+      "gate": "spec section 8: synthetic tests green + frozen config hash + owner authorization; nothing in this batch authorizes a run"
+    }
+  }
+}

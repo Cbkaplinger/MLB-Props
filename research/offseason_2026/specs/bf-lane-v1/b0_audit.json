@@ -1,0 +1,90 @@
+{
+  "audit_id": "bf-lane-v1-b0-workload-reference-audit",
+  "audit_version": "1.0",
+  "written_utc": "2026-10-16T18:54:22.835065+00:00",
+  "scope": "read-only audit of the existing cutoff-valid workload/reference forecast for the registered assessment window",
+  "assessment_window": {
+    "start": "2024-07-01",
+    "end": "2025-12-31",
+    "n_starts": 7194,
+    "n_slate_dates": 272,
+    "n_unique_games": 3597
+  },
+  "construction_under_audit": {
+    "builder": "bf-workload-v1/scripts/build_bf_forecasts.py (BASE empirical BF construction)",
+    "recipe": "strictly-prior pools (pitcher own pool 2023-01-01 onward; 2022 warm-up never feeds fitted distributions); own-if-prior_n>=10 else league; add-one 37-category empirical; W_SHRINK=50 shrunk mean persisted; sensitivity mix variant persisted alongside (pmf37_mix, not the BASE arm)",
+    "combiner": "research/offseason_2026/kcount_combiner.py (bf_pmf_from_37 cap 60; combine_count k_max 24; count_rps)"
+  },
+  "hashes_sha256": {
+    "bf_forecasts.parquet": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
+    "start_metrics_v2.parquet": "af6814ec7ea73b4ac941dd52f185139062b987762d639203b867e15bb4817fde",
+    "build_bf_forecasts.py": "8893918b3d001f2e3d481eae40e000b32a3968545e37b84f4ba82ba9f7708ef6",
+    "kcount_combiner.py": "94f57a49c0996df5147fb961a085fd229d0ba0e3903c6da0ced9f2d3b670f18f"
+  },
+  "checks": {
+    "pmf_availability": {
+      "n_window_starts": 7194,
+      "pmf37_fully_available_rows": 7194,
+      "pmf37_rows_with_any_null": 0,
+      "pmf37_mix_fully_available_rows": 7194
+    },
+    "pmf_validity": {
+      "all_entries_finite": true,
+      "all_entries_nonnegative": true,
+      "sum_to_1_max_abs_deviation": 4.440892098500626e-16,
+      "sum_to_1_tolerance": 1e-09,
+      "mix_sum_to_1_max_abs_deviation": 3.3306690738754696e-16,
+      "overflow_index_convention": "index 36 = P(N>=37); never read as BF=37",
+      "overflow_mass_mean": 0.011081953890435498,
+      "overflow_mass_max": 0.021739130434782608,
+      "overflow_mass_min": 8.726764988218868e-05
+    },
+    "support_vs_realized": {
+      "realized_bf_min": 2,
+      "realized_bf_max": 37,
+      "realized_bf_gt_36_overflow_relevant": 1,
+      "realized_bf_gt_cap60_beyond_extension": 0,
+      "kcount_cap": 60
+    },
+    "strictly_prior_construction": {
+      "prior_n_rebuilt_matches_stored": 7194,
+      "prior_n_window_rows_checked": 7194,
+      "prior_n_mismatches": 0,
+      "prior_mean_max_abs_deviation": 0.0,
+      "lg_mean_max_abs_deviation": 0.0,
+      "pool_update_semantics": "pools update AFTER all starts of a game_date; same-date games (doubleheaders) never in prior",
+      "source_date_evidence": "builder recipe: prior history = pitcher's prior starts with game_date STRICTLY BEFORE the start's game_date; history pool 2023-01-01 onward (2022 warm-up only); independent reviewer verification (pa_ext verdict): all source dates strictly < cutoff, mean lag 2.898464770024403 d, min 1 d, n=7,194"
+    },
+    "same_date_doubleheaders": {
+      "pitcher_date_groups_with_multiple_starts": 0,
+      "prior_n_constant_within_same_date_group": true
+    },
+    "availability_states": {
+      "state_definitions": {
+        "career_debut_league_pool": "prior_n == 0: no prior start in the 2023-01-01-onward pool; BF PMF = league add-one empirical",
+        "insufficient_history_league_pool": "1 <= prior_n <= 9: own pool below OWN_DIST_MIN_N=10; BF PMF = league add-one empirical (short prior outings preserved in the pool)",
+        "own_distribution": "prior_n >= 10: BF PMF = add-one empirical over the pitcher's own prior BF outcomes",
+        "b0_pmf_unavailable": "any of the 37 pmf37 columns null"
+      },
+      "counts": {
+        "own_distribution": 6059,
+        "insufficient_history_league_pool": 966,
+        "career_debut_league_pool": 169
+      },
+      "n_failed_cohort_join": 0,
+      "n_realized_bf_mismatch_vs_start_metrics_v2": 0,
+      "n_season_debut_with_prior_history": 501,
+      "n_unavailable_lineup_starter_inputs": 0,
+      "lineup_dependency_note": "B0 is lineup-free by registered recipe (build_bf_forecasts.py: 'point-in-time pregame BF forecasts (lineup-free)'); no realized lineup or lineup-starter input exists in this construction, so the unavailable-lineup-starter category is structurally absent (recorded as 0, status not_applicable_lineup_free)"
+    },
+    "count_integration_inputs": {
+      "lineage": "the realized-sequence diagnostic (bf-workload-v1 run_kcount_comparison.py) consumed these same inputs: bf_forecasts 37-cat PMFs -> kcount_combiner.bf_pmf_from_37 (cap 60) -> per-PA p_bar from overnight-p2 realized-PA preds -> combine_count -> count PMFs (k_max 24) -> count_rps / count_logscore / milestone Brier. That diagnostic is REALIZED-SEQUENCE CONDITIONED and is NOT a pregame forecast; B0/B1 reuse only the deterministic integration machinery, with pregame-valid inputs.",
+      "bf_pmf_from_37_applied_rows": 7194,
+      "extended_sum_max_abs_deviation": 4.440892098500626e-16,
+      "extended_tail_37_60_mean_mass": 0.011081953890435498,
+      "p_bar_source_note": "pregame B1 scoring must use a PREGAME p_bar source, NOT the realized-PA p_bar of the realized-sequence diagnostic; registered in B1"
+    }
+  },
+  "verdict": "PASS - the existing cutoff-valid workload/reference forecast is AVAILABLE and PREGAME-VALID for all 7194 starts in the registered assessment window: every start carries a complete, normalized 37-category BF PMF; pool reconstruction reproduces stored prior_n exactly (0 mismatches) with same-date games never in prior; cohort joins and realized-BF labels match start_metrics_v2 exactly; the count-integration input (bf_pmf_from_37, cap 60) is valid on every row.",
+  "no_real_data_run_note": "audit-only: no fitting, no scoring, no new forecasts; reads of frozen artifacts + deterministic recompute of stored columns only"
+}

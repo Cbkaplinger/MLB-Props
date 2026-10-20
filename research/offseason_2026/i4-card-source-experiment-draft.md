@@ -1,3 +1,5 @@
+> **SUPERSEDED (working draft, noncanonical):** this pre-freeze working copy is superseded by the registered final [i4-card-source-experiment.md](i4-card-source-experiment.md). draft diverges from the registered final (similarity 0.934); substantive differences preserved below as historical evidence. Content below is preserved unmodified; the final is the authoritative version.
+
 # I4 prior-starting-card source experiment - DRAFT (2026-10-08)
 
 > **Status: DRAFT.** Not frozen, not authorized, not scored. No new

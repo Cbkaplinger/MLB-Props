@@ -1,0 +1,304 @@
+{
+  "packet": "first_run_packet_v1",
+  "run_id": "first-run-v1-e59da946da21",
+  "config_sha256": "e59da946da218bd43af05d0dde3ddeace5b30c3280b249767158eec94ab15fc1",
+  "config_hash_definition": "sha256 over json.dumps(config, sort_keys=True, separators=(',',':')).encode('utf-8') of the 'config' object in this file",
+  "config": {
+    "interface_version": "count-eval-v2-comparison-1.0",
+    "packet_name": "first-run-packet-v1",
+    "registered_date": "2026-10-15",
+    "purpose": "PA-only baseline-reproduction run: P0_log5, P1_B_logreg, P1_H3_incumbent_refit on the four registered folds",
+    "status": "NOT-EXECUTED",
+    "inputs": {
+      "pa_table_path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\p1-harness-v2\\data\\pa_table.parquet",
+      "pa_table_sha256": "e30d8561d8d0fbb9ab0eae562076312a29eeb1476172d533c3d93570959a85f0",
+      "features_path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\overnight-p2\\data\\features_v3.parquet",
+      "features_sha256": "163ad43356e66649274682a473a4015c71f04be6c2f074f15e417c3d49b7e8f8",
+      "features_supersedence_note": "The canonical 8-feature H3 set (incl. ew_pitcher/ew_batter, EW-90d) lives only in overnight-p2\\data\\features_v3.parquet, which SUPERSEDES the p1-harness-v2 features frame for this run.",
+      "superseded_default_features": {
+        "path": "C:\\Users\\ckaplinger\\MLB-Props-Research\\p1-harness-v2\\data\\features.parquet",
+        "sha256": "b2ec8c908159a6089c5b73a4ca7fbca2ded81aa67cd87db908d2c50f457e9b98",
+        "note": "p1-harness-v2 default features frame (731,347 x 21) lacks ew_pitcher/ew_batter and cannot serve the H3 candidate; documented as superseded, not used."
+      }
+    },
+    "candidate_order": [
+      "P0_log5",
+      "P1_B_logreg",
+      "P1_H3_incumbent_refit"
+    ],
+    "baseline": "P0_log5",
+    "candidates": {
+      "P0_log5": {
+        "fitted_features": [],
+        "required_input_columns": [
+          "p_pitcher_prior_w150",
+          "p_batter_prior_w150",
+          "lg_rate"
+        ],
+        "definition": "full log5 identity on w150 priors + lg_rate; closed-form, no fit, no scaler",
+        "preprocessing": "none (closed-form; no scaler, no fit)",
+        "calibration": "no calibrator; outputs RAW lane only (pred_raw)",
+        "hyperparameters": "none"
+      },
+      "P1_B_logreg": {
+        "fitted_features": [
+          "p_pitcher_prior_w150",
+          "p_batter_prior_w150",
+          "lg_rate",
+          "n_prior_pitcher",
+          "n_prior_batter",
+          "cold_start"
+        ],
+        "definition": "LogisticRegression(C=1.0, max_iter=1000) on the 6 frozen B features",
+        "preprocessing": "StandardScaler fit on base_train ONLY, one scaler per fold (no eval/cal rows touch the scaler)",
+        "calibration": "block sigmoid (1-D unpenalized logistic of y on logit(p)) fit on the calibration sub-block ONLY - the 60 calendar days bearing PAs [cal_first..cal_last] per fold, derived at runtime (cal_last = max game_date <= train_end; cal_first = cal_last - 59 days). RAW and CAL lanes BOTH output, BOTH labeled (pred_raw / pred_cal), BOTH reported.",
+        "hyperparameters": {
+          "C": 1.0,
+          "max_iter": 1000
+        }
+      },
+      "P1_H3_incumbent_refit": {
+        "h3_label": "incumbent-procedure refit - re-executes the frozen H3 fitting procedure on the registered folds; NOT proven prediction-equivalent to historical incumbent outputs (pred_H3_raw); equivalence requires a separate real-data comparison requiring authorization",
+        "fitted_features": [
+          "p_pitcher_prior_w150",
+          "p_batter_prior_w150",
+          "lg_rate",
+          "n_prior_pitcher",
+          "n_prior_batter",
+          "cold_start",
+          "ew_pitcher",
+          "ew_batter"
+        ],
+        "definition": "same logistic spec as P1_B_logreg on the 8 H3 features; formerly registered as P1_H3_replay (superseded ID)",
+        "preprocessing": "StandardScaler fit on base_train ONLY, one scaler per fold (no eval/cal rows touch the scaler)",
+        "calibration": "block sigmoid (1-D unpenalized logistic of y on logit(p)) fit on the calibration sub-block ONLY - the 60 calendar days bearing PAs [cal_first..cal_last] per fold, derived at runtime (cal_last = max game_date <= train_end; cal_first = cal_last - 59 days). RAW and CAL lanes BOTH output, BOTH labeled (pred_raw / pred_cal), BOTH reported.",
+        "hyperparameters": {
+          "C": 1.0,
+          "max_iter": 1000
+        }
+      }
+    },
+    "frozen_feature_construction_constants": {
+      "prior_weight_w": 150,
+      "ew_half_life_days": 90,
+      "note": "inherited from the incumbent feature build (features_v3); not refit or retuned by this run"
+    },
+    "folds": {
+      "block_2024H1": {
+        "train_end": [
+          2023,
+          12,
+          31
+        ],
+        "assess": [
+          [
+            2024,
+            1,
+            1
+          ],
+          [
+            2024,
+            6,
+            30
+          ]
+        ]
+      },
+      "block_2024H2": {
+        "train_end": [
+          2024,
+          6,
+          30
+        ],
+        "assess": [
+          [
+            2024,
+            7,
+            1
+          ],
+          [
+            2024,
+            12,
+            31
+          ]
+        ]
+      },
+      "block_2025H1": {
+        "train_end": [
+          2024,
+          12,
+          31
+        ],
+        "assess": [
+          [
+            2025,
+            1,
+            1
+          ],
+          [
+            2025,
+            6,
+            30
+          ]
+        ]
+      },
+      "confirm_2025H2": {
+        "train_end": [
+          2025,
+          6,
+          30
+        ],
+        "assess": [
+          [
+            2025,
+            7,
+            1
+          ],
+          [
+            2025,
+            9,
+            28
+          ]
+        ]
+      }
+    },
+    "fold_calibration_rule": "cal_last = max game_date <= train_end; cal_first = cal_last - 59 days (60 PA-bearing calendar days); derived at runtime",
+    "dev_blocks": [
+      "block_2024H1",
+      "block_2024H2",
+      "block_2025H1"
+    ],
+    "confirm_block": "confirm_2025H2",
+    "evaluation": {
+      "seed": 20261001,
+      "n_boot": 2000,
+      "bootstrap": "paired slate-date bootstrap, block-stratified, row-weighted num/den ratio; ONE draw stream shared across candidates",
+      "metrics": [
+        "log_loss",
+        "brier"
+      ],
+      "pooled_dev_note": "dev blocks pooled only; confirm_2025H2 executed LAST and never pooled into dev"
+    },
+    "preflight": {
+      "computed": "2026-10-15, read-only parquet reads (no fit, no score, no outputs written)",
+      "pa_table_rows": 731347,
+      "canonical_features_rows": 549296,
+      "pa_rows_absent_from_canonical_features": 182051,
+      "absent_by_season": {
+        "2022": 182051
+      },
+      "absent_by_role": {
+        "reliever_pa": 75493,
+        "starter_pa": 106558
+      },
+      "absent_in_any_fold_assessment_window": 0,
+      "exclusion_interpretation": "every excluded PA-table row is a 2022 warm-up row outside the 2023-01-01..2025-12-31 eligibility window; zero exclusions inside any fold window",
+      "history_categories_of_absent_rows": {
+        "pitcher_first_ever_PA_on_or_after_row_date": 8251,
+        "pitcher_first_ever_PA_within_prior_7_days": 8592,
+        "pitcher_history_gt_7_days": 165208
+      },
+      "loaded_frame": {
+        "rows": 549296,
+        "date_range": [
+          "2023-03-30",
+          "2025-09-28"
+        ],
+        "k_rate": 0.225115,
+        "by_role": {
+          "reliever_pa": 229582,
+          "starter_pa": 319714
+        }
+      },
+      "fold_partitions": {
+        "block_2024H1": {
+          "base_train": 123081,
+          "calibration": 61023,
+          "assessment": 94458,
+          "assessment_dates": 95,
+          "cal_span": [
+            "2023-08-03",
+            "2023-10-01"
+          ],
+          "eval_identity_sha256": "1b83c74d4d23871a8c39200187ed01a3dd667a71a88cd04be2fb99d0d14f7a78"
+        },
+        "block_2024H2": {
+          "base_train": 219078,
+          "calibration": 59484,
+          "assessment": 87808,
+          "assessment_dates": 88,
+          "cal_span": [
+            "2024-05-02",
+            "2024-06-30"
+          ],
+          "eval_identity_sha256": "f91cd91c019a0ff59576557f18f516d930c3811c2e30ac2157641619bf032d8b"
+        },
+        "block_2025H1": {
+          "base_train": 306791,
+          "calibration": 59579,
+          "assessment": 95357,
+          "assessment_dates": 98,
+          "cal_span": [
+            "2024-08-02",
+            "2024-09-30"
+          ],
+          "eval_identity_sha256": "1330d0cdb0211c7bc398d9afebf3e69e9468053fa7b62f797e2c644cda514376"
+        },
+        "confirm_2025H2": {
+          "base_train": 401590,
+          "calibration": 60137,
+          "assessment": 87569,
+          "assessment_dates": 86,
+          "cal_span": [
+            "2025-05-02",
+            "2025-06-30"
+          ],
+          "eval_identity_sha256": "da1d29d48e9064233bfe6e5bc5477580eedf9c59a6de000ca15b050d756ca2d9"
+        }
+      },
+      "fold_assessment_counts_match_executed_overnight_p2_keys": true,
+      "explicit_evaluation_population": {
+        "per_fold": {
+          "block_2024H1": 94458,
+          "block_2024H2": 87808,
+          "block_2025H1": 95357,
+          "confirm_2025H2": 87569
+        },
+        "pooled_dev": 277623,
+        "confirm_separate": 87569,
+        "k_rate_by_fold": {
+          "block_2024H1": 0.222437,
+          "block_2024H2": 0.229546,
+          "block_2025H1": 0.219323,
+          "confirm_2025H2": 0.225319
+        }
+      },
+      "required_feature_nulls": {
+        "p_pitcher_prior_w150": 0,
+        "p_batter_prior_w150": 0,
+        "lg_rate": 0,
+        "n_prior_pitcher": 0,
+        "n_prior_batter": 0,
+        "cold_start": 0,
+        "ew_pitcher": 0,
+        "ew_batter": 0
+      },
+      "availability_guard": "passed on the full canonical frame: all src_date_* non-null and strictly < game_date; all src_type_* non-null",
+      "shared_rows_labels_verification": "features identity is a subset of pa_table identity (anti-join = 0), so the loader's inner join drops 0 rows (loader fails loud otherwise, comparison.py:166-170). All candidates score the SAME eval rows: the runner asserts the per-fold eval identity hash is identical across candidates (comparison.py:743-744) and records it per candidate in the manifest; pinned by test_eval_identity_hash_matches_across_candidates. Labels: one loaded frame supplies y to every candidate; each preds parquet re-records y and the fold eval identity sha256.",
+      "preserved_2025_exposure_history": "EW-90d rolling state (ew_pitcher/ew_batter) carries its own src_date_ew_* strictly prior to game_date (guard passed over all 549,296 rows), so 2025 assessment rows retain full prior exposure history through each game date. 2025 blocks already inspected (read-only, before this packet): (1) the executed assessment key sets keys_executed_block_2025H1.parquet and keys_executed_confirm_2025H2.parquet verified bit-identical to harness fold construction (CANDIDATE_MAP 'Executed bit-identity check', 2026-10-15); (2) canonical features_v3.parquet direct read, 549,296 x 54, ew_* present (HANDOFF_CAPABILITIES.md section 2); (3) this packet's preflight re-derived all four fold partitions + eval identity hashes read-only (2026-10-15). No 2026 rows exist in either input frame (2026 CLOSED)."
+    },
+    "output_destination": "C:\\Users\\ckaplinger\\MLB-Props-Research\\first-run-v1",
+    "output_destination_confirmed_nonexistent": "2026-10-15",
+    "output_write_once_note": "write-once: run_comparison refuses to overwrite an existing output dir (WriteOnceError). The harness creates <output_destination>\\<64-hex harness run_id>\\ and records this packet's run_id as run_label.",
+    "execution": {
+      "working_directory": "market-eval-v2 worktree root",
+      "command": "python -c \"import json,sys; d='research/offseason_2026/specs/count-eval-v2-spec/harness'; sys.path.insert(0,d); from comparison import RunConfig, run_comparison; p=json.load(open(d+'/first_run_packet_v1.json',encoding='utf-8')); c=p['config']; print(run_comparison(RunConfig(pa_table_path=c['inputs']['pa_table_path'],features_path=c['inputs']['features_path'],candidates=c['candidate_order'],output_root=c['output_destination'],run_label=p['run_id'])))\"",
+      "note": "not executed; owner authorization required (spec section 8). The harness's own 64-hex run_id binds its canonical config + input sha256s and names the write-once subdirectory; this packet's run_id is recorded as run_label."
+    },
+    "h3_label": "incumbent-procedure refit - re-executes the frozen H3 fitting procedure on the registered folds; NOT proven prediction-equivalent to historical incumbent outputs (pred_H3_raw); equivalence requires a separate real-data comparison requiring authorization",
+    "authorization": {
+      "execution_status": "NOT-EXECUTED - awaiting owner authorization",
+      "gate": "spec section 8: synthetic tests green + frozen config hash + owner authorization; nothing in this packet authorizes a run",
+      "bf_window_note": "no BF-driven window restriction; registered folds stand"
+    }
+  }
+}
