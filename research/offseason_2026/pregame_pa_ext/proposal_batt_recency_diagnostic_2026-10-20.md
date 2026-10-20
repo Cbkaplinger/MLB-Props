@@ -296,3 +296,64 @@ batter-probability aggregation (the cycled prefix-mean treats slots as
 exchangeable) from (B) workload/performance dependence (the BF-N x per-PA
 p independence assumption). Neither is implemented; each needs its own
 registered card; they must never be changed at once.
+
+## v3.2 CONTRACT AMENDMENT (2026-10-20, during PR #25 review):
+## mandatory provenance receipt + explicit unfinished-work register
+
+### Readiness clarification (what PR #25 @ 48155ec contains)
+
+PR #25 is FEATURE/JOIN/MODEL-PRIMITIVE INFRASTRUCTURE + KEY
+VERIFICATION + A GATED CLI - it is NOT a complete runner. The
+fitting/evaluation stage currently prints a refusal and exits 3 when
+the gate flag is passed, because the execution code does not exist yet.
+UNFINISHED WORK (none of it is in PR #25; none of it has been started
+on real data):
+
+1. Training-frame assembly: selecting the frozen recipe's historical
+   training rows per dev block (2023-01-01..block cal_first) and building
+   the challenger feature frame on them (challenger_feature_frame exists;
+   the per-block row selection + y join is unwired).
+2. Per-block refit orchestration (train frame -> fit_challenger_models
+   -> per-block scoring of the evaluation rows).
+3. Evaluation-table construction: aligning frozen baseline p_h3_raw and
+   challenger probabilities on EXACTLY the 82,817 frozen dev evaluation
+   PAs (identity join, forecast-pitcher matching, unchanged eligibility).
+4. Metric computation: log loss primary + paired slate-date bootstrap
+   (n=2000, seed 20261001, null-centered, Holm m=1) + Brier/calibration
+   supporting.
+5. Write-once diagnostic outputs under a NEW directory (preserved parquet
+   never written).
+6. The MANDATORY provenance receipt (see below).
+
+Authorization of fitting is therefore NOT the only remaining step; the
+runner must be implemented, reviewed, and published first. No real-data
+fitting or evaluation has occurred at any point.
+
+### Mandatory provenance receipt (replaces 'tracking optional')
+
+Every execution of this diagnostic MUST write a persisted provenance
+receipt to its write-once output directory BEFORE any result is reported
+or used. The receipt is a standalone JSON record containing, at minimum:
+
+- input identities: sha256 of the frozen pa_table, the preserved run
+  ledger, the registered checkpoint artifact (canonical payload pin +
+  raw-file sha), the BF PMF artifact, and the lineup artifact;
+- code/configuration identities: sha256 (LF-normalized) of batt_recency.py
+  and every imported lane module, the freeze/registration config content
+  hash, and the challenger configuration (R=60d, m=30, feature list);
+- the frozen development key-set hashes and counts (82592f18... /
+  c6568151..., 43,407 / 82,817);
+- per-block fit records (training-row counts, coefficients' sha256),
+- all reported metrics (log loss primary, Brier/calibration supporting,
+  bootstrap result) and the output file inventory with sha256s;
+- the run's acceptance-check outcomes.
+
+MLflow is an OPTIONAL transport for this receipt (shared wrapper,
+phase=diagnostic, pipeline_id joined to paext-v2-20261020T141540Z) - but
+the RECEIPT ITSELF IS MANDATORY and must be written even if the tracking
+transport fails (the reviewed preservation contract applies: a tracking
+failure surfaces, never refits, and the receipt stays on disk). A run
+without a complete receipt is unaccepted by definition.
+
+Nothing else in the card changes: log loss primary, one challenger,
+dev-only population, protected confirm, unchanged gates and eligibility.
