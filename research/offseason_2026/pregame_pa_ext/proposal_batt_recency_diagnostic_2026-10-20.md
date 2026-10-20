@@ -1,175 +1,172 @@
-# Batter-history challenger card v2 - pregame-pa-ext-v2 (2026-10-20)
+# Batter-history challenger specification v3 - FINAL for review (2026-10-20)
 
-REVISED pre-registration draft (v2). Supersedes v1 in full; v1 was NOT ready
-for fitting (five review issues, resolved below). NO fitting, NO prediction
-regeneration, NO historical backfill, NO confirmation-period performance
-inspection has occurred. The preserved scoring run remains UNACCEPTED and is
-never relabeled. Approval of this card approves SPECIFICATION work only.
+Pre-registration specification. Ready for INDEPENDENT SPECIFICATION REVIEW by
+Chat 2. NO fitting, NO new predictions, NO historical backfill, NO comparative
+performance inspection, NO confirmation-period evaluation, NO frozen-artifact
+changes, NO new worktree has occurred. The preserved scoring run remains
+UNACCEPTED and is never relabeled. Approving this card approves specification
+only; fitting requires explicit approval afterward.
 
-## 0. Issue-resolution register (v1 -> v2)
+Revision register: v1 (draft, five issues) -> v2 (dev-only population, observed-
+PA labels, rebuilt training, staleness confidence, one challenger/log-loss) ->
+v3 (this document): outcome-join reconciliation, unique evaluation grain + the
+duplicate (game_pk, batter) explanation, frozen coverage table with key hashes,
+explicit staleness formula with 'decayed PA mass' terminology.
 
-| # | v1 issue | v2 resolution |
-| --- | --- | --- |
-| 1 | Dev population covered all three blocks incl. confirmation | Development = block_2024H2 + block_2025H1 eligible keys ONLY (exact counts below); confirm_2025H2 fully out of development (no fit/score/tune/report) |
-| 2 | Preserved rows are projected slots, not observed PAs | Evaluation unit = OBSERVED PAs via identity join on (game_pk, pitcher, batter, game_date) to the frozen pa_table; unobserved projected matchups are DROPPED with explicit counts - never assigned an invented outcome |
-| 3 | Changed features fed to unchanged coefficients would test the wrong question | The challenger REBUILDS its features for every historical training row (forecast-date-anchored as-of construction) and REFITS the same model family per dev block; frozen coefficients are never fed challenger features |
-| 4 | Normalized EW rate loses no confidence when its last observation ages | The anchor's effective sample size is its FORECAST-DATE-ANCHORED weighted denominator (half-life 90d): old mass decays toward league explicitly; the decay rule is declared, not implicit |
-| 5 | Brier primary + 3 selectable configs made Holm m=1 unjustified | ONE primary challenger (R=60d, m=30); LOG LOSS primary; Brier + calibration = pre-declared supporting/sensitivity only (not selectable candidates); single primary contrast -> Holm m=1 is the family of one, no correction needed |
+## 1. Outcome joins - reconciling 82,817 (v2) and 208,767 (Chat 2)
 
-## 1. Two isolated experiments (never both at once)
+Both numbers are correct over DIFFERENT scopes, verified exactly:
 
-| Question | Experiment |
-| --- | --- |
-| Does better WEIGHTING of existing history help? | Same 2022-04-07..2025-09-28 source; new batter-history construction (this card) |
-| Does EXTENDING history help? | Same construction as whichever arm is registered; earlier compatible PA history (separate registered improvement; NOT part of this card) |
-
-## 2. Development population (exact, computed from the preserved output ledger + frozen pa_table)
-
-Eligible = starts with zero cold-slot exclusions in the preserved run (their
-64,215 scored slots). Per block:
-
-| block | starts total | eligible starts | abstaining (59 list) | eligible PA rows |
+| join | projected slots included | join keys | pitcher restriction | PAs |
 | --- | --- | --- | --- | --- |
-| block_2024H2 | 2,334 | 2,314 | 20 | 20,826 |
-| block_2025H1 | 2,532 | 2,509 | 23 | 22,581 |
-| DEVELOPMENT TOTAL | 4,866 | 4,823 | 43 | 43,407 |
-| confirm_2025H2 (PROTECTED) | 2,328 | 2,312 | 16 | 20,808 |
+| Chat 2's 208,767 | ALL projected slots (7,194 starts x 9 = 64,746, incl. the 531 cold-start slots) | (game_pk, batter, game_date) | NONE - the batter's PAs in that game against ANY pitcher | 208,767 |
+| v2's 82,817 (dev) | DEV-ELIGIBLE slots only (starts with zero cold-slot exclusions, dev blocks) | (game_pk, pitcher, batter, game_date) | REQUIRED - the PA's actual pitcher must equal the FORECAST pitcher | 82,817 |
 
-Development keys = eligible (game_pk, side) in block_2024H2 + block_2025H1 only.
-The confirm block's counts are recorded for completeness only; it is not used
-for fitting, tuning, selection, or reported performance.
+Exact decomposition (computed):
+- Pitcher-unrestricted join over eligible slots, all blocks: 207,075; over ALL
+  slots (adding the cold-start starts' slots): 208,767 (exact match with Chat 2).
+- Pitcher-matched join over eligible slots, all blocks: 121,973; dev: 82,817;
+  confirm: 39,156 (protected, counted only).
+- Difference 207,075 - 121,973 = 85,102 PAs are the projected batters' plate
+  appearances AGAINST OTHER PITCHERS (relievers, mid-game changes) in eligible
+  games - EXCLUDED from this matchup diagnostic by the rule below.
+- SPEC RULE: an observed PA enters the evaluation only if the PA's actual
+  recorded pitcher EQUALS the forecast (projected) pitcher for that start.
+  That batter's PAs against relievers are excluded from this matchup
+  diagnostic (they test a different matchup, not the projected one).
 
-## 3. Observed-PA evaluation table and joins (no invented outcomes)
+## 2. Unique evaluation grain
 
-- Evaluation rows = realized PAs from the FROZEN pa_table (game_pk, pitcher,
-  batter, game_date, y=realized K) joined to eligible projected matchup slots
-  on the IDENTITY keys (game_pk, pitcher, batter, game_date): the observed
-  instances of the projected matchup.
-- A projected slot maps to ZERO OR MORE observed PAs (a batter can face the
-  pitcher several times); every observed PA is one evaluation row carrying the
-  slot's projected probability.
-- Projected slots with NO observed instance (batter did not face that pitcher
-  in that game) are DROPPED from evaluation with explicit counts - never given
-  an invented outcome:
+- Grain: (game_pk, at_bat_number) - verified UNIQUE in the frozen pa_table
+  (0 duplicate keys). Pitcher/batter/start identities are retained on every
+  evaluation row.
+- Join multiplicity check: after the identity join, 0 (game_pk, at_bat_number)
+  keys match more than one projected slot - each eligible observed PA
+  contributes EXACTLY ONCE per arm (verified max multiplicity = 1).
+- The two duplicate (game_pk, batter) rows, explained (not deduplicated away):
+  game_pk=777417, batter=646240 appears in BOTH starts of the same game -
+  Bot slot 3 (forecast pitcher 678394) and Top slot 2 (forecast pitcher
+  694738), both eligible. Cause: the prior-games reconstruction pools batters
+  from each team's observed prior lineups; batter 646240 batted for both teams
+  within their respective prior-7-game windows (trade across the two teams),
+  so both sides' pools contain him. Both projections are kept: each is a
+  distinct conditional forecast for its own matchup. His ACTUAL PAs in that
+  game: 3 vs 678394 (at_bat_number 6, 21, 38) and 1 vs reliever 692285
+  (at_bat_number 58). Therefore 3 evaluation rows attach to the Bot slot's
+  probability, 0 to the Top slot (the Top matchup never occurred vs its
+  forecast pitcher), and no PA is double-assigned (the PA's recorded pitcher
+  selects at most one slot). Counting note: Chat 2's 'two duplicate pairs'
+  = the two rows of this one (game_pk, batter) key; this report counts keys,
+  so it appears as one duplicated key carrying two rows.
 
-| block | projected slots with >=1 observed PA | observed evaluation rows | projected slots with NO observed PA (dropped) |
-| --- | --- | --- | --- |
-| block_2024H2 | (dev, see join) | 39,252 | 5,039 |
-| block_2025H1 | (dev, see join) | 43,565 | 5,275 |
-| DEVELOPMENT | - | 82,817 | 10,314 |
-| confirm_2025H2 (protected, not evaluated) | - | 39,156 | 4,940 |
+## 3. Frozen development coverage (keys and counts frozen here)
 
-- Baseline per evaluation row: the frozen checkpoint's p_h3_raw for that slot
-  (from the preserved run's valid predictions). Challenger per evaluation row:
-  its own probability. Both arms evaluated on the IDENTICAL evaluation rows.
+Development = block_2024H2 + block_2025H1 eligible slots only. FROZEN:
 
-## 4. Challenger design (one primary configuration)
+| quantity | value |
+| --- | --- |
+| dev eligible projected-slot keys (game_pk, side, slot) | 43,407; sha256 82592f18f824359e9a48848acf7662c040edc5e3284ed6f4a1741137606318ef |
+| dev evaluation keys (game_pk, at_bat_number) | 82,817; sha256 c65681512d5de924e842e80d7c7f27369889590f1c46111eec11e25acb50f902 |
+| dev starts total / eligible / abstaining | 4,866 / 4,823 / 43 |
+| dev cold-start PA exclusions (rows) | 387 (180 in 2024H2 + 207 in 2025H1) |
+| confirm_2025H2 (PROTECTED, out of development) | 2,312 eligible starts; 39,156 observed PAs; counts recorded, never used |
 
-- Feature change (batter side ONLY): replace p_batter_prior_w150 + ew_batter
-  with two new features: p_batt_recent + p_batt_anchor. Pitcher features,
-  lg_rate, counts, cold_start, ew_pitcher unchanged (7+1 = 8 features total).
-- History split at forecast date t: rows in (t-R, t) = RECENT (R = 60 days);
-  rows before t-R = ANCHOR pool. Strictly prior; disjoint by construction -
-  no appearance enters both components (no double counting).
-- Anchor (age-aware confidence): weights w_i = 2^(-(t - d_i)/90) anchored at
-  the FORECAST date; weighted counts ew_k_old/ew_den_old; the weighted
-  denominator IS the declared effective sample size (half-life 90d = the decay
-  rule): 2022-07 mass at a 2025-07 start carries weight ~2^(-8*365/90) = ~0 -
-  an old season cannot impersonate current confidence. Anchor rate shrunk to
-  the as-of league rate: p_anchor = (ew_k_old + 150*lg)/(ew_den_old + 150)
-  (same w150 weight and target as the frozen recipe). Empty anchor ->
-  p_anchor = lg (INTERNAL FEATURE DEFAULT, see section 6).
-- Recent component: raw k_win / n_win over window rows.
-- Update rule: p_batt_new = (k_win + m * p_anchor) / (n_win + m), m = 30
-  pseudo-PA. Newcomer-adjacent batters (small n_win, small anchor mass)
-  automatically approach the league rate as their evidence shrinks - the
-  estimator degrades gracefully toward lg, BY CONSTRUCTION of the weighted
-  denominators, with all components recorded per row.
-- Reused machinery: entity_daily_state (extended with forecast-date-anchored
-  weighting in the diagnostic script); no new rolling framework.
-- PRIMARY challenger config: R=60d, m=30. The v1 alternates (m=15; R=120d) are
-  DROPPED - no window/decay/pseudo-count search. Any second configuration
-  requires a NEW pre-registered reason.
+Separate coverage categories (development):
 
-## 5. Training/inference consistency
+| category | dev slots | dev PAs |
+| --- | --- | --- |
+| cold exclusions (59 starts list; 43 in dev) | 387 rows | - |
+| projected batter NEVER appeared in that game | 7,669 | - |
+| batter appeared but NEVER vs the forecast pitcher (relievers only) | 2,645 | (subset of 57,295 all-block eligible reliever PAs) |
+| unmatched actual PAs in dev-eligible games (not the projected matchup or non-projected batters) | - | 100,348 of 183,165 |
+| matched evaluation PAs | - | 82,817 (183,165 - 100,348 = 82,817, exact) |
 
-- The challenger's features are REBUILT for every historical training row as of
-  that row's own date (same asof state machinery; strictly prior).
-- Per dev block: fit StandardScaler + LogisticRegression(C=1.0, max_iter=1000)
-  on the rebuilt features over the SAME training rows as the frozen block
-  model (2023-01-01..block cal_first; scaler on train only; no early stopping,
-  no calibration stage). Training rows use the same observed-PA label table.
-- The frozen checkpoint coefficients are NEVER applied to challenger features,
-  and challenger coefficients are never applied outside their block.
+SCOPE STATEMENT: this PA diagnostic is CONDITIONAL ON OBSERVABLE PROJECTED
+MATCHUPS - it evaluates the projected (batter vs forecast pitcher) matchup
+where it actually occurred. It is NOT an evaluation of every lineup slot, not
+a full-offense evaluation, and makes no claim about unobserved matchups.
 
-## 6. Newcomer contradiction resolved: feature default vs scoring permission
+## 4. Staleness formula (explicit)
 
-- INTERNAL FEATURE DEFAULT: when an entity has no (or negligible) pre-window
-  history, p_anchor takes the league rate (and in the FROZEN recipe, ew_*
-  falls back to lg_rate). This is a FEATURE VALUE - a number the estimator
-  needs so arithmetic works. It grants nothing.
-- PERMISSION TO ISSUE A PREDICTION: the registered cold_start_no_prior
-  EXCLUSION - a POLICY gate that refuses to score entities with zero frozen-
-  table history. It is owned by the owner decision (provisional rule, pending),
-  not by feature arithmetic.
-- The challenger changes feature construction ONLY. It does NOT touch the
-  exclusion: zero-history entities remain unscored/unpublished under the
-  registered rule; 'league fallback, flagged' describes a feature value inside
-  an already-permitted row, never permission for a forbidden one.
+For a forecast date t and a historical PA row with game_date d_i < t:
 
-## 7. Statistical plan
+    w_i(t) = 2^(-(t - d_i) / 90)      [half-life 90 days, frozen constant]
 
-- ONE primary challenger (section 4). ONE primary contrast: challenger vs
-  baseline on pooled DEVELOPMENT evaluation rows (82,817 observed PAs),
-  paired by evaluation row, primary score = LOG LOSS delta.
-- Primary score justification: log loss is a proper scoring rule that
-  penalizes confident errors continuously - the right instrument for testing
-  whether an age-aware anchor sharpens well-calibrated probabilities; Brier is
-  retained as a pre-declared SUPPORTING score (sensitivity analysis) and
-  calibration is summarized (reliability/reliability-gap), neither selectable
-  as primary post hoc.
-- Inference: paired bootstrap n=2000, seed 20261001, slate-date block-
-  stratified, null-centered two-sided p. Holm m=1: the family contains exactly
-  the one pre-declared primary contrast (no selectable alternatives), so no
-  multiplicity correction applies; the notation records that the family was
-  fixed in advance.
-- Per-fold (block-level) deltas: DESCRIPTIVE only, never gated.
-- Reporting: the 59 abstentions (57 genuine debutants + 2 window-limited
-  veterans, Enns 608650 and Hart 606996) are PROMINENTLY reported in every
-  output of this diagnostic; 4,823/4,866 dev starts = 99.12% dev coverage; the
-  original run stays FAILED against its zero-exclusion acceptance and is never
-  relabeled.
+- Weighted K mass:  WK(t) = sum_i w_i(t) * k_i   (k_i = 1 if the PA ended in a
+  strikeout)
+- Decayed PA mass:  M(t)  = sum_i w_i(t) * n_i   (n_i = 1 per PA; M is the
+  summed weight and is the DECLARED confidence measure - called 'decayed PA
+  mass', NOT statistical effective sample size, which is separately defined
+  and not claimed here)
+- Anchor rate (shrinkage to the as-of league rate, same w150 weight and target
+  as the frozen recipe):
 
-## 8. Older data: separate question, minimal layer, existing files
+    p_anchor(t) = (WK(t) + 150 * lg_rate(t)) / (M(t) + 150)
 
-- The two window-limited veterans show the frozen table's 2022-04-07 boundary
-  is a CONSTRUCTION choice, not a data availability limit: raw statcast
-  regular-season parquets 2015-2021 ALREADY EXIST on disk.
-- Minimal historical PA layer (fields needed ONLY for K/PA history; no modern
-  bat-tracking required): stable player IDs (MLBAM batter + pitcher),
-  game_pk/game_date, terminal PA outcome (K events incl. strikeout_double_play,
-  excluded truncated_pa - the exact conventions already in code), and the
-  PA-denominator fields (PA counting rule + excluded-event list). Optional:
-  team/side for opponent context. Statcast covered all parks from 2015; the
-  2020 season is short - both noted as validation inputs, not disqualifiers,
-  for a K/PA-denominator layer.
-- Per-season validation BEFORE any use: schema/field stability, MLBAM ID
-  stability across sources and seasons, PA-counting compatibility (does each
-  season's event taxonomy map to the same K/PA definition), league-rate
-  continuity at each seam, deduplication keys, and cutoff integrity.
-- SEASONAL COMPATIBILITY CHECKS for the extension: (a) 2020 60-game season
-  (structure, not measurement - K/PA is outcome-based); (b) pre-2015 absence
-  (Statcast not park-complete); (c) PitchFX-vs-Statcast measurement eras affect
-  tracking metrics, NOT the outcome fields this layer needs - document, and
-  exclude any field whose meaning changes across eras.
-- Any extension is a SEPARATE registered improvement, informed by the 57/2
-  split: for the 57, extension cannot help (no earlier MLB data exists); for
-  the 2 veterans, extension restores information whose age must still be
-  discounted by the declared decay rule.
+- The normalized EW rate ew_k/ew_den alone does NOT lose confidence with age
+  (the date weights cancel in the ratio); confidence lives in M(t), which
+  decays explicitly. A 2022-07-10 observation contributes weight ~2^(-730/90)
+  ~ 0.0037 to M at a 2025-07-10 start.
+- Recent component (strictly inside the window, disjoint from the anchor pool):
+  k_win / n_win over rows with d_i in (t-60, t).
+- Update rule (PRIMARY configuration, R=60 days, m=30):
 
-## 9. Prohibitions (unchanged)
+    p_batt_new(t) = (k_win + 30 * p_anchor(t)) / (n_win + 30)
 
-No fitting, no prediction regeneration, no historical backfill, no
-confirmation-period performance inspection, no modification of the preserved
-run or any frozen artifact. Approval of this card authorizes specification
-work only; fitting requires its own explicit approval.
+- All component values (n_win, k_win, M(t), WK(t), lg_rate) are recorded per
+  row. Empty recent window: p_batt_new = p_anchor. Empty anchor pool:
+  p_anchor = lg_rate (INTERNAL FEATURE DEFAULT - see section 6 of the v2
+  register, restated: a feature value, never permission to score; the
+  registered cold_start_no_prior exclusion remains the policy gate).
+- Strictly-prior cutoff: identical asof machinery; two new source-date columns
+  (src_date_batt_recent, src_date_batt_anchor) join the existing hard cutoff
+  gate in the diagnostic only.
+- Feature set: p_batter_prior_w150 + ew_batter REPLACED by p_batt_recent +
+  p_batt_anchor (8 features; pitcher side, lg_rate, counts, cold_start,
+  ew_pitcher unchanged).
+
+## 5. Experiment (fixed, no selection)
+
+- ONE primary challenger: R=60 days, m=30. No extra configurations, no search,
+  no selection among candidates.
+- Features rebuilt for EVERY historical training row as of that row's own date;
+  per dev block: StandardScaler + LogisticRegression(C=1.0, max_iter=1000) on
+  the SAME training rows as the frozen block model (2023-01-01..block
+  cal_first; scaler on train only). Historical training-row selection is
+  UNCHANGED from the frozen recipe; training rows begin 2023 (2022 feeds
+  priors only). This is NOT an annual-reset repair - the frozen model already
+  carries history across seasons.
+- PRIMARY score: LOG LOSS, challenger vs the unchanged frozen baseline, paired
+  by evaluation row on the 82,817 frozen dev keys, paired slate-date bootstrap
+  n=2000, seed 20261001, block-stratified, null-centered two-sided p.
+  Holm m=1 = the family is exactly the one pre-declared primary contrast.
+- SUPPORTING (never selectable post hoc): Brier; calibration summary
+  (reliability curve / gap). Per-block deltas descriptive only.
+- Reporting: the 59 abstentions (57 debut-date newcomers + 2 pre-2022
+  veterans, Enns 608650 and Hart 606996) PROMINENTLY reported in every output;
+  dev coverage 4,823/4,866 = 99.12%. The original run stays FAILED against its
+  zero-exclusion acceptance and is never relabeled; the diagnostic reuses its
+  valid predictions only.
+
+## 6. Data boundary
+
+- This experiment uses EXISTING 2022-04-07..2025-09-28 data only.
+- Older data (raw statcast 2015-2021) already exists locally; extending
+  history is a SEPARATE proposal using compatible PA outcome fields (minimal
+  layer per the v2 register) - NOT a prerequisite and NOT part of this
+  challenger. Its relevance is now narrowed: it can help only the 2
+  window-limited veterans (Enns, Hart); the 57 debutants have no earlier MLB
+  history in any source.
+
+## 7. Prohibitions (unchanged) and handoff
+
+No fitting, no new predictions, no backfill, no comparative performance
+inspection, no confirmation-period evaluation, no frozen-artifact changes, no
+new worktree. Preserved run: UNACCEPTED, untouched.
+
+HANDOFF: this specification is READY FOR INDEPENDENT SPECIFICATION REVIEW by
+Chat 2 - especially the frozen dev key hashes (section 3), the pitcher-matched
+outcome join and its 208,767-vs-82,817 reconciliation (section 1), the
+777417 duplicate-pair treatment (section 2), and the staleness formula's
+'decayed PA mass' semantics (section 4). Published at the SHA noted in the
+backlog receipt for this turn.
