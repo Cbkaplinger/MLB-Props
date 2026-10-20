@@ -170,3 +170,24 @@ outcome join and its 208,767-vs-82,817 reconciliation (section 1), the
 777417 duplicate-pair treatment (section 2), and the staleness formula's
 'decayed PA mass' semantics (section 4). Published at the SHA noted in the
 backlog receipt for this turn.
+
+## CORRECTION (2026-10-20, during review hold) - scope of a later history extension
+
+Section 6 stated the 2015-2021 extension is relevant 'ONLY to the 2
+window-limited veterans.' That is too narrow and is corrected: older history
+would also change CUMULATIVE estimates for ALREADY-ELIGIBLE players - the
+frozen recipe's career-cumulative priors (prior_k/prior_n), n_prior counts,
+and the strictly-prior league rate all accumulate from the table origin
+(2022-04-07), so pre-2022 rows would enter those statistics for eligible
+players as well. The extension is therefore NOT merely an abstention-recovery
+lever; it is a population-wide input change whose effect would need its own
+registered evaluation.
+- This weighting experiment (one batter-history challenger) is deliberately
+  run on EXISTING 2022-forward data so the two questions stay isolated:
+  better weighting of existing history vs more history. Never both at once.
+- Enns/Hart remain the only two currently EXCLUDED starts that an extension
+  could potentially recover for scoring; the clarification concerns eligible
+  players' cumulative inputs.
+- Extension remains a separate registered proposal (minimal PA-outcome layer,
+  per-season validation, seasonal compatibility checks per section 8); it is
+  not a prerequisite for this card and not part of this challenger.
