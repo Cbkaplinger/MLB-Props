@@ -313,7 +313,19 @@ def recon_mod(tmp_path_factory):
     registered blocks (2023-01-01..2025-06-30): builds the verification
     preds from a deterministic refit of the same frozen recipe, then runs
     the REAL ``bc.reconstruct`` (refit + <=1e-8 gate + sha256-pinned
-    write-once serialization). Shared by the dual-phase tests."""
+    write-once serialization). Shared by the dual-phase tests.
+
+    EXPLICIT SYNTHETIC REGISTRATION inside the fixture: bc.reconstruct
+    verifies its own serialize->reload round-trip via
+    ``ad.load_serialized_checkpoint``, which consults the COMMITTED
+    registration -- now pinned to the REAL reconstructed checkpoint's
+    canonical payload hash. A synthetic reconstruction must never be
+    verified against the real pin, so the fixture points
+    ``ad.FREEZE_CONFIG_RELPATH`` at an explicit synthetic gate-disabled
+    registration (null pin: RECONSTRUCTION does not require the pin) while
+    it runs, then restores the committed binding. The real committed pin,
+    the dual-phase pipeline retrieval, and the failure/no-refit guarantees
+    are unchanged; the reconstructed REAL artifact is untouched."""
     pa = synth_pa_table(n_days=912, seed=11,
                         start=date(2023, 1, 1))
     feat = bc.build_feature_frame(pa)
@@ -340,7 +352,18 @@ def recon_mod(tmp_path_factory):
         preds.write_parquet(preds_dir / fnames[block])
     out_root = tmp_path_factory.mktemp("recon")
     ck = out_root / "checkpoints" / "h3_raw_checkpoint.json"
-    report = bc.reconstruct(pa, ck, preds_dir=preds_dir)
+    synth_reg = out_root / "freeze_pregame_pa_ext_v2_synth.json"
+    synth_reg.write_text(json.dumps({
+        "freeze_id": "pregame-pa-ext-v2-synth",
+        "checkpoint_artifact": "checkpoints/h3_raw_checkpoint.json",
+        "checkpoint_sha256_expected": None,
+    }, indent=2), encoding="utf-8")
+    _orig = ad.FREEZE_CONFIG_RELPATH
+    ad.FREEZE_CONFIG_RELPATH = str(synth_reg)
+    try:
+        report = bc.reconstruct(pa, ck, preds_dir=preds_dir)
+    finally:
+        ad.FREEZE_CONFIG_RELPATH = _orig
     return {"pa": pa, "report": report, "ck": ck}
 
 

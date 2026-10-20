@@ -2,13 +2,16 @@
 (``checkpoint_sha256_expected`` in
 ``research/offseason_2026/pregame_pa_ext/freeze_pregame_pa_ext_v2.json``).
 
-The registered pin is a PLACEHOLDER (null) until the real-data
-reconstruction (build_checkpoint.py) produces the artifact and its printed
-hash is registered; while null the gate is DISABLED and the checkpoint
-loads normally. When the pin is non-null, the adapter's
-``load_serialized_checkpoint`` verifies the artifact sha256 against it and
-fails loud on mismatch. No real hash is invented here -- every value in
-these tests is derived from synthetic fixtures.
+The committed registration pins the RECONSTRUCTED real checkpoint's
+canonical payload hash (REGISTERED_CHECKPOINT_SHA256 below, registered
+2026-10-20 after the single authorized deterministic reconstruction; see
+the freeze's ``checkpoint_registration`` record for the full registration
+receipt). The registered pin is a FIXED literal -- it is never computed
+dynamically from whatever artifact scoring happens to load. With a
+non-null pin, ``load_serialized_checkpoint`` verifies the artifact sha256
+against it and fails loud on mismatch
+(CHECKPOINT_REGISTERED_PIN_MISMATCH). Every fixture value in these tests
+is derived from synthetic artifacts, never the real hash.
 """
 
 from __future__ import annotations
@@ -26,6 +29,13 @@ HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE / "research" / "offseason_2026"))
 
 import pregame_pa_ext.adapter as ad  # noqa: E402
+
+# The COMMITTED registration: canonical payload sha256 of the reconstructed
+# real checkpoint (fixed literal; see freeze checkpoint_registration for the
+# full record incl. the distinct raw-file sha256 used only for MLflow
+# artifact byte-verification).
+REGISTERED_CHECKPOINT_SHA256 = (
+    "176fb18bc3b06328f4425175907506ea0dbcea45727e8879ff06249a751decfe")
 
 
 def fake_models() -> dict:
@@ -60,11 +70,12 @@ def wire(monkeypatch, tmp_path: Path, pin) -> Path:
     return ck
 
 
-def test_registered_config_default_pin_is_null_gate_disabled():
+def test_registered_config_pins_reconstructed_checkpoint():
     """The committed registration config carries checkpoint_sha256_expected
-    = null (placeholder): the gate is DISABLED until a real-data
-    reconstruction registers the artifact hash."""
-    assert ad.registered_checkpoint_pin() is None
+    = the reconstructed checkpoint's canonical payload hash (fixed literal;
+    the gate is ENFORCED on every load; scoring itself remains gated by
+    owner authorization, not by this pin)."""
+    assert ad.registered_checkpoint_pin() == REGISTERED_CHECKPOINT_SHA256
 
 
 def test_null_pin_gate_disabled_checkpoint_loads_normally(
@@ -121,10 +132,20 @@ def test_malformed_pin_fails_loud(tmp_path, monkeypatch):
 
 
 # ------------------------------------------- scoring-path registered-pin gate
-def test_require_registered_pin_rejects_committed_null_registration():
-    """The SCORING gate (require_registered_checkpoint_pin) fails loud
-    with CHECKPOINT_PIN_NOT_REGISTERED under the COMMITTED null
-    registration (checkpoint_sha256_expected = null)."""
+def test_require_registered_pin_returns_committed_registration():
+    """The SCORING gate (require_registered_checkpoint_pin) passes under
+    the COMMITTED registration (the reconstructed checkpoint's pin) and
+    returns the registered value."""
+    assert ad.require_registered_checkpoint_pin() == \
+        REGISTERED_CHECKPOINT_SHA256
+
+
+def test_require_registered_pin_rejects_null_registration(tmp_path,
+                                                          monkeypatch):
+    """The CHECKPOINT_PIN_NOT_REGISTERED path (kept covered on a synthetic
+    null registration: a null pin refuses scoring before anything runs)."""
+    freeze = write_freeze_config(tmp_path, None)
+    monkeypatch.setattr(ad, "FREEZE_CONFIG_RELPATH", str(freeze))
     with pytest.raises(ad.AdapterError,
                        match="CHECKPOINT_PIN_NOT_REGISTERED"):
         ad.require_registered_checkpoint_pin()
@@ -209,8 +230,9 @@ def wire_scoring_lake(tmp_path: Path, monkeypatch) -> dict:
     """Full synthetic private-lake stand-in with EVERY scoring input
     present and valid (serialized sha256-pinned checkpoint artifact,
     matching BF PMF pin, projected lineups, PA table) -- and the COMMITTED
-    null registration left in force (FREEZE_CONFIG_RELPATH is NOT
-    monkeypatched). Only the registration pin is (deliberately) absent."""
+    registration left in force (FREEZE_CONFIG_RELPATH is NOT
+    monkeypatched). The synthetic artifact deliberately does NOT match the
+    committed registered pin."""
     from datetime import date as _date
     pa = synth_pa_table()
     proj = synth_projected(pa, _date(2025, 3, 15))
@@ -243,14 +265,15 @@ def wire_scoring_lake(tmp_path: Path, monkeypatch) -> dict:
     return {"out_dir": out, "checkpoint_path": ck}
 
 
-def test_run_real_rejects_committed_null_pin_before_inference_or_output(
+def test_run_real_rejects_committed_registration_mismatch_before_inference(
         tmp_path, monkeypatch):
-    """NEGATIVE TEST: with the COMMITTED null registration in force, the
-    real scoring entry point run_real fails loud with
-    CHECKPOINT_PIN_NOT_REGISTERED BEFORE any inference or output write --
-    even when every other scoring input (serialized checkpoint artifact,
-    BF PMF artifact, projected lineups, PA table) is present and valid on
-    the synthetic lake. Inference is proven not to run (sentinel guard on
+    """NEGATIVE TEST: with the COMMITTED registration in force (the
+    reconstructed real checkpoint's pin), run_real refuses a synthetic
+    artifact whose payload hash does NOT match the registered pin --
+    CHECKPOINT_REGISTERED_PIN_MISMATCH raised BEFORE any inference or
+    output write, even when every other scoring input (BF PMF artifact,
+    projected lineups, PA table) is present and valid on the synthetic
+    lake. Inference is proven not to run (sentinel guard on
     build_projected_pa_probs) and no output file is written."""
     dirs = wire_scoring_lake(tmp_path, monkeypatch)
     calls = []
@@ -258,12 +281,12 @@ def test_run_real_rejects_committed_null_pin_before_inference_or_output(
     def _no_inference(*args, **kwargs):
         calls.append(1)
         raise AssertionError(
-            "inference must not run before the registered-pin gate")
+            "inference must not run past the registered-pin gate")
 
     monkeypatch.setattr(ad, "build_projected_pa_probs", _no_inference)
     out = dirs["out_dir"] / "outputs" / "projected_pa_probs_v1.parquet"
     with pytest.raises(ad.AdapterError,
-                       match="CHECKPOINT_PIN_NOT_REGISTERED"):
+                       match="CHECKPOINT_REGISTERED_PIN_MISMATCH"):
         ad.run_real()
     assert calls == []          # inference never entered
     assert not out.exists()     # no output write
