@@ -4,7 +4,9 @@
 (docs -> research harness -> logger -> accuracy pass -> collection repair ->
 portability lane), created by agent in that order.
 NOT pushed: push happens only after chat 2 clears public-content review
-(command at the end of this file). Recipe/predictions untouched; no large
+(command at the end of this file).
+
+> **SUPERSEDED 2026-10-21 (status line only; the executed-commits record above is preserved):** the bounded commits described here WERE pushed to `origin/main` on 2026-10-18 and are merged main lineage today (verified during the 2026-10-20/21 repository sweep). The NOT-pushed status was accurate at authoring; do not act on it. Recipe/predictions untouched; no large
 parquet/npy/pkl is committed.
 
 - **Repo:** `Cbkaplinger/MLB-Props` - **PUBLIC** (determinable; treat as such
