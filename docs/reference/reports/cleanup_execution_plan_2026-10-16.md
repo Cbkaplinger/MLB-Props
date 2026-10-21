@@ -1378,26 +1378,6 @@ Marked deferred, NOT read. Research-status content is out of this lane.
 - **Full reads COMPLETE (tests trio + models entries, 7 files, 1,375 lines):**
   test_odds_ledger 351, test_real_bets 120, test_registries 209 (the pre-commit
   gate suite), predict_slate 201, TBF train 296, models READMEs 98. Clean.
-- **Coverage FIXED ONCE (exact, from the authoritative read registry - no more
-  estimates):** fully read = **194 unique paths**, composition A=51 (scripts 28
-  incl. review_verify, .github 2, root 12, playground 4, analysis 2, data 2,
-  report 1), B=92 (src 54 incl. Notebooks 10, .cursor 30, .agents 8),
-  SPINE=13 (odds 8, cloud 2, INDEX/RUNBOOK/production README), B4=24
-  (production/ops 17 + tests trio 3 + models entries 4), DIAG=8, PRIOR=6
-  (docs/README, reference README, PROJECT_STATE, COUNT_EVAL_COMMANDS,
-  this record, AGENTS_ROLES). Every path assertion-checked tracked at
-  origin/main with no double-count (assertion-enforced). In-scope 692:
-  fully read 192; **remaining in-scope full reads: 500 exactly.**
-  Deferred-protected: 290. The earlier "~169"/"~176" figures were running
-  estimates with overlaps (production spine counted in two passes; Notebooks
-  double-counted in prose) - this registry supersedes them.
+- **COVERAGE - CONSOLIDATED CORRECTION (2026-10-20; supersedes the two earlier numeric blocks preserved in git history - set arithmetic, not estimates):** all tracked = 982; in-scope = 692; deferred-protected = 290; the two sets are DISJOINT and COMPLETE (union = 982, verified). Fully read = 199 total, decomposed as **197 in-scope** + **2 read-but-deferred** (explained: `research/offseason_2026/pregame_pa_ext/COUNT_EVAL_COMMANDS.md` - read for the owner-assigned status fix inside the deferred research dir; `scripts/review_verify.py` - batch-A read, deferred by the PR #25 touched-path exclusion). **Remaining in-scope full reads = 495** (exact set difference: 692 - 197). Status sets disjoint; coverage identity 197 + 495 + 288 deferred-unread = 980 + 2 deferred-read = 982. The earlier 194/192/500 and 199/494 figures were intermediate registry states with off-by-one scope subtraction and are superseded by this section. Registry artifact: read_registry.json (session record; per-path batch attribution). Governance-family reads (5 scripts, 3,147 lines) are INCLUDED in the 197.
 - **No cleanup changes required by this pass** - the deliverable is the read coverage itself plus the earlier fixes; nothing to fix in the read set.
 
-## Accumulated coverage (2026-10-20, latest - published with the next substantive batch)
-
-Governance family fully read (5 scripts, 3,147 lines): edge_floor_sweep_governance 453,
-policy_calibration_uncertainty_sweep 359, compare_feature_set_governance 963,
-compare_model_family_governance 545, fit_granular_open_calibration 827. Maintainability
-read: dated single-purpose governance runners, callers = dated docs only, consistent with
-the evidence convention - no defects, no changes required. Registry: 199 unique fully-read;
-remaining in-scope 494. This accumulation publishes with the next substantive cleanup batch.
