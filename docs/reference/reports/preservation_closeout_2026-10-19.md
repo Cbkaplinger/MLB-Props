@@ -225,3 +225,7 @@ detached head moved during the audit.
 durability + confirmation bar; #6 is the only candidate and awaits Chat 2).
 Before count 6 -> removed 0 -> remaining 6. No branches deleted, no
 `git clean`, no prune, no `--force` anywhere.
+
+## 18. Sweep-branch re-point record (2026-10-21; requested by Chat 2)
+
+The cleanup branch `chat3/repo-sweep-20261020` advanced past reviewed heads during the accumulate/publish cycles: `3c9dfed` (Chat 2 verified) -> `7579876` -> `d4d810e` (Chat 2 PASS at that head) -> `3a94df0` -> `af55e01` (Chat 2 exact-head approval) -> `53cffa4` -> `c4a3240` (Chat 2 prescribed corrections; the corrected head was merged WITHOUT a post-correction review, disclosed at the time; Chat 2 subsequently performed the bounded post-merge check at `e5367c3`/`c4a3240` - PASSED). One interim commit (`6f9ca97`, the ledger boundary fix) was made on the WRONG branch and reset before any push - never remote. Per-head delta reviews covered every pushed state; the lesson recorded: accumulate locally, publish with substantive batches, and obtain the exact-head verdict BEFORE merge (adopted as standing practice). The ref now sits merged at `a442e22` lineage; the current docs branch is `chat3/architecture-docs-20261021` from main `74ec8e1`.
