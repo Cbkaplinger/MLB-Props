@@ -119,3 +119,23 @@ decision relevance).
 - No in-place receipt repair.
 - Write-once output directory.
 - Failure records preserved.
+
+
+## 11. Pre-run descriptive outputs (added 2026-10-21)
+
+In addition to the primary flip-count output, the diagnostic reports these
+pre-run descriptive statistics (never gated, always reported):
+
+- |DP| distribution: for each (start, line) pair, |P_challenger(K>=line)
+  - P_baseline(K>=line)| — reported as: min, p25, median, p75, max, mean,
+  and the proportion of pairs with |DP| < 0.01, 0.01-0.05, and > 0.05.
+- Per-line baseline and challenger P(K>=line) distributions (min, median,
+  mean, max).
+- The count of starts where both arms agree the probability is within
+  0.01 of 0.5 (genuinely uncertain starts) vs where both agree it is
+  clearly one side (|P-0.5| > 0.2).
+
+These descriptives contextualize the flip count: a high flip count with
+tiny |DP| values means the flips are noise-driven, while a high flip
+count with large |DP| values means the aggregators genuinely disagree
+about the outcome likelihood.
