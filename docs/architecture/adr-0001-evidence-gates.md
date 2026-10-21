@@ -18,7 +18,9 @@ with original bytes lost; a merge before the corrected head was reviewed).
 3. Research code never feeds production automatically. Promotion needs a
    separate gate: calibration, policy replay, and an owner decision.
 4. A negative result closes the specific recipe, not the idea.
-5. Frozen registrations, pins and hashes outrank living documents.
+5. Frozen registrations, pins and hashes outrank living documents - and this
+   includes THIS ADR, the PRD, and any role rules: they cannot override
+   frozen registrations, protocols, pins, or hashes.
 
 ## Consequences
 

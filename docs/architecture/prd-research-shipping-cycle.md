@@ -11,8 +11,7 @@ aggregation should change before the 2027 season.
 - **R2.** Review the Question A implementation and spec. Then the owner decides
   whether to authorize one real-data evaluation: count-RPS primary, paired
   bootstrap, confirmation untouched.
-- **R3.** Pre-register Question B (workload dependence) as a design card. Do
-  not implement it until R2 reports.
+- **R3.** Pre-register Question B (workload dependence) as a design card with the two named subjects C-B1 (exposure-index heterogeneity with the supplied BF distribution) and C-B2 (endogenous exit/workload coupling) - see ADR-0002. Do not implement it until R2 reports.
 - **R4.** Define the abstain-versus-handle policy for newcomers (owner
   decision; 57 debut-date newcomers plus Enns 608650 / Hart 606996).
 - **R5.** Finish the cleanup sweep and reconcile the docs and diagrams.
