@@ -7,7 +7,7 @@ aggregation should change before the 2027 season.
 
 ## Requirements
 
-- **R1.** Close PR #25 with an accurate publication.
+- **R1. DONE 2026-10-21: PR #25 merged at `71a1c5c` (one dated status note for this PRD below; mutable research state is not copied into the other architecture files - their PROPOSED status labels are the only live markers).**
 - **R2.** Review the Question A implementation and spec. Then the owner decides
   whether to authorize one real-data evaluation: count-RPS primary, paired
   bootstrap, confirmation untouched.
@@ -33,3 +33,12 @@ beats the frozen baseline on the pre-registered metric and survives replay.
 
 Provenance defects; scope creep (the Question A work is already inside
 PR #25); a small expected gain from Question A.
+
+
+## Status note (one dated note for this PRD; 2026-10-21)
+
+- PR #25 (batter-history diagnostic closed REJECTED; Question A exact
+  Poisson-binomial aggregator built with synthetic tests; publication fix
+  included) MERGED at `71a1c5c`. Question A evaluation on real outcomes
+  remains UNAUTHORIZED and unrun (owner gate, R2). Abstain-vs-handle (R4)
+  remains the open owner decision.

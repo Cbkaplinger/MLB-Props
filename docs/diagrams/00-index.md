@@ -237,7 +237,9 @@ status belongs to that owner. This window stops after the docs commit.
 
 ### Proposed architecture set (2026-10-21; PROPOSED status, owner approval pending)
 
-- [07 - Lanes and roles](07-lanes-and-roles.md) - owner/architect/builder/reviewer/cleaner lanes.
+- [07 - Lanes and responsibilities](07-lanes-and-roles.md) - who builds, reviews, authorizes execution, approves promotion.
 - [08 - Research decision flow](08-research-decision-flow.md) - frozen baseline, rejected batter-history recipe, Question A/B lanes, promotion gates.
-- [09 - Evidence gate](09-evidence-gate.md) - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
+- [09 - Evidence gate](09-evidence-gate.md)
+- [10 - System paths](10-system-paths.md) - production vs research boundary: inputs, components, outputs, promotion gate (reuses 01/05/08 for depth).
+- [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision. - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
 - ADR-0001 (evidence gates), ADR-0002 (exact aggregation first), the cycle PRD, and ROLES live in \docs/architecture/\.
