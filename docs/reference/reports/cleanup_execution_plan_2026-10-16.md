@@ -1362,3 +1362,22 @@ Marked deferred, NOT read. Research-status content is out of this lane.
   heal_stale_slate, build_automation_self_check next) + market_research deep
   reads (batch 4), tests/ 96, models/ 79, docs/ ~180, diagram flow depth 01-04
   (reference-level complete).
+
+## Sweep status ledger update (2026-10-20, late night - batch 4: production/ops reports+governance family + tests trio + models entries)
+
+- **PR #26 merged** (`16dfe9f` -> `a442e22`). Batch 4 on this branch.
+- **Full reads COMPLETE (17 production/ops scripts, 3,402 lines):**
+  build_daily_operator_summary 164, build_automation_self_check 356,
+  build_board_ledger_reconciliation 173, build_runtime_monitoring_snapshot 392,
+  build_policy_governance_report 786, build_validation_ops_report 368,
+  build_weekly_policy_digest 53, build_winner_board_local 75,
+  check_drawdown_brake 115, paper_quant_track 85, weekly_kpi_report 144,
+  log_model_lineage 141, compact_aux_quote_history 64, policy_freshness_audit 131,
+  run_monitoring_cycle 118, run_post_score_automation 107, calibration_snapshot 130.
+  **Findings: ZERO stale instructions, zero broken references, zero duplication signals.** The build_*/report family is clean, current, and consistent with the merged docs.
+- **Full reads COMPLETE (tests trio + models entries, 7 files, 1,375 lines):**
+  test_odds_ledger 351, test_real_bets 120, test_registries 209 (the pre-commit
+  gate suite), predict_slate 201, TBF train 296, models READMEs 98. Clean.
+- **COVERAGE - CONSOLIDATED CORRECTION (2026-10-20; supersedes the two earlier numeric blocks preserved in git history - set arithmetic, not estimates):** all tracked = 982; in-scope = 692; deferred-protected = 290; the two sets are DISJOINT and COMPLETE (union = 982, verified). Fully read = 199 total, decomposed as **197 in-scope** + **2 read-but-deferred** (explained: `research/offseason_2026/pregame_pa_ext/COUNT_EVAL_COMMANDS.md` - read for the owner-assigned status fix inside the deferred research dir; `scripts/review_verify.py` - batch-A read, deferred by the PR #25 touched-path exclusion). **Remaining in-scope full reads = 495** (exact set difference: 692 - 197). Status sets disjoint; coverage identity 197 + 495 + 288 deferred-unread = 980 + 2 deferred-read = 982. The earlier 194/192/500 and 199/494 figures were intermediate registry states with off-by-one scope subtraction and are superseded by this section. Registry artifact: read_registry.json (session record; per-path batch attribution). Governance-family reads (5 scripts, 3,147 lines) are INCLUDED in the 197.
+- **No cleanup changes required by this pass** - the deliverable is the read coverage itself plus the earlier fixes; nothing to fix in the read set.
+
