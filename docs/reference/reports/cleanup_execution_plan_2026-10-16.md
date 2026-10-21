@@ -1392,3 +1392,12 @@ Marked deferred, NOT read. Research-status content is out of this lane.
   estimates with overlaps (production spine counted in two passes; Notebooks
   double-counted in prose) - this registry supersedes them.
 - **No cleanup changes required by this pass** - the deliverable is the read coverage itself plus the earlier fixes; nothing to fix in the read set.
+
+## Accumulated coverage (2026-10-20, latest - published with the next substantive batch)
+
+Governance family fully read (5 scripts, 3,147 lines): edge_floor_sweep_governance 453,
+policy_calibration_uncertainty_sweep 359, compare_feature_set_governance 963,
+compare_model_family_governance 545, fit_granular_open_calibration 827. Maintainability
+read: dated single-purpose governance runners, callers = dated docs only, consistent with
+the evidence convention - no defects, no changes required. Registry: 199 unique fully-read;
+remaining in-scope 494. This accumulation publishes with the next substantive cleanup batch.
