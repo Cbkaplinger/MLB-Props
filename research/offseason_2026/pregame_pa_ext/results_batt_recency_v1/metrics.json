@@ -1,0 +1,36 @@
+{
+ "bootstrap": {
+  "ci95": [
+   0.00029410459575555383,
+   0.0009431305571369424
+  ],
+  "contrast": "C_batt_recency_vs_baseline",
+  "delta": 0.0006202053327827306,
+  "holm_m": 1,
+  "n_boot": 2000,
+  "p_holm": 0.0004997501249375312,
+  "p_null_centered": 0.0004997501249375312,
+  "primitive": "registered harness comparison.py: slate_date_draws + null_centered_contrast_test",
+  "seed": 20261001
+ },
+ "brier_baseline": 0.1647954031469465,
+ "brier_challenger": 0.1649860802458771,
+ "brier_delta": 0.00019067709893061296,
+ "calibration": {
+  "baseline_mean_pred": 0.21367264729617313,
+  "baseline_observed": 0.21460569689797987,
+  "challenger_max_decile_gap": 0.012914472873524707,
+  "challenger_mean_pred": 0.209871921963636,
+  "challenger_observed": 0.21460569689797987
+ },
+ "coverage": {
+  "abstention_record": "abstentions.json",
+  "development_abstaining_starts": 43,
+  "full_run_abstaining_starts": 59,
+  "note": "development metrics cover the eligible development starts only; abstentions.json itemizes development and confirmation-block abstentions separately - the full-run total is not a development count"
+ },
+ "log_loss_baseline": 0.5085714457267786,
+ "log_loss_challenger": 0.5091916510595613,
+ "log_loss_delta": 0.0006202053327827619,
+ "n_evaluation_rows": 82817
+}
