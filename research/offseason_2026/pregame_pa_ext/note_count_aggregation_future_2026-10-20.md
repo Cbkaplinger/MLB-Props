@@ -49,3 +49,39 @@ Sequencing: neither starts before the batter-history diagnostic closes;
 each requires its own card and owner approval. The registered metric
 vocabulary (count-RPS primary, milestone Briers descriptive) carries
 over unchanged to both.
+
+## Initial synthetic separation tests (2026-10-20)
+
+Delivered: tests/test_count_aggregation_separation.py (9 tests,
+synthetic-only, frozen aggregation code UNCHANGED) with a test-local
+exact Poisson-Binomial oracle. Findings - the assumptions the current
+code ACTUALLY makes:
+
+1. **Homogenization (Question A):** given N=n, the n PAs are modeled
+   i.i.d. Binomial(k; n, pbar_n) with pbar_n = mean of the first n slot
+   probabilities. Exact at n=1 and under lineup homogeneity; for
+   heterogeneous prefixes the averaged binomial OVERSTATES both tail
+   masses (analytic gap ((p1-p2)/2)^2 each at n=2) and understates the
+   middle; Var(current) > Var(exact) (Jensen) for every heterogeneous
+   n=2..9 tested. Measured max per-PMF gap on a realistic spread: < 0.05.
+2. **Order sensitivity (implicit, Question A):** pbar_n is order-aware
+   through the cycling - the same nine batters in different batting
+   orders produce different PMFs below n=9 and identical PMFs at n=9.
+   Implicit assumption: batters faced follow batting order from slot 1.
+3. **Linearity in the workload (Question B):** the count PMF is LINEAR
+   in the BF distribution (PMF(a*BF1+(1-a)*BF2) = a*PMF(BF1)+
+   (1-a)*PMF(BF2)) - the workload enters as a pure mixing measure.
+4. **Within-n correlation is outside the model class (Question B):** a
+   within-game correlated joint outcome (0.40/0.20/0.40 on K=0/1/2 at
+   n=2) differs from ANY i.i.d.-given-n answer (>0.1 gap); the current
+   machinery returns exactly the i.i.d. answer - no parameter expresses
+   within-n correlation.
+5. **Endogenous workload coupling is structurally absent (Question B):**
+   pbar_n is constrained to prefix means of the nine slot probabilities,
+   so a performance-exposure decline (e.g., 0.3 to 0.1 in long-outing
+   states with slot probs all 0.3) cannot be represented - the queued
+   dependent-formulation question would have to change this constraint,
+   not merely a point estimate.
+
+These findings bound the two questions separately; neither has a
+remedy implemented, and each needs its own registered card.
