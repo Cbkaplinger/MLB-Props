@@ -1,6 +1,45 @@
-# DECISIONS - one decision log (one dated section per decision)
+# DECISIONS - one decision log
 
-> Established 2026-10-21 (cleanup lane consolidation). Each section quotes its source ADR **verbatim**, with the source path and blob SHA in the header. Originals moved to `docs/archive/consolidated/adr/` (git mv, never deleted). New decisions append dated sections below. Frozen registrations, pins and hashes outrank anything in this file.
+> One dated section per decision. **Current decision register first; historical
+> source material (verbatim archived quotes) is separated below the divider** -
+> where the register and a historical quote conflict, the register wins and the
+> historical quote stands as evidence. Frozen registrations, protocols, pins
+> and hashes outrank everything in this file (ADR-0001, decision 5).
+
+## Current decision register
+
+| # | Decision | Rationale | Status | Evidence | Consequence | What could reverse it |
+|---|---|---|---|---|---|---|
+| D1 | **Evidence gates before any promotion** - pre-registered cards; receipts (consumed inputs, code SHA, output hashes) written before acceptance; promotion needs calibration + policy replay + owner gate; a negative result closes the recipe, not the idea | Provenance defects recurred (in-place receipt repair with original bytes lost; a merge before the corrected head was reviewed) | **ACTIVE - governing rule** (owner adoption of the ADR wording pending) | ADR-0001 quote below; archived source `docs/archive/consolidated/adr/PROPOSED-evidence-gates.md` | Slower per experiment; no reruns or disputes; READY and authorized stay separate | A dated supersession entry in this register, by owner decision |
+| D2 | **Exact aggregation first, workload dependence second** - Question A (exact Poisson-binomial) ran before any Question B work | Attribution: one component per experiment | **CLOSED 2026-10-21** - decision-flip result: one flip in 19,292, below the declared practical-significance threshold; no promotion | ADR-0002 quote below + its dated outcome; decision-flip record (PR #29 lineage, merged `71a1c5c`) | The exact-aggregation recipe is closed as a documented curiosity; the count layer keeps the slot-average aggregator; effort moved to the decision-flip lane | A new pre-registered card on a different population or decision definition (owner) |
+| D3 | **Multiclass PA outcome model direction** - extend the PA lane to multi-outcome slot modeling (ball/strike/in-play) rather than binary K-only | The PA lane already carries slot-level primitives; multiclass is the next information-gain candidate | **PROPOSED** - design card pending owner adoption; no implementation authorized | Multiclass ADR quote below; archived source `docs/archive/consolidated/adr/PROPOSED-multiclass-pa-outcome-model.md` | None until adopted and gated | Owner decision before any implementation; ADR-0001 gates apply if adopted |
+| D4 | **Research/shipping cycle PRD** (R1-R6 sequencing) | Sequencing the research questions against the 2027 season | **SUPERSEDED** - replaced by `docs/ROADMAP.md` (the architect owns it) | PRD quote below; archived source `docs/archive/consolidated/adr/PROPOSED-prd-research-shipping-cycle.md` | Forward planning lives in the roadmap | n/a (the roadmap owns forward planning) |
+
+## Production/research boundary and component migration
+
+- **Production path (frozen, live):** Statcast inputs -> L1-L3 pipeline ->
+  `features.py` + registries -> k-rate ensemble (frozen artifacts,
+  manual-winner blend) + TBF ridge -> `count_layer.py` Poisson + WS1c Platt ->
+  policy filter (floors, cap, under-lean, DK+FD, clip) -> flat sizing -> board
+  -> odds ledger -> grading. Depth: `docs/diagrams/10-system-paths.md`.
+- **Research path (gated):** registered questions evaluated over the SAME
+  frozen artifacts with paired populations; it never feeds production
+  automatically.
+- **The boundary is D1 (ADR-0001):** a research component migrates only
+  through calibration -> policy replay -> paper trade -> owner gate.
+  **Component migration to date: NONE** - Question A (D2) closed at the
+  boundary; the count layer keeps the slot-average aggregator.
+- **Override limit:** this register, the ADRs, the PRD, and role rules cannot
+  override frozen registrations, protocols, pins, or hashes; on disagreement
+  the frozen artifact is authoritative and the prose gets a dated supersession
+  label.
+
+---
+
+# Historical source material (verbatim archived quotes; evidence, not the register)
+
+> Each quote below is the full original ADR at consolidation time, with source
+> path and blob SHA. The register above supersedes these where they conflict.
 
 ## ADR-0001: Evidence gates before any promotion
 
