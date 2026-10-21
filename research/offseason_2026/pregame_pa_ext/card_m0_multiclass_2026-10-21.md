@@ -83,26 +83,47 @@ must be NON-INFERIOR to the frozen binary model's K probability on the
 - FAIL: the upper bound is >= +0.005 -> the K marginal is inferior ->
   STOP.
 
-### Endpoint 2: count-RPS improvement
+### Endpoint 2: multiclass log loss vs the league-constant and log5 baselines
 
-The multi-class model's count distribution (converting the multi-class
-PA probabilities to count distributions via the registered aggregation)
-must IMPROVE count-RPS over the binary + registered aggregation.
+The multi-class model's overall multiclass cross-entropy must beat both
+the league-constant baseline (predict each class with its training
+frequency) and the log5 baseline (log5 for K, non-K distributed
+proportionally to training frequencies among non-K classes).
 
-- The multi-class count distribution: for each BF slot, the probability
-  of a strikeout is P(class=0); the count PMF uses the same registered
-  aggregation but with the multi-class-implied K probability.
-- Test: paired count-RPS difference (multi-class vs the frozen binary
-  + registered aggregation), same paired bootstrap machinery.
-- PASS: the point estimate favours the multi-class model (delta < 0).
-- FAIL: the point estimate favours the baseline or is indistinguishable
-  -> no count-layer improvement -> close.
+- Multiclass log loss: -1/n * sum_i log(P_model(y_i | x_i)) over the
+  82,817 dev evaluation PAs.
+- League-constant baseline: per-class frequency from training.
+- Log5 baseline: log5 for K (same formula as the frozen recipe), non-K
+  distributed proportionally.
+- PASS: the multiclass model's log loss is LOWER than both baselines.
+- FAIL: the multiclass model's log loss is higher than either baseline
+  -> the multi-class output structure adds no information -> close.
+
+### Count-RPS becomes DESCRIPTIVE
+
+The count-RPS comparison (multi-class-implied K probability vs the
+frozen binary K probability through the registered aggregation) is
+retained as a DESCRIPTIVE output (never gated, never cited as a
+primary result).
 
 ### Holm m=2
 
 Both endpoints are tested simultaneously; Holm step-down at family level
 0.05 across the TWO pre-declared contrasts. If either endpoint fails,
 the candidate is closed.
+
+## 6b. Effect-size budget
+
+With 82,817 paired evaluation PAs and the registered bootstrap machinery,
+the minimum detectable log-loss difference at 80% power and 5%
+significance is approximately 0.00046 (derived from the observed SE of
+the paired log-loss delta in the batter-history diagnostic: ~0.000166;
+MDE = 2.8 * SE). The +0.005 non-inferiority margin for the K marginal is
+approximately 10x this minimum detectable difference — deliberately
+conservative to avoid declaring non-inferiority on noise. The
+practical-significance question (whether a count-RPS improvement of this
+magnitude matters for betting) is addressed separately by the
+decision-flip diagnostic.
 
 ## 7. Per-class calibration handling for rare classes
 
