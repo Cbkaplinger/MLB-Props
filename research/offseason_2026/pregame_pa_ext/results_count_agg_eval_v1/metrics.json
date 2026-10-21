@@ -1,0 +1,50 @@
+{
+ "bootstrap": {
+  "ci95": [
+   -0.00041920102277617224,
+   -0.00024484405822438606
+  ],
+  "contrast": "C_exact_agg_vs_registered",
+  "holm_m": 1,
+  "n_boot": 2000,
+  "p_holm": 0.0004997501249375312,
+  "p_null_centered": 0.0004997501249375312,
+  "primitive": "registered harness comparison.py: slate_date_draws + null_centered_contrast_test",
+  "seed": 20261001
+ },
+ "count_rps_baseline_mean": 1.3176129559136192,
+ "count_rps_challenger_mean": 1.3172796098139778,
+ "count_rps_delta": -0.00033334609964130735,
+ "dev_keys": {
+  "start_keys_n": 4823,
+  "start_keys_sha256": "618e8e754aa0f5e4d0b9493762299d8d664f46a78bb22d701807642494284ae2"
+ },
+ "expected_count_checks": {
+  "bucketed_ek_baseline_mean": 4.56625710519113,
+  "bucketed_ek_challenger_mean": 4.566257191329734,
+  "note": "E[K] from the UNTRUNCATED distribution is the mathematical check (identical across arms); the registered bucketed outputs are verified separately; bucket k=23 is P(K >= 23), not an exact count of 23",
+  "untruncated_ek_baseline_mean": 397.7033269569535,
+  "untruncated_ek_challenger_mean": 397.7033269569535,
+  "untruncated_ek_max_abs_arm_diff": 0.0
+ },
+ "milestones": {
+  "10": {
+   "baseline_brier_mean": 0.03526402651822489,
+   "challenger_brier_mean": 0.03525718328120876
+  },
+  "12": {
+   "baseline_brier_mean": 0.007634591599631759,
+   "challenger_brier_mean": 0.007630062470374742
+  },
+  "6": {
+   "baseline_brier_mean": 0.21192676467084395,
+   "challenger_brier_mean": 0.21190311928617198
+  },
+  "8": {
+   "baseline_brier_mean": 0.11489197363409515,
+   "challenger_brier_mean": 0.11490511144642107
+  }
+ },
+ "n_starts": 4823,
+ "supporting_note": "milestone Briers and calibration are descriptive, never gated"
+}
