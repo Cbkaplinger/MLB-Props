@@ -1378,8 +1378,17 @@ Marked deferred, NOT read. Research-status content is out of this lane.
 - **Full reads COMPLETE (tests trio + models entries, 7 files, 1,375 lines):**
   test_odds_ledger 351, test_real_bets 120, test_registries 209 (the pre-commit
   gate suite), predict_slate 201, TBF train 296, models READMEs 98. Clean.
-- **Coverage (unique paths, cumulative):** fully read ~176; survey ~285;
-  deferred-protected 290; remaining full reads: production/ops ~28 (the
-  453-963-line feature-governance family), tests ~93, models ~63,
-  docs/ ~180, diagram flow depth 01-04 complete at reference+claim-spot level.
+- **Coverage FIXED ONCE (exact, from the authoritative read registry - no more
+  estimates):** fully read = **194 unique paths**, composition A=51 (scripts 28
+  incl. review_verify, .github 2, root 12, playground 4, analysis 2, data 2,
+  report 1), B=92 (src 54 incl. Notebooks 10, .cursor 30, .agents 8),
+  SPINE=13 (odds 8, cloud 2, INDEX/RUNBOOK/production README), B4=24
+  (production/ops 17 + tests trio 3 + models entries 4), DIAG=8, PRIOR=6
+  (docs/README, reference README, PROJECT_STATE, COUNT_EVAL_COMMANDS,
+  this record, AGENTS_ROLES). Every path assertion-checked tracked at
+  origin/main with no double-count (assertion-enforced). In-scope 692:
+  fully read 192; **remaining in-scope full reads: 500 exactly.**
+  Deferred-protected: 290. The earlier "~169"/"~176" figures were running
+  estimates with overlaps (production spine counted in two passes; Notebooks
+  double-counted in prose) - this registry supersedes them.
 - **No cleanup changes required by this pass** - the deliverable is the read coverage itself plus the earlier fixes; nothing to fix in the read set.
