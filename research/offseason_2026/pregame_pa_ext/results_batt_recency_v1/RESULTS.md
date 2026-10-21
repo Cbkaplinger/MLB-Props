@@ -80,8 +80,16 @@ lineups `b6a1947c...`, freeze config `31dd78b7...`.
   (write-once parquet untouched).
 - This diagnostic is development-only: no confirmation evaluation, no
   count-distribution validation, no betting/decision claim.
-- Bundle files are mirrored byte-identically in this directory
-  (metrics.json / provenance_receipt.json / abstentions.json).
+- Bundle records in this directory are SEMANTICALLY EQUIVALENT JSON
+  COPIES of the lake bundle, not a repository duplicate of the
+  authoritative bytes: the evaluation parquet lives ONLY in the lake
+  diagnostic directory (`MLB-Props-Research\pregame-pa-ext-v2\
+  diagnostics\batt_recency_v1\`) - no repository copy exists. The three
+  JSON copies were byte-identical to the lake bundle at publication
+  (verified 2026-10-20: metrics.json `517bac01...`, provenance_receipt.json
+  `5581ed2a...`, abstentions.json `66c582e0...`) and remain subject to
+  re-verification by hashing against the lake bundle, which is
+  authoritative.
 
 ## ADDENDUM (2026-10-20): receipt-repair disclosure strengthened
 
@@ -126,3 +134,31 @@ lineups `b6a1947c...`, freeze config `31dd78b7...`.
   not reconstructed contemporaneous artifacts. The one thing that cannot
   be produced is the pre-repair receipt BYTES ? stated here rather than
   reconstructed.
+
+## CLOSEOUT (2026-10-20, after Chat 2 review)
+
+- **Result:** the R60/m30 batter-history challenger is REJECTED on the
+  registered development comparison — paired log-loss delta
+  **+0.0006202053** (challenger worse), 95% percentile interval
+  **[+0.0002941, +0.0009431]** excluding zero on the worse side,
+  registered p-value **0.0004997501** (Holm identical, family of one).
+  Supporting: Brier +0.0001906771; challenger under-predicts (mean
+  predicted 0.20987 vs observed 0.21461).
+- **Validity/provenance qualification:** dev-only paired diagnostic
+  (82,817 observed pitcher-matched PAs, 4,823 eligible starts of 7,194);
+  single execution; frozen keys verified at run time; one disclosed
+  receipt-completeness defect repaired in place the same day (inputs
+  completed read-only from the same frozen files) with the pre-repair
+  receipt bytes NOT retained — disclosed rather than reconstructed.
+- **Candidate rejected; baseline retained.** The frozen baseline remains
+  the reference; no promotion, no downstream use.
+- **Scope of the claim:** this rejects the REGISTERED R60/m30 recipe
+  (cycled-prefix-mean anchoring with this decay/weight configuration). It
+  does NOT reject recency-based batter modeling generally, and it is not
+  evidence about the workload/count-distribution layers.
+- **Confirmation untouched:** confirm_2025H2 outcomes were never read;
+  the original prediction run remains UNACCEPTED and unchanged.
+
+Next queued item (not started): the count-aggregation/workload diagnostic
+per note_count_aggregation_future_2026-10-20.md, scoped as its own
+pre-registered card after this closeout.
