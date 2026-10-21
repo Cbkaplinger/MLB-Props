@@ -61,16 +61,21 @@ code ACTUALLY makes:
    i.i.d. Binomial(k; n, pbar_n) with pbar_n = mean of the first n slot
    probabilities. Exact at n=1 and under lineup homogeneity; for
    heterogeneous prefixes the averaged binomial OVERSTATES both tail
-   masses (analytic gap ((p1-p2)/2)^2 each at n=2) and understates the
-   middle; Var(current) > Var(exact) (Jensen) for every heterogeneous
-   n=2..9 tested. Measured max per-PMF gap on a realistic spread: < 0.05.
+   masses and understates the middle. SOFTENED (2026-10-20): the analytic
+   tail-gap formula ((p1-p2)/2)^2 each is PROVEN FOR n=2 ONLY; for n>=3
+   the overstatement is demonstrated EMPIRICALLY by the separation tests
+   (Var(current) > Var(exact) (Jensen) for every heterogeneous n=2..9
+   tested; measured max per-PMF gap on a realistic spread: < 0.05).
 2. **Order sensitivity (implicit, Question A):** pbar_n is order-aware
    through the cycling - the same nine batters in different batting
    orders produce different PMFs below n=9 and identical PMFs at n=9.
    Implicit assumption: batters faced follow batting order from slot 1.
-3. **Linearity in the workload (Question B):** the count PMF is LINEAR
-   in the BF distribution (PMF(a*BF1+(1-a)*BF2) = a*PMF(BF1)+
-   (1-a)*PMF(BF2)) - the workload enters as a pure mixing measure.
+3. **Linearity in the workload (Question B).** SOFTENED (2026-10-20):
+   the count PMF is LINEAR in the BF distribution (PMF(a*BF1+(1-a)*BF2) =
+   a*PMF(BF1)+(1-a)*PMF(BF2)) - this linearity is a STRUCTURAL
+   RESTRICTION of the mixture form (what the model CAN express), NOT a
+   demonstration or proof that the workload is statistically independent
+   of performance; the dependence question remains open.
 4. **Within-n correlation is outside the model class (Question B):** a
    within-game correlated joint outcome (0.40/0.20/0.40 on K=0/1/2 at
    n=2) differs from ANY i.i.d.-given-n answer (>0.1 gap); the current
