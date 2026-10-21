@@ -1,0 +1,49 @@
+{
+ "code_config": {
+  "adapter_py_lf_sha256": "276fe0228f149241bdc34473064db1ec8caadd36f2a5d1c57e2a5c189940c164",
+  "challenger_config": {
+   "aggregation": "exact_poisson_binomial_cycled",
+   "baseline": "registered cycled prefix-mean binomial",
+   "cap": 60,
+   "k_max": 24,
+   "milestones": [
+    6,
+    8,
+    10,
+    12
+   ]
+  },
+  "clipping_convention": {
+   "baseline_pbar": "cycled_cond_mean re-clips at the same P_CLIP 1e-9 (no-op on the preserved values)",
+   "challenger_pb": "no additional clip beyond the preserved per-PA values",
+   "count_rps": "no clip; summed CDF-squared convention over the 24 registered buckets",
+   "parity_rule": "the aggregation rule is the ONLY arm difference; verified by the homogeneous-parity test",
+   "per_pa_source": "preserved p_h3_raw clipped [1e-9, 1-1e-9] at generation (frozen apply_h3_raw); identical both arms"
+  },
+  "count_agg_eval_py_lf_sha256": "8d2e92bcc692b2eb7354d9ea28a57f59a1d66031fa9de35686ac7ac215615f7d",
+  "count_aggregation_exact_py_lf_sha256": "7813227fd00c48c03f55629afa66c4fecc93b371b2442adeaa91c8848dbbcddb"
+ },
+ "config": {
+  "bootstrap": "registered comparison.py slate_date_draws + null_centered_contrast_test + Holm, n=2000 seed 20261001, Holm m=1",
+  "primary": "count-RPS (kcount_combiner.count_rps, summed)",
+  "supporting": "milestone Briers K>=6/8/10/12 (descriptive)",
+  "tail_bucket": "k=23 absorbs K >= 23 (not an exact count of 23)"
+ },
+ "dev_keys": {
+  "slot_keys_n": 43407,
+  "slot_keys_sha256": "82592f18f824359e9a48848acf7662c040edc5e3284ed6f4a1741137606318ef",
+  "start_keys_n": 4823,
+  "start_keys_sha256": "618e8e754aa0f5e4d0b9493762299d8d664f46a78bb22d701807642494284ae2"
+ },
+ "inputs": {
+  "consumed": {
+   "bf_pmf": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
+   "preserved_run_ledger": "fd1841e12c19b55b3259935a778c5e8815a0e37b20666b2e53d001d0adb840b8",
+   "realized_counts_source": "af6814ec7ea73b4ac941dd52f185139062b987762d639203b867e15bb4817fde"
+  },
+  "context_identities": {
+   "checkpoint": "d266a1cd108633012e2bdec8c93dd467759fd966191c71aed9d790b74d1c68c6",
+   "lineups": "b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b"
+  }
+ }
+}
