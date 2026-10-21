@@ -1,5 +1,7 @@
 # ADR-0002: Exact aggregation first, workload dependence second
 
+> Numbering note: the research-cycle labels ADR-0001/ADR-0002 are local to this proposal; the repository accepted sequence already includes ADR-0007 (MLflow research mirror). Renumber on adoption if the owner prefers.
+
 **Status:** PROPOSED (2026-10-21; pending owner approval)
 
 ## Decision

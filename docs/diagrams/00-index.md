@@ -242,4 +242,4 @@ status belongs to that owner. This window stops after the docs commit.
 - [09 - Evidence gate](09-evidence-gate.md)
 - [10 - System paths](10-system-paths.md) - production vs research boundary: inputs, components, outputs, promotion gate (reuses 01/05/08 for depth).
 - [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision. - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
-- ADR-0001 (evidence gates), ADR-0002 (exact aggregation first), the cycle PRD, and ROLES live in \docs/architecture/\.
+- ADR-0001 (evidence gates) and ADR-0002 (exact aggregation first) live in \docs/adr/\ as PROPOSED-* (numbering note in-file); the cycle PRD is \docs/adr/PROPOSED-prd-research-shipping-cycle.md\; ROLES is \docs/architecture/ROLES.md\.
