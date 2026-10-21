@@ -82,3 +82,47 @@ lineups `b6a1947c...`, freeze config `31dd78b7...`.
   count-distribution validation, no betting/decision claim.
 - Bundle files are mirrored byte-identically in this directory
   (metrics.json / provenance_receipt.json / abstentions.json).
+
+## ADDENDUM (2026-10-20): receipt-repair disclosure strengthened
+
+- **Executed code identity (separate from the later publication SHA):**
+  the diagnostic executed with `batt_recency.py` at git **2d2c02f**, whose
+  LF-normalized sha256 ? recorded AT RUN TIME in the receipt under
+  `code_config.batt_recency_py_lf_sha256` ? is
+  `c645da1beb50272e3e7425ca1a780d81001769b872ce88722f698f055656dba3`
+  (re-verified against the 2d2c02f blob). The later commit **044f89c**
+  (CLI artifact-path fix + this results/receipt mirror) changed the file
+  AFTER execution (its LF sha256 is `88c32e39...`); execution evidence
+  and publication are therefore distinct identities.
+- **Original receipt bytes: NOT preserved.** The repair was applied
+  in place, so the pre-repair receipt file (with the placeholder inputs
+  note) no longer exists on disk. This is a disclosed process flaw: a
+  pre-repair copy should have been retained. What IS preserved:
+  (a) the repaired receipt (published copy in this directory),
+  (b) the verbatim original placeholder content of the repaired section
+  ? `{"note": "no artifact paths supplied (synthetic run)"}` ?
+  documented in the in-receipt `receipt_repair` note, and (c) the
+  code-level guarantee that the repair touched ONLY the `inputs` section
+  plus the added `receipt_repair` key (repair script assigned exactly
+  those two keys; every other section byte-unchanged).
+- **Exactly what was repaired:** the `inputs` section ? placeholder
+  replaced by the six frozen-input identities (pa_table `1d3be629...`,
+  preserved ledger `fd1841e1...`, checkpoint `d266a1cd...`, BF
+  `c9c2762f...`, lineups `b6a1947c...`, freeze config `31dd78b7...`) ?
+  plus the added `receipt_repair` key. No metric, fit, key, abstention,
+  or output section was modified.
+- **Evidence connecting the executed process to the frozen inputs:**
+  (1) the executed code paths ? `run_diagnostic` reads the pa_table
+  (adapter.load_pa_table), the preserved ledger, the checkpoint
+  (adapter.load_serialized_checkpoint), the BF PMF
+  (adapter.load_bf_forecasts, sha-gated against the registered pin),
+  and the lineups (adapter.load_projected_lineups); (2) the repaired
+  input hashes match the INDEPENDENTLY registered pins recorded in prior
+  turns (BF `c9c2762f...`, lineups `b6a1947c...`, pa_table `1d3be629...`,
+  checkpoint raw `d266a1cd...` / payload pin `176fb18b...`); (3) the
+  frozen development key hashes were reproduced at run time
+  (`82592f18...` / `c6568151...`). The input hashes are computed from
+  the same frozen files the run consumed; they are factual identities,
+  not reconstructed contemporaneous artifacts. The one thing that cannot
+  be produced is the pre-repair receipt BYTES ? stated here rather than
+  reconstructed.
