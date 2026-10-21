@@ -882,8 +882,17 @@ def run_diagnostic(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir,
     # 6. MANDATORY provenance receipt (validated; MLflow transport optional
     # and NOT exercised here)
     ap = artifact_paths or {}
-    inputs = {k: _sha_or_missing(v) for k, v in ap.items()}
-    if not inputs:
+    # inputs are CLASSIFIED (Chat 2 finding): the diagnostic CONSUMES the
+    # pa_table and the preserved ledger (+ code); checkpoint/BF/lineup/
+    # freeze hashes are CONTEXT identities from the prior registration.
+    CONSUMED_KEYS = ("pa_table", "preserved_run_ledger")
+    hashes = {k: _sha_or_missing(v) for k, v in ap.items()}
+    inputs = {
+        "consumed": {k: hashes[k] for k in CONSUMED_KEYS if k in hashes},
+        "context_identities": {k: v for k, v in hashes.items()
+                               if k not in CONSUMED_KEYS},
+    }
+    if not hashes:
         inputs = {"note": "no artifact paths supplied (synthetic run)"}
     code_config = {
         "batt_recency_py_lf_sha256": sha256_stream(br_lf_bytes()),
@@ -999,6 +1008,8 @@ def main(argv: list[str] | None = None) -> int:
     ledger = pl.read_parquet(ledger_path)
     # REAL artifact identities for the MANDATORY provenance receipt
     # (inputs section): the frozen files this diagnostic actually reads.
+    # CONSUMED inputs: pa_table + preserved ledger (+ code). CONTEXT
+    # identities: checkpoint/BF/lineups/freeze (prior registration).
     artifact_paths = {
         "pa_table": (Path(args.pa_table) if args.pa_table
                      else ad.OVERNIGHT_P2_DIR / "data" / "pa_table.parquet"),

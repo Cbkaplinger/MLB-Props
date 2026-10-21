@@ -54,12 +54,16 @@
   }
  },
  "inputs": {
-  "bf_pmf": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
-  "checkpoint": "d266a1cd108633012e2bdec8c93dd467759fd966191c71aed9d790b74d1c68c6",
-  "freeze_config": "31dd78b79ff41638544986fb812a99c0e747adac9cf7bb430a64202b5d21ef0f",
-  "lineups": "b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b",
-  "pa_table": "1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff",
-  "preserved_run_ledger": "fd1841e12c19b55b3259935a778c5e8815a0e37b20666b2e53d001d0adb840b8"
+  "consumed": {
+   "pa_table": "1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff",
+   "preserved_run_ledger": "fd1841e12c19b55b3259935a778c5e8815a0e37b20666b2e53d001d0adb840b8"
+  },
+  "context_identities": {
+   "bf_pmf": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
+   "checkpoint": "d266a1cd108633012e2bdec8c93dd467759fd966191c71aed9d790b74d1c68c6",
+   "freeze_config": "31dd78b79ff41638544986fb812a99c0e747adac9cf7bb430a64202b5d21ef0f",
+   "lineups": "b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b"
+  }
  },
  "metrics": {
   "bootstrap": {
@@ -105,6 +109,13 @@
   "all_other_sections": "unchanged",
   "date": "2026-10-20",
   "reason": "RECEIPT COMPLETENESS REPAIR: the authorized run's CLI wiring did not pass artifact paths, so the inputs section was written with a placeholder note. This repair adds the input identities, computed READ-ONLY from the same frozen files the run consumed (hashes are factual, no re-run, no re-fit). Disclosed to Chat 2 in the results handoff.",
+  "sections_touched": [
+   "inputs"
+  ]
+ },
+ "receipt_repair_2": {
+  "date": "2026-10-20",
+  "reason": "INPUT-CLASSIFICATION CORRECTION (Chat 2 finding): the diagnostic CONSUMED only the pa_table and the preserved ledger, plus code; the checkpoint/BF/lineup/freeze hashes are CONTEXT identities from the prior registration, not consumed by this diagnostic. The inputs section is restructured into consumed vs context_identities; no hash values changed.",
   "sections_touched": [
    "inputs"
   ]

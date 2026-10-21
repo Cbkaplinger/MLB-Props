@@ -114,12 +114,16 @@ lineups `b6a1947c...`, freeze config `31dd78b7...`.
   plus the added `receipt_repair` key (repair script assigned exactly
   those two keys; every other section byte-unchanged).
 - **Exactly what was repaired:** the `inputs` section ? placeholder
-  replaced by the six frozen-input identities (pa_table `1d3be629...`,
-  preserved ledger `fd1841e1...`, checkpoint `d266a1cd...`, BF
-  `c9c2762f...`, lineups `b6a1947c...`, freeze config `31dd78b7...`) ?
-  plus the added `receipt_repair` key. No metric, fit, key, abstention,
-  or output section was modified.
-- **Evidence connecting the executed process to the frozen inputs:**
+  replaced by six artifact identities. CORRECTION (2026-10-20, Chat 2
+  finding): those identities are NOT all consumed inputs - the diagnostic
+  CONSUMED only the pa_table (`1d3be629...`) and the preserved ledger
+  (`fd1841e1...`), plus code; the checkpoint (`d266a1cd...`), BF
+  (`c9c2762f...`), lineup (`b6a1947c...`) and freeze-config hashes are
+  CONTEXT identities from the prior registration, not consumed by this
+  diagnostic. The lake receipt has been corrected to classify them
+  (repair 2). No metric, fit, key, abstention, or output section was
+  modified by either repair.
+- **Evidence connecting the executed process to the frozen inputs** (the consumed inputs are the pa_table and the preserved ledger, plus code; the checkpoint/BF/lineup hashes are CONTEXT identities from the prior registration, not consumed by this diagnostic):
   (1) the executed code paths ? `run_diagnostic` reads the pa_table
   (adapter.load_pa_table), the preserved ledger, the checkpoint
   (adapter.load_serialized_checkpoint), the BF PMF
@@ -147,8 +151,9 @@ lineups `b6a1947c...`, freeze config `31dd78b7...`.
 - **Validity/provenance qualification:** dev-only paired diagnostic
   (82,817 observed pitcher-matched PAs, 4,823 eligible starts of 7,194);
   single execution; frozen keys verified at run time; one disclosed
-  receipt-completeness defect repaired in place the same day (inputs
-  completed read-only from the same frozen files) with the pre-repair
+  receipt-completeness defect repaired in place the same day (consumed
+  inputs = pa_table + preserved ledger, plus code; checkpoint/BF/lineup
+  hashes are context identities, not consumed) with the pre-repair
   receipt bytes NOT retained — disclosed rather than reconstructed.
 - **Candidate rejected; baseline retained.** The frozen baseline remains
   the reference; no promotion, no downstream use.
