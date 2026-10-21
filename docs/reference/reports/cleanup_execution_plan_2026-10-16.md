@@ -1362,3 +1362,24 @@ Marked deferred, NOT read. Research-status content is out of this lane.
   heal_stale_slate, build_automation_self_check next) + market_research deep
   reads (batch 4), tests/ 96, models/ 79, docs/ ~180, diagram flow depth 01-04
   (reference-level complete).
+
+## Sweep status ledger update (2026-10-20, late night - batch 4: production/ops reports+governance family + tests trio + models entries)
+
+- **PR #26 merged** (`16dfe9f` -> `a442e22`). Batch 4 on this branch.
+- **Full reads COMPLETE (17 production/ops scripts, 3,402 lines):**
+  build_daily_operator_summary 164, build_automation_self_check 356,
+  build_board_ledger_reconciliation 173, build_runtime_monitoring_snapshot 392,
+  build_policy_governance_report 786, build_validation_ops_report 368,
+  build_weekly_policy_digest 53, build_winner_board_local 75,
+  check_drawdown_brake 115, paper_quant_track 85, weekly_kpi_report 144,
+  log_model_lineage 141, compact_aux_quote_history 64, policy_freshness_audit 131,
+  run_monitoring_cycle 118, run_post_score_automation 107, calibration_snapshot 130.
+  **Findings: ZERO stale instructions, zero broken references, zero duplication signals.** The build_*/report family is clean, current, and consistent with the merged docs.
+- **Full reads COMPLETE (tests trio + models entries, 7 files, 1,375 lines):**
+  test_odds_ledger 351, test_real_bets 120, test_registries 209 (the pre-commit
+  gate suite), predict_slate 201, TBF train 296, models READMEs 98. Clean.
+- **Coverage (unique paths, cumulative):** fully read ~176; survey ~285;
+  deferred-protected 290; remaining full reads: production/ops ~28 (the
+  453-963-line feature-governance family), tests ~93, models ~63,
+  docs/ ~180, diagram flow depth 01-04 complete at reference+claim-spot level.
+- **No cleanup changes required by this pass** - the deliverable is the read coverage itself plus the earlier fixes; nothing to fix in the read set.
