@@ -235,11 +235,10 @@ No experiment is queued by this docs window. The bounded chronological WF
 comparison is authorized in the research window; its execution/completion
 status belongs to that owner. This window stops after the docs commit.
 
-### Proposed architecture set (2026-10-21; PROPOSED status, owner approval pending)
+### Proposed architecture set (2026-10-21; PROPOSED status, owner approval pending) - CONSOLIDATED into docs/DECISIONS.md 2026-10-21
 
+- The four short PROPOSED ADRs (evidence gates; exact aggregation first - CLOSED 2026-10-21, one flip in 19,292; multiclass PA outcome model; the cycle PRD) are consolidated verbatim into [docs/DECISIONS.md](../DECISIONS.md) with dated sections; originals archived under docs/archive/consolidated/adr/.
 - [07 - Lanes and responsibilities](07-lanes-and-roles.md) - who builds, reviews, authorizes execution, approves promotion.
-- [08 - Research decision flow](08-research-decision-flow.md) - frozen baseline, rejected batter-history recipe, Question A/B lanes, promotion gates.
-- [09 - Evidence gate](09-evidence-gate.md)
 - [10 - System paths](10-system-paths.md) - production vs research boundary: inputs, components, outputs, promotion gate (reuses 01/05/08 for depth).
-- [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision. - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
-- ADR-0001 (evidence gates) and ADR-0002 (exact aggregation first) live in \docs/adr/\ as PROPOSED-* (numbering note in-file); the cycle PRD is \docs/adr/PROPOSED-prd-research-shipping-cycle.md\; ROLES is \docs/architecture/ROLES.md\.
+- [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision.
+- [09 - Evidence gate](09-evidence-gate.md) - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
