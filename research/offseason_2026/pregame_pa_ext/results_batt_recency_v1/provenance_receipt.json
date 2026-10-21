@@ -1,0 +1,112 @@
+{
+ "abstentions": {
+  "classification_totals": {
+   "debut_date_newcomer": 57,
+   "window_limited_veteran": 2
+  },
+  "confirmation_total": 16,
+  "development_total": 43,
+  "file": "abstentions.json",
+  "full_run_total": 59,
+  "sha256": "66c582e070229ee02e72d07af8574af4e335d75603ae47efc000851d987e385f"
+ },
+ "acceptance": {
+  "block_isolation": true,
+  "exclusion_policy_unchanged": true,
+  "paired_keys_exact": true,
+  "verify_published": true
+ },
+ "code_config": {
+  "adapter_py_lf_sha256": "276fe0228f149241bdc34473064db1ec8caadd36f2a5d1c57e2a5c189940c164",
+  "batt_recency_py_lf_sha256": "c645da1beb50272e3e7425ca1a780d81001769b872ce88722f698f055656dba3",
+  "challenger_config": {
+   "R_days": 60,
+   "anchor_w": 150.0,
+   "features": [
+    "p_pitcher_prior_w150",
+    "p_batt_recent",
+    "p_batt_anchor",
+    "lg_rate",
+    "n_prior_pitcher",
+    "n_prior_batter",
+    "cold_start",
+    "ew_pitcher"
+   ],
+   "m_pseudo": 30.0
+  }
+ },
+ "dev_keys": {
+  "eval_keys_n": 82817,
+  "eval_keys_sha256": "c65681512d5de924e842e80d7c7f27369889590f1c46111eec11e25acb50f902",
+  "slot_keys_n": 43407,
+  "slot_keys_sha256": "82592f18f824359e9a48848acf7662c040edc5e3284ed6f4a1741137606318ef"
+ },
+ "fits": {
+  "block_2024H2": {
+   "coefficients_sha256": "db173def02354fe51b2b979bd234ec42657710dcd95fb8dd5e4346dafdbcd930",
+   "max_train_date": "2024-05-01",
+   "n_train_rows": 219078
+  },
+  "block_2025H1": {
+   "coefficients_sha256": "16e4dc4bc7ea1e912f600506126195222a9a11f2b67d26a69677f14119ffa368",
+   "max_train_date": "2024-08-01",
+   "n_train_rows": 306791
+  }
+ },
+ "inputs": {
+  "bf_pmf": "c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679",
+  "checkpoint": "d266a1cd108633012e2bdec8c93dd467759fd966191c71aed9d790b74d1c68c6",
+  "freeze_config": "31dd78b79ff41638544986fb812a99c0e747adac9cf7bb430a64202b5d21ef0f",
+  "lineups": "b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b",
+  "pa_table": "1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff",
+  "preserved_run_ledger": "fd1841e12c19b55b3259935a778c5e8815a0e37b20666b2e53d001d0adb840b8"
+ },
+ "metrics": {
+  "bootstrap": {
+   "ci95": [
+    0.00029410459575555383,
+    0.0009431305571369424
+   ],
+   "contrast": "C_batt_recency_vs_baseline",
+   "delta": 0.0006202053327827306,
+   "holm_m": 1,
+   "n_boot": 2000,
+   "p_holm": 0.0004997501249375312,
+   "p_null_centered": 0.0004997501249375312,
+   "primitive": "registered harness comparison.py: slate_date_draws + null_centered_contrast_test",
+   "seed": 20261001
+  },
+  "brier_baseline": 0.1647954031469465,
+  "brier_challenger": 0.1649860802458771,
+  "brier_delta": 0.00019067709893061296,
+  "calibration": {
+   "baseline_mean_pred": 0.21367264729617313,
+   "baseline_observed": 0.21460569689797987,
+   "challenger_max_decile_gap": 0.012914472873524707,
+   "challenger_mean_pred": 0.209871921963636,
+   "challenger_observed": 0.21460569689797987
+  },
+  "coverage": {
+   "abstention_record": "abstentions.json",
+   "development_abstaining_starts": 43,
+   "full_run_abstaining_starts": 59,
+   "note": "development metrics cover the eligible development starts only; abstentions.json itemizes development and confirmation-block abstentions separately - the full-run total is not a development count"
+  },
+  "log_loss_baseline": 0.5085714457267786,
+  "log_loss_challenger": 0.5091916510595613,
+  "log_loss_delta": 0.0006202053327827619,
+  "n_evaluation_rows": 82817
+ },
+ "outputs": {
+  "batt_recency_eval_v1.parquet": "375f25f9ad28d24c1ecc0b142fb1c54d2dc5a7f04fbb929282cd79dab7e0221c",
+  "metrics.json": "517bac018eb13429da56ecba2fd1e34e334ce5adb211b0842afb40ef0a91a921"
+ },
+ "receipt_repair": {
+  "all_other_sections": "unchanged",
+  "date": "2026-10-20",
+  "reason": "RECEIPT COMPLETENESS REPAIR: the authorized run's CLI wiring did not pass artifact paths, so the inputs section was written with a placeholder note. This repair adds the input identities, computed READ-ONLY from the same frozen files the run consumed (hashes are factual, no re-run, no re-fit). Disclosed to Chat 2 in the results handoff.",
+  "sections_touched": [
+   "inputs"
+  ]
+ }
+}

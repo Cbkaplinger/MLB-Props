@@ -966,6 +966,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ledger", default=None,
                     help="override preserved-run ledger path (synthetic "
                          "tests only)")
+    ap.add_argument("--checkpoint", default=None)
+    ap.add_argument("--bf", default=None)
+    ap.add_argument("--lineup", default=None)
+    ap.add_argument("--freeze", default=None)
     ap.add_argument("--out-dir", default=None,
                     help="diagnostics output directory override (defaults "
                          "to PAEXT_OUT_DIR/diagnostics/batt_recency_v1)")
@@ -993,7 +997,25 @@ def main(argv: list[str] | None = None) -> int:
                    ad.PAEXT_OUT_DIR / "outputs"
                    / "projected_pa_probs_v1.parquet")
     ledger = pl.read_parquet(ledger_path)
-    result = run_diagnostic(pa, ledger, out_dir, verify_published=True)
+    # REAL artifact identities for the MANDATORY provenance receipt
+    # (inputs section): the frozen files this diagnostic actually reads.
+    artifact_paths = {
+        "pa_table": (Path(args.pa_table) if args.pa_table
+                     else ad.OVERNIGHT_P2_DIR / "data" / "pa_table.parquet"),
+        "preserved_run_ledger": ledger_path,
+        "checkpoint": (Path(args.checkpoint) if args.checkpoint
+                       else ad.CHECKPOINT_PATH),
+        "bf_pmf": (Path(args.bf) if args.bf else
+                   ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet"),
+        "lineups": (Path(args.lineup) if args.lineup else
+                    ad.PREGAME_STATE_DIR / "data"
+                    / "projected_lineups_variant_v2.parquet"),
+        "freeze_config": (Path(args.freeze) if args.freeze else
+                          Path(ad.__file__).resolve().parent
+                          / "freeze_pregame_pa_ext_v2.json"),
+    }
+    result = run_diagnostic(pa, ledger, out_dir, verify_published=True,
+                            artifact_paths=artifact_paths)
     print(json.dumps({"out_dir": result["out_dir"],
                       "receipt_complete": result["receipt_complete"],
                       "log_loss_delta": result["receipt"]["metrics"]
