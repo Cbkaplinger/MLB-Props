@@ -120,7 +120,7 @@ def test_effect_size_budget_documented():
 
 
 def test_class_names_and_taxonomy_completeness():
-    assert m0.N_CLASSES == 5
+    assert m0.N_CLASSES == 4
     assert m0.CLASS_NAMES[0] == "strikeout"
     assert m0.K_CLASS == 0
     assert len(m0.STATCAST_EVENT_TAXONOMY) >= 20
