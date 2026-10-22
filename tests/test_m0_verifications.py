@@ -35,7 +35,9 @@ def test_k_label_agrees_with_frozen_binary():
         "y": [1 if e in ("strikeout", "strikeout_double_play") else 0
               for e in events],
     })
-    mapped = m0.build_multiclass_labels(df)
+    mapped = m0.event_label_frame(df)[0].join(
+        df.select("game_pk", "at_bat_number", "batter", "y"),
+        on=["game_pk", "at_bat_number", "batter"], how="inner")
     for r in mapped.iter_rows(named=True):
         if r["y"] == 1:
             assert r["class_label"] == 0
@@ -122,8 +124,8 @@ def test_source_key_mismatch_detected():
         "batter": list(range(n)), "events": ["strikeout"] * n,
         "y": [1] * n,
     })
-    mapped = m0.build_multiclass_labels(df)
+    mapped = m0.event_label_frame(df)[0]
     assert mapped.height == n
     df_partial = df.head(n - 10)
-    mapped_partial = m0.build_multiclass_labels(df_partial)
+    mapped_partial = m0.event_label_frame(df_partial)[0]
     assert mapped_partial.height == n - 10
