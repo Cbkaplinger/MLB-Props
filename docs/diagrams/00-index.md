@@ -246,3 +246,15 @@ status belongs to that owner. This window stops after the docs commit.
 - [10 - System paths](10-system-paths.md) - production vs research boundary: inputs, components, outputs, promotion gate (reuses 01/05/08 for depth).
 - [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision. - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
 - ADR-0001 (evidence gates) and ADR-0002 (exact aggregation first) live in \docs/adr/\ as PROPOSED-* (numbering note in-file); the cycle PRD is \docs/adr/PROPOSED-prd-research-shipping-cycle.md\; ROLES is \docs/architecture/ROLES.md\.
+
+> **Navigation review (2026-10-21, PROPOSED - retirement is approval-gated):**
+> overlap found between 09 (evidence-gate chain) and 13 (experiment evidence
+> lifecycle, which adds rejected/invalid/promotion states) - 09 is a candidate
+> for retirement once its consumers (00-index pointer + DECISIONS reference)
+> are re-pointed at 13. Partial overlap between 07 (lanes/responsibilities)
+> and 12 (delivery control) - proposed consolidation direction: keep 12 as the
+> target-state control map and reduce 07 to the responsibility table only.
+> 01 vs 10 and 08 vs 13 answer distinct questions at different depths - KEEP.
+> No retirement executed: consumers (00-index links, DECISIONS references)
+> must be re-pointed first, per the consolidation safety rules.
+
