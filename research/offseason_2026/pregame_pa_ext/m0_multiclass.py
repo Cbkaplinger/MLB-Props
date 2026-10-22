@@ -373,11 +373,21 @@ def validate_receipt_initial(receipt: dict) -> None:
 def run_m0(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir, *,
            event_labels: pl.DataFrame | None = None,
            raw_dir: str | None = None, bf: pl.DataFrame | None = None,
+           realized: pl.DataFrame | None = None,
            verify_published: bool = True, n_boot: int = 2000,
            seed: int = 20261001) -> dict:
     """GATED M0 runner (synthetic-tested; real-data execution requires
     --i-accept-outcome-evaluation AND explicit owner authorization).
-    Write-once; immutable initial receipt; failure records preserved."""
+    Write-once; immutable initial receipt; failure records preserved.
+
+    `realized` (optional): the REGISTERED realized-K-per-start source
+    (start_metrics_v2 lineage, (game_pk, side, pitcher, realized_k)).
+    When supplied, the DESCRIPTIVE count-RPS output (card v2/v3:
+    retained, never gated) is emitted - M0's implied P(class=0) per slot
+    and the frozen binary p_h3_raw, both through the REGISTERED
+    aggregation (cycled prefix-mean binomial over the registered BF
+    extension), against the realized K per start. Never part of the
+    inferential decision."""
     out_dir = Path(out_dir)
     if out_dir.exists():
         raise ValueError(f"write-once violation: {out_dir} exists")
@@ -608,6 +618,89 @@ def run_m0(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir, *,
             "m0_multiclass_eval_v1.parquet": ad.sha256_file(ev_path),
             "metrics.json": ad.sha256_file(metrics_path),
         }
+
+        # stage 6: DESCRIPTIVE count-RPS (card v2/v3: retained as a
+        # descriptive output, NEVER gated, never part of the inferential
+        # decision). M0 arm = P(class=0) per slot through the REGISTERED
+        # aggregation; comparator = the frozen binary p_h3_raw per slot
+        # through the SAME aggregation (the pinned card's comparator);
+        # realized K per start from the REGISTERED start_metrics_v2
+        # lineage (consumed input, recorded).
+        if realized is not None and bf is not None:
+            p9_multi = (slots.sort("game_pk", "side", "slot")
+                        .group_by("game_pk", "side", "pitcher")
+                        .agg(pl.col("p_multiclass_k")
+                             .sort_by("slot").alias("p9_multi"),
+                             pl.col("game_date").first().alias("g_date")))
+            p9_base = slot_rows.sort("game_pk", "side", "slot").group_by(
+                "game_pk", "side", "pitcher").agg(
+                pl.col("p_h3_raw").sort_by("slot").alias("p9_base"),
+                pl.col("game_date").first().alias("gb_date"))
+            desc = p9_multi.join(
+                p9_base, on=["game_pk", "side", "pitcher"], how="inner")
+            bf37 = bf.select("game_pk", "side", "pitcher",
+                             *[f"pmf37_{j}" for j in range(37)])
+            desc = desc.join(bf37, on=["game_pk", "side", "pitcher"],
+                             how="inner")
+            rps_m, rps_b = [], []
+            for r in desc.iter_rows(named=True):
+                p9m = np.asarray(r["p9_multi"], dtype=np.float64)
+                p9b = np.asarray(r["p9_base"], dtype=np.float64)
+                bf37 = np.asarray([r[f"pmf37_{j}"] for j in range(37)])
+                bf37 = bf37 / bf37.sum()
+                bf_ext = ad.bf_pmf_from_37(bf37)
+                pmf_m = ad.count_pmf_from_mixture(
+                    bf_ext, ad.cycled_cond_mean(p9m := p9_multi))
+                pmf_b = ad.count_pmf_from_mixture(
+                    bf_ext, ad.cycled_cond_mean(p9b := p9_base))
+                # realized K per start for the DESCRIPTIVE comparison:
+                # the registered start_metrics_v2 lineage value
+                rrow = realized.filter(
+                    (pl.col("game_pk") == r["game_pk"])
+                    & (pl.col("side") == r["side"])
+                    & (pl.col("pitcher") == r["pitcher"]))
+                if rrow.height != 1:
+                    raise ValueError(
+                        f"descriptive stage: realized count mismatch for "
+                        f"start {r['game_pk']}/{r['side']} "
+                        f"({rrow.height} rows)")
+                k_real = int(rrow["realized_k"][0])
+                rps_m.append(kc.count_rps(pmf_m, k_real))
+                rps_b.append(kc.count_rps(pmf_b, k_real))
+            rps_m = np.asarray(rps_m)
+            rps_b = np.asarray(rps_b)
+            descriptive = {
+                "status": "DESCRIPTIVE - never gated, never a primary "
+                          "result (card v2/v3)",
+                "aggregation": ("registered: cycled prefix-mean binomial "
+                                "over the registered BF extension "
+                                "(bf_pmf_from_37, cap 60, tail at k=23)"),
+                "m0_probabilities": ("M0 implied K = P(class=0) per slot"),
+                "comparator_probabilities": (
+                    "the frozen binary p_h3_raw per slot (the pinned "
+                    "card's comparator)"),
+                "realized_source": "registered start_metrics_v2 lineage",
+                "count_rps_m0_mean": float(rps_m.mean()),
+                "count_rps_baseline_mean": float(rps_b.mean()),
+                "count_rps_delta": float(rps_m.mean() - rps_b.mean()),
+                "n_starts": int(desc.height),
+            }
+        else:
+            descriptive = {
+                "status": "SKIPPED: the registered realized-count source "
+                          "(start_metrics_v2 lineage) was not supplied",
+            }
+        # write-once outputs: the paired evaluation table + metrics
+        ev_path = out_dir / "m0_multiclass_eval_v1.parquet"
+        ev.write_parquet(ev_path)
+        metrics_path = out_dir / "metrics.json"
+        metrics_path.write_text(json.dumps(metrics, indent=1,
+                                           sort_keys=True),
+                                encoding="utf-8")
+        outputs = {
+            "m0_multiclass_eval_v1.parquet": ad.sha256_file(ev_path),
+            "metrics.json": ad.sha256_file(metrics_path),
+        }
     except Exception as exc:
         failure = {"stage": "m0_multiclass", "failure": True,
                    "error": repr(exc),
@@ -654,6 +747,29 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--i-accept-outcome-evaluation", action="store_true",
                     help="gate for real-data execution (owner "
                          "authorization required; never run to date)")
+    ap.add_argument("--pa-table", default=None,
+                    help="path to the registered pa_table parquet")
+    ap.add_argument("--ledger", default=None,
+                    help="path to the preserved run ledger parquet")
+    ap.add_argument("--bf", default=None,
+                    help="path to the registered BF PMF artifact")
+    ap.add_argument("--realized", default=None,
+                    help="path to the registered realized-K-per-start "
+                         "source (start_metrics_v2 lineage)")
+    ap.add_argument("--raw-dir", default=None,
+                    help="raw Statcast directory for the event labels "
+                         "(consumed input; recorded per file)")
+    ap.add_argument("--out-dir", default=None,
+                    help="write-once diagnostics output directory")
+    ap.add_argument("--verify-published", action="store_true",
+                    default=True,
+                    help="assert the published frozen dev-key identity "
+                         "(default ON; supply --no-verify-published for "
+                         "synthetic exercise only)")
+    ap.add_argument("--no-verify-published",
+                    dest="verify_published", action="store_false",
+                    help="disable the published-key assertion "
+                         "(SYNTHETIC exercise only; never for real data)")
     args = ap.parse_args(argv)
     if args.verify_receipt_check:
         # SUPPORT-MODULE import (Chat 2 preflight repair): the synthetic
@@ -678,11 +794,33 @@ def main(argv: list[str] | None = None) -> int:
                           "receipt_sections": sorted(fin.keys())},
                          indent=1))
         return 0 if ok else 1
-    print("REFUSING: M0 real-data execution requires "
-          "--i-accept-outcome-evaluation AND explicit owner "
-          "authorization. The complete-receipt pre-execution check is "
-          "runnable via --verify-receipt-check (synthetic only).")
-    return 2
+    if not args.i_accept_outcome_evaluation:
+        print("REFUSING: M0 real-data execution requires "
+              "--i-accept-outcome-evaluation AND explicit owner "
+              "authorization. The complete-receipt pre-execution check "
+              "is runnable via --verify-receipt-check (synthetic only).")
+        return 2
+    if args.pa_table is None or args.ledger is None:
+        print("REFUSING: --pa-table and --ledger are required for the "
+              "authorized real-data path.")
+        return 2
+    import tempfile
+    pa = pl.read_parquet(args.pa_table)
+    ledger = pl.read_parquet(args.ledger)
+    bf = pl.read_parquet(args.bf) if args.bf else None
+    realized = pl.read_parquet(args.realized) if args.realized else None
+    out_dir = (Path(args.out_dir) if args.out_dir else
+               ad.PAEXT_OUT_DIR / "diagnostics" / "m0_multiclass_v1")
+    res = run_m0(pa, ledger, out_dir, raw_dir=args.raw_dir, bf=bf,
+                 realized=realized,
+                 verify_published=args.verify_published)
+    print(json.dumps({"out_dir": res["out_dir"],
+                      "EP1_noninferiority_pass":
+                          res["receipt_final"]["acceptance"]
+                          ["EP1_noninferiority_pass"],
+                      "EP2_pass": res["receipt_final"]["acceptance"]
+                      ["EP2_pass"]}, indent=1, sort_keys=True))
+    return 0
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ sys_path = str(HERE / "research" / "offseason_2026")
 if sys_path not in __import__("sys").path:
     __import__("sys").path.insert(0, sys_path)
 
+import kcount_combiner as kc  # noqa: E402 (registered count metrics)
 import pregame_pa_ext.adapter as ad  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 from pregame_pa_ext import batt_recency as br  # noqa: E402
@@ -275,9 +276,7 @@ def test_receipt_fail_closed(tmp_path):
         m0.validate_receipt_initial(receipt)
 
 
-def test_refusal_gate_cli():
-    """The CLI refuses real-data execution without the flag (exit 2)."""
-    assert m0.main([]) == 2
+
 
 
 def test_verify_receipt_check_synthetic(tmp_path, monkeypatch):
@@ -286,3 +285,115 @@ def test_verify_receipt_check_synthetic(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     rc = m0.main(["--verify-receipt-check"])
     assert rc == 0
+
+
+# ------------------ M0FIX tightened acceptance checks (owner-directed)
+def test_registered_pmf_construction_independent_example():
+    """M0FIX-01 (B2 tightening): the registered PMF construction
+    reproduces an INDEPENDENTLY calculated binomial - point-mass BF at
+    n=2, pbar_2 = mean(0.2, 0.6) = 0.4, Binom(k; 2, 0.4) = [0.36, 0.48,
+    0.16]. Computed by hand, not by the same machinery."""
+    p9 = [0.2, 0.6, 0.3, 0.4, 0.5, 0.1, 0.7, 0.3, 0.25]
+    bf_point = np.zeros(ad.KCOUNT_CAP)
+    bf_point[1] = 1.0  # all mass at N=2
+    pbar_n = ad.cycled_cond_mean(np.asarray(p9))
+    pmf = ad.count_pmf_from_mixture(bf_point, pbar_n)
+    expected = [0.36, 0.48, 0.16] + [0.0] * (ad.K_MAX - 3)
+    assert np.allclose(pmf, expected, atol=1e-12)
+
+
+def test_count_rps_independent_example():
+    """M0FIX-02 (B2 tightening): the registered summed count-RPS on a
+    small hand-computed example - pmf [0.2, 0.5, 0.3], realized K=1:
+    RPS = (0.2-0)^2 + (0.7-1)^2 + (1.0-1)^2 = 0.13."""
+    pmf = np.asarray([0.2, 0.5, 0.3])
+    assert kc.count_rps(pmf, 1) == pytest.approx(0.13, abs=1e-12)
+
+
+def test_start_key_identity_exact_synthetic(tmp_path):
+    """M0FIX-03 (B3 tightening): the runner's evaluation population
+    equals the synthetic fixture's OWN explicit expected start-key set -
+    unique, complete, and with the excluded (abstaining) starts absent.
+    The real frozen population is NOT asserted here (that is the
+    non-author check's exact-set job on real inputs)."""
+    pa, ledger, labels, bf = synthetic_m0_inputs()
+    expected = set(map(tuple, ledger.filter(pl.col('exclusion_reason')
+                                  .is_null())
+                       .filter(pl.col('game_date')
+                               <= pl.date(2024, 12, 31))
+                       .select('game_pk', 'side')
+                       .unique().iter_rows()))
+    out = tmp_path / 'diag'
+    res = m0.run_m0(pa, ledger, out, event_labels=labels, bf=bf,
+                    verify_published=False)
+    ev = pl.read_parquet(out / 'm0_multiclass_eval_v1.parquet')
+    got = set(zip(ev['game_pk'].to_list(), ev['side'].to_list()))
+    assert got == expected
+    per_start = ev.group_by('game_pk', 'side').agg(n=pl.len())
+    # the expanded per-PA table: every projected slot appears at least
+    # once (1-2 observed PAs per slot on the synthetic fixture); the
+    # count is the observed-PA expansion, NOT a fixed 9
+    assert per_start['n'].min() >= 9
+
+
+def test_receipt_written_before_fitting(tmp_path, monkeypatch):
+    """M0FIX-03 (receipt ordering): the complete initial receipt exists
+    on disk BEFORE fit_multinomial is first called (mock-observed)."""
+    pa, ledger, labels, bf = synthetic_m0_inputs()
+    out = tmp_path / 'diag'
+    observed = {}
+    real_fit = m0.fit_multinomial
+
+    def spy(train):
+        observed['initial_exists_at_fit'] = (
+            out / 'receipt_initial.json').exists()
+        return real_fit(train)
+
+    monkeypatch.setattr(m0, 'fit_multinomial', spy)
+    m0.run_m0(pa, ledger, out, event_labels=labels, bf=bf,
+              verify_published=False)
+    assert observed['initial_exists_at_fit'] is True
+
+
+def test_no_blanket_temporal_rejection(tmp_path):
+    """M0FIX-04 (D2): the runner does NOT impose a blanket
+    src_date < game_date rejection - the registered as-of machinery
+    governs; the runner completes with recorded source dates."""
+    pa, ledger, labels, bf = synthetic_m0_inputs()
+    out = tmp_path / 'diag'
+    res = m0.run_m0(pa, ledger, out, event_labels=labels, bf=bf,
+                    verify_published=False)
+    assert res['metrics']['n_eval_pa'] > 0
+
+
+def test_cli_dispatch_wired(tmp_path):
+    """M0FIX-05 (CLI wiring): the authorized path dispatches to the M0
+    runner on synthetic input in a fresh subprocess (dispatch, receipt,
+    outputs); the refusal path is preserved without the flag."""
+    import subprocess
+    runner = (HERE / 'research' / 'offseason_2026' / 'pregame_pa_ext'
+              / 'm0_multiclass.py')
+    pa, ledger, labels, bf = synthetic_m0_inputs()
+    work = tmp_path / 'inputs'
+    work.mkdir()
+    pa.write_parquet(work / 'pa.parquet')
+    ledger.write_parquet(work / 'ledger.parquet')
+    bf.write_parquet(work / 'bf.parquet')
+    labels.write_parquet(work / 'labels.parquet')
+    r1 = subprocess.run([sys.executable, str(runner),
+                         '--pa-table', str(work / 'pa.parquet')],
+                        capture_output=True, text=True)
+    assert r1.returncode == 2
+    out_dir = tmp_path / 'diag'
+    r2 = subprocess.run(
+        [sys.executable, str(runner), '--i-accept-outcome-evaluation',
+         '--pa-table', str(work / 'pa.parquet'),
+         '--ledger', str(work / 'ledger.parquet'),
+         '--bf', str(work / 'bf.parquet'),
+         '--no-verify-published',
+         '--out-dir', str(out_dir)],
+        capture_output=True, text=True)
+    assert r2.returncode == 0, r2.stdout + r2.stderr
+    assert (out_dir / 'receipt_initial.json').exists()
+    assert (out_dir / 'receipt_final.json').exists()
+    assert (out_dir / 'm0_multiclass_eval_v1.parquet').exists()
