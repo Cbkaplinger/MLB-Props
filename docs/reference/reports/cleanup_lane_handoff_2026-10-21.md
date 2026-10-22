@@ -160,7 +160,7 @@ the LARGER living-documents assignment, with explicit dispositions (2026-10-21):
   documentation level once the PR merges. PROJECT_STORY and
   DECISIONS (this lane) are corrected.
 
-## 7. Lane status and closure condition## 7. Lane status and closure condition
+## 7. Lane status and closure condition
 
 **Lane status: no implementation blockers; closure awaits review/merge of
 #33/#35 and owner acceptance of this handoff.**
