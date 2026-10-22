@@ -199,6 +199,18 @@ def event_label_frame(pa: pl.DataFrame, raw_dir: str | None = None):
 
 
 # ---------------------------------------------------------- training
+def build_multiclass_labels(df: pl.DataFrame) -> pl.DataFrame:
+    """COMPATIBILITY wrapper for Chat 1's published integration fixtures
+    (b2a1cfe, cleared): attaches the taxonomy class_label to a frame
+    carrying an `events` column and preserves every other column
+    (identity, y, features). The repaired API is event_label_frame +
+    build_training_frames; this wrapper keeps the cleared fixtures
+    working without modification."""
+    labeled, _ = event_label_frame(df)
+    return df.join(
+        labeled, on=["game_pk", "at_bat_number", "batter"], how="inner")
+
+
 def build_training_frames(pa: pl.DataFrame, event_labels: pl.DataFrame,
                           ) -> tuple[dict, dict]:
     """Frozen realized-PA lineage (build_feature_frame: 2023-01-01..,
