@@ -2,22 +2,29 @@
 
 Owner: architect. Updated 2026-10-22 (evening). ROLES_REV 2026-10-22-r2. Read `docs/roles/README.md` first.
 
-## Critical path (one item)
+## Standing delegation
 
-M0 v1 STOPPED at `71b236f` (class 4 caught_stealing_or_pickoff: 0 training PAs in block_2024H2; no outcome metric produced). Ruling: PR #34 architect comment.
+The owner delegates routine project decisions and execution authority to the architect within agreed scope. When relevant tests and required checks pass, proceed without requesting repeated authorization. Escalate only material scope changes, unresolved correctness risks, spending, production changes, or irreversible actions with unclear consequences. Existing repository protections still apply.
 
-1. Chat 1: per-class, per-block TRAINING label counts + raw class-4 event counts (descriptive only).
-2. Chat 2: independently reproduce; classify (A) structurally absent from PA-completing rows or (B) label-join defect.
-3. (B): repair under the same card, rerun once. (A): v1 closed; draft card v2 with 4 classes: strikeout, walk (incl. HBP, catcher interference), hit, in-play out (incl. errors, sacrifices, DP outs). Same features, folds, margin, endpoints, Holm m=2, same 82,817 key set; declare per-class minimum count from label counts only. Chat 1 drafts by 2026-10-27; Chat 2 reviews; architect approves.
-4. No reviewed v2 by 2026-11-07: freeze binary, close M0.
+**Language:** all chat reports and review comments must be in English.
 
-## Chat 3 (finite)
+## M0 v2
 
-1. Rebase #36 (drop ROADMAP edit; keep both sides of 00-index; fix duplicate header; backlog-split owner = Chat 3).
-2. Contradiction sweep PR: point AGENTS_ROLES/AGENTS/.cursor rules/pr_workflow at docs/roles/; remove conflicting text (reviewer read-only; owner-gate options; stale M0 status).
-3. Backlog split PR (index + parts; each part <= 12 KB; closed items archived with pointer).
-4. Archive four superseded reports; report/ move; retire diagram 09. Then the lane ends.
+- M0 v1 STOPPED at `71b236f`: registered class-4 stop condition fired; preserved run remains UNACCEPTED.
+- Owner authorized M0 v2 execution at `2e2482b` under the §11 contract.
+- Chat 1 reports M0 v2 executed with write-once receipts and both registered endpoints passing: EP1 K-marginal non-inferiority and EP2 versus both baselines. It remains a development-only diagnostic; no promotion without its separate gate.
+- Chat 2 performs one contract/result check of the executed artifacts at the executed SHA, fixing only concrete defects.
 
-## Parked (promote-or-kill)
+## Critical path
 
-Decision-flip rerun 2026-11-07 · coverage policy for 59 cold-start starts 2026-11-07 (default league-rate prior, flagged) · history extension: kill unless M0 passes · Question B: kill unless M1 passes · finer taxonomy (HBP/HR split, double-play state): after v2 result.
+1. Chat 2: issue one concise English execution verdict for M0 v2 (contract compliance, receipt integrity, pins, endpoint calculations, and any concrete defect).
+2. Chat 1: answer concrete findings only; otherwise continue C-B1 from its scoped synthetic-first implementation to its evaluation runner and receipt path. Do not execute C-B1 on real data until its registered gate is satisfied.
+3. Architect: consolidate the execution result into the canonical research record and decide the next registered build step.
+
+## Chat 3 cleanup lane
+
+Continue one focused cleanup stream: remove verified dead/duplicate files, move misplaced files, consolidate competing/stale documentation, retire obsolete diagrams, and prune only branches proven merged or redundant. Preserve frozen research, production, and evidence. Do not act as research coordinator or add process documents. Record before/after file count and bytes plus link/test checks.
+
+## Parked
+
+Decision-flip result remains unaccepted pending its receipted rerun. Coverage policy for cold-start starts remains a product decision. Promotion is separate from M0's development-only result.
