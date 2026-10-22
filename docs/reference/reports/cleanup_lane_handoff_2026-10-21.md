@@ -81,6 +81,20 @@ the handoff, not a new inventory.
   synthetic-exercised assertions only) - no claim of real-input verification
   is made anywhere in this lane's records.
 
+## 6b. Folder 3-6 classification evidence (attached 2026-10-21; per owner instruction)
+
+**Repository SHA the classification ran against:** `3637ed1bbc08dd7a5101da126d0ff899f83848b5` (origin/main at run time).
+
+**Command:** one-pass `git grep -F -f <candidate-basenames>` over `*.py *.md *.ps1 *.json *.yml *.toml` at that SHA (278 candidate .py files across `production/ops/market_research`, `tests`, `models`, `scripts`; basenames deduplicated into the pattern file), cross-referenced against the session registry and the gc skill outputs (`duplicate_finder` 0 exact dupes; `reference_graph` 488 py / 73 entry hints; `find_doc_claims` 4,512 claims).
+
+**Original assignment reference (depth):** the owner's folder directive ordered "market_research, tests and models come after the docs set is done, and only as classify-and-propose tasks," with the folder deliverable defined as "a short table of keep, archive, fix, and propose-delete" - i.e. classification, not full implementation-correctness reads, for folders 3-6. Folders 1-2 (docs/reference; docs/research + docs/archive) were assigned full reads and were fully read.
+
+**Narrow conclusion:** "No deletion/archive candidates identified by the consumer-reference review; unread files were not audited for implementation correctness." Zero-inbound exceptions: `tests/test_count_agg_eval.py` and `tests/test_count_aggregation_exact.py` - both files of the ACTIVE research lane (PR #34 lineage, M0/decision-flip), excluded from cleanup scope.
+
+**Registry reconciliation (the unread-count discrepancy, from the existing registry - census not restarted):** the intermediate figures (176 -> 194 -> 199 -> 204 -> 218 -> 235 -> 239 -> 275/417) were running states of one evolving registry, not independent counts. Three concrete events explain every change: (1) reads added across passes (governance family +5; OPS5 +14; OPS-CORE +4; READ5 +5; folder-1/2 +58); (2) a registration gap - 12 daily-chain scripts fully read but not registered until the fix (registered as OPS-CORE); (3) one pollution event - 110 relative-path keys added by a stripped `ls-tree` prefix, then removed. Current verified partition: **295 in-scope read + 397 in-scope remaining + 2 deferred-read + 288 deferred-unread = 982** (in-scope 692 + deferred 290; disjoint and complete).
+
+**Unfinished assigned scope (identified, not redefined as complete):** (a) `docs/PROJECT_STORY.md` (due 2026-11-21; to be assembled from PAPER_NOTES.md, the statistical audit, and this decision log); (b) `docs/diagrams` index reduction to one table + retiring restating diagrams (due 2026-11-21); (c) archiving the superseded reports marked in the reports index (pending owner approval - the canonical register cites those paths). These remain assigned to this lane and are NOT complete.
+
 ## 7. Lane status and closure condition
 
 **Lane status: no implementation blockers; closure awaits review/merge of
