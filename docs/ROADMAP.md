@@ -17,7 +17,7 @@ Frozen registrations, pins, hashes, and pre-registered protocols outrank this fi
 | Item | Result |
 | --- | --- |
 | Batter-history challenger (R60/m30) | REJECTED. Paired log-loss delta +0.00062, CI excludes zero. Baseline retained. Scope: this recipe only. |
-| Question A (exact Poisson-binomial) | Count-RPS -0.000333 (CI -0.000419 to -0.000245) on 4,823 dev starts. Decision-flip: 1 flip in 19,292 start-lines, max abs change in P(K>=line) under 0.004. **Closed: no betting-layer relevance.** |
+| Question A (exact Poisson-binomial) | Count-RPS -0.000333 (CI -0.000419 to -0.000245) on 4,823 dev starts. An earlier unreceipted exploratory decision-flip calculation is unverified (reported: 1 flip in 19,292 start-lines; max abs change in P(K>=line) under 0.004). No accepted decision-flip execution result is established by that calculation. The registered diagnostic requires its own reviewed execution evidence. |
 | Question B (workload dependence) | Design card only. On hold behind M0. |
 | Abstentions (59 starts) | Handle with the league-rate prior, reported separately from starts with history. |
 | Production | Unchanged. |
