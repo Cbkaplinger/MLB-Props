@@ -235,10 +235,26 @@ No experiment is queued by this docs window. The bounded chronological WF
 comparison is authorized in the research window; its execution/completion
 status belongs to that owner. This window stops after the docs commit.
 
-### Proposed architecture set (2026-10-21; PROPOSED status, owner approval pending) - CONSOLIDATED into docs/DECISIONS.md 2026-10-21
+### Proposed architecture set (2026-10-21; PROPOSED status, owner approval pending)
 
-- The four short PROPOSED ADRs (evidence gates; exact aggregation first - CLOSED 2026-10-21, one flip in 19,292; multiclass PA outcome model; the cycle PRD) are consolidated verbatim into [docs/DECISIONS.md](../DECISIONS.md) with dated sections; originals archived under docs/archive/consolidated/adr/.
 - [07 - Lanes and responsibilities](07-lanes-and-roles.md) - who builds, reviews, authorizes execution, approves promotion.
+- [08 - Research decision flow](08-research-decision-flow.md) - frozen baseline, rejected batter-history recipe, Question A/B lanes, promotion gates.
+- [09 - Evidence gate](09-evidence-gate.md)
+- [12 - Delivery and agent control](12-delivery-and-agent-control.md) - TARGET-STATE, PROPOSED (2026-10-21): checkpoint-based delivery, non-author acceptance.
+- [13 - Experiment evidence lifecycle](13-experiment-evidence-lifecycle.md) - TARGET-STATE, PROPOSED: registered -> executed -> evidence-checked -> accepted/rejected/invalid.
+- [14 - Research-to-decision boundaries](14-research-to-decision-boundaries.md) - TARGET-STATE, PROPOSED: boundary map from source data to evaluation/health evidence.
 - [10 - System paths](10-system-paths.md) - production vs research boundary: inputs, components, outputs, promotion gate (reuses 01/05/08 for depth).
-- [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision.
-- [09 - Evidence gate](09-evidence-gate.md) - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
+- [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision. - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
+- ADR-0001 (evidence gates) and ADR-0002 (exact aggregation first) live in \docs/adr/\ as PROPOSED-* (numbering note in-file); the cycle PRD is \docs/adr/PROPOSED-prd-research-shipping-cycle.md\; ROLES is \docs/architecture/ROLES.md\.
+
+> **Navigation review (2026-10-21, PROPOSED - retirement is approval-gated):**
+> overlap found between 09 (evidence-gate chain) and 13 (experiment evidence
+> lifecycle, which adds rejected/invalid/promotion states) - 09 is a candidate
+> for retirement once its consumers (00-index pointer + DECISIONS reference)
+> are re-pointed at 13. Partial overlap between 07 (lanes/responsibilities)
+> and 12 (delivery control) - proposed consolidation direction: keep 12 as the
+> target-state control map and reduce 07 to the responsibility table only.
+> 01 vs 10 and 08 vs 13 answer distinct questions at different depths - KEEP.
+> No retirement executed: consumers (00-index links, DECISIONS references)
+> must be re-pointed first, per the consolidation safety rules.
+
