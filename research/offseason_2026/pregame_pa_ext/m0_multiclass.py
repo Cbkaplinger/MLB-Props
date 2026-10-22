@@ -656,17 +656,27 @@ def main(argv: list[str] | None = None) -> int:
                          "authorization required; never run to date)")
     args = ap.parse_args(argv)
     if args.verify_receipt_check:
-        from tests.test_m0_multiclass import synthetic_m0_inputs
+        # SUPPORT-MODULE import (Chat 2 preflight repair): the synthetic
+        # factory lives beside the runner and is importable without
+        # pytest; temporary storage; complete receipt exercised
+        # end-to-end.
+        import tempfile
+        from pregame_pa_ext.m0_synthetic import synthetic_m0_inputs
         pa, ledger, labels, bf = synthetic_m0_inputs()
-        out = Path("_m0_receipt_check")
-        if out.exists():
-            import shutil
-            shutil.rmtree(out)
+        out = Path(tempfile.mkdtemp(prefix="m0_receipt_check_")) / "run"
         res = run_m0(pa, ledger, out, event_labels=labels, bf=bf,
                      verify_published=False)
-        ok = res["metrics"]["n_eval_pa"] > 0
+        fin = res["receipt_final"]
+        artifacts_ok = all(
+            fin["outputs"].get(name) for name in fin["outputs"])
+        ok = res["metrics"]["n_eval_pa"] > 0 and fin.get("outputs") and \
+            artifacts_ok
         print(json.dumps({"complete_receipt_check": "PASS" if ok
-                          else "FAIL"}, indent=1))
+                          else "FAIL",
+                          "out_dir": str(out),
+                          "n_eval_pa": res["metrics"]["n_eval_pa"],
+                          "receipt_sections": sorted(fin.keys())},
+                         indent=1))
         return 0 if ok else 1
     print("REFUSING: M0 real-data execution requires "
           "--i-accept-outcome-evaluation AND explicit owner "
