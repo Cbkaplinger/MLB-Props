@@ -98,3 +98,16 @@ def synthetic_m0_inputs():
         "pregame_pa_ext.m0_multiclass", fromlist=["x"]
     ).event_label_frame(pa)
     return pa, ledger, labels, bf
+
+
+def synthetic_m0_realized(bf: pl.DataFrame) -> pl.DataFrame:
+    """Registered realized-K-per-start stand-in (start_metrics_v2
+    lineage: game_pk, side, pitcher, realized_k), ONE row per start
+    (the registered lineage grain; the synthetic bf frame repeats the
+    start key per slot, so dedupe to the start grain here), with
+    deterministic realized values. For exercising the runner's
+    DESCRIPTIVE count-RPS stage in synthetic tests."""
+    keys = bf.select("game_pk", "side", "pitcher").unique(
+        maintain_order=True)
+    return keys.with_columns(
+        (pl.col("game_pk") % 3 + 2).cast(pl.Int64).alias("realized_k"))

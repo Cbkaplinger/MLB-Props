@@ -646,9 +646,9 @@ def run_m0(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir, *,
                 bf37 = bf37 / bf37.sum()
                 bf_ext = ad.bf_pmf_from_37(bf37)
                 pmf_m = ad.count_pmf_from_mixture(
-                    bf_ext, ad.cycled_cond_mean(p9m := p9_multi))
+                    bf_ext, ad.cycled_cond_mean(p9m))
                 pmf_b = ad.count_pmf_from_mixture(
-                    bf_ext, ad.cycled_cond_mean(p9b := p9_base))
+                    bf_ext, ad.cycled_cond_mean(p9b))
                 # realized K per start for the DESCRIPTIVE comparison:
                 # the registered start_metrics_v2 lineage value
                 rrow = realized.filter(
@@ -686,6 +686,7 @@ def run_m0(pa: pl.DataFrame, ledger: pl.DataFrame, out_dir, *,
                 "status": "SKIPPED: the registered realized-count source "
                           "(start_metrics_v2 lineage) was not supplied",
             }
+        metrics["descriptive"] = descriptive
         # write-once outputs: the paired evaluation table + metrics
         ev_path = out_dir / "m0_multiclass_eval_v1.parquet"
         ev.write_parquet(ev_path)

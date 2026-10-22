@@ -223,6 +223,34 @@ def test_runner_never_reads_real_statcast(tmp_path, monkeypatch):
         real_loader(no_events, "Z:/nonexistent/dir")
 
 
+def test_descriptive_count_rps_stage(tmp_path):
+    """Regression (real-run defect 2e2482b follow-up, fixed before the
+    authorized retry): the DESCRIPTIVE count-RPS stage (supplied
+    `realized` + `bf`) must complete and its result must actually be
+    attached to the metrics/receipt. Two defects lived in this
+    previously-untested path: a walrus rebinding the per-row slot
+    vector to the whole grouped frame (string 'Top' conversion error)
+    and the descriptive dict never being attached to metrics."""
+    from pregame_pa_ext.m0_synthetic import synthetic_m0_realized
+    pa, ledger, labels, bf = synthetic_m0_inputs()
+    realized = synthetic_m0_realized(bf)
+    out = tmp_path / "diag"
+    res = m0.run_m0(pa, ledger, out, event_labels=labels, bf=bf,
+                    realized=realized, verify_published=False)
+    desc = res["metrics"]["descriptive"]
+    assert desc["n_starts"] == bf.height
+    assert np.isfinite(desc["count_rps_m0_mean"])
+    assert np.isfinite(desc["count_rps_baseline_mean"])
+    assert np.isfinite(desc["count_rps_delta"])
+    # the receipt's metrics hash covers the descriptive-inclusive write
+    fin = json.loads((out / "receipt_final.json").read_text(encoding="utf-8"))
+    assert "descriptive" in fin["metrics"]
+    metrics_path = out / "metrics.json"
+    on_disk = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert "descriptive" in on_disk
+    assert on_disk["descriptive"]["n_starts"] == bf.height
+
+
 def test_population_is_pitcher_matched(tmp_path):
     """B1: reliever PAs are structurally excluded; the cross-side
     duplicate projection contributes each PA exactly once."""
