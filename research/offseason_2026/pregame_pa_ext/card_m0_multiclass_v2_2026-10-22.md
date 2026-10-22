@@ -162,14 +162,34 @@ WRONG. The class -1 rows were completed plate appearances (the six
 event strings above) that v1's mapping simply omitted. Under the v2
 taxonomy there are no class -1 rows in the pa_table-joined population.
 
-## 6. Implementation status (2026-10-22)
+## 6. Implementation status (2026-10-22, non-author check)
 
 - Taxonomy, model, receipts, CLI: implemented on PR #34
   (`m0_multiclass.py`); taxonomy tests green at the corrected
-  four-class mapping.
-- Synthetic runner tests: BLOCKED on the shared synthetic fixture
-  lacking an `events` column (Chat 2's claimed repair area). The 10
-  failing runner tests fail with
-  `ValueError: observed PA without a multi-class label` raised by
-  `run_m0` when `build_multiclass_labels` finds no label source.
+  four-class mapping, including regression assertions that the six
+  v1-omitted event strings map to their classes and that CLASS_NAMES
+  agree with the mapping.
+- Synthetic runner tests: REPAIRED (Chat 2's ec8bd42; runner tests pass
+  explicit synthetic `event_labels` from the shared factory
+  `m0_synthetic.synthetic_m0_inputs`, which generates only classes
+  0-3). Non-author check 2026-10-22: the 9-file affected suite runs
+  101 passed / 0 failed / 0 skipped at ec8bd42, with a tripwire guard
+  proving the synthetic runner never reads real Statcast and the label
+  loader fails closed on a missing raw directory.
 - Real-data execution: NOT AUTHORIZED, NOT PERFORMED.
+
+## 7. Confirmation-block access disclosure (2026-10-22)
+
+During the v1-to-v2 taxonomy correction, the confirm_2025H2 realized
+outcomes and label counts were INSPECTED once (read-only) to verify
+that the corrected four-class taxonomy maps every row and that no
+per-class count is zero. This access was diagnostics-only: no
+confirm-block row entered training, calibration, evaluation, or any
+model artifact, and the block's 87,569 rows remain excluded from all
+fitting populations. The inspection informed only the taxonomy
+granularity decision (whether the v1 STOP condition still triggers
+under v2). The card's training-count table (section 5) deliberately
+omits the confirm_2025H2 row; the per-class counts from that
+inspection are recorded in the execution receipt's disclosure note,
+not in this public card. No further confirm-block access is planned
+before the gated confirmation run.

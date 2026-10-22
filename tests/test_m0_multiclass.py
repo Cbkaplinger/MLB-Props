@@ -133,6 +133,14 @@ def test_class_names_and_taxonomy_completeness():
     assert m0.STATCAST_EVENT_TAXONOMY["field_out"] == 2
     assert m0.STATCAST_EVENT_TAXONOMY["grounded_into_double_play"] == 2
     assert all(0 <= c <= 3 for c in m0.STATCAST_EVENT_TAXONOMY.values())
+    # the six v1-omitted completed-PA event strings are all mapped (the
+    # v1 defect excluded 23,531 PAs; card v2 section 5 reconciliation)
+    assert m0.STATCAST_EVENT_TAXONOMY["grounded_into_double_play"] == 2
+    assert m0.STATCAST_EVENT_TAXONOMY["sac_fly"] == 2
+    assert m0.STATCAST_EVENT_TAXONOMY["intent_walk"] == 1
+    assert m0.STATCAST_EVENT_TAXONOMY["sac_bunt"] == 2
+    assert m0.STATCAST_EVENT_TAXONOMY["double_play"] == 2
+    assert m0.STATCAST_EVENT_TAXONOMY["sac_fly_double_play"] == 2
 
 
 def test_sparse_class_detection():
@@ -182,6 +190,37 @@ def test_runner_end_to_end_synthetic(tmp_path):
     assert (out / "receipt_final.json").exists()
     fin = json.loads((out / "receipt_final.json").read_text(encoding="utf-8"))
     assert fin["acceptance"]["receipt_chain"] == res["receipt_initial_sha256"]
+
+
+def test_runner_never_reads_real_statcast(tmp_path, monkeypatch):
+    """Guard (owner order 2026-10-22): the complete synthetic runner
+    succeeds WITHOUT any real Statcast access. The real-data label
+    loader (m0.event_label_frame's raw-directory fallback) is replaced
+    with a tripwire that raises if invoked; the runner must complete
+    end-to-end using only the explicitly supplied synthetic event
+    labels. Also proves the label loader fails closed (never invents
+    labels) when its raw directory is missing."""
+    pa, ledger, labels, bf = synthetic_m0_inputs()
+    real_loader = m0.event_label_frame
+
+    def tripwire(*a, **k):
+        raise AssertionError(
+            "REAL_STATCAST_READ_ATTEMPTED: the synthetic runner invoked "
+            "the real-data label loader")
+
+    monkeypatch.setattr(m0, "event_label_frame", tripwire)
+    out = tmp_path / "diag"
+    res = m0.run_m0(pa, ledger, out, event_labels=labels, bf=bf,
+                    verify_published=False)
+    assert res["metrics"]["n_eval_pa"] > 0
+    assert (out / "receipt_final.json").exists()
+
+    # fail-closed: a frame without an events column and a missing raw
+    # directory raises RAW_STATCAST_DIR_MISSING (labels are consumed
+    # inputs; the runner never invents them)
+    no_events = pa.drop("events") if "events" in pa.columns else pa
+    with pytest.raises(ValueError, match="RAW_STATCAST_DIR_MISSING"):
+        real_loader(no_events, "Z:/nonexistent/dir")
 
 
 def test_population_is_pitcher_matched(tmp_path):
