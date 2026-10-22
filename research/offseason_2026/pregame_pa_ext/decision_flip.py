@@ -114,9 +114,33 @@ def run_flip_diagnostic(eval_parquet, out_dir, *,
                 flips.append(0)
                 dirs.append("same")
         all_flips.extend(flips)
-        per_line[str(line)] = {"flip_count": sum(flips), "flip_pct":
-                          round(sum(flips) / len(flips) * 100, 2),
-                          "directions": dirs}
+        dp_arr = np.asarray([abs(
+            float(np.asarray(ev[r["__idx"]]["pmf_challenger"] if False else
+                             ev[ev["game_pk"] == r["game_pk"]][
+                                 "pmf_challenger"][0])[line_int:].sum())
+            - float(np.asarray(ev[ev["game_pk"] == r["game_pk"]][
+                "pmf_baseline"][0])[line_int:].sum()))
+            for r in []]) if False else None
+        # compute |DP| from the PMFs directly
+        dp_list = []
+        for r2 in ev.iter_rows(named=True):
+            pb2 = np.asarray(r2["pmf_baseline"])
+            pc2 = np.asarray(r2["pmf_challenger"])
+            p_ge_b2 = float(pb2[line_int:].sum()) if line_int < len(pb2) else 0.0
+            p_ge_c2 = float(pc2[line_int:].sum()) if line_int < len(pc2) else 0.0
+            dp_list.append(abs(p_ge_c - p_ge_b))
+        dp_arr = np.asarray(dp_list)
+        per_line[str(line)] = {
+            "flip_count": sum(flips), "flip_pct":
+            round(sum(flips) / len(flips) * 100, 2),
+            "directions": dirs,
+            "dp_mean": float(dp_arr.mean()),
+            "dp_median": float(np.median(dp_arr)),
+            "dp_max": float(dp_arr.max()),
+            "dp_lt_001": int((dp_arr < 0.01).sum()),
+            "dp_001_to_005": int(((dp_arr >= 0.01) & (dp_arr < 0.05)).sum()),
+            "dp_gte_005": int((dp_arr >= 0.05).sum()),
+        }
 
     # slate-date-clustered bootstrap on the total flip proportion
     slate_idx = defaultdict(list)
