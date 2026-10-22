@@ -53,17 +53,20 @@ exists against sportsbooks — under honest, leakage-safe measurement.
   loss, CI excluding zero — recipe rejected, recency modeling not condemned.
 - Glicko overlay, Kalshi-disagreement filter, September premium, stacker ROI
   lane, alt-ladder, MC-as-scorer: each closed by its pre-registered gate.
-- Question A (exact Poisson-binomial aggregation): built, evaluated,
-  decision-flip CLOSED 2026-10-21 — one flip in 19,292, below practical
-  significance; no promotion (decision log, D2).
+- Question A (exact Poisson-binomial aggregation): built; a decision-flip
+  result was REPORTED (one flip in 19,292) but its execution status is
+  UNRESOLVED (same-SHA contradiction between builder/reviewer handoffs) —
+  treated here as **reported, not accepted evidence**; no promotion
+  (decision log, D2).
 
 ## Current state (as of 2026-10-21)
 
 - Frozen stack live (Modal, ET-local crons); paper execution; real-data
   execution of new experiments owner-gated.
-- M0 multiclass runner in implementation review (PR #34 lineage) —
-  NOT READY for execution; repair batch with Chat 2, independent closure
-  check with Chat 1.
+- M0 multiclass runner in implementation review (PR #34 lineage; status
+  dated 2026-10-21) — **synthetic implementation readiness is NOT authorized
+  real-data execution**; NOT READY for execution; repair batch with Chat 2,
+  independent closure check with Chat 1.
 - Open owner decisions: abstain-vs-handle for the 59 pitcher-cold starts
   (57 debut-date newcomers + Enns/Hart); Question B sequencing (decision-flip
   analysis first, per the architect).

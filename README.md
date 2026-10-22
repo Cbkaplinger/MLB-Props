@@ -7,7 +7,7 @@ ensemble × TBF ridge → Poisson + WS1c), a policy layer promoted by
 pre-registered selection (2025-lock champion: floor `0.12` / cap `0.24` /
 under-lean / DK+FD-only, 2025 ROI `+11.0%` → disclosed-peek 2026 `+8.8%`
 rebuilt-panel truth; 9/11 pre-WS1c values `+15.5%`→`+15.6%` superseded),
-board-to-ledger parity lock, and a 920+ test suite with a regression pin
+board-to-ledger parity lock, and automated tests covering the pipeline, policy, and scoring surfaces (`python -m pytest`; CI status badge above)
 on the live stack.
 
 Start here: [Current research state](docs/reference/current_state_2026-10-16.md) ·

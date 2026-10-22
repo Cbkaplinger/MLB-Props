@@ -45,7 +45,15 @@ the handoff, not a new inventory.
    owner-gated; no independent acceptance of the repair delta yet.
 3. **Reproducibility unproven** - no accepted result has been reproduced from a
    clean environment; dependency-audit findings need closure evidence.
-4. **Reading coverage (reconciled 2026-10-21, exact - supersedes earlier
+4. **Open scientific discrepancies (disclosed 2026-10-21; research lane, not
+   closed by cleanup):** (a) September bias discrepancy (+0.767 vs +0.595) -
+   open, evidence does not close it; (b) training-frame vs sidecar hash
+   difference - open, evidence does not close it; (c) the decision-flip
+   result ("one flip in 19,292", also stated in docs/ROADMAP.md) - execution
+   status UNRESOLVED (same-SHA contradiction between builder/reviewer
+   handoffs at `c07976d`); PROJECT_STORY now labels it reported, not accepted
+   evidence.
+6. **Reading coverage (reconciled 2026-10-21, exact - supersedes earlier
    approximations):** 297 unique fully read = **295 in-scope read** + 2
    deferred-read (COUNT_EVAL_COMMANDS.md, owner-assigned status fix;
    scripts/review_verify.py - PR #25 touched-path exclusion). In-scope 692 =
