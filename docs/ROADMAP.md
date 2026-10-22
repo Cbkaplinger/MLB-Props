@@ -1,8 +1,9 @@
 # ROADMAP — research cycle to 2026-12-31
 
-**Status:** architect-authored 2026-10-21. Supersedes `docs/adr/PROPOSED-prd-research-shipping-cycle.md`
+**Status:** architect-authored 2026-10-21, corrected 2026-10-22. Supersedes `docs/adr/PROPOSED-prd-research-shipping-cycle.md`
 (its March-2027 deadline was an unconfirmed assumption; the owner's scope is **end of 2026**).
 Frozen registrations, pins, hashes, and pre-registered protocols outrank this file.
+The current action is always in `docs/NEXT.md`.
 
 ## Finish line (2026-12-31)
 
@@ -12,13 +13,14 @@ Frozen registrations, pins, hashes, and pre-registered protocols outrank this fi
 3. One coherent documentation set (story, state, roadmap, decisions) replacing the short-file sprawl.
 4. Project in maintenance mode so the owner can start other projects.
 
-## Where we are (2026-10-21)
+## Where we are (2026-10-22)
 
 | Item | Result |
 | --- | --- |
 | Batter-history challenger (R60/m30) | REJECTED. Paired log-loss delta +0.00062, CI excludes zero. Baseline retained. Scope: this recipe only. |
-| Question A (exact Poisson-binomial) | Count-RPS -0.000333 (CI -0.000419 to -0.000245) on 4,823 dev starts. Decision-flip: 1 flip in 19,292 start-lines, max abs change in P(K>=line) under 0.004. **Closed: no betting-layer relevance.** |
+| Question A (exact Poisson-binomial) | Count-RPS -0.000333 (CI -0.000419 to -0.000245) on 4,823 dev starts. Decision-flip: an earlier unreceipted exploratory calculation reported 1 flip in 19,292 start-lines; that is **UNVERIFIED** and is not an accepted result. The registered diagnostic, with the repaired clustered bootstrap, needs its own authorized run before the question is closed. |
 | Question B (workload dependence) | Design card only. On hold behind M0. |
+| M0 | Implementation accepted after five-blocker repair; synthetic-tested; real-data run directed by the owner 2026-10-22 (see NEXT.md). |
 | Abstentions (59 starts) | Handle with the league-rate prior, reported separately from starts with history. |
 | Production | Unchanged. |
 
@@ -26,19 +28,29 @@ Pattern across three experiments: effects at the count layer sit at the noise fl
 count-layer micro-experiments need a predicted effect larger than 0.01 in P(K>=line) before they are
 worth a card.
 
+## Roles
+
+Chat 1 builds and executes. Chat 2 trails one checkpoint behind, may publish bounded repairs to the
+research branch from a separate worktree, and does not approve its own repairs; Chat 1 (or the
+architect) checks the repair delta. Chat 3 runs the finite cleanup list in NEXT.md. The architect owns
+this file and NEXT.md. Execution of a registered card needs a recorded owner directive; it is recorded once
+and then not re-requested.
+
 ## Plan
 
 | ID | Experiment | Owner | Target | Gate | If pass | If fail |
 | --- | --- | --- | --- | --- | --- | --- |
-| M0 | Softmax version of L3 on the same features and folds | Chat 1 builds, Chat 2 reviews | Result by 2026-11-14 | K-vs-not-K log loss non-inferior to L3 at a declared margin; multiclass log loss beats league-constant and log5 baselines; per-class reliability reported | Go to M1 | Freeze binary model; stop multiclass; record |
+| M0 | Softmax version of L3 on the same features and folds | Chat 1 builds and runs, Chat 2 trails | Result by 2026-11-14 | K-vs-not-K log loss non-inferior to L3 at a declared margin; multiclass log loss beats league-constant and log5 baselines; per-class reliability reported | Go to M1 | Freeze binary model; stop multiclass; record |
 | M1 | K head through the count layer; count-RPS vs Question A challenger | Chat 1 | 2026-12-05 | Non-inferior count-RPS | Record; M2 stays 2027 | Record; no change |
 | P1 | 2027 production policy note (frozen stack, cold-start handling, flags) | Architect drafts, owner approves | 2026-11-30 | Owner approval | Register | Revise |
-| D1 | Documentation consolidation (see below) | Chat 3 | 2026-11-21 | Link check green, CI green, no frozen path touched | Merge | Revert cluster |
+| D1 | Documentation consolidation (see NEXT.md cleanup list) | Chat 3 | 2026-11-21 | Link check green, CI green, no frozen path touched | Merge | Revert cluster |
 | F1 | Final report and handoff | Architect | 2026-12-20 | All above closed | Maintenance mode | Carry open items to a dated list |
 
 Buffer: 2026-12-21 to 2026-12-31. Nothing new starts after 2026-12-05.
 
 ## Deferred (not 2026)
+
+Each item has a promote-or-kill date in NEXT.md. Nothing sits in this list without one.
 
 - M2 other markets from non-K heads (outs, walks, hits); needs market data and its own cards.
 - M3 game-state process so pitcher exit is endogenous (structural answer to C-B2).
