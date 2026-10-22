@@ -166,3 +166,21 @@ no in-place repair.
 - Sparse-class handling: classes with < 50 PAs are flagged.
 - Block isolation: confirm_2025H2 never enters training or evaluation.
 - Receipt completeness: all mandatory sections present.
+
+
+## 13. EVIDENCE: per-class, per-block training label counts (2026-10-21)
+
+From the frozen pa_table (731,347 rows, 2022-04-07..2025-09-28) joined
+with raw Statcast events (2022-2025 regular seasons). Descriptive only.
+
+| block | total PAs | class 0 (K) | class 1 (walk/HBP) | class 2 (in-play out) | class 3 (hit) | class 4 (CS/pickoff) | class -1 (non-PA) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| block_2024H2 | 548,421 | 123,822 | 50,561 | 236,128 | 120,291 | **0** | 17,619 |
+| block_2025H1 | 95,357 | 20,914 | 8,880 | 41,536 | 20,894 | **0** | 3,133 |
+| confirm_2025H2 | 87,569 | 19,731 | 7,957 | 37,858 | 19,244 | **0** | 2,779 |
+
+The pa_table's 731,347 rows include ALL PAs from 2022-04-07..2025-09-28.
+The training/evaluation/confirmation populations are subsets of these.
+The class -1 count includes non-PA-terminal events (wild_pitch,
+passed_ball, etc.) that are present in the raw data but not in the
+pa_table's PA-level grain.
