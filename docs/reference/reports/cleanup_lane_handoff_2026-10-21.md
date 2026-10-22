@@ -95,6 +95,30 @@ the handoff, not a new inventory.
 
 **Unfinished assigned scope (identified, not redefined as complete):** (a) `docs/PROJECT_STORY.md` (due 2026-11-21; to be assembled from PAPER_NOTES.md, the statistical audit, and this decision log); (b) `docs/diagrams` index reduction to one table + retiring restating diagrams (due 2026-11-21); (c) archiving the superseded reports marked in the reports index (pending owner approval - the canonical register cites those paths). These remain assigned to this lane and are NOT complete.
 
+## 6c. Six-folder completion map (2026-10-21; requirement vs performed vs unmet)
+
+Cites the assignment establishing depth per folder: the living-documents
+consolidation order ("market_research, tests and models come after the docs
+set is done, and only as classify-and-propose tasks") plus the folder
+directive ("for each folder, produce one deliverable: a short table of keep,
+archive, fix, and propose-delete"). Folders 1-2 carried full reads; folders
+3-6 carried classification with consumer evidence.
+
+| Folder | Original requirement | Work performed | Evidence | Unmet obligations |
+|---|---|---|---|---|
+| 1. `docs/reference` | full read + keep/archive/fix/propose-delete table | 36/36 living-standards docs + reports survey fully read; links validated (0 broken, 0 missing paths); 1 fix (PROPOSED_COMMITS supersession label); navigation rules added to reference README | reference README section; sweep records in cleanup_execution_plan | none |
+| 2. `docs/research` + `docs/archive` | full read + table | 22/22 files fully read (3,154 lines); 0 broken references; 0 fixes needed | folder-2 table on PR #30 thread; registry | none |
+| 3. `production/ops/market_research` | classify-and-propose | ~85 scripts classified by one-pass consumer grep + gc outputs; every script referenced by its dated report | classification evidence (section 6b) | deep reads remain OUTSIDE the assignment (explicitly classify-and-propose) |
+| 4. `tests` | classify-and-propose | 96 py files classified; CI-consumed; 2 zero-inbound files belong to active research (PR #34), excluded | classification evidence | none within assignment |
+| 5. `models` | classify-and-propose | 70 py files classified; dated lineage + trainers, all cited | classification evidence | none within assignment |
+| 6. `scripts` + dotfiles | full read (batch A) + classification | 28 scripts + 12 dotfiles fully read; both prune utilities verified distinct; intentional mirror documented | batch A records | none |
+
+**Unmet obligations from the six-folder assignment: none.** Unmet obligations
+from the LARGER living-documents assignment (still open, per its own order):
+`PROJECT_STORY.md` (delivered as PROPOSED in this PR), diagrams index
+reduction + restating-diagram retirement, and the superseded-reports archive
+(owner-blocked proposal).
+
 ## 7. Lane status and closure condition
 
 **Lane status: no implementation blockers; closure awaits review/merge of
