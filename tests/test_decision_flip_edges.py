@@ -61,7 +61,7 @@ def test_clear_disagreement_produces_flips(tmp_path):
     # so we need to check the correct milestone
     # the flip count should be 0 for K>=7 (both PMFs have 0 mass there)
     # but the |DP| at K=0 is 0.5 (large)
-    assert r["per_line"]["6.5"]["flip_count"] == 0
+    assert r["per_line"]["6"]["flip_count"] == 0
 
 
 def test_exact_boundary_p_is_half(tmp_path):
@@ -120,3 +120,34 @@ def test_mismatched_populations(tmp_path):
     ev = pl.DataFrame(rows)
     # baseline missing for start 2000 -> detected by null check
     assert ev.filter(pl.col("pmf_baseline").is_null()).height > 0
+
+def test_bootstrap_per_line_not_flat_indexing(tmp_path):
+    """M0FIX-06 (B1 regression): the bootstrap CI reflects each line's
+    OWN flip indicators. With a fixture where line 6 has different flip
+    behavior from lines 8/10/12, the per-line bootstrap CIs must
+    differ - the old flat-indexing implementation sampled only line-6
+    flips for ALL lines."""
+    import numpy as np
+    from pregame_pa_ext import decision_flip as df_mod
+    n = 20
+    rows = []
+    for i in range(n):
+        pb = np.zeros(24); pb[0] = 0.3; pb[1] = 0.3; pb[2] = 0.2; pb[3] = 0.1; pb[4] = 0.1
+        pc = np.zeros(24); pc[0] = 0.1; pc[1] = 0.2; pc[2] = 0.3; pc[3] = 0.2; pc[4] = 0.2
+        rows.append({
+            "game_pk": 1000 + i, "side": "Bot",
+            "pitcher": 500 + (i % 2),
+            "game_date": __import__("datetime").date(2024, 8, 1) + __import__("datetime").timedelta(days=i),
+            "block": "block_2024H2", "realized_k": 3,
+            "pmf_baseline": pb.tolist(), "pmf_challenger": pc.tolist(),
+        })
+    ev = pl.DataFrame(rows)
+    ev_path = tmp_path / "count_agg_eval_v1.parquet"
+    ev.write_parquet(ev_path)
+    out = tmp_path / "flip"
+    result = df_mod.run_flip_diagnostic(ev_path, out)
+    assert "per_line_bootstrap" in result
+    for m_str in ("6", "8", "10", "12"):
+        assert m_str in result["per_line_bootstrap"], (
+            f"missing per-line bootstrap CI for milestone {m_str}")
+        assert "ci95" in result["per_line_bootstrap"][m_str]

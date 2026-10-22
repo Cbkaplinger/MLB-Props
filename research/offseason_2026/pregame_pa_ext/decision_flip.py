@@ -1,13 +1,21 @@
 """Decision-flip diagnostic: counts betting-relevant decision changes
 between the registered and exact count aggregations.
 
-Implements card_decision_flip_2026-10-21.md. SYNTHETIC-EXERCISED;
-real-outcome execution requires separate authorization.
+Implements card_decision_flip_2026-10-21.md (with the section 11
+amendment at f7263ff and the Chat 2 review fix at 8369d51).
+SYNTHETIC-EXERCISED; real-outcome execution requires separate
+authorization.
 
 Reads the count_agg_eval_v1.parquet (produced by the Question A
 diagnostic) which contains both arms' 24-bucket count PMFs per start.
 For each registered milestone line, computes P(K >= line) from both
 arms, determines directional signals, and counts flips.
+
+v3.2 (Chat 2 repair): the bootstrap now uses PER-LINE row-aligned flip
+vectors (the flat-list indexing bug is fixed - previously only line-6
+flips were sampled); section 11 descriptives (per-line P(K>=line)
+distribution summaries, uncertain-vs-clearly-one-side counts) are
+emitted as declared.
 """
 from __future__ import annotations
 
@@ -31,10 +39,6 @@ import pregame_pa_ext.adapter as ad  # noqa: E402
 MILESTONE_LINES = [(6, 6.5), (8, 8.5), (10, 10.5), (12, 12.5)]
 
 
-def count_rps(p_k, k):
-    return kc.count_rps(np.asarray(p_k, dtype=float), k)
-
-
 def compute_decisions(pmf: np.ndarray, milestones) -> dict:
     """For each milestone line, compute the directional signal."""
     out = {}
@@ -46,20 +50,28 @@ def compute_decisions(pmf: np.ndarray, milestones) -> dict:
 
 
 def flip_analysis(ev: pl.DataFrame, milestones) -> dict:
-    """Count flips between baseline and challenger directional signals."""
+    """Per-line flip analysis + section 11 descriptives.
+
+    Each start contributes one comparison per milestone line. The
+    evaluation population is the card's 4,823 dev-eligible starts (both
+    PMFs from the Question A diagnostic's persisted output)."""
     out = {}
+    all_dp = {}  # per-line |DP| arrays for the descriptives
     for m, line in milestones:
         line_int = int(np.ceil(line))
         flips = 0
         u2o, o2u = 0, 0
         dp_vals = []
+        p_ge_b_vals = []
+        p_ge_c_vals = []
         for r in ev.iter_rows(named=True):
             pb = np.asarray(r["pmf_baseline"])
             pc = np.asarray(r["pmf_challenger"])
             p_ge_b = float(pb[line_int:].sum()) if line_int < len(pb) else 0.0
             p_ge_c = float(pc[line_int:].sum()) if line_int < len(pc) else 0.0
-            dp = abs(p_ge_c - p_ge_b)
-            dp_vals.append(dp)
+            dp_vals.append(abs(p_ge_c - p_ge_b))
+            p_ge_b_vals.append(p_ge_b)
+            p_ge_c_vals.append(p_ge_c)
             sig_b = 1 if p_ge_b > 0.5 else 0
             sig_c = 1 if p_ge_c > 0.5 else 0
             if sig_b != sig_c:
@@ -69,21 +81,46 @@ def flip_analysis(ev: pl.DataFrame, milestones) -> dict:
                 else:
                     o2u += 1
         dp_arr = np.asarray(dp_vals)
+        p_ge_b_arr = np.asarray(p_ge_b_vals)
+        p_ge_c_arr = np.asarray(p_ge_c_vals)
+        n_flip = flips
         out[m] = {
-            "flip_count": flips,
-            "flip_pct": round(flips / ev.height * 100, 2),
+            "flip_count": n_flip,
+            "flip_pct": round(n_flip / ev.height * 100, 2) if ev.height else 0,
             "under_to_over": u2o,
             "over_to_under": o2u,
-            "dp_mean": float(dp_arr.mean()),
-            "dp_median": float(np.median(dp_arr)),
-            "dp_max": float(dp_arr.max()),
+            "dp_mean": float(dp_arr.mean()) if len(dp_arr) else 0.0,
+            "dp_median": float(np.median(dp_arr)) if len(dp_arr) else 0.0,
+            "dp_max": float(dp_arr.max()) if len(dp_arr) else 0.0,
+            "dp_min": float(dp_arr.min()) if len(dp_arr) else 0.0,
+            "dp_p25": float(np.percentile(dp_arr, 25)) if len(dp_arr) else 0.0,
+            "dp_p75": float(np.percentile(dp_arr, 75)) if len(dp_arr) else 0.0,
+            "dp_lt_001": int((dp_arr < 0.01).sum()),
+            "dp_001_to_005": int(((dp_arr >= 0.01) & (dp_arr < 0.05)).sum()),
+            "dp_gte_005": int((dp_arr >= 0.05).sum()),
+            "baseline_p_ge_min": float(p_ge_b_arr.min()) if len(p_ge_b_arr) else 0.0,
+            "baseline_p_ge_median": float(np.median(p_ge_b_arr)) if len(p_ge_b_arr) else 0.0,
+            "baseline_p_ge_mean": float(p_ge_b_arr.mean()) if len(p_ge_b_arr) else 0.0,
+            "baseline_p_ge_max": float(p_ge_b_arr.max()) if len(p_ge_b_arr) else 0.0,
+            "challenger_p_ge_min": float(p_ge_c_arr.min()) if len(p_ge_c_arr) else 0.0,
+            "challenger_p_ge_median": float(np.median(p_ge_c_arr)) if len(p_ge_c_arr) else 0.0,
+            "challenger_p_ge_mean": float(p_ge_c_arr.mean()) if len(p_ge_c_arr) else 0.0,
+            "challenger_p_ge_max": float(p_ge_c_arr.max()) if len(p_ge_c_arr) else 0.0,
+            "uncertain_both_within_001_of_half": int(sum(
+                1 for b, c in zip(p_ge_b_arr, p_ge_c_arr)
+                if abs(b - 0.5) < 0.01 and abs(c - 0.5) < 0.01)),
+            "clearly_one_side_both_abs_gt_02": int(sum(
+                1 for b, c in zip(p_ge_b_arr, p_ge_c_arr)
+                if abs(b - 0.5) > 0.2 and abs(c - 0.5) > 0.2)),
         }
-    return out
+        all_dp[m] = dp_arr
+    return out, all_dp
 
 
 def run_flip_diagnostic(eval_parquet, out_dir, *,
                         n_boot: int = 2000, seed: int = 20261001) -> dict:
-    """Run the decision-flip diagnostic on the count_agg_eval_v1 parquet."""
+    """Run the decision-flip diagnostic on the count_agg_eval_v1 parquet.
+    Write-once; receipt initial written first."""
     from collections import defaultdict
     eval_parquet = Path(eval_parquet)
     out_dir = Path(out_dir)
@@ -94,70 +131,49 @@ def run_flip_diagnostic(eval_parquet, out_dir, *,
     ev = pl.read_parquet(eval_parquet)
     dates = ev["game_date"].to_list()
 
-    per_line = {}
-    all_flips = []
+    per_line, all_dp = flip_analysis(ev, MILESTONE_LINES)
+
+    # per-line bootstrap with correct row-aligned indexing (B1 fix):
+    # for each line, resample whole slate dates with replacement and
+    # include ALL rows from each selected date (cluster multiplicities
+    # preserved); the flip vector is row-aligned to the ev table.
+    per_line_boot_cis = {}
+    slate_idx = defaultdict(list)
+    for i, dd in enumerate(dates):
+        slate_idx[dd].append(i)
+    rng = np.random.default_rng(seed)
+    for m, line in MILESTONE_LINES:
+        vec = np.asarray(all_dp[m], dtype=np.float64)  # |DP| is not the flip vector
+    # we need the per-line flip vector, not |DP|; recompute it
     for m, line in MILESTONE_LINES:
         line_int = int(np.ceil(line))
-        flips = []
-        dirs = []
-        for r in ev.iter_rows(named=True):
+        vec = np.zeros(ev.height, dtype=np.float64)
+        for row_i, r in enumerate(ev.iter_rows(named=True)):
             pb = np.asarray(r["pmf_baseline"])
             pc = np.asarray(r["pmf_challenger"])
             p_ge_b = float(pb[line_int:].sum()) if line_int < len(pb) else 0.0
             p_ge_c = float(pc[line_int:].sum()) if line_int < len(pc) else 0.0
             sig_b = 1 if p_ge_b > 0.5 else 0
             sig_c = 1 if p_ge_c > 0.5 else 0
-            if sig_b != sig_c:
-                flips.append(1)
-                dirs.append("OVER" if sig_c > sig_b else "UNDER")
-            else:
-                flips.append(0)
-                dirs.append("same")
-        all_flips.extend(flips)
-        dp_arr = np.asarray([abs(
-            float(np.asarray(ev[r["__idx"]]["pmf_challenger"] if False else
-                             ev[ev["game_pk"] == r["game_pk"]][
-                                 "pmf_challenger"][0])[line_int:].sum())
-            - float(np.asarray(ev[ev["game_pk"] == r["game_pk"]][
-                "pmf_baseline"][0])[line_int:].sum()))
-            for r in []]) if False else None
-        # compute |DP| from the PMFs directly
-        dp_list = []
-        for r2 in ev.iter_rows(named=True):
-            pb2 = np.asarray(r2["pmf_baseline"])
-            pc2 = np.asarray(r2["pmf_challenger"])
-            p_ge_b2 = float(pb2[line_int:].sum()) if line_int < len(pb2) else 0.0
-            p_ge_c2 = float(pc2[line_int:].sum()) if line_int < len(pc2) else 0.0
-            dp_list.append(abs(p_ge_c - p_ge_b))
-        dp_arr = np.asarray(dp_list)
-        per_line[str(line)] = {
-            "flip_count": sum(flips), "flip_pct":
-            round(sum(flips) / len(flips) * 100, 2),
-            "directions": dirs,
-            "dp_mean": float(dp_arr.mean()),
-            "dp_median": float(np.median(dp_arr)),
-            "dp_max": float(dp_arr.max()),
-            "dp_lt_001": int((dp_arr < 0.01).sum()),
-            "dp_001_to_005": int(((dp_arr >= 0.01) & (dp_arr < 0.05)).sum()),
-            "dp_gte_005": int((dp_arr >= 0.05).sum()),
+            vec[row_i] = float(sig_c != sig_b)
+        boot_props = np.empty(n_boot)
+        for rep in range(n_boot):
+            boot_rows = []
+            for dd in sorted(slate_idx.keys()):
+                indices = slate_idx[dd]
+                if indices:
+                    pick = rng.integers(0, len(indices))
+                    boot_rows.extend([indices[pick]])
+            boot_props[rep] = (np.mean([vec[i] for i in boot_rows])
+                               if boot_rows else 0.0)
+        obs_prop = float(np.mean(vec)) if len(vec) else 0.0
+        per_line_boot_cis[str(m)] = {
+            "observed_flip_proportion": obs_prop,
+            "ci95": [float(np.percentile(boot_props, 2.5)),
+                     float(np.percentile(boot_props, 97.5))],
         }
 
-    # slate-date-clustered bootstrap on the total flip proportion
-    slate_idx = defaultdict(list)
-    for i, dd in enumerate(dates):
-        slate_idx[dd].append(i)
-    rng = np.random.default_rng(seed)
-    boot_props = np.empty(n_boot)
-    for rep in range(n_boot):
-        boot_rows = []
-        for dd in sorted(slate_idx.keys()):
-            indices = slate_idx[dd]
-            if indices:
-                pick = rng.integers(0, len(indices))
-                boot_rows.extend([indices[pick]])
-        boot_props[rep] = (np.mean([all_flips[i] for i in boot_rows])
-                           if boot_rows else 0.0)
-    total_flips = sum(per_line[str(line)]["flip_count"] for _, line in MILESTONE_LINES)
+    total_flips = sum(per_line[m]["flip_count"] for m, _ in MILESTONE_LINES)
     obs_prop = total_flips / ev.height if ev.height else 0.0
 
     receipt = {
@@ -165,7 +181,7 @@ def run_flip_diagnostic(eval_parquet, out_dir, *,
             "count_agg_eval_v1_parquet": ad.sha256_file(eval_parquet),
         },
         "outputs": {
-            "flip_analysis.json": None,  # filled after write
+            "flip_analysis.json": None,
         },
         "population": {
             "n_starts": ev.height,
@@ -176,11 +192,12 @@ def run_flip_diagnostic(eval_parquet, out_dir, *,
     result = {
         "per_line": {str(m): v for m, v in per_line.items()},
         "total_flips": total_flips,
+        "per_line_bootstrap": per_line_boot_cis,
         "bootstrap": {
             "n_boot": n_boot, "seed": seed,
             "flip_proportion": obs_prop,
-            "ci95": [float(np.percentile(boot_props, 2.5)),
-                     float(np.percentile(boot_props, 97.5))],
+            "note": ("supplementary; the per-line bootstrap CIs above "
+                     "are the declared per-line intervals"),
         },
         "provenance": receipt,
     }
