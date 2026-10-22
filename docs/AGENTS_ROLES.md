@@ -1,3 +1,5 @@
+> **Canonical role map:** `docs/roles/`. This file is the historical detail layer; where it conflicts with `docs/roles/` or `docs/NEXT.md`, those win (see docs/roles/README.md for precedence).
+
 # AGENTS_ROLES — who does what (chat agents + owner)
 
 **Date:** 2026-10-14. Updated 2026-10-19: Chat 3 role, ownership/handoff rules,
@@ -16,7 +18,7 @@ ask the owner.
 | --- | --- | --- |
 | Architect / orchestrator | Master orchestrator chat | Sequencing, direction, ADR/PRD, statistical rules, assignments. Does not implement research code or review it. May edit governance docs on its own named branch. |
 | Builder | Chat 1 (opencode agent) | Owns scientific implementation and the published project-state page. Implements in the local worktree: writes code/docs/tests, runs synthetic tests, prepares commits. Must not merge cleanup PRs or authorize own scored experiments. May push to its own named research branch (2026-10-21). |
-| Reviewer + GitHub steward | Chat 2 | Owns independent review and durable PR verdicts of pinned commits/PRs; owns GitHub-side actions (PR checks, comments, merges) within the 2026-10-21 standing authorization. Must not modify implementation branches or invent merge sequences. Does not modify pinned implementation bytes. |
+| Reviewer + GitHub steward | Chat 2 | Owns independent review, durable PR verdicts, trailing-fixer repairs on the research branch, and GitHub-side actions (PR checks, comments, merges) within the 2026-10-21 standing authorization. Must not modify implementation branches or invent merge sequences. Does not modify pinned implementation bytes. |
 | Cleanup / integration | Chat 3 | Owns approved cleanup branches, cleanup-PR integration, and the final handoff. Must not do scientific orchestration, new experiments, or unapproved deletions. Works folder by folder. |
 | Coordinator | Owner (human) | Authorizes scoring runs against real outcomes, deletions, protected production paths, promotion, and the private research lake. Sole holder of the blinding question (INCIDENT.md). |
 
