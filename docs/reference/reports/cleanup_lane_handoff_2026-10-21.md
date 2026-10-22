@@ -136,7 +136,29 @@ the LARGER living-documents assignment, with explicit dispositions (2026-10-21):
 - The read-lane remains STOPPED; un-read files are classified only (recorded
   in the registry, not silently complete).
 
-## 7. Lane status and closure condition
+## 6d. #33 merge disclosure (2026-10-21, verified)
+
+- The decisions branch was advanced to merge commit `3189efeb835366b7d773c542f080f1d955e58b19`
+  ("Merge remote-tracking branch 'origin/main' into chat3/decisions-consolidation-20261021",
+  parents `77377da` + `3637ed1`) - authored outside this lane and published to
+  `origin/chat3/decisions-consolidation-20261021` by Chat 3's push this turn
+  (a fast-forward publication of that existing merge, disclosed here).
+- **Diff inspected for cross-lane contamination: CLEAN.** vs the first parent
+  (the decisions side): only `docs/ROADMAP.md` +62 lines (main's ROADMAP
+  arriving via the merge - the architect's PR #32 content). vs the second
+  parent (main): only this lane's DECISIONS cluster (DECISIONS.md + the four
+  archived ADR renames + 00-index). No accidental cross-lane changes in
+  either direction.
+- **ROADMAP outstanding claim (identified, owner = the architect):**
+  `docs/ROADMAP.md` line 20 still presents the decision-flip figure as an
+  established executed result: "Decision-flip: 1 flip in 19,292 start-lines,
+  max abs change in P(K>=line) under 0.004. Closed: no betting-layer
+  relevance." That file is the architect's authored roadmap - **outside this
+  lane's permitted scope to edit.** The consistency finding remains OPEN
+  until the architect applies the unverified-status label; PROJECT_STORY and
+  DECISIONS (this lane) are corrected.
+
+## 7. Lane status and closure condition## 7. Lane status and closure condition
 
 **Lane status: no implementation blockers; closure awaits review/merge of
 #33/#35 and owner acceptance of this handoff.**
