@@ -80,21 +80,18 @@ import kcount_combiner as kc  # noqa: E402  (registered count metrics)
 # ------------------------------------------------------------ taxonomy
 STATCAST_EVENT_TAXONOMY = {
     "strikeout": 0, "strikeout_double_play": 0,
-    "walk": 1, "intentional_walk": 1, "hit_by_pitch": 1,
+    "walk": 1, "intent_walk": 1, "hit_by_pitch": 1,
     "catcher_interf": 1,
     "field_out": 2, "force_out": 2, "fielders_choice": 2,
     "fielders_choice_out": 2, "field_error": 2,
-    "runner_double_play": 2, "other_out": 2,
-    "sacrifice_bunt": 2, "sacrifice_bunt_double_play": 2,
-    "sacrifice_fly": 2, "sacrifice_fly_double_play": 2,
+    "grounded_into_double_play": 2, "double_play": 2,
+    "sac_bunt": 2, "sac_fly": 2, "sac_fly_double_play": 2,
     "triple_play": 2,
     "single": 3, "double": 3, "triple": 3, "home_run": 3,
     "ground_rule_double": 3,
-    "caught_stealing": 4, "pickoff_1b": 4, "pickoff_2b": 4,
-    "pickoff_3b": 4, "caught_stealing_picked_off": 4,
 }
-CLASS_NAMES = ["strikeout", "walk_or_hbp", "field_out", "hit",
-               "caught_stealing_or_pickoff"]
+CLASS_NAMES = ["strikeout", "walk_hbp_interference", "hit",
+               "other_completed_pa"]
 N_CLASSES = len(CLASS_NAMES)
 K_CLASS = 0
 

@@ -53,7 +53,7 @@ def test_multinomial_softmax_normalization():
     feat = pl.DataFrame({
         f: rng.normal(0, 1, n) for f in m0.FEATURES
     }).with_columns(
-        pl.Series("class_label", rng.integers(0, 5, n)), pl.lit(0).alias("y"),
+        pl.Series("class_label", rng.integers(0, 4, n)), pl.lit(0).alias("y"),
         pl.lit(date(2024, 8, 1)).alias("game_date"),
     )
     model = m0.fit_multinomial(feat)
@@ -69,7 +69,7 @@ def test_identical_features_produce_identical_probabilities():
     feat = pl.DataFrame({
         f: rng.normal(0, 1, n) for f in m0.FEATURES
     }).with_columns(
-        pl.Series("class_label", rng.integers(0, 5, n)), pl.lit(0).alias("y"),
+        pl.Series("class_label", rng.integers(0, 4, n)), pl.lit(0).alias("y"),
         pl.lit(date(2024, 8, 1)).alias("game_date"),
     )
     model = m0.fit_multinomial(feat)
@@ -86,7 +86,7 @@ def test_baselines_normalization():
     n = 50
     train = pl.DataFrame({
         f: rng.normal(0, 1, n) for f in m0.FEATURES
-    }).with_columns(pl.Series("class_label", rng.integers(0, 5, n)))
+    }).with_columns(pl.Series("class_label", rng.integers(0, 4, n)))
     eval_rows = pl.DataFrame({
         f: rng.normal(0, 1, 20) for f in m0.FEATURES
     }).with_columns(
