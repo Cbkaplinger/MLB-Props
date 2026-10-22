@@ -239,7 +239,6 @@ status belongs to that owner. This window stops after the docs commit.
 
 - [07 - Lanes and responsibilities](07-lanes-and-roles.md) - who builds, reviews, authorizes execution, approves promotion.
 - [08 - Research decision flow](08-research-decision-flow.md) - frozen baseline, rejected batter-history recipe, Question A/B lanes, promotion gates.
-- [09 - Evidence gate](09-evidence-gate.md)
 - [12 - Delivery and agent control](12-delivery-and-agent-control.md) - TARGET-STATE, PROPOSED (2026-10-21): checkpoint-based delivery, non-author acceptance.
 - [13 - Experiment evidence lifecycle](13-experiment-evidence-lifecycle.md) - TARGET-STATE, PROPOSED: registered -> executed -> evidence-checked -> accepted/rejected/invalid.
 - [14 - Research-to-decision boundaries](14-research-to-decision-boundaries.md) - TARGET-STATE, PROPOSED: boundary map from source data to evaluation/health evidence.
@@ -257,4 +256,3 @@ status belongs to that owner. This window stops after the docs commit.
 > 01 vs 10 and 08 vs 13 answer distinct questions at different depths - KEEP.
 > No retirement executed: consumers (00-index links, DECISIONS references)
 > must be re-pointed first, per the consolidation safety rules.
-
