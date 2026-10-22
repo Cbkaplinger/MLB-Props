@@ -22,10 +22,23 @@ explicit owner authorization (same gate pattern as M0 v2).
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import numpy as np
 
 from pregame_pa_ext import adapter as ad  # noqa: F401
+from pregame_pa_ext import batt_recency as br
 from pregame_pa_ext import count_aggregation_exact as ex
+from pregame_pa_ext import m0_multiclass as m0
+
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+import kcount_combiner as kc  # noqa: E402  (registered count metrics)
+
+DEV_BLOCK_TRAIN_END = m0.DEV_BLOCK_TRAIN_END
+PROTECTED_BLOCK = m0.PROTECTED_BLOCK
 
 # registered bands (BF index 1..60, inclusive bounds)
 BANDS = ((1, 9), (10, 18), (19, 27), (28, 36), (37, 60))
@@ -191,3 +204,267 @@ def estimation_stop(q: np.ndarray, prior: np.ndarray,
     if q.shape != (N_BANDS,) or prior.shape != (N_BANDS,):
         raise ValueError("band vectors must be length 5")
     return bool(np.all(np.abs(q - prior) < tol))
+
+# ----------------------------------------------------------------- runner
+def _slot_for_bf(j: int) -> int:
+    """The registered cycling rule: BF index j (1-based) reads slot
+    ((j-1) mod 9) + 1 of the start's nine slot probabilities."""
+    return (j - 1) % 9 + 1
+
+
+def frozen_prior_from_ledger(ledger: "pl.DataFrame") -> np.ndarray:
+    """The FROZEN cycled prefix-mean exposure profile: per band, the
+    mean over eligible starts and over the band's BF positions of the
+    start's projected slot probability p_h3_raw at the cycled position.
+    This is the shrinkage target - exactly the per-PA generator the
+    frozen baseline uses, so C-B1's q replaces it like-for-like."""
+    import polars as pl
+
+    slots = ledger.filter(pl.col("exclusion_reason").is_null())
+    per_start = slots.group_by("game_pk", "side", "pitcher").agg(
+        pl.col("p_h3_raw").sort_by("slot"))
+    if per_start.height == 0:
+        raise ValueError("no eligible starts in the ledger: the frozen "
+                         "prior is undefined (stop condition c)")
+    p9_all = np.vstack(per_start["p_h3_raw"].to_list())
+    if p9_all.shape[1] != 9:
+        raise ValueError(
+            f"expected 9 slots per start, got {p9_all.shape[1]}")
+    prior = np.zeros(N_BANDS)
+    for b, (lo, hi) in enumerate(BANDS):
+        pos = np.arange(lo, hi + 1)
+        slot_idx = np.array([(p - 1) % 9 for p in pos])
+        prior[b] = float(p9_all[:, slot_idx].mean())
+    return prior
+
+
+def _block_for_date(d) -> str:
+    """Development block for a start/lineage date (registered block
+    boundaries; confirm_2025H2 never returned - it is protected)."""
+    import datetime as _dt
+
+    d = d if isinstance(d, _dt.date) else d.date()
+    if d <= _dt.date(2024, 6, 30):
+        return "block_2024H2"
+    if d <= _dt.date(2025, 6, 30):
+        return "block_2025H1"
+    return PROTECTED_BLOCK
+
+
+def run_cb1_eval(pa: "pl.DataFrame", ledger: "pl.DataFrame",
+                 bf: "pl.DataFrame", realized: "pl.DataFrame", out_dir, *,
+                 n_boot: int = 2000, seed: int = 20261001,
+                 ) -> dict:
+    """GATED C-B1 evaluation runner (synthetic-tested; real-data
+    execution requires the registered gate AND explicit owner
+    authorization). Write-once; immutable initial receipt; failure
+    records preserved.
+
+    pa: frozen realized-PA training lineage (game_pk, pitcher,
+        at_bat_number, game_date, y); the K label is the frozen binary
+        y (receipt-verified equivalent to the M0 class-0 label).
+    ledger: preserved-run ledger slots (game_pk, side, pitcher, slot,
+        game_date, p_h3_raw, exclusion_reason).
+    bf: registered BF PMF artifact (game_pk, side, pitcher, pmf37_*).
+    realized: registered realized-K-per-start source (start_metrics_v2
+        lineage: game_pk, side, pitcher, realized_k).
+
+    One pre-declared contrast (C-B1 vs the frozen baseline, paired
+    count-RPS on the identical eligible starts), slate-date bootstrap
+    (n_boot, seed), Holm m=1. ESTIMATION STOP (a) fires before any
+    evaluation if every band is within tolerance of the frozen
+    profile."""
+    import polars as pl
+
+    out_dir = Path(out_dir)
+    if out_dir.exists():
+        raise ValueError(f"write-once violation: {out_dir} exists")
+    out_dir.mkdir(parents=True)
+    initial_path = out_dir / "receipt_initial.json"
+    failure_path = out_dir / "failure_record.json"
+
+    initial = {
+        "inputs": {
+            "consumed": {
+                "lineage_pa": m0._frame_sha(pa),
+                "preserved_run_ledger": m0._frame_sha(ledger),
+                "bf_pmf": m0._frame_sha(bf),
+                "realized_counts_source": m0._frame_sha(realized),
+            },
+            "context_identities": {},
+        },
+        "code_config": {
+            "exposure_profile_py_lf_sha256": m0.sha256_stream(
+                m0._lf_bytes(Path(__file__))),
+            "bands": [list(b) for b in BANDS],
+            "shrinkage_n": SHRINKAGE_N,
+            "estimation_stop_tolerance": ESTIMATION_TOLERANCE,
+            "prior_definition": ("per band: mean over eligible starts "
+                                 "of the projected p_h3_raw at the "
+                                 "band's cycled BF positions"),
+            "endpoint": ("paired count-RPS, C-B1 exposure profile vs "
+                         "the frozen cycled prefix-mean baseline, "
+                         "slate-date bootstrap, Holm m=1"),
+            "bootstrap": {"n": n_boot, "seed": seed},
+            "protected_block": PROTECTED_BLOCK,
+        },
+    }
+    initial_path.write_text(json.dumps(initial, indent=1, sort_keys=True),
+                            encoding="utf-8")
+    initial_sha = ad.sha256_file(initial_path)
+    try:
+        # stage 1: the frozen prior (shrinkage target)
+        prior = frozen_prior_from_ledger(ledger)
+
+        # stage 2: per-block estimated profiles from the frozen lineage
+        banded = assign_bf_bands(pa)
+        banded = banded.with_columns(
+            pl.col("game_date").map_elements(
+                _block_for_date, return_dtype=pl.Utf8).alias("fit_block"))
+        blocks_fit = {}
+        for b in DEV_BLOCK_TRAIN_END:
+            te_y, te_m, te_d = DEV_BLOCK_TRAIN_END[b]
+            te = pl.date(te_y, te_m, te_d)
+            lin = banded.filter(
+                (pl.col("fit_block") == b)
+                & (pl.col("game_date") <= te))
+            k_counts, n_counts = band_counts(lin)
+            q = shrink_band_rates(k_counts, n_counts, prior)
+            blocks_fit[b] = {
+                "k_counts": k_counts.tolist(),
+                "n_counts": n_counts.tolist(),
+                "prior": prior.tolist(),
+                "q_band": q.tolist(),
+                "estimation_stop": estimation_stop(q, prior),
+                "lineage_rows": int(lin.height),
+            }
+        if all(v["estimation_stop"] for v in blocks_fit.values()):
+            final = dict(initial)
+            final["estimation_stop"] = {
+                "status": "ESTIMATION STOP (card C-B1 condition a): "
+                          "every band within tolerance of the frozen "
+                          "profile in every block; no exposure signal; "
+                          "evaluation NOT run",
+                "blocks": blocks_fit,
+            }
+            final["acceptance"] = {
+                "receipt_chain": initial_sha,
+                "evaluation_run": False,
+                "block_isolation": True,
+            }
+            (out_dir / "receipt_final.json").write_text(
+                json.dumps(final, indent=1, sort_keys=True),
+                encoding="utf-8")
+            if ad.sha256_file(initial_path) != initial_sha:
+                raise ValueError("IMMUTABLE initial receipt modified")
+            return {"out_dir": str(out_dir), "receipt_final": final,
+                    "receipt_initial_sha256": initial_sha,
+                    "estimation_stop": True}
+
+        # stage 3: paired per-start count-RPS, both arms
+        slots = ledger.filter(pl.col("exclusion_reason").is_null())
+        p9_rows = slots.sort("game_pk", "side", "slot").group_by(
+            "game_pk", "side", "pitcher").agg(
+            pl.col("p_h3_raw").sort_by("slot").alias("p9"),
+            pl.col("game_date").first().alias("game_date"))
+        bf37 = bf.select("game_pk", "side", "pitcher",
+                         *[f"pmf37_{j}" for j in range(37)])
+        desc = p9_rows.join(bf37, on=["game_pk", "side", "pitcher"],
+                            how="inner")
+        rps_cb1, rps_frozen, keys = [], [], []
+        for r in desc.iter_rows(named=True):
+            blk = _block_for_date(r["game_date"])
+            if blk == PROTECTED_BLOCK:
+                raise ValueError("protected confirm block in evaluation")
+            q = np.array(blocks_fit[blk]["q_band"])
+            q60 = profile_from_bands(q)
+            p9 = np.asarray(r["p9"], dtype=np.float64)
+            b37 = np.asarray([r[f"pmf37_{j}"] for j in range(37)])
+            b37 = b37 / b37.sum()
+            bf_ext = ad.bf_pmf_from_37(b37)
+            pmf_cb1 = profile_count_pmf(q60, bf_ext)
+            pmf_frz = ad.count_pmf_from_mixture(
+                bf_ext, ad.cycled_cond_mean(p9))
+            rrow = realized.filter(
+                (pl.col("game_pk") == r["game_pk"])
+                & (pl.col("side") == r["side"])
+                & (pl.col("pitcher") == r["pitcher"]))
+            if rrow.height != 1:
+                raise ValueError(
+                    f"realized count mismatch for start "
+                    f"{r['game_pk']}/{r['side']} ({rrow.height} rows)")
+            k_real = int(rrow["realized_k"][0])
+            rps_cb1.append(float(kc.count_rps(pmf_cb1, k_real)))
+            rps_frozen.append(float(kc.count_rps(pmf_frz, k_real)))
+            keys.append((r["game_pk"], r["side"], r["pitcher"]))
+        rps_cb1 = np.asarray(rps_cb1)
+        rps_frozen = np.asarray(rps_frozen)
+
+        # stage 4: slate-date bootstrap, one pre-declared contrast
+        cmp_mod = br.load_registered_comparison()
+        dates = desc["game_date"].to_list()
+        blocks = [_block_for_date(d) for d in dates]
+        res = cmp_mod.slate_date_draws(
+            {"cb1": rps_cb1, "frozen": rps_frozen},
+            dates, blocks, n_boot=n_boot, seed=seed)
+        d_rep = res[:, 0] - res[:, 1]
+        delta = float(rps_cb1.mean() - rps_frozen.mean())
+        ci = [float(np.percentile(d_rep, 2.5)),
+              float(np.percentile(d_rep, 97.5))]
+        p = cmp_mod.null_centered_p_value(delta, d_rep)
+        holm = cmp_mod.holm_adjust({"cb1_vs_frozen": p})
+        metrics = {
+            "n_starts": int(desc.height),
+            "count_rps_cb1_mean": float(rps_cb1.mean()),
+            "count_rps_frozen_mean": float(rps_frozen.mean()),
+            "delta": delta,
+            "ci95": ci,
+            "p_null_centered": p,
+            "holm": holm,
+            "decision": ("cb1_beats_baseline" if ci[1] < 0
+                         else "cb1_not_better"),
+            "blocks_fit": blocks_fit,
+        }
+        ev = pl.DataFrame({
+            "game_pk": [k[0] for k in keys],
+            "side": [k[1] for k in keys],
+            "pitcher": [k[2] for k in keys],
+            "game_date": dates,
+            "rps_cb1": rps_cb1,
+            "rps_frozen": rps_frozen,
+        })
+        ev_path = out_dir / "cb1_eval_v1.parquet"
+        ev.write_parquet(ev_path)
+        metrics_path = out_dir / "metrics.json"
+        metrics_path.write_text(json.dumps(metrics, indent=1,
+                                           sort_keys=True),
+                                encoding="utf-8")
+        outputs = {
+            "cb1_eval_v1.parquet": ad.sha256_file(ev_path),
+            "metrics.json": ad.sha256_file(metrics_path),
+        }
+    except Exception as exc:
+        failure = {"stage": "cb1_exposure_profile", "failure": True,
+                   "error": repr(exc),
+                   "initial_receipt_sha256": initial_sha}
+        failure_path.write_text(json.dumps(failure, indent=1,
+                                           sort_keys=True),
+                                encoding="utf-8")
+        raise
+
+    final = dict(initial)
+    final["metrics"] = metrics
+    final["outputs"] = outputs
+    final["acceptance"] = {
+        "receipt_chain": initial_sha,
+        "evaluation_run": True,
+        "block_isolation": True,
+    }
+    final_path = out_dir / "receipt_final.json"
+    final_path.write_text(json.dumps(final, indent=1, sort_keys=True),
+                          encoding="utf-8")
+    if ad.sha256_file(initial_path) != initial_sha:
+        raise ValueError("IMMUTABLE initial receipt modified")
+    return {"out_dir": str(out_dir), "metrics": metrics,
+            "receipt_final": final, "receipt_initial_sha256": initial_sha,
+            "estimation_stop": False}

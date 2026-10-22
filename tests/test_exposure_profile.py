@@ -242,3 +242,208 @@ def test_block_isolation_helper_separates_confirm():
     # and the machinery accepts the dev frame unchanged
     prior = ep.frozen_band_prior(dev)
     assert prior.shape == (5,)
+
+
+# ================================================== evaluation runner =====
+def _runner_lake(rng_seed: int = 23, declining: bool = True):
+    """Synthetic lake for the C-B1 runner: a training lineage (2023
+    through 2024-06), an eligible-start ledger with 9 projected slots
+    each, a uniform BF artifact, and realized K per start. When
+    `declining`, lineage K rates fall by band (a real exposure signal);
+    otherwise they are flat (the estimation stop should fire)."""
+    rng = np.random.default_rng(rng_seed)
+    import datetime as dt
+
+    # -- ledger: 8 eligible starts, 9 slots each, mild slot profile
+    led_rows = []
+    for g in range(8):
+        gid = 800000 + g
+        for slot in range(1, 10):
+            led_rows.append((gid, "Top" if g % 2 else "Bot", 700000 + g,
+                             600 + slot, slot, date(2024, 8, 1),
+                             None, 0.24 - 0.004 * slot))
+    ledger = pl.DataFrame(
+        led_rows,
+        schema={"game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
+                "batter": pl.Int64, "slot": pl.Int8,
+                "game_date": pl.Date, "exclusion_reason": pl.Utf8,
+                "p_h3_raw": pl.Float64}, orient="row")
+
+    # -- bf: uniform 37-bucket workload per start
+    bf = pl.DataFrame([{"game_pk": 800000 + g,
+                        "side": "Top" if g % 2 else "Bot",
+                        "pitcher": 700000 + g,
+                        **{f"pmf37_{j}": 1.0 / 37 for j in range(37)}}
+                       for g in range(8)])
+
+    # -- realized K per start
+    realized = pl.DataFrame(
+        [(800000 + g, "Top" if g % 2 else "Bot", 700000 + g,
+          int(rng.integers(2, 7))) for g in range(8)],
+        schema={"game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
+                "realized_k": pl.Int64}, orient="row")
+
+    # -- lineage: 30 PAs per training start, band-structured truth
+    true_rates = [0.30, 0.25, 0.20, 0.15, 0.10] if declining \
+        else [0.22] * 5
+    pa_rows = []
+    pa_id = 0
+    for gid in range(200):
+        gd = date(2023, 4, 1) + dt.timedelta(days=gid // 2)
+        if gd > date(2024, 6, 30):
+            gd = date(2024, 6, 30)
+        pitcher = 700000 + gid
+        for k in range(30):
+            pa_id += 1
+            band = ep.band_for_bf(k + 1)
+            y = int(rng.random() < true_rates[band])
+            pa_rows.append((9000000 + gid, k + 1, 5000 + pa_id,
+                            pitcher, gd, y))
+    pa = pl.DataFrame(
+        pa_rows,
+        schema={"game_pk": pl.Int64, "at_bat_number": pl.Int64,
+                "batter": pl.Int64, "pitcher": pl.Int64,
+                "game_date": pl.Date, "y": pl.Int8}, orient="row")
+    return pa, ledger, bf, realized
+
+
+def test_frozen_prior_from_ledger_band_means():
+    _, ledger, _, _ = _runner_lake()
+    prior = ep.frozen_prior_from_ledger(ledger)
+    assert prior.shape == (5,)
+    # every start has the same slot profile 0.24 - 0.004*slot; bands
+    # 0-3 each cycle slots 1..9 exactly once (9 BF positions), so their
+    # prior equals the pooled mean; band 4 (BF 37-60, 24 positions)
+    # covers slots 1..6 three times and slots 7..9 twice, weighting the
+    # higher early-slot probabilities
+    pooled = float(ledger["p_h3_raw"].mean())
+    assert np.allclose(prior[:4], pooled, atol=1e-12)
+    s = lambda j: 0.24 - 0.004 * j
+    expected_b4 = (3 * sum(s(j) for j in range(1, 7))
+                   + 2 * sum(s(j) for j in range(7, 10))) / 24
+    assert prior[4] == pytest.approx(expected_b4, abs=1e-12)
+    with pytest.raises(ValueError, match="no eligible starts"):
+        ep.frozen_prior_from_ledger(
+            ledger.with_columns(pl.lit("cold").alias("exclusion_reason")))
+
+
+def test_runner_end_to_end_synthetic(tmp_path):
+    """The C-B1 runner completes on synthetic input: paired count-RPS
+    both arms, slate-date bootstrap CI, receipt chain, write-once
+    outputs."""
+    pa, ledger, bf, realized = _runner_lake()
+    out = tmp_path / "cb1"
+    res = ep.run_cb1_eval(pa, ledger, bf, realized, out)
+    assert res["estimation_stop"] is False
+    m = res["metrics"]
+    assert m["n_starts"] == 8
+    assert np.isfinite(m["count_rps_cb1_mean"])
+    assert np.isfinite(m["count_rps_frozen_mean"])
+    assert len(m["ci95"]) == 2
+    assert m["decision"] in ("cb1_beats_baseline", "cb1_not_better")
+    assert (out / "receipt_initial.json").exists()
+    assert (out / "receipt_final.json").exists()
+    assert (out / "cb1_eval_v1.parquet").exists()
+    assert (out / "metrics.json").exists()
+    fin = res["receipt_final"]
+    assert fin["acceptance"]["receipt_chain"] == res["receipt_initial_sha256"]
+    assert fin["acceptance"]["evaluation_run"] is True
+    # Holm m=1: the single contrast's adjustment equals itself
+    assert len(fin["metrics"]["holm"]) == 1
+
+
+def test_runner_estimation_stop_path(tmp_path):
+    """Card stop condition (a): a lineage whose per-band rates equal
+    the prior exactly -> every band within tolerance -> receipt
+    declares no exposure signal, evaluation NOT run, no eval parquet.
+    The flat lineage's y is DETERMINISTIC (exactly the prior rate per
+    band) so the stop fires without seed sensitivity."""
+    pa, ledger, bf, realized = _runner_lake(declining=False)
+    # deterministic flat rates: exactly the prior rate per band
+    prior = ep.frozen_prior_from_ledger(ledger)
+    banded2 = ep.assign_bf_bands(pa)
+    y_map = {}
+    for b in range(5):
+        sub = banded2.filter(pl.col("band") == b).sort("game_pk",
+                                                       "at_bat_number")
+        n = sub.height
+        k = round(float(prior[b]) * n)
+        for i, key in enumerate(sub["batter"].to_list()):
+            y_map[key] = 1 if i < k else 0
+    pa = pa.with_columns(
+        pl.col("batter").replace_strict(
+            y_map, default=0, return_dtype=pl.Int8).alias("y"))
+    out = tmp_path / "cb1_stop"
+    res = ep.run_cb1_eval(pa, ledger, bf, realized, out)
+    assert res["estimation_stop"] is True
+    fin = res["receipt_final"]
+    assert "ESTIMATION STOP" in fin["estimation_stop"]["status"]
+    assert fin["acceptance"]["evaluation_run"] is False
+    assert not (out / "cb1_eval_v1.parquet").exists()
+    assert (out / "receipt_final.json").exists()
+
+
+def test_runner_write_once_and_failure_paths(tmp_path):
+    """Write-once violation, realized-count mismatch -> preserved
+    failure record; receipts stay immutable."""
+    pa, ledger, bf, realized = _runner_lake()
+    out = tmp_path / "cb1"
+    res = ep.run_cb1_eval(pa, ledger, bf, realized, out)
+    initial_sha = res["receipt_initial_sha256"]
+    # write-once: same directory refused
+    with pytest.raises(ValueError, match="write-once violation"):
+        ep.run_cb1_eval(pa, ledger, bf, realized, out)
+    # failure: realized source missing rows for a start -> fail loud +
+    # failure record in a NEW directory; original untouched
+    out2 = tmp_path / "cb2"
+    bad_realized = realized.filter(pl.col("game_pk") != 800000)
+    with pytest.raises(ValueError, match="realized count mismatch"):
+        ep.run_cb1_eval(pa, ledger, bf, bad_realized, out2)
+    rec = (out2 / "failure_record.json").read_text(encoding="utf-8")
+    assert "realized count mismatch" in rec
+    # the first run's receipts are untouched by the failure
+    fin = (out / "receipt_final.json").read_text(encoding="utf-8")
+    assert res["receipt_initial_sha256"] in fin
+    # initial receipt immutability
+    import hashlib
+    assert hashlib.sha256(
+        (out / "receipt_initial.json").read_bytes()).hexdigest() \
+        == initial_sha
+
+
+def test_runner_block_isolation_confirm_never_fits(tmp_path):
+    """Adding confirm-block lineage rows changes nothing: they are
+    outside every training window and are never evaluated."""
+    pa, ledger, bf, realized = _runner_lake()
+    import datetime as dt
+    confirm_rows = []
+    for gid in range(4):
+        for k in range(30):
+            confirm_rows.append((9500000 + gid, k + 1, 7000 + gid * 30 + k,
+                                 750000 + gid, date(2025, 8, 1),
+                                 int(k % 3 == 0)))
+    pa_confirm = pl.concat([pa, pl.DataFrame(
+        confirm_rows,
+        schema={"game_pk": pl.Int64, "at_bat_number": pl.Int64,
+                "batter": pl.Int64, "pitcher": pl.Int64,
+                "game_date": pl.Date, "y": pl.Int8}, orient="row")])
+    out1, out2 = tmp_path / "r1", tmp_path / "r2"
+    res1 = ep.run_cb1_eval(pa, ledger, bf, realized, out1)
+    res2 = ep.run_cb1_eval(pa_confirm, ledger, bf, realized, out2)
+    assert res1["metrics"]["blocks_fit"] == res2["metrics"]["blocks_fit"]
+    assert res1["metrics"]["delta"] == res2["metrics"]["delta"]
+    assert res1["metrics"]["n_starts"] == res2["metrics"]["n_starts"]
+
+
+def test_runner_prior_definition_recorded_in_receipt(tmp_path):
+    """The receipt pins the prior definition, bands, shrinkage weight,
+    and bootstrap config (pre-registration requirements)."""
+    pa, ledger, bf, realized = _runner_lake()
+    out = tmp_path / "cb1"
+    res = ep.run_cb1_eval(pa, ledger, bf, realized, out)
+    cfg = res["receipt_final"]["code_config"]
+    assert cfg["shrinkage_n"] == ep.SHRINKAGE_N
+    assert cfg["estimation_stop_tolerance"] == ep.ESTIMATION_TOLERANCE
+    assert len(cfg["bands"]) == 5
+    assert "cycled" in cfg["prior_definition"]
+    assert cfg["bootstrap"] == {"n": 2000, "seed": 20261001}
