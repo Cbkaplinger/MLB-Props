@@ -27,9 +27,9 @@ from fixtures_m0_integration import (  # noqa: E402
 
 
 # --- 1. five-class fixture -------------------------------------------------
-def test_five_classes_present_in_each_dev_block():
-    """Every dev block's training data contains all five taxonomy
-    classes with deterministic identities."""
+def test_four_classes_present_in_each_dev_block():
+    """Every dev block's training data contains all four taxonomy
+    classes with deterministic identities (4-class corrected taxonomy)."""
     tmp = Path(tempfile.mkdtemp())
     lake = build_integration_lake(tmp, include_confirm=False,
                                   include_2022=False)
@@ -41,7 +41,7 @@ def test_five_classes_present_in_each_dev_block():
             lo, hi = pl.date(2025, 1, 1), pl.date(2025, 6, 30)
         block_data = mc.filter(
             (pl.col("game_date") >= lo) & (pl.col("game_date") <= hi))
-        for cls in range(5):
+        for cls in range(4):
             count = block_data.filter(pl.col("class_label") == cls).height
             assert count > 0, (
                 f"block {block}: class {cls} "
@@ -92,7 +92,7 @@ def test_confirm_rows_isolated_from_dev(tmp_path):
 
 # --- 3. probability output ---------------------------------------------------
 def test_probability_output_shape_and_bounds():
-    """The multinomial model produces 5 correctly ordered class
+    """The multinomial model produces 4 correctly ordered class
     probabilities per evaluated row: finite, in [0, 1], summing to 1."""
     tmp = Path(tempfile.mkdtemp())
     lake = build_integration_lake(tmp, include_confirm=False,
@@ -100,12 +100,12 @@ def test_probability_output_shape_and_bounds():
     mc = lake["pa_with_events"]
     model = m0.fit_multinomial(mc)
     probs = m0.apply_multinomial(mc, model)
-    assert probs.shape == (mc.height, 5)
+    assert probs.shape == (mc.height, 4)
     assert np.all(np.isfinite(probs))
     assert np.all(probs >= 0)
     assert np.all(probs <= 1)
     assert np.allclose(probs.sum(axis=1), 1.0, atol=1e-12)
-    assert sorted(model["classes"]) == list(range(5))
+    assert sorted(model["classes"]) == list(range(4))
 
 
 # --- 4. historical continuity -----------------------------------------------

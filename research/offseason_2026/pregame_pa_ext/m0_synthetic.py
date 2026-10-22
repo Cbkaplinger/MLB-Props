@@ -18,8 +18,7 @@ from datetime import date, timedelta
 import numpy as np
 import polars as pl
 
-EVENT_BY_SLOT = {0: "strikeout", 1: "walk", 2: "field_out", 3: "single",
-                 4: "caught_stealing"}
+EVENT_BY_SLOT = {0: "strikeout", 1: "walk", 2: "field_out", 3: "single"}
 
 
 def synthetic_m0_inputs():
@@ -37,7 +36,7 @@ def synthetic_m0_inputs():
     for day in range(300):
         gd = d + timedelta(days=day // 3)
         for _ in range(6):
-            cls = int(rng.integers(0, 5))
+            cls = int(rng.integers(0, 4))
             ev = EVENT_BY_SLOT[cls]
             pa_rows.append((pa_id, pa_id * 10 + 1, bat_base + (pa_id % 12),
                             pid_train, gd, int(cls == 0)))
@@ -57,7 +56,7 @@ def synthetic_m0_inputs():
             gid += 1
             for slot in range(1, 10):
                 batter = 700100 + (gid % 40) * 9 + slot
-                cls = int(rng.integers(0, 5))
+                cls = int(rng.integers(0, 4))
                 ev = EVENT_BY_SLOT[cls]
                 n_pa = 1 + (slot % 2)
                 for k in range(n_pa):

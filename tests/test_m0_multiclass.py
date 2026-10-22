@@ -34,7 +34,7 @@ def test_taxonomy_mapping():
     """Statcast events map to the correct taxonomy classes; unrecognised
     events map to -1 (excluded)."""
     events = ["strikeout", "walk", "single", "home_run", "field_out",
-              "hit_by_pitch", "caught_stealing", "wild_pitch"]
+              "hit_by_pitch", "field_out", "wild_pitch"]
     s = pl.Series("events", events)
     mapped = m0.map_statcast_events(s)
     assert mapped[0] == 0
@@ -43,7 +43,7 @@ def test_taxonomy_mapping():
     assert mapped[3] == 3
     assert mapped[4] == 2
     assert mapped[5] == 1
-    assert mapped[6] == 4
+    assert mapped[6] == 2  # field_out -> class 2
     assert mapped[7] == -1
 
 
@@ -141,7 +141,7 @@ def test_sparse_class_detection():
 
 # --------------------------------------------------- synthetic fixture
 EVENT_BY_SLOT = {0: "strikeout", 1: "walk", 2: "field_out", 3: "single",
-                 4: "caught_stealing"}
+                 4: "field_out"}
 
 
 import pregame_pa_ext.adapter as ad  # noqa: E402
