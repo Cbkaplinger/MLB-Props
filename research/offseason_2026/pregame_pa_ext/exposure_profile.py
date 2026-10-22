@@ -23,18 +23,19 @@ explicit owner authorization (same gate pattern as M0 v2).
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 
-from pregame_pa_ext import adapter as ad  # noqa: F401
-from pregame_pa_ext import batt_recency as br
-from pregame_pa_ext import count_aggregation_exact as ex
-from pregame_pa_ext import m0_multiclass as m0
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import sys as _sys
-from pathlib import Path as _Path
-_sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+from pregame_pa_ext import adapter as ad  # noqa: E401,F401
+from pregame_pa_ext import batt_recency as br  # noqa: E402
+from pregame_pa_ext import count_aggregation_exact as ex  # noqa: E402
+from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
+
 import kcount_combiner as kc  # noqa: E402  (registered count metrics)
 
 DEV_BLOCK_TRAIN_END = m0.DEV_BLOCK_TRAIN_END
@@ -180,7 +181,49 @@ def poisson_binomial_pmf_profile(q: np.ndarray, n: int,
 def profile_count_pmf(q: np.ndarray, bf_ext: np.ndarray,
                       k_max: int = K_MAX) -> np.ndarray:
     """C-B1 count PMF: P(K=k) = sum_n bf_ext[n-1] * PB(q_1..q_n).
-    bf_ext: P(N=n) for n=1..60 (registered bf_pmf_from_37 extension)."""
+    bf_ext: P(N=n) for n=1..60 (registered bf_pmf_from_37 extension).
+
+    Single-pass incremental DP: the Poisson-Binomial for prefix length
+    n extends the length-(n-1) recursion by one Bernoulli step, so all
+    60 prefix PMFs are produced in one 60-step pass (exactly equivalent
+    to evaluating each PB(q, n) independently, see the cross-check
+    test)."""
+    bf_ext = np.asarray(bf_ext, dtype=np.float64)
+    if bf_ext.shape != (KCOUNT_CAP,):
+        raise ValueError(
+            f"bf_ext must have {KCOUNT_CAP} entries, got {bf_ext.shape}")
+    if abs(float(bf_ext.sum()) - 1.0) > 1e-9:
+        raise ValueError("bf_ext must sum to 1")
+    q = np.asarray(q, dtype=np.float64)
+    if q.shape != (KCOUNT_CAP,):
+        raise ValueError(f"profile must have {KCOUNT_CAP} slots")
+    if np.any((q < 0) | (q > 1)):
+        raise ValueError("profile rates out of [0, 1]")
+    out = np.zeros(k_max)
+    dp = np.zeros(1)
+    dp[0] = 1.0
+    for n in range(1, KCOUNT_CAP + 1):
+        p = float(q[n - 1])
+        nxt = np.zeros(n + 1)
+        nxt[:n] += dp * (1.0 - p)
+        nxt[1:] += dp * p
+        dp = nxt
+        w = bf_ext[n - 1]
+        if w > 0:
+            bucketed = np.zeros(k_max)
+            top = min(len(dp), k_max - 1)
+            bucketed[:top] = dp[:top]
+            bucketed[k_max - 1] += dp[k_max - 1:].sum()
+            out += w * bucketed
+    return out
+
+
+def profile_count_pmf_naive(q: np.ndarray, bf_ext: np.ndarray,
+                            k_max: int = K_MAX) -> np.ndarray:
+    """Reference implementation: independent PB(q, n) per prefix length
+    (the direct transcription of the card formula). Kept for the
+    equivalence cross-check test; the runner uses the single-pass
+    version."""
     bf_ext = np.asarray(bf_ext, dtype=np.float64)
     if bf_ext.shape != (KCOUNT_CAP,):
         raise ValueError(
@@ -468,3 +511,64 @@ def run_cb1_eval(pa: "pl.DataFrame", ledger: "pl.DataFrame",
     return {"out_dir": str(out_dir), "metrics": metrics,
             "receipt_final": final, "receipt_initial_sha256": initial_sha,
             "estimation_stop": False}
+
+# ------------------------------------------------------------------ CLI
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--i-accept-outcome-evaluation", action="store_true",
+                    help="gate for real-data execution (owner "
+                         "authorization required)")
+    ap.add_argument("--pa-table", default=None,
+                    help="path to the registered pa_table parquet "
+                         "(frozen realized-PA training lineage)")
+    ap.add_argument("--ledger", default=None,
+                    help="path to the preserved run ledger parquet")
+    ap.add_argument("--bf", default=None,
+                    help="path to the registered BF PMF artifact")
+    ap.add_argument("--realized", default=None,
+                    help="path to the registered realized-K-per-start "
+                         "source (start_metrics_v2 lineage)")
+    ap.add_argument("--out-dir", default=None,
+                    help="write-once diagnostics output directory")
+    args = ap.parse_args(argv)
+    if not args.i_accept_outcome_evaluation:
+        print("REFUSING: C-B1 real-data execution requires "
+              "--i-accept-outcome-evaluation AND explicit owner "
+              "authorization (delegated owner order is the record).")
+        return 2
+    if (args.pa_table is None or args.ledger is None
+            or args.bf is None or args.realized is None):
+        print("REFUSING: --pa-table, --ledger, --bf and --realized are "
+              "required for the authorized real-data path.")
+        return 2
+    import polars as pl
+
+    pa = pl.read_parquet(args.pa_table)
+    ledger = pl.read_parquet(args.ledger)
+    bf = pl.read_parquet(args.bf)
+    realized = pl.read_parquet(args.realized)
+    out_dir = (Path(args.out_dir) if args.out_dir else
+               ad.PAEXT_OUT_DIR / "diagnostics" / "cb1_exposure_v1")
+    res = run_cb1_eval(pa, ledger, bf, realized, out_dir)
+    if res.get("estimation_stop"):
+        print(json.dumps({"out_dir": res["out_dir"],
+                          "estimation_stop": True}, indent=1,
+                         sort_keys=True))
+        return 0
+    m = res["metrics"]
+    print(json.dumps({"out_dir": res["out_dir"],
+                      "n_starts": m["n_starts"],
+                      "count_rps_cb1_mean": m["count_rps_cb1_mean"],
+                      "count_rps_frozen_mean": m["count_rps_frozen_mean"],
+                      "delta": m["delta"],
+                      "ci95": m["ci95"],
+                      "decision": m["decision"]}, indent=1, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

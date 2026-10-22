@@ -160,7 +160,7 @@ def test_profile_pmf_matches_hand_computed_small_case():
                              0.0])
 
 
-def test_profile_count_pmf_mixes_over_bf_workload():
+def test_profile_pmf_mixes_over_bf_workload():
     q = np.full(60, 0.25)
     # two-point workload: half mass at n=10, half at n=20
     bf_ext = np.zeros(60)
@@ -179,6 +179,21 @@ def test_profile_count_pmf_mixes_over_bf_workload():
     assert pmf1[1] == pytest.approx(0.25, abs=1e-12)
     with pytest.raises(ValueError):
         ep.profile_count_pmf(q, np.ones(59))
+
+
+def test_incremental_mixture_equals_naive_reference():
+    """The single-pass incremental mixture is EXACTLY the per-prefix
+    PB mixture (random profile + spiky workload cross-check)."""
+    rng = np.random.default_rng(77)
+    q = rng.uniform(0.05, 0.45, 60)
+    bf_ext = np.zeros(60)
+    picks = rng.choice(60, size=12, replace=False)
+    bf_ext[picks] = rng.uniform(0.05, 0.2, 12)
+    bf_ext /= bf_ext.sum()
+    a = ep.profile_count_pmf(q, bf_ext)
+    b = ep.profile_count_pmf_naive(q, bf_ext)
+    assert np.allclose(a, b, atol=1e-12)
+    assert abs(float(a.sum()) - 1.0) < 1e-9
 
 
 def test_profile_pmf_is_recoverability_consistent_with_cycled_baseline():
