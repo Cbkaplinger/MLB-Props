@@ -113,11 +113,20 @@ archive, fix, and propose-delete"). Folders 1-2 carried full reads; folders
 | 5. `models` | classify-and-propose | 70 py files classified; dated lineage + trainers, all cited | classification evidence | none within assignment |
 | 6. `scripts` + dotfiles | full read (batch A) + classification | 28 scripts + 12 dotfiles fully read; both prune utilities verified distinct; intentional mirror documented | batch A records | none |
 
-**Unmet obligations from the six-folder assignment: none.** Unmet obligations
-from the LARGER living-documents assignment (still open, per its own order):
-`PROJECT_STORY.md` (delivered as PROPOSED in this PR), diagrams index
-reduction + restating-diagram retirement, and the superseded-reports archive
-(owner-blocked proposal).
+**Unmet obligations from the six-folder assignment: none.** Open items from
+the LARGER living-documents assignment, with explicit dispositions (2026-10-21):
+
+- `PROJECT_STORY.md`: **DELIVERED as a PROPOSED draft in this PR** (evidence-linked
+  narrative; dated M0 status - "NOT READY" as of 2026-10-21, to be re-dated as
+  implementation advances so the narrative does not go stale).
+- **Diagrams index reduction + restating-diagram retirement: DEFERRED -
+  approval-gated.** Navigation review recorded in 00-index (09 retirement
+  candidate subsumed by 13; 07/12 consolidation direction); retirement requires
+  semantic + consumer checks and is NOT a prerequisite for M0 progress.
+- **Superseded-reports archive: OWNER-BLOCKED PROPOSAL** - no moves or
+  deletions without approval; the reports index carries the candidate marks.
+- The read-lane remains STOPPED; un-read files are classified only (recorded
+  in the registry, not silently complete).
 
 ## 7. Lane status and closure condition
 
