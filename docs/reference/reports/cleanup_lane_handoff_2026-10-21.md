@@ -56,14 +56,17 @@ the handoff, not a new inventory.
 5. **Agent efficiency unmeasured** - the builder/trailing-fixer arrangement is
    a hypothesis; the delivery measures in the PROPOSED PRD are the instrument.
 
-## 5. Open-PR temporary exception (recorded 2026-10-21, later)
+## 5. Open-PR status against the CANONICAL cap (corrected 2026-10-21, later)
 
-The lane currently has three open PRs (#33 DECISIONS consolidation, #35
-reports index, #36 this handoff) against the two-PR cap in the PROPOSED PR
-rules. Recorded as a **temporary exception requiring reconciliation, not a
-merge justification**: #33 and #35 are completed deliverables awaiting
-review/merge; #36 carries the handoff. No further cleanup PRs open until this
-reconciles to the cap.
+- **Operative rule: three open PRs repository-wide** (the previously recorded
+  canonical limit). The two-PR cap quoted earlier lives in PROPOSED rules that
+  are NOT operative; it is identified here separately as a proposal only.
+- **Recorded against the canonical rule: FOUR open PRs** (#33 DECISIONS
+  consolidation, #34 M0 research, #35 reports index, #36 this handoff) - one
+  over the canonical limit. **Recording this exception does not authorize
+  exceeding it.** No further cleanup PRs open until the count reconciles.
+- Reconciliation path: #33 and #35 are completed deliverables awaiting
+  review/merge; #36 carries this handoff (disposition below).
 
 ## 6. Current gate-status pointer (kept current; not a re-audit)
 
@@ -78,10 +81,21 @@ reconciles to the cap.
   synthetic-exercised assertions only) - no claim of real-input verification
   is made anywhere in this lane's records.
 
-## 7. Closure condition
+## 7. Lane status and closure condition
+
+**Lane status: no implementation blockers; closure awaits review/merge of
+#33/#35 and owner acceptance of this handoff.**
+
+**#36 disposition (explicit): review and merge as PROPOSED documentation.**
+This handoff is documentation of record for the cleanup lane; adopting the
+PROPOSED ADR/PRD decisions inside it remains a separate owner/architect act.
+Merging #36 closes the lane's documentation deliverable without activating
+any proposed rule or authorizing any execution.
+
+## 8. Closure condition
 
 The temporary cleanup lane closes when: (a) #33 and #35 are reviewed and
 merged; (b) the owner accepts this handoff (including the disposition map,
-residual risks, and the open-PR exception record); and (c) no new cleanup
-scope is assigned. Until then the lane continues on assigned, bounded
-deliverables only.
+residual risks, the open-PR record, and #36's review-and-merge disposition);
+and (c) no new cleanup scope is assigned. Until then the lane continues on
+assigned, bounded deliverables only.
