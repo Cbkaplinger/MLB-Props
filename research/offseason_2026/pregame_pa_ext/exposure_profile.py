@@ -404,12 +404,22 @@ def run_cb1_eval(pa: "pl.DataFrame", ledger: "pl.DataFrame",
                     "receipt_initial_sha256": initial_sha,
                     "estimation_stop": True}
 
-        # stage 3: paired per-start count-RPS, both arms
+        # stage 3: paired per-start count-RPS, both arms. The paired
+        # population is the ELIGIBLE DEVELOPMENT starts only: the
+        # preserved ledger also carries confirm-block starts, which are
+        # excluded here (never scored, never evaluated) and the
+        # exclusion is disclosed in the metrics.
+        import datetime as _dt
+
+        dev_last = _dt.date(2025, 6, 30)
         slots = ledger.filter(pl.col("exclusion_reason").is_null())
         p9_rows = slots.sort("game_pk", "side", "slot").group_by(
             "game_pk", "side", "pitcher").agg(
             pl.col("p_h3_raw").sort_by("slot").alias("p9"),
             pl.col("game_date").first().alias("game_date"))
+        n_starts_all = p9_rows.height
+        p9_rows = p9_rows.filter(pl.col("game_date") <= dev_last)
+        n_confirm_excluded = n_starts_all - p9_rows.height
         bf37 = bf.select("game_pk", "side", "pitcher",
                          *[f"pmf37_{j}" for j in range(37)])
         desc = p9_rows.join(bf37, on=["game_pk", "side", "pitcher"],
@@ -458,6 +468,8 @@ def run_cb1_eval(pa: "pl.DataFrame", ledger: "pl.DataFrame",
         holm = cmp_mod.holm_adjust({"cb1_vs_frozen": p})
         metrics = {
             "n_starts": int(desc.height),
+            "starts_in_ledger_total": int(n_starts_all),
+            "confirm_block_starts_excluded": int(n_confirm_excluded),
             "count_rps_cb1_mean": float(rps_cb1.mean()),
             "count_rps_frozen_mean": float(rps_frozen.mean()),
             "delta": delta,

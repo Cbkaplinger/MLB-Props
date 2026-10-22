@@ -450,6 +450,37 @@ def test_runner_block_isolation_confirm_never_fits(tmp_path):
     assert res1["metrics"]["n_starts"] == res2["metrics"]["n_starts"]
 
 
+def test_runner_confirm_starts_excluded_not_fatal(tmp_path):
+    """Regression (real-data defect, ee35359 follow-up): the preserved
+    ledger carries confirm-block starts; the paired population is the
+    dev starts only. Confirm starts must be EXCLUDED with a disclosed
+    count, never scored and never fatal."""
+    pa, ledger, bf, realized = _runner_lake()
+    # add two confirm-block starts (2025-08): ledger slots + bf + realized
+    import datetime as dt
+    confirm_led = pl.DataFrame(
+        [(900000, "Top", 800000, 9100 + s, s, date(2025, 8, 1), None,
+          0.2) for s in range(1, 10)],
+        schema=ledger.schema, orient="row")
+    confirm_bf = pl.DataFrame([{
+        "game_pk": 900000, "side": "Top", "pitcher": 800000,
+        **{f"pmf37_{j}": 1.0 / 37 for j in range(37)}}])
+    confirm_real = pl.DataFrame(
+        [(900000, "Top", 800000, 4)],
+        schema=realized.schema, orient="row")
+    ledger2 = pl.concat([ledger, confirm_led])
+    bf2 = pl.concat([bf, confirm_bf])
+    realized2 = pl.concat([realized, confirm_real])
+    out = tmp_path / "cb1"
+    res = ep.run_cb1_eval(pa, ledger2, bf2, realized2, out)
+    m = res["metrics"]
+    assert m["n_starts"] == 8
+    assert m["confirm_block_starts_excluded"] == 1
+    assert m["starts_in_ledger_total"] == 9
+    keys = pl.read_parquet(out / "cb1_eval_v1.parquet")
+    assert 900000 not in keys["game_pk"].to_list()
+
+
 def test_runner_prior_definition_recorded_in_receipt(tmp_path):
     """The receipt pins the prior definition, bands, shrinkage weight,
     and bootstrap config (pre-registration requirements)."""
