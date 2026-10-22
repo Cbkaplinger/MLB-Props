@@ -11,8 +11,8 @@ Operating standard for all agent windows and the owner. Complements
 | --- | --- |
 | Any chat window | May create branches/PRs **from its own isolated worktree only**, in its declared scope |
 | Builder (Chat 1) | Implements, pushes, obtains CI; performs authorized merges/integration |
-| Reviewer (Chat 2) | Independent review at the exact published SHA; read-only on others' branches |
-| Repo health (Chat 3) | Documentation, inventories, PR hygiene; never merges without authorization |
+| Reviewer (Chat 2) | Trailing reviewer/fixer: independent review at the exact published SHA; bounded repairs on claimed paths per docs/roles/chat2-reviewer.md |
+| Repo health (Chat 3) | Documentation, inventories, PR hygiene; docs-only PRs (see docs/roles/chat3-cleaner.md) |
 | Owner | Approves scope, decisions, and any merge/deletion |
 
 **Never** edit another chat's worktree or branch. Never merge, close another
