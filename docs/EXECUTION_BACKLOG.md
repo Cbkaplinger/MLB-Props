@@ -122,6 +122,11 @@ counts; Chat 2 reproducing; v2 card or binary freeze by 2026-11-07. See
 > **Not a second backlog.** Canonical live plan = Session Snapshot → **PAST / PRESENT / FORWARD / DEFERRED** (top of this file). Checklists below are a short mirror only.
 
 **Waiting on user (blocks these):**
+
+**Waiting on user (blocks these):**
+
+- [ ] Confirm 2.5/3.5 over style — **data rec 2026-09-11: freeze current probation** (from the archived CLV + Hosting Plan; carried forward at split)
+- [ ] **Dashboard v1** — parked until backend #113 is green; say go to unpark (from the archived CLV + Hosting Plan; carried forward at split)
 - [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
 - [ ] Ops Checkpoint A review: 5 owner questions (`docs/reference/reports/ops_contracts_2026-09-30.md`, defaults YES) + OPS-1 defaults sign-off.
 - [ ] Scoped infra/docs commit checkpoint (writers paused during staging; model/production/ledger files excluded).
