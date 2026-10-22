@@ -133,18 +133,13 @@ def run_flip_diagnostic(eval_parquet, out_dir, *,
 
     per_line, all_dp = flip_analysis(ev, MILESTONE_LINES)
 
-    # per-line bootstrap with correct row-aligned indexing (B1 fix):
-    # for each line, resample whole slate dates with replacement and
-    # include ALL rows from each selected date (cluster multiplicities
-    # preserved); the flip vector is row-aligned to the ev table.
+    # per-line bootstrap using the REGISTERED helper (correct clustered
+    # resampling: dates drawn with replacement, cluster multiplicities
+    # preserved, all rows from each selected date instance included)
+    cmp_mod = br.load_registered_comparison()
+    dates = ev["game_date"].to_list()
+    blocks = ev["block"].to_list()
     per_line_boot_cis = {}
-    slate_idx = defaultdict(list)
-    for i, dd in enumerate(dates):
-        slate_idx[dd].append(i)
-    rng = np.random.default_rng(seed)
-    for m, line in MILESTONE_LINES:
-        vec = np.asarray(all_dp[m], dtype=np.float64)  # |DP| is not the flip vector
-    # we need the per-line flip vector, not |DP|; recompute it
     for m, line in MILESTONE_LINES:
         line_int = int(np.ceil(line))
         vec = np.zeros(ev.height, dtype=np.float64)
@@ -156,21 +151,14 @@ def run_flip_diagnostic(eval_parquet, out_dir, *,
             sig_b = 1 if p_ge_b > 0.5 else 0
             sig_c = 1 if p_ge_c > 0.5 else 0
             vec[row_i] = float(sig_c != sig_b)
-        boot_props = np.empty(n_boot)
-        for rep in range(n_boot):
-            boot_rows = []
-            for dd in sorted(slate_idx.keys()):
-                indices = slate_idx[dd]
-                if indices:
-                    pick = rng.integers(0, len(indices))
-                    boot_rows.extend([indices[pick]])
-            boot_props[rep] = (np.mean([vec[i] for i in boot_rows])
-                               if boot_rows else 0.0)
+        res = cmp_mod.slate_date_draws(
+            {"flip_ind": vec}, dates, blocks, n_boot=n_boot, seed=seed)
+        replicates = res[:, 0]
         obs_prop = float(np.mean(vec)) if len(vec) else 0.0
         per_line_boot_cis[str(m)] = {
             "observed_flip_proportion": obs_prop,
-            "ci95": [float(np.percentile(boot_props, 2.5)),
-                     float(np.percentile(boot_props, 97.5))],
+            "ci95": [float(np.percentile(replicates, 2.5)),
+                     float(np.percentile(replicates, 97.5))],
         }
 
     total_flips = sum(per_line[m]["flip_count"] for m, _ in MILESTONE_LINES)

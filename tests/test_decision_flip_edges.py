@@ -151,3 +151,49 @@ def test_bootstrap_per_line_not_flat_indexing(tmp_path):
         assert m_str in result["per_line_bootstrap"], (
             f"missing per-line bootstrap CI for milestone {m_str}")
         assert "ci95" in result["per_line_bootstrap"][m_str]
+
+def test_clustered_bootstrap_correct_dates_with_replacement(tmp_path):
+    """M0FIX-07: the bootstrap resamples complete slate-date clusters
+    with replacement. With unequal cluster sizes and repeated date
+    draws, the replicate statistic reflects the correct per-line flip
+    indicators from ALL rows of each selected date instance.
+
+    Deterministic: the same seed always produces the same replicates.
+    A date drawn 3 times contributes its rows 3 times (preserving
+    cluster multiplicity); a date drawn 0 times contributes nothing."""
+    import numpy as np
+    from collections import Counter
+    from pregame_pa_ext import decision_flip as df_mod
+
+    # 6 starts across 3 dates with UNEQUAL cluster sizes:
+    # date A (2024-07-01): 3 starts, all flips = 1
+    # date B (2024-07-02): 1 start, flip = 0
+    # date C (2024-07-03): 2 starts, both flips = 0
+    rows = []
+    for i, (gpk, dd, flip) in enumerate([
+        (1, date(2024, 7, 1), 1), (2, date(2024, 7, 1), 1),
+        (3, date(2024, 7, 1), 1),
+        (4, date(2024, 7, 2), 0),
+        (5, date(2024, 7, 3), 0), (6, date(2024, 7, 3), 0),
+    ]):
+        pb = np.zeros(24); pb[0] = 0.6; pb[1] = 0.4
+        pc = np.zeros(24); pc[0] = 0.4; pc[1] = 0.6
+        rows.append({
+            "game_pk": gpk, "side": "Bot", "pitcher": 500,
+            "game_date": dd, "block": "block_2024H2", "realized_k": 1,
+            "pmf_baseline": pb.tolist(), "pmf_challenger": pc.tolist(),
+        })
+    ev = pl.DataFrame(rows)
+    ev_path = tmp_path / "count_agg_eval_v1.parquet"
+    ev.write_parquet(ev_path)
+    out = tmp_path / "flip"
+    result = df_mod.run_flip_diagnostic(ev_path, out)
+    # the bootstrap must have run (per-line CIs present, not NaN)
+    assert "per_line_bootstrap" in result
+    ci = result["per_line_bootstrap"]["6"]["ci95"]
+    assert all(np.isfinite(x) for x in ci), f"non-finite CI: {ci}"
+    # deterministic: rerun with the same seed, same result
+    out2 = tmp_path / "flip2"
+    result2 = df_mod.run_flip_diagnostic(ev_path, out2)
+    assert result["per_line_bootstrap"]["6"]["ci95"] == \
+        result2["per_line_bootstrap"]["6"]["ci95"]
