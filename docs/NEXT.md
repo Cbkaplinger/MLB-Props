@@ -1,47 +1,43 @@
 # NEXT — single source of the current action
 
-**Owner of this file:** architect. Every agent reads it first and updates only its own line.
-Max 15 lines of status. Link SHAs; do not retype history. Updated 2026-10-22.
+**Owner of this file:** architect. Agents read it first and update only their own line.
+Link SHAs; do not retype history. Updated 2026-10-22 (afternoon).
 
-## Critical path (one item at a time)
+## Critical path (one item)
 
-1. **M0 real-data development run** (multiclass PA model vs frozen binary L3).
-   - Owner directive 2026-10-22: run M0 now, once, under the registered card.
-   - Chat 1: confirm the remote tip contains Chat 2's repairs (ancestry check), confirm the
-     non-author acceptance covers that exact SHA, then execute the registered command once.
-   - Chat 2: review the receipt and results at the executed SHA. No new scope.
-   - Output: effect sizes, intervals, per-class diagnostics, limitations. One verdict: pass, fail, stop.
-2. Then M1 (K head through the count layer) per ROADMAP. Not before M0 reports.
+**M0 v1 STOPPED at `71b236f`:** registered stop fired (class 4 caught_stealing_or_pickoff has 0 training
+PAs in block_2024H2). No outcome metric was produced. Recorded as STOPPED, not a negative result.
+Ruling and branching: PR #34 comment (architect, 2026-10-22).
 
-## M0 framing (not "multiclass instead of binary")
+1. Chat 1: per-class, per-block TRAINING label counts + raw class-4 event counts (descriptive only).
+2. Chat 2: independent reproduction; classify as (A) structurally absent or (B) label-join defect.
+3. (B) -> repair, rerun once under the same card. (A) -> v1 closed; draft card v2 with the taxonomy
+   restricted to classes that exist (Chat 1 drafts by 2026-10-27, Chat 2 reviews, architect approves).
+4. If no reviewed v2 by 2026-11-07: freeze binary, close M0 (ROADMAP pivot rule 3).
 
-The binary L3 stays the frozen production model until M0 passes its registered gate.
-M0 is a test of whether a softmax version is non-inferior on K-vs-not-K and better on the
-five-class loss. A fail freezes binary and ends the multiclass line.
+## Authority
 
-## Parked (no work until promoted; each has a promote-or-kill date)
+The architect decides scientific sequencing and branching. The owner is asked only for restricted
+actions (spending, deleting, production changes). Agents do not list "owner must decide" options.
+
+## Parked (promote-or-kill dates)
 
 | Item | Decision date |
 | --- | --- |
-| Decision-flip rerun with repaired bootstrap | 2026-11-07 (run after M0 verdict) |
+| Decision-flip rerun with repaired bootstrap | 2026-11-07 |
 | Coverage policy for 59 cold-start starts | 2026-11-07 (default: league-rate prior, flagged) |
-| History extension toward 2015 (M4) | Kill unless M0 passes; revisit 2027-01 |
+| History extension toward 2015 (M4) | Kill unless M0 passes |
 | Question B | Kill unless M1 passes |
 
-## Chat 3 cleanup list (finite; finishing it ends the lane)
+## Chat 3 (finite list; ends the lane)
 
-1. Execute the EXECUTION_BACKLOG split: evergreen core under 40 KB plus a byte-preserving archive file; update inbound links; link check green.
-2. Archive the four superseded reports marked in the reports index and re-point every tracked citation in the same PR.
-3. Move `report/` into `docs/reference/reports/`; ask the owner nothing further.
-4. Consolidate the diagram set: retire 09 into 13 after re-pointing consumers; keep the rest.
-5. Reduce root entry points: README, CONTEXT, AGENTS each get a one-line pointer to NEXT.md and PROJECT_STATE.md.
-6. Line-by-line review applies only to files touched by items 1-5, not all 692.
-7. Never touch research/, models/, frozen registrations, or production/.
+Waiting on merges (#37 and #33 are merged). Then: rebase #36 (drop ROADMAP edit, keep both sides of
+00-index, fix duplicate header, backlog-split owner = Chat 3), then the backlog split as its own PR,
+then archive four superseded reports, move report/, retire diagram 09, add entry-point pointers.
+Max three open PRs. Docs only. Never touch research/, models/, production/, frozen paths.
 
-One PR per item, docs-only, merged after Chat 2's bounded review. Report with PR links only.
+## Anti-drift rules
 
-## Rules that prevent drift
-
-- One critical-path item at a time; nothing starts while it is open.
-- A report states: SHA, command, result, next step. No restated project history.
-- Unverified numbers carry the label UNVERIFIED until a receipt exists.
+- One critical-path item at a time. Reports: SHA, command, result, next step.
+- Unverified numbers carry UNVERIFIED until a receipt exists.
+- No new ideas enter via chat; ideas go to the architect and get a promote-or-kill date.
