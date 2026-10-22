@@ -8,23 +8,23 @@ The owner delegates routine project decisions and execution authority to the arc
 
 **Language:** all chat reports and review comments must be in English.
 
-## M0 v2
+## M0 v2 — ACCEPTED (development-only)
 
-- M0 v1 STOPPED at `71b236f`: registered class-4 stop condition fired; preserved run remains UNACCEPTED.
-- Owner authorized M0 v2 execution at `2e2482b` under the §11 contract.
-- Chat 1 reports M0 v2 executed with write-once receipts and both registered endpoints passing: EP1 K-marginal non-inferiority and EP2 versus both baselines. It remains a development-only diagnostic; no promotion without its separate gate.
-- Chat 2 performs one contract/result check of the executed artifacts at the executed SHA, fixing only concrete defects.
+- v1 STOPPED at `71b236f` (class 4 structurally absent); preserved run stays UNACCEPTED.
+- v2 executed once at `2e2482b` (fix head `ae3cd19`; attempt 1 defect record preserved). Chat 2 independently verified receipts, pins (4,823 / 82,817 / `c6568151`), block isolation and endpoint math: PASS.
+- EP1 and EP2 pass. Effects are small: K log-loss delta about -7e-06; multiclass 1.2241 vs log5 1.2263 vs league 1.2377; count-RPS delta -0.000169. Accepted as a valid diagnostic, not as evidence of practical betting value.
+- No promotion, production, or betting use without the separate gate.
 
 ## Critical path
 
-1. Chat 2: issue one concise English execution verdict for M0 v2 (contract compliance, receipt integrity, pins, endpoint calculations, and any concrete defect).
-2. Chat 1: answer concrete findings only; otherwise continue C-B1 from its scoped synthetic-first implementation to its evaluation runner and receipt path. Do not execute C-B1 on real data until its registered gate is satisfied.
-3. Architect: consolidate the execution result into the canonical research record and decide the next registered build step.
+1. Chat 1: build C-B1 (exposure profile) through the synthetic-first evaluation runner, paired count-RPS, slate-date bootstrap and receipts. No real-data run until its registered gate is met.
+2. Chat 2: one check of the C-B1 runner when Chat 1 declares it ready; concrete defects only.
+3. Architect: decide the next registered step from the M0 result (finer taxonomy, e.g. HR/HBP split, only if C-B1 needs it).
 
 ## Chat 3 cleanup lane
 
-Continue one focused cleanup stream: remove verified dead/duplicate files, move misplaced files, consolidate competing/stale documentation, retire obsolete diagrams, and prune only branches proven merged or redundant. Preserve frozen research, production, and evidence. Do not act as research coordinator or add process documents. Record before/after file count and bytes plus link/test checks.
+One focused stream: remove verified dead or duplicate files, move misplaced files, collapse stale docs, retire obsolete diagrams, prune branches proven merged or redundant. Correct the reported size math with a reproducible tracked-file measurement. No status documents, no research coordination.
 
 ## Parked
 
-Decision-flip result remains unaccepted pending its receipted rerun. Coverage policy for cold-start starts remains a product decision. Promotion is separate from M0's development-only result.
+Decision-flip result unaccepted pending a receipted rerun. Coverage policy for cold-start starts is a product decision (default league-rate prior, flagged). Promotion is separate from M0.
