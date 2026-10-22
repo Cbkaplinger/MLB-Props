@@ -26,7 +26,7 @@ from fixtures_m0_integration import (  # noqa: E402
 )
 
 
-# --- 1. five-class fixture -------------------------------------------------
+# --- 1. four-class fixture -------------------------------------------------
 def test_four_classes_present_in_each_dev_block():
     """Every dev block's training data contains all four taxonomy
     classes with deterministic identities (4-class corrected taxonomy)."""
@@ -48,7 +48,7 @@ def test_four_classes_present_in_each_dev_block():
                 f"({m0.CLASS_NAMES[cls]}) has 0 training examples")
 
 
-def test_five_class_identities_are_deterministic():
+def test_four_class_identities_are_deterministic():
     """The event-to-class mapping produces the EXPECTED class label for
     each PA (not random coverage)."""
     tmp = Path(tempfile.mkdtemp())
@@ -100,12 +100,12 @@ def test_probability_output_shape_and_bounds():
     mc = lake["pa_with_events"]
     model = m0.fit_multinomial(mc)
     probs = m0.apply_multinomial(mc, model)
-    assert probs.shape == (mc.height, 4)
+    assert probs.shape == (mc.height, m0.N_CLASSES)
     assert np.all(np.isfinite(probs))
     assert np.all(probs >= 0)
     assert np.all(probs <= 1)
     assert np.allclose(probs.sum(axis=1), 1.0, atol=1e-12)
-    assert sorted(model["classes"]) == list(range(4))
+    assert sorted(model["classes"]) == list(range(m0.N_CLASSES))
 
 
 # --- 4. historical continuity -----------------------------------------------

@@ -1,5 +1,5 @@
 """Fixture module for M0 integration tests. Creates a self-contained
-synthetic lake with DETERMINISTIC five-class coverage in every
+synthetic lake with DETERMINISTIC four-class coverage in every
 development block. No real data, no shared state with other test
 modules, no fallback to local real-data directories.
 
@@ -22,14 +22,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]
 import pregame_pa_ext.adapter as ad  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 
-# deterministic class cycle: 5 classes cycling across PAs
-CLASS_CYCLE = [0, 1, 2, 3, 4] * 4  # 20 PAs per game covers all 5 classes
+# deterministic class cycle: 4 classes cycling across PAs
+CLASS_CYCLE = [0, 1, 2, 3] * 5  # 20 PAs per game covers all 4 classes
 BATTERS = list(range(100, 109))
 PITCHER = 500
 
 CLASS_TO_EVENT = {
     0: "strikeout", 1: "walk", 2: "field_out", 3: "single",
-    4: "caught_stealing",
 }
 
 
@@ -60,7 +59,7 @@ def build_integration_lake(
     include_2022: bool = True,
     confirm_outcome_flip: bool = False,
 ) -> dict:
-    """Build a self-contained synthetic lake with deterministic five-class
+    """Build a self-contained synthetic lake with deterministic four-class
     coverage. Returns dict with pa_with_events, ledger, bf, realized,
     paths, grid, class_counts_by_block."""
     tmp_path.mkdir(parents=True, exist_ok=True)
@@ -95,8 +94,8 @@ def build_integration_lake(
     # dev-block games
     dev_blocks = _dev_blocks(8)
     grid = []
-    class_counts = {"block_2024H2": {c: 0 for c in range(5)},
-                    "block_2025H1": {c: 0 for c in range(5)}}
+    class_counts = {"block_2024H2": {c: 0 for c in range(4)},
+                    "block_2025H1": {c: 0 for c in range(4)}}
     for game_date, block in dev_blocks:
         grid.append((gpk, game_date))
         for slot in range(9):

@@ -1,12 +1,13 @@
 # PRE-REGISTRATION CARD (DESIGN ONLY) — M0: multi-class PA outcome model
 # (pregame-pa-ext-v2 lane, 2026-10-21)
 #
-# STATUS: PROPOSED DESIGN — NOT IMPLEMENTED, NOT EXECUTED, NO REAL OUTCOMES
-# READ. This card specifies the design for expanding the PA-level model
-# from binary strikeout to multi-class outcome prediction. Implementation
-# requires Chat 2 review of this card plus explicit owner authorization.
-# The decision-flip diagnostic (card_decision_flip_2026-10-21.md) must be
-# reviewed before this card proceeds.
+# STATUS: STOPPED / SUPERSEDED by card_m0_multiclass_v2_2026-10-22.md.
+# The five-class taxonomy in §2 triggered the §8 stop condition (class 4
+# had 0 training PAs in every block) and omitted six completed-PA event
+# strings (23,531 PAs left unmapped; see v2 §5 reconciliation). The §13
+# evidence table and the class -1 note are superseded by v2 §5. The
+# scientific sections (§1, §3-§6b, §8-§10) remain in force UNCHANGED and
+# are restated by reference in v2 §3. Do not execute against this card.
 
 ## 1. Motivation
 

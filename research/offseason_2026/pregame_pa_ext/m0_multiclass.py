@@ -90,8 +90,7 @@ STATCAST_EVENT_TAXONOMY = {
     "single": 3, "double": 3, "triple": 3, "home_run": 3,
     "ground_rule_double": 3,
 }
-CLASS_NAMES = ["strikeout", "walk_hbp_interference", "hit",
-               "other_completed_pa"]
+CLASS_NAMES = ["strikeout", "walk_hbp_interference", "in_play_out", "hit"]
 N_CLASSES = len(CLASS_NAMES)
 K_CLASS = 0
 

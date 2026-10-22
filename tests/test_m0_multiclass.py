@@ -34,7 +34,7 @@ def test_taxonomy_mapping():
     """Statcast events map to the correct taxonomy classes; unrecognised
     events map to -1 (excluded)."""
     events = ["strikeout", "walk", "single", "home_run", "field_out",
-              "hit_by_pitch", "field_out", "wild_pitch"]
+              "hit_by_pitch", "field_out", "wild_pitch", "caught_stealing"]
     s = pl.Series("events", events)
     mapped = m0.map_statcast_events(s)
     assert mapped[0] == 0
@@ -44,7 +44,9 @@ def test_taxonomy_mapping():
     assert mapped[4] == 2
     assert mapped[5] == 1
     assert mapped[6] == 2  # field_out -> class 2
+    # wild_pitch and caught_stealing are not completed-PA outcomes: excluded
     assert mapped[7] == -1
+    assert mapped[8] == -1
 
 
 def test_multinomial_softmax_normalization():
@@ -121,22 +123,29 @@ def test_effect_size_budget_documented():
 
 def test_class_names_and_taxonomy_completeness():
     assert m0.N_CLASSES == 4
-    assert m0.CLASS_NAMES[0] == "strikeout"
+    assert m0.CLASS_NAMES == ["strikeout", "walk_hbp_interference",
+                              "in_play_out", "hit"]
     assert m0.K_CLASS == 0
     assert len(m0.STATCAST_EVENT_TAXONOMY) >= 20
+    # names agree with the mapping: hit events -> class 3, in-play outs -> 2
+    assert m0.STATCAST_EVENT_TAXONOMY["single"] == 3
+    assert m0.STATCAST_EVENT_TAXONOMY["home_run"] == 3
+    assert m0.STATCAST_EVENT_TAXONOMY["field_out"] == 2
+    assert m0.STATCAST_EVENT_TAXONOMY["grounded_into_double_play"] == 2
+    assert all(0 <= c <= 3 for c in m0.STATCAST_EVENT_TAXONOMY.values())
 
 
 def test_sparse_class_detection():
     rng = np.random.default_rng(3)
     n = 100
-    labels = np.concatenate([rng.integers(0, 4, n - 3), [4, 4, 4]])
+    labels = np.concatenate([rng.integers(0, 3, n - 3), [3, 3, 3]])
     feat = pl.DataFrame({
         f: rng.normal(0, 1, n) for f in m0.FEATURES
     }).with_columns(pl.Series("class_label", labels))
     counts = feat["class_label"].value_counts().sort("class_label")
     sparse = [int(v) for v in counts["class_label"].to_list()
               if counts.filter(pl.col("class_label") == v).height < 50]
-    assert 4 in sparse
+    assert 3 in sparse
 
 
 # --------------------------------------------------- synthetic fixture
