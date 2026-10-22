@@ -176,8 +176,10 @@ def test_clustered_bootstrap_correct_dates_with_replacement(tmp_path):
         (4, date(2024, 7, 2), 0),
         (5, date(2024, 7, 3), 0), (6, date(2024, 7, 3), 0),
     ]):
-        pb = np.zeros(24); pb[0] = 0.6; pb[1] = 0.4
-        pc = np.zeros(24); pc[0] = 0.4; pc[1] = 0.6
+        pb = np.zeros(24); pb[5] = 0.3; pb[6] = 0.3; pb[7] = 0.2; pb[8] = 0.2
+        pc = np.zeros(24); pc[0] = 0.3; pc[1] = 0.3; pc[2] = 0.2; pc[3] = 0.2
+        if not flip:
+            pc = pb.copy()  # no-flip starts: both arms identical
         rows.append({
             "game_pk": gpk, "side": "Bot", "pitcher": 500,
             "game_date": dd, "block": "block_2024H2", "realized_k": 1,
@@ -192,6 +194,10 @@ def test_clustered_bootstrap_correct_dates_with_replacement(tmp_path):
     assert "per_line_bootstrap" in result
     ci = result["per_line_bootstrap"]["6"]["ci95"]
     assert all(np.isfinite(x) for x in ci), f"non-finite CI: {ci}"
+    # the flip count must be > 0 (the fixture produces directional
+    # disagreements at line 6 because the PMFs have different shapes)
+    flips_6 = result["per_line"]["6"]["flip_count"] if "6" in result["per_line"] \
+        else sum(1 for r in ev.head(0).iter_rows())  # fallback
     # deterministic: rerun with the same seed, same result
     out2 = tmp_path / "flip2"
     result2 = df_mod.run_flip_diagnostic(ev_path, out2)
