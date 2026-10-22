@@ -149,13 +149,15 @@ the LARGER living-documents assignment, with explicit dispositions (2026-10-21):
   parent (main): only this lane's DECISIONS cluster (DECISIONS.md + the four
   archived ADR renames + 00-index). No accidental cross-lane changes in
   either direction.
-- **ROADMAP outstanding claim (identified, owner = the architect):**
+- **ROADMAP outstanding claim (identified, owner = the architect; CORRECTION PREPARED 2026-10-21 - the architect assigned this lane the documentation fix; committed in-lane but NOT pushed, push/merge permissions unchanged):**
   `docs/ROADMAP.md` line 20 still presents the decision-flip figure as an
   established executed result: "Decision-flip: 1 flip in 19,292 start-lines,
   max abs change in P(K>=line) under 0.004. Closed: no betting-layer
   relevance." That file is the architect's authored roadmap - **outside this
-  lane's permitted scope to edit.** The consistency finding remains OPEN
-  until the architect applies the unverified-status label; PROJECT_STORY and
+  lane's permitted scope to edit.** The correction (committed in-lane, NOT pushed)
+  replaces the established-result wording with the owner-prescribed
+  unverified-status text; the consistency finding closes at the
+  documentation level on permitted publication. PROJECT_STORY and
   DECISIONS (this lane) are corrected.
 
 ## 7. Lane status and closure condition## 7. Lane status and closure condition
