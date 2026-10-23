@@ -132,6 +132,75 @@ def test_model_p_over_known_pmf():
         mk.model_p_over(np.ones(23), 5.5)
 
 
+# ---------------------------------------------------- ladder benchmark
+def test_ladder_implied_pmf_known_curve():
+    rungs = pl.DataFrame({
+        "game_pk": [1] * 7,
+        "line": [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5],
+        "p_over": [0.95, 0.85, 0.70, 0.50, 0.30, 0.15, 0.05],
+    })
+    imp = mk.ladder_implied_pmf(rungs)
+    assert imp["status"][0] == "ok"
+    pmf = np.array(imp["pmf"][0])
+    assert pmf.shape == (24,) and abs(pmf.sum() - 1.0) < 1e-9
+    # exact identification below the last rung
+    assert pmf[0] == pytest.approx(1 - 0.95, abs=1e-9)
+    assert pmf[3] == pytest.approx(0.70 - 0.50, abs=1e-9)
+    assert pmf[6] == pytest.approx(0.15 - 0.05, abs=1e-9)
+    # beyond the last rung: the geometric continuation holds exactly the
+    # remaining over mass, decaying monotonically past the ladder
+    assert pmf[7:].sum() == pytest.approx(0.05, abs=1e-6)
+    post = pmf[7:]
+    assert np.all(np.diff(post) <= 1e-12)
+    # monotone non-increasing input enforcement: a crossed rung is fixed
+    bad = pl.DataFrame({
+        "game_pk": [2] * 3, "line": [0.5, 1.5, 2.5],
+        "p_over": [0.60, 0.90, 0.30],  # 1.5 crossing
+    })
+    imp2 = mk.ladder_implied_pmf(bad)
+    assert imp2["status"][0] == "ok"
+    pmf2 = np.array(imp2["pmf"][0])
+    assert pmf2[1] >= 0  # the crossed interval is floored, not negative
+
+
+def test_ladder_implied_pmf_requires_two_rungs_and_first_half():
+    one = pl.DataFrame({"game_pk": [3], "line": [5.5], "p_over": [0.4]})
+    assert mk.ladder_implied_pmf(one)["status"][0] == "no_ladder"
+    wrong = pl.DataFrame({"game_pk": [4, 4], "line": [1.0, 2.0],
+                          "p_over": [0.5, 0.3]})
+    assert mk.ladder_implied_pmf(wrong)["status"][0] == "no_ladder"
+
+
+def test_distribution_log_loss_and_head_to_head():
+    pmf = np.zeros(24)
+    pmf[:6] = [0.1, 0.2, 0.2, 0.2, 0.1, 0.1]
+    pmf[6] = 0.1
+    assert mk.distribution_log_loss(pmf, 0) == pytest.approx(
+        -np.log(0.1), abs=1e-9)
+    # realized 30 is outside the 24-bucket support -> fail loud
+    with pytest.raises(ValueError):
+        mk.distribution_log_loss(pmf, 30)
+    with pytest.raises(ValueError):
+        mk.compare_model_vs_ladder(pmf, pmf, 30)
+    h2h = mk.compare_model_vs_ladder(pmf, pmf, 3)
+    assert h2h["ll_model"] == h2h["ll_ladder"]
+    assert h2h["rps_model"] == pytest.approx(h2h["rps_ladder"])
+
+
+def test_placebo_lines_shuffles_mapping_but_keeps_marginals(tmp_path):
+    joined = _synthetic_joined(40)
+    shuf = mk.placebo_lines(joined, seed=7)
+    assert shuf.height == joined.height
+    # identical marginals, different pairing
+    assert np.allclose(np.sort(shuf["line"].to_numpy()),
+                       np.sort(joined["line"].to_numpy()))
+    assert not np.allclose(shuf["line"].to_numpy(),
+                           joined["line"].to_numpy())
+    # realized outcomes unchanged
+    assert (shuf["realized_k"].to_numpy()
+            == joined["realized_k"].to_numpy()).all()
+
+
 # ------------------------------------------------------------- scoring
 def _synthetic_joined(n=60, seed=5):
     rng = np.random.default_rng(seed)

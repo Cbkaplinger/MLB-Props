@@ -389,3 +389,284 @@ def cmp_bootstrap(per: dict, joined: "pl.DataFrame", *, n_boot: int,
             "holm": holm,
             "decision": ("model_better_than_close" if ci[1] < 0
                          else "model_not_better_than_close")}
+
+
+# ----------------------------------------------------- ladder benchmark
+def ladder_rung_probs(near_close_alt: "pl.DataFrame") -> "pl.DataFrame":
+    """Per (start, line): the consensus de-vigged over probability from
+    the ALTERNATE market's two-sided near-close quotes (median across
+    books, same rule as the principal market)."""
+    return consensus_over_probs(near_close_alt)
+
+
+def ladder_implied_pmf(rungs: "pl.DataFrame",
+                       k_max: int = None) -> "pl.DataFrame":
+    """Derive each start's implied count PMF from its ladder rungs.
+
+    Input rungs: (game_pk, line, p_over) with half lines; p_over(L) =
+    P(K > L) - non-increasing in L. Implied probabilities:
+    P(K=0) = 1 - p_over(first rung); P(K=k) = p_over(k-1.5) -
+    p_over(k-0.5). Beyond the last rung the over-probability curve is
+    continued GEOMETRICALLY (ratio of the last two rungs, clipped to
+    [0, 0.5]) down to the tail bucket - a disclosed continuation
+    needed because the archived ladder rarely reaches k=22.5.
+    Monotonicity is enforced and the vector renormalized to exactly 1;
+    starts with fewer than two usable rungs get status='no_ladder'."""
+    import polars as pl
+
+    k_max = k_max or ad.K_MAX
+    out_rows = []
+    for gpk, g in rungs.group_by("game_pk"):
+        rr = g.sort("line")
+        lines = rr["line"].to_numpy()
+        p = rr["p_over"].to_numpy()
+        # enforce non-increasing over probabilities in the line
+        # (running minimum from the left floors any crossed rung)
+        p = np.minimum.accumulate(p)
+        p = np.clip(p, 0.0, 1.0)
+        if len(p) < 2 or lines[0] != 0.5:
+            out_rows.append({"game_pk": gpk, "pmf": None,
+                             "n_rungs": int(len(lines)),
+                             "status": "no_ladder"})
+            continue
+        # geometric continuation beyond the last rung
+        ratio = min(max(p[-1] / max(p[-2], 1e-9), 0.0), 0.5)
+        p_ext = list(p)
+        cur = p[-1]
+        while len(p_ext) < k_max - 1:
+            cur = cur * ratio
+            p_ext.append(cur)
+        p_ext = np.clip(np.asarray(p_ext), 0.0, 1.0)
+        pmf = np.zeros(k_max)
+        pmf[0] = 1.0 - p_ext[0]
+        for k in range(1, k_max - 1):
+            pmf[k] = max(p_ext[k - 1] - p_ext[k], 0.0)
+        pmf[k_max - 1] = p_ext[-1]
+        if pmf.sum() <= 0 or np.isnan(pmf).any():
+            out_rows.append({"game_pk": gpk, "pmf": None,
+                             "n_rungs": int(len(lines)),
+                             "status": "no_ladder"})
+            continue
+        pmf = pmf / pmf.sum()
+        out_rows.append({"game_pk": gpk, "pmf": pmf.tolist(),
+                         "n_rungs": int(len(lines)),
+                         "status": "ok"})
+    return pl.DataFrame(out_rows)
+
+
+def distribution_log_loss(pmf: np.ndarray, k_real: int) -> float:
+    """Categorical log loss of a count distribution at the realized
+    count (registered bucket convention)."""
+    pmf = np.asarray(pmf, dtype=np.float64)
+    k = min(int(k_real), len(pmf) - 1)
+    if not 0 <= k_real <= len(pmf) - 1:
+        raise ValueError(f"realized count {k_real} outside support")
+    p = max(float(pmf[k]), 1e-12)
+    return float(-np.log(p))
+
+
+def compare_model_vs_ladder(model_pmf: np.ndarray, ladder_pmf: np.ndarray,
+                            k_real: int) -> dict:
+    """One start's head-to-head: log loss and RPS for the model vs the
+    ladder-implied distribution (both 24-bucket registered support)."""
+    return {
+        "ll_model": distribution_log_loss(model_pmf, k_real),
+        "ll_ladder": distribution_log_loss(ladder_pmf, k_real),
+        "rps_model": float(kc.count_rps(model_pmf, k_real)),
+        "rps_ladder": float(kc.count_rps(ladder_pmf, k_real)),
+    }
+
+
+def placebo_lines(joined: "pl.DataFrame", seed: int = 20261001
+                  ) -> "pl.DataFrame":
+    """Placebo control: shuffle which start each (line, p_over) pair is
+    matched to (seeded permutation). The model-vs-close gap under the
+    shuffled mapping should be ~0; a persistent gap means the matched
+    line itself carries outcome-correlated information (leak)."""
+    import polars as pl
+
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(joined.height)
+    shuf = joined.with_columns(
+        pl.Series("line", joined["line"].to_numpy()[idx]),
+        pl.Series("p_over", joined["p_over"].to_numpy()[idx]),
+        pl.Series("n_books", joined["n_books"].to_numpy()[idx]),
+    )
+    return shuf
+
+
+def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
+                         book_lines_path: str,
+                         envelope_path: str,
+                         n_boot: int = 2000, seed: int = 20261001,
+                         tier_a_only: bool = True,
+                         placebo: bool = True,
+                         ) -> dict:
+    """Ladder-implied benchmark runner (write-once receipts): the
+    alternate market's rungs -> implied per-start count distribution ->
+    head-to-head vs the model's PMF (log loss + RPS). Dev window only;
+    tier A (true T-5 closes) by default. Optional placebo variant with
+    line-to-start shuffling."""
+    import polars as pl
+
+    out_dir = Path(out_dir)
+    if out_dir.exists():
+        raise ValueError(f"write-once violation: {out_dir} exists")
+    out_dir.mkdir(parents=True)
+    initial_path = out_dir / "receipt_initial.json"
+    failure_path = out_dir / "failure_record.json"
+    initial = {
+        "inputs": {
+            "consumed": {
+                "model_pmfs": m0._frame_sha(model_pmfs),
+                "book_lines_pitcher": str(book_lines_path),
+                "snapshot_envelope": str(envelope_path),
+            },
+            "context_identities": {},
+        },
+        "code_config": {
+            "market": "pitcher_strikeouts_alternate (ladder)",
+            "dev_window": [DEV_WINDOW_START, DEV_WINDOW_END],
+            "tier_a_only": tier_a_only,
+            "implied_pmf": ("P(K=0)=1-p_over(0.5); P(K=k)=p_over(k-1.5)"
+                            "-p_over(k-0.5); last-rung over = tail; "
+                            "monotone-enforced, renormalized"),
+            "bootstrap": {"n": n_boot, "seed": seed},
+            "placebo": placebo,
+        },
+    }
+    initial_path.write_text(json.dumps(initial, indent=1, sort_keys=True),
+                            encoding="utf-8")
+    initial_sha = ad.sha256_file(initial_path)
+    try:
+        starts_out, odds, join_meta = jc.build_task_frames(
+            Path(book_lines_path), Path(envelope_path),
+            ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet",
+            ["pitcher_strikeouts_alternate"],
+            window_start=DEV_WINDOW_START, window_end=DEV_WINDOW_END)
+        odds = odds.join(
+            starts_out.select("game_pk", "first_pitch_ts", "has_commence",
+                              "game_date"),
+            on="game_pk", how="inner")
+        if tier_a_only:
+            odds = odds.filter(pl.col("has_commence"))
+        nc = select_near_close(odds)
+        rungs = ladder_rung_probs(nc)
+        implied = ladder_implied_pmf(rungs)
+        ok = implied.filter(pl.col("status") == "ok")
+        pmfs = model_pmfs.filter(pl.col("block") != m0.PROTECTED_BLOCK)
+        if tier_a_only:
+            pmfs = pmfs.filter(pl.col("game_date")
+                               >= pl.date(2025, 1, 1))
+        joined = pmfs.join(ok.select("game_pk", "pmf", "n_rungs"),
+                           on="game_pk", how="inner")
+        coverage = {
+            "model_starts": int(pmfs.height),
+            "starts_with_ladder_pmf": int(joined.height),
+            "join_meta": join_meta,
+            "median_rungs": (float(ok["n_rungs"].median())
+                             if ok.height else None),
+        }
+        if joined.height == 0:
+            raise ValueError("no starts with a usable ladder PMF")
+        ll_m, ll_l, rps_m, rps_l = [], [], [], []
+        for r in joined.iter_rows(named=True):
+            k_real = int(r["realized_k"])
+            cmp1 = compare_model_vs_ladder(
+                np.asarray(r["pmf_baseline"], dtype=np.float64),
+                np.asarray(r["pmf"], dtype=np.float64), k_real)
+            ll_m.append(cmp1["ll_model"])
+            ll_l.append(cmp1["ll_ladder"])
+            rps_m.append(cmp1["rps_model"])
+            rps_l.append(cmp1["rps_ladder"])
+        ll_m, ll_l = np.asarray(ll_m), np.asarray(ll_l)
+        rps_m, rps_l = np.asarray(rps_m), np.asarray(rps_l)
+        cmp_mod = br.load_registered_comparison()
+        dates = joined["game_date"].to_list()
+        blocks = joined["block"].to_list()
+        res_ll = cmp_mod.slate_date_draws({"model": ll_m, "ladder": ll_l},
+                                          dates, blocks, n_boot=n_boot,
+                                          seed=seed)
+        d_ll = res_ll[:, 0] - res_ll[:, 1]
+        res_rp = cmp_mod.slate_date_draws({"model": rps_m,
+                                           "ladder": rps_l},
+                                          dates, blocks, n_boot=n_boot,
+                                          seed=seed)
+        d_rp = res_rp[:, 0] - res_rp[:, 1]
+        metrics = {
+            "n": int(joined.height),
+            "ll_model": float(ll_m.mean()),
+            "ll_ladder": float(ll_l.mean()),
+            "ll_delta_model_minus_ladder": float(ll_m.mean() - ll_l.mean()),
+            "ll_delta_ci95": [float(np.percentile(d_ll, 2.5)),
+                              float(np.percentile(d_ll, 97.5))],
+            "rps_model": float(rps_m.mean()),
+            "rps_ladder": float(rps_l.mean()),
+            "rps_delta_model_minus_ladder": float(rps_m.mean()
+                                                  - rps_l.mean()),
+            "rps_delta_ci95": [float(np.percentile(d_rp, 2.5)),
+                               float(np.percentile(d_rp, 97.5))],
+            "decision_ladder": ("model_better_than_ladder"
+                                if np.percentile(d_ll, 97.5) < 0
+                                else "ladder_not_beaten"),
+            "coverage": coverage,
+        }
+        ev = joined.select(
+            "game_pk", "side", "pitcher", "game_date", "block",
+            "realized_k", "n_rungs").with_columns(
+            pl.Series("ll_model", ll_m), pl.Series("ll_ladder", ll_l),
+            pl.Series("rps_model", rps_m), pl.Series("rps_ladder", rps_l))
+        ev_path = out_dir / "ladder_benchmark_v1.parquet"
+        ev.write_parquet(ev_path)
+        metrics_path = out_dir / "metrics.json"
+        metrics_path.write_text(json.dumps(metrics, indent=1,
+                                           sort_keys=True),
+                                encoding="utf-8")
+        outputs = {
+            "ladder_benchmark_v1.parquet": ad.sha256_file(ev_path),
+            "metrics.json": ad.sha256_file(metrics_path),
+        }
+        placebo_metrics = None
+        if placebo:
+            shuf = placebo_lines(joined, seed=seed)
+            ll_ms, ll_ls = [], []
+            for r in shuf.iter_rows(named=True):
+                k_real = int(r["realized_k"])
+                ll_ms.append(distribution_log_loss(
+                    np.asarray(r["pmf_baseline"], dtype=np.float64),
+                    k_real))
+                ll_ls.append(distribution_log_loss(
+                    np.asarray(r["pmf"], dtype=np.float64), k_real))
+            placebo_metrics = {
+                "ll_delta_model_minus_ladder_placebo":
+                    float(np.mean(ll_ms) - np.mean(ll_ls)),
+                "note": ("shuffled line-to-start mapping; ~0 expected "
+                         "if the matched ladder carries the info"),
+            }
+    except Exception as exc:
+        failure = {"stage": "ladder_benchmark", "failure": True,
+                   "error": repr(exc),
+                   "initial_receipt_sha256": initial_sha}
+        failure_path.write_text(json.dumps(failure, indent=1,
+                                           sort_keys=True),
+                                encoding="utf-8")
+        raise
+
+    final = dict(initial)
+    final["metrics"] = metrics
+    if placebo_metrics is not None:
+        final["placebo"] = placebo_metrics
+    final["outputs"] = outputs
+    final["acceptance"] = {
+        "receipt_chain": initial_sha,
+        "evaluation_run": True,
+        "block_isolation": True,
+    }
+    final_path = out_dir / "receipt_final.json"
+    final_path.write_text(json.dumps(final, indent=1, sort_keys=True),
+                          encoding="utf-8")
+    if ad.sha256_file(initial_path) != initial_sha:
+        raise ValueError("IMMUTABLE initial receipt modified")
+    return {"out_dir": str(out_dir), "metrics": metrics,
+            "placebo": placebo_metrics, "receipt_final": final,
+            "receipt_initial_sha256": initial_sha}
