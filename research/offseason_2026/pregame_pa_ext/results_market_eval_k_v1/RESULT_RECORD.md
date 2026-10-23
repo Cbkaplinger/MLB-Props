@@ -1,5 +1,21 @@
 # RESULT RECORD — market eval: pitcher_strikeouts vs the near-close line
 # (executed once 2026-10-22; dev blocks only, confirm untouched)
+#
+# STATUS UPDATE (2026-10-22, later): the ladder benchmark CANNOT be run
+# validly from the held archive - the alternate market is OVER-SIDE
+# ONLY (under quotes were never captured), per-rung book coverage is
+# sparse (1-4 books), and per-book de-vig margins are noisy (p10 =
+# -0.021). The implied count distribution is therefore unreliable and
+# the ladder falsification test is BLOCKED on data. The placebo check
+# is DEGENERATE for the same structural reason: the close is so flat
+# (std 0.052) that shuffling line-to-start changes almost nothing
+# (placebo gap -0.040 vs real -0.0339) - it cannot falsify the result.
+# The headline -0.0339 gap remains UNPROVEN: no leak was found
+# (selection, timing, push, workload all audited clean), but the two
+# falsification tests the owner ordered are unavailable from the held
+# data. The 2026 holdout (defined, not run) is the remaining decisive
+# test. Receipts for all ladder attempts preserved write-once
+# (ladder_benchmark_v1 .. _attempt5).
 
 ## Answer first
 
