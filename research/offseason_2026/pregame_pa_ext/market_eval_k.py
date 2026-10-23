@@ -469,19 +469,30 @@ def ladder_implied_pmf(rungs: "pl.DataFrame",
                              "n_rungs": int(len(lines)),
                              "status": "no_ladder"})
             continue
+        # exact half-line grid: curve[j] = P(K > 0.5+j), j = 0..k_max-2
+        # (23 entries). The rungs must cover 0.5..last CONTIGUOUSLY in
+        # 1.0 steps - a gap would misassign mass (fail loud, disclosed)
+        last = float(lines[-1])
+        needed = np.arange(0.5, last + 0.001, 1.0)
+        have = {round(float(l), 3): float(v) for l, v in zip(lines, p)}
+        if any(round(float(l), 3) not in have for l in needed):
+            out_rows.append({"game_pk": gpk, "pmf": None,
+                             "n_rungs": int(len(lines)),
+                             "status": "no_ladder"})
+            continue
+        curve = [have[round(float(l), 3)] for l in needed]
         # geometric continuation beyond the last rung
-        ratio = min(max(p[-1] / max(p[-2], 1e-9), 0.0), 0.5)
-        p_ext = list(p)
-        cur = p[-1]
-        while len(p_ext) < k_max - 1:
+        ratio = min(max(curve[-1] / max(curve[-2], 1e-9), 0.0), 0.5)
+        cur = curve[-1]
+        while len(curve) < k_max - 1:
             cur = cur * ratio
-            p_ext.append(cur)
-        p_ext = np.clip(np.asarray(p_ext), 0.0, 1.0)
+            curve.append(cur)
+        curve = np.clip(np.asarray(curve), 0.0, 1.0)
         pmf = np.zeros(k_max)
-        pmf[0] = 1.0 - p_ext[0]
+        pmf[0] = 1.0 - curve[0]
         for k in range(1, k_max - 1):
-            pmf[k] = max(p_ext[k - 1] - p_ext[k], 0.0)
-        pmf[k_max - 1] = p_ext[-1]
+            pmf[k] = max(curve[k - 1] - curve[k], 0.0)
+        pmf[k_max - 1] = curve[-1]
         if pmf.sum() <= 0 or np.isnan(pmf).any():
             out_rows.append({"game_pk": gpk, "pmf": None,
                              "n_rungs": int(len(lines)),
