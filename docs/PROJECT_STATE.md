@@ -135,3 +135,25 @@ PRs, and lake files — not duplicated here.
   above is superseded.
 - **Worktrees (verified 2026-10-20, 6 incl. primary):** preservation ledger
   section 17 (`docs/reference/reports/preservation_closeout_2026-10-19.md`).
+
+
+## Integration owner update - 2026-10-23 (Chat 3; matches docs/NEXT.md)
+
+- **M0 v2 ACCEPTED as development-only diagnostic** (executed at `2e2482b`,
+  Chat 2 independently verified; effects small: K log-loss delta ~-7e-06,
+  multiclass 1.2241 vs log5 1.2263, count-RPS delta -0.000169). Not evidence
+  of practical betting value.
+- **Question A decision-flip**: 1 flip in 19,292; below practical
+  significance; no promotion. Recipe closed as documented curiosity.
+- **Question B (workload dependence)**: design card pending; on hold behind
+  M0 verdict.
+- **Abstain-vs-handle (59 starts)**: owner decision pending.
+- **Open PRs:** #34 (research, Chat 1/2). All cleanup PRs merged (#33/#35/
+  #36/#37/#38/#39/#40).
+- **Cleanup lane:** Chat 3 parked after the deep-clean pass; branch audit
+  for the remaining 6 non-main branches delivered; 0 unmet obligations from
+  the six-folder assignment.
+- **Owner decisions (current):** (a) abstain-vs-handle for the 59
+  pitcher-cold starts (57 debut-date newcomers + Enns 608650 / Hart 606996);
+  (b) Question B design card (on hold behind M0 verdict); (c) dashboard
+  v1 unpark (parked until backend #113 is green).
