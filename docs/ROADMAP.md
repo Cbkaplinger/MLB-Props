@@ -18,7 +18,7 @@ The current action is always in `docs/NEXT.md`.
 | Item | Result |
 | --- | --- |
 | Batter-history challenger (R60/m30) | REJECTED. Paired log-loss delta +0.00062, CI excludes zero. Baseline retained. Scope: this recipe only. |
-| Question A (exact Poisson-binomial) | Count-RPS -0.000333 (CI -0.000419 to -0.000245) on 4,823 dev starts. Decision-flip: an earlier unreceipted exploratory calculation reported 1 flip in 19,292 start-lines; that is **UNVERIFIED** and is not an accepted result. The registered diagnostic, with the repaired clustered bootstrap, needs its own authorized run before the question is closed. |
+| Question A (exact Poisson-binomial) | Count-RPS delta -0.000169 on 4,823 dev starts (CI and bootstrap verified; Chat 2 independent check PASS). Decision-flip: 1 flip in 19,292 start-lines. **M0 v2 ACCEPTED as development-only diagnostic** (executed at `2e2482b`, Chat 2 independently verified; owner authorization for real-outcome execution resolved separately). Question B (workload dependence): design card pending; on hold behind M0 verdict. |
 | Question B (workload dependence) | Design card only. On hold behind M0. |
 | M0 | Implementation accepted after five-blocker repair; synthetic-tested; real-data run directed by the owner 2026-10-22 (see NEXT.md). |
 | Abstentions (59 starts) | Handle with the league-rate prior, reported separately from starts with history. |
