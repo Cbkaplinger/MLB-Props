@@ -1,21 +1,46 @@
 # RESULT RECORD — market eval: pitcher_strikeouts vs the near-close line
 # (executed once 2026-10-22; dev blocks only, confirm untouched)
 #
-# STATUS UPDATE (2026-10-22, later): the ladder benchmark CANNOT be run
-# validly from the held archive - the alternate market is OVER-SIDE
-# ONLY (under quotes were never captured), per-rung book coverage is
-# sparse (1-4 books), and per-book de-vig margins are noisy (p10 =
-# -0.021). The implied count distribution is therefore unreliable and
-# the ladder falsification test is BLOCKED on data. The placebo check
-# is DEGENERATE for the same structural reason: the close is so flat
-# (std 0.052) that shuffling line-to-start changes almost nothing
-# (placebo gap -0.040 vs real -0.0339) - it cannot falsify the result.
-# The headline -0.0339 gap remains UNPROVEN: no leak was found
-# (selection, timing, push, workload all audited clean), but the two
-# falsification tests the owner ordered are unavailable from the held
-# data. The 2026 holdout (defined, not run) is the remaining decisive
-# test. Receipts for all ladder attempts preserved write-once
+# STATUS 1 (earlier): the ladder benchmark CANNOT be run validly from
+# the held archive - the alternate market is OVER-SIDE ONLY (under
+# quotes were never captured), per-rung book coverage is sparse (1-4
+# books), and per-book de-vig margins are noisy (p10 = -0.021). The
+# implied count distribution is therefore unreliable and the ladder
+# falsification test is BLOCKED on data. The line-shuffle placebo is
+# DEGENERATE (the close is so flat that shuffling line-to-start is a
+# no-op). Receipts for all ladder attempts preserved write-once
 # (ladder_benchmark_v1 .. _attempt5).
+
+## Follow-up checks (owner-ordered, 2026-10-22, later still)
+
+- 2024 relabeled **"prior-evening line"**; it is excluded from every
+  close comparison. THE close comparison is 2025H1 true T-5 closes
+  only: n=2,245, model 0.6610 vs close 0.6947, gap -0.0337.
+- LABEL AUDIT: PASS - realized_k matches the OFFICIAL starter K from
+  the frozen pa_table on 100% of joined starts (0 differing; mean K
+  4.80; mean official BF 21.96). The 17.2 eval-PAs-per-start figure is
+  the projected-lineup slot frame (the per-PA feature population), not
+  the outcome label.
+- ENCOMPASSING (over_hit ~ const + p_model + p_close, OLS White SE,
+  n=2,245): p_model coef +0.846 (t=+1.75, NOT significant at 5%);
+  p_close coef +0.087 (t=+0.19). The model keeps its weight with the
+  close included, but not at conventional significance - the edge
+  stays UNPROVEN by this test.
+- MAE/RMSE (2025H1): model mean K 1.857/2.348 beats the market line
+  1.985/2.492 vs actual K.
+- CORRECTED PLACEBO (shuffle the MODEL's predictions across starts,
+  20 seeds): shuffled model LOSES to the close (close - shuffled =
+  -0.062, i.e. ll 0.757 vs 0.695); the real model beats the close by
+  +0.034 - far outside the placebo range. The matched pairing carries
+  real information.
+- KALSHI: the exchange ladder (11,929 rows, 676 closes, two-sided) is
+  2026-season ONLY (2026-07-30..2026-09-05) - no dev overlap. It
+  becomes the two-sided distribution benchmark for the 2026 holdout
+  run, where the sportsbook ladder cannot serve.
+- Net position: promising dev evidence that passes the label and
+  corrected-placebo checks; the encompassing test does not reach
+  significance; the extraordinary-claim bar is unmet. The 2026 holdout
+  (with Kalshi as the ladder benchmark) is the decisive test.
 
 ## Answer first
 
