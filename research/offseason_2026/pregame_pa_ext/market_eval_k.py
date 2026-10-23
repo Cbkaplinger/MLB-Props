@@ -90,6 +90,19 @@ def select_near_close(odds: "pl.DataFrame") -> "pl.DataFrame":
     if missing:
         raise ValueError(f"odds frame missing columns: {sorted(missing)}")
     cutoff = pl.duration(minutes=CLOSE_WINDOW_MIN)
+    # dtype coercion: the archive's snapshot_ts arrives as a string;
+    # unparseable timestamps drop out (never silently re-timed)
+    if not isinstance(odds.schema["quote_timestamp"], pl.Datetime):
+        odds = odds.with_columns(
+            pl.col("quote_timestamp")
+            .str.to_datetime(time_zone="UTC", strict=False)
+            .alias("quote_timestamp"))
+        odds = odds.filter(pl.col("quote_timestamp").is_not_null())
+    if odds.schema["first_pitch_ts"] == pl.Utf8:
+        odds = odds.with_columns(
+            pl.col("first_pitch_ts")
+            .str.to_datetime(time_zone="UTC", strict=False)
+            .alias("first_pitch_ts"))
     # filter in stages: null first_pitch_ts (tier B rows) must never
     # enter the tier-A datetime arithmetic; a Null-dtype column (no
     # commence times at all) makes tier A empty by construction
