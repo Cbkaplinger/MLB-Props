@@ -169,6 +169,8 @@ def test_count_rps_from_eval_synthetic():
     feat = pl.DataFrame(starts, schema={
         "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
         "slot": pl.Int8, "game_date": pl.Date}, orient="row")
+    feat = feat.with_columns((pl.col("slot").cast(pl.Int64)
+                              * 10).alias("at_bat_number"))
     probs = rng.dirichlet(np.ones(4) * 3, size=36)
     bf = pl.DataFrame([{"game_pk": 800000 + g,
                         "side": "Top" if g % 2 else "Bot",

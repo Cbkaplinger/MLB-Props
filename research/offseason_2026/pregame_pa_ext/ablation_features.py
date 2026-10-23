@@ -165,13 +165,19 @@ def count_rps_from_eval(probs: np.ndarray, feat_eval: "pl.DataFrame",
     start keys for the identical-keys guarantee."""
     import polars as pl
 
-    need = {"game_pk", "side", "pitcher", "slot", "game_date"}
+    need = {"game_pk", "side", "pitcher", "slot", "game_date",
+            "at_bat_number"}
     missing = need - set(feat_eval.columns)
     if missing:
         raise ValueError(f"eval frame missing columns: {sorted(missing)}")
+    # one probability per SLOT (the slot's first realized PA, in bat
+    # order) - the projected-lineup frame carries multiple PAs per slot
     p9 = (feat_eval.select("game_pk", "side", "pitcher", "slot",
-                           "game_date")
+                           "game_date", "at_bat_number")
           .with_columns(pl.Series("p_k", probs[:, m0.K_CLASS]))
+          .sort("game_pk", "side", "slot", "at_bat_number")
+          .unique(subset=["game_pk", "side", "pitcher", "slot"],
+                  keep="first")
           .sort("game_pk", "side", "slot")
           .group_by("game_pk", "side", "pitcher")
           .agg(pl.col("p_k").sort_by("slot").alias("p9"),
