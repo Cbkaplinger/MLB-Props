@@ -53,7 +53,37 @@ recorded in the receipt chain; the first attempt (`market_eval_k_v1`)
 failed on a string-timestamp dtype defect, failure record preserved,
 fixed at `e3c2e50`.
 
-## Caveats recorded
+## Workload-leakage experiment (owner-ordered, 2026-10-22)
+
+BF input answer: the per-start PMF used the REGISTERED PREGAME BF
+forecast (bf-workload-v1 artifact, per-start pmf37 with prior_n /
+prior_mean state columns; count_agg_eval.py:269-273) - never the
+realized batters faced.
+
+Workload A/B (same 4,527 joined starts, same consensus lines):
+
+| workload input | model log loss | gap vs close (0.6912) |
+| --- | --- | --- |
+| A: registered per-start BF forecast (as scored) | 0.6572 | -0.0339 |
+| B: POOLED workload (one shared BF distribution, zero per-start workload info) | 0.6564 | **-0.0348** |
+
+The edge SURVIVES with all per-start workload information removed ->
+workload leakage excluded as the cause.
+
+## What the edge actually is (decomposition)
+
+The close's de-vigged principal-line price carries almost no
+discrimination: std(p_close) = 0.052 vs the model's std(p_model) =
+0.152; the close sits between coin-flip (0.6931) and the oracle
+constant (0.6904) - it beats coin-flip by only 0.0019, exactly the
+owner's bias arithmetic. The model's 0.034 advantage is RESOLUTION
+(knowing which starts lean over), not the bias term. CRITICAL CAVEAT:
+the de-vigged price AT the settled principal line is ~50/50 partly BY
+CONSTRUCTION (books balance the main line; the market's information
+lives in the line choice and the ladder). The honest market benchmark
+is therefore the ALTERNATE-LADDER-implied count distribution, not the
+binary principal-line price. The ladder comparison is the corrected
+test and supersedes the -0.0339 headline as a market benchmark.
 
 - Dev evidence only: the frozen model's fit lineage (2023) predates
   the dev blocks, but the confirmation block is the pre-registered
