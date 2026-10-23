@@ -1,6 +1,27 @@
 # RESULT RECORD — market eval: pitcher_strikeouts vs the near-close line
 # (executed once 2026-10-22; dev blocks only, confirm untouched)
 #
+# STATUS 3 (owner-ordered join-validity audit, 2026-10-22, latest) —
+# **THE MARKET COMPARISON IS UNDER AUDIT; THE JOIN FAILED VALIDITY.**
+# RETRACTED: any framing that the -0.034 gap is model skill. Evidence:
+# (a) line<->realized-K correlation is only 0.206 and line<->model-mean
+# only 0.381 over the 2,245 true-close starts (a correctly matched
+# closing line should sit ~0.5-0.7 against realized K) — the attached
+# lines carry almost no start-specific information;
+# (b) the line's MAE (1.985) EQUALS a constant league-mean predictor's
+# MAE (1.985) — the matched lines add nothing over a constant;
+# (c) 505 of 2,161 matched events (23%) are matched at a +/-1 DAY date
+# tolerance, where doubleheaders and adjacent series make wrong-event
+# matches likely (the earlier 48.9% exact-name figure was a check-side
+# fan-out artifact, not a join defect — the id map is clean);
+# (d) a one-parameter baseline "beats" the close by -0.0305 — with
+# uninformative lines, ANY model with real signal beats them.
+# CONSEQUENCE: the close, dumb-baseline and model gaps in this record
+# are NOT interpretable until the event join is fixed (date-tolerance
+# redesign + per-start event verification) and all three are rescored.
+# The dumb-baseline test (owner hypothesis) is nevertheless CONFIRMED
+# in its purpose: the earlier headline was not model skill.
+#
 # STATUS 1 (earlier): the ladder benchmark CANNOT be run validly from
 # the held archive - the alternate market is OVER-SIDE ONLY (under
 # quotes were never captured), per-rung book coverage is sparse (1-4
