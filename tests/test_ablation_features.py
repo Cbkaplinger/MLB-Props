@@ -190,12 +190,13 @@ def test_count_rps_from_eval_synthetic():
     with pytest.raises(ValueError, match="realized count mismatch"):
         ab.count_rps_from_eval(probs, feat, bf,
                                realized.filter(pl.col("game_pk") != 800000))
-    # a start with a missing slot fails loud (drop one slot row and its
-    # matching probability row)
+    # a start with a missing slot is SKIPPED and disclosed (the
+    # registered count layer needs 9 slots; cold exclusions drop some)
     feat_i = feat.with_row_index("_i")
     idx = (feat_i.filter((pl.col("game_pk") == 800000)
                          & (pl.col("slot") == 9))["_i"][0])
-    with pytest.raises(ValueError, match="expected 9 slots"):
-        ab.count_rps_from_eval(np.delete(probs, idx, axis=0),
-                               feat_i.filter(pl.col("_i") != idx)
-                               .drop("_i"), bf, realized)
+    out = ab.count_rps_from_eval(np.delete(probs, idx, axis=0),
+                                 feat_i.filter(pl.col("_i") != idx)
+                                 .drop("_i"), bf, realized)
+    assert out["n_skipped_incomplete_slots"] == 1
+    assert out["rps"].shape == (3,)

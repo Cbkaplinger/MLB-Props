@@ -186,12 +186,14 @@ def count_rps_from_eval(probs: np.ndarray, feat_eval: "pl.DataFrame",
                      *[f"pmf37_{j}" for j in range(37)])
     desc = p9.join(bf37, on=["game_pk", "side", "pitcher"], how="inner")
     rps, keys, dates = [], [], []
+    n_skipped_slots = 0
     for r in desc.iter_rows(named=True):
         p9v = np.asarray(r["p9"], dtype=np.float64)
         if p9v.shape != (9,):
-            raise ValueError(
-                f"start {r['game_pk']}/{r['side']}: expected 9 slots, "
-                f"got {p9v.shape}")
+            # starts with cold-excluded slots cannot be scored by the
+            # registered count layer (needs 9 slots) - skip, disclose
+            n_skipped_slots += 1
+            continue
         b37 = np.asarray([r[f"pmf37_{j}"] for j in range(37)])
         b37 = b37 / b37.sum()
         bf_ext = ad.bf_pmf_from_37(b37)
@@ -209,4 +211,5 @@ def count_rps_from_eval(probs: np.ndarray, feat_eval: "pl.DataFrame",
         rps.append(float(kc.count_rps(pmf, k_real)))
         keys.append((r["game_pk"], r["side"], r["pitcher"]))
         dates.append(r["game_date"])
-    return {"rps": np.asarray(rps), "keys": keys, "dates": dates}
+    return {"rps": np.asarray(rps), "keys": keys, "dates": dates,
+            "n_skipped_incomplete_slots": n_skipped_slots}
