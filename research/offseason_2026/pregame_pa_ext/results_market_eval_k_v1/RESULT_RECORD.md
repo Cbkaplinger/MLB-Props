@@ -42,6 +42,27 @@
   significance; the extraordinary-claim bar is unmet. The 2026 holdout
   (with Kalshi as the ladder benchmark) is the decisive test.
 
+## Bias check (owner-ordered, 2026-10-22, latest)
+
+2025H1 (n=2,245): mean line 4.9009, mean model K 4.5262, mean realized
+K 4.8134. Line bias +0.0875 K; model bias -0.2871 K (the model
+under-predicts on average).
+
+| predictor | MAE | RMSE |
+| --- | --- | --- |
+| market line (raw) | 1.985 | 2.492 |
+| market line (bias-adjusted) | 1.980 | 2.490 |
+| model mean K (raw) | 1.857 | 2.348 |
+| model mean K (bias-adjusted) | 1.849 | 2.330 |
+
+The constant line bias explains almost NOTHING of the model's RMSE
+advantage (2.492 -> 2.490; the gap stays ~6%). Log loss at the
+bias-adjusted line (ladder-sampled at line - bias, n=856 with usable
+curves): close 0.6835 vs model 0.6321 on the same starts - the gap
+WIDENS to -0.0514 under the location correction. The model's advantage
+is distributional shape, not line location; it survives the bias
+check.
+
 ## Answer first
 
 On the 4,527 scored dev starts (93.9% of the 4,823 registered), the
