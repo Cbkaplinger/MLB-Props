@@ -84,6 +84,35 @@ conflict.
 Superseded by `docs/roles/README.md` and `docs/NEXT.md`. Preserved for
 lineage.
 
+## Operating rules (owner directive, 2026-10-19)
+
+1. **One active worktree per chat**, plus an integration checkout if needed.
+   Preserved WIP is an explicit temporary exception with an owner and a
+   closure condition - not an active workspace.
+2. **One writer per branch and checkout.** No parallel windows commit to the
+   same branch; parallel-window output is handed off, not re-committed.
+3. **One designated backlog writer** (Chat 1 for PROJECT_STATE.md and the
+   backlog fold-in). Other agents provide updates; they do not independently
+   edit shared state.
+4. **Published means remotely reachable.** Committed, pushed, reviewed, and
+   merged are four different states - report the exact state, never "done"
+   for committed-only work.
+5. **Reviews name exact heads.** Later commits receive only the necessary
+   delta review; earlier verdicts are not silently reused for new heads.
+6. **No new worktree without an owner, a task, and a closure condition.**
+   Worktree-creation freeze remains in effect until the count reaches the
+   steady state (three active + one integration checkout).
+7. **Post, retrieve, then report.** (Narrowed 2026-10-21: applies to review
+   verdicts. A merge receipt is its own proof and needs no retrieve step.) No
+   new blocker without evidence naming the exact requirement and artifact.
+
+Violations of rules 1-4 observed 2026-10-19 (dual-window commits to one
+branch; verdicts reported but unposted; "merged/open" contradictions) are
+recorded in docs/reference/reports/chat3_final_handoff_2026-10-19.md and
+the PR #18 reconciliation thread.
+
+> **Preserved 2026-10-23:** these rules are the historical operating context. `docs/roles/` and `docs/NEXT.md` override where they conflict.
+
 ## Operating rules (owner directive, 2026-10-21)
 
 ### Standing authorization (replaces per-action owner orders)
