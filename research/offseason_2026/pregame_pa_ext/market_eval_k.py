@@ -684,7 +684,13 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
         }
         placebo_metrics = None
         if placebo:
-            shuf = placebo_lines(joined, seed=seed)
+            # shuffle the LADDER-PMF-to-start mapping (seeded); ~0 gap
+            # expected if the matched ladder carries the information
+            rng = np.random.default_rng(seed)
+            idx = rng.permutation(joined.height)
+            shuf = joined.with_columns(
+                pl.Series("pmf", joined["pmf"].to_numpy()[idx]),
+                pl.Series("n_rungs", joined["n_rungs"].to_numpy()[idx]))
             ll_ms, ll_ls = [], []
             for r in shuf.iter_rows(named=True):
                 k_real = int(r["realized_k"])
@@ -696,7 +702,7 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
             placebo_metrics = {
                 "ll_delta_model_minus_ladder_placebo":
                     float(np.mean(ll_ms) - np.mean(ll_ls)),
-                "note": ("shuffled line-to-start mapping; ~0 expected "
+                "note": ("shuffled ladder-to-start mapping; ~0 expected "
                          "if the matched ladder carries the info"),
             }
     except Exception as exc:
