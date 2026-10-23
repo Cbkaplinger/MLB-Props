@@ -392,11 +392,49 @@ def cmp_bootstrap(per: dict, joined: "pl.DataFrame", *, n_boot: int,
 
 
 # ----------------------------------------------------- ladder benchmark
-def ladder_rung_probs(near_close_alt: "pl.DataFrame") -> "pl.DataFrame":
-    """Per (start, line): the consensus de-vigged over probability from
-    the ALTERNATE market's two-sided near-close quotes (median across
-    books, same rule as the principal market)."""
-    return consensus_over_probs(near_close_alt)
+def book_margins_from_two_sided(nc_main: "pl.DataFrame") -> "pl.DataFrame":
+    """Per (game_pk, book): the book's vig margin (o_raw + u_raw - 1)
+    from the PRINCIPAL market's two-sided near-close quotes. Falls back
+    to the pooled median margin for books/starts without a two-sided
+    quote (disclosed)."""
+    import polars as pl
+
+    wide = nc_main.pivot(values="price", index=["game_pk", "book"],
+                         on="side", aggregate_function="first")
+    if "over" not in wide.columns or "under" not in wide.columns:
+        raise ValueError("principal near-close missing over/under sides")
+    wide = wide.filter(pl.col("over").is_not_null()
+                       & pl.col("under").is_not_null())
+    margins = wide.with_columns(
+        pl.struct(["over", "under"]).map_elements(
+            lambda s: american_to_raw(s["over"])
+            + american_to_raw(s["under"]) - 1.0,
+            return_dtype=pl.Float64).alias("margin"))
+    pooled = float(margins["margin"].median())
+    return margins.select("game_pk", "book", "margin"), pooled
+
+
+def ladder_rung_probs(nc_alt: "pl.DataFrame",
+                      margins: "pl.DataFrame", pooled_margin: float,
+                      ) -> "pl.DataFrame":
+    """Per (start, line): the consensus over probability from the
+    ALTERNATE ladder's OVER-side quotes, de-vigged with each book's own
+    principal-market margin (the archived alternate ladder is over-side
+    only - the under side was never captured). raw = fair * (1 + margin)
+    under proportional vig, so fair = raw / (1 + margin). Consensus =
+    median across books (same rule as the principal market)."""
+    import polars as pl
+
+    joined = nc_alt.filter(pl.col("side") == "over").join(
+        margins, on=["game_pk", "book"], how="left").with_columns(
+        pl.col("margin").fill_null(pooled_margin))
+    per_rung = joined.with_columns(
+        pl.struct(["price", "margin"]).map_elements(
+            lambda s: american_to_raw(s["price"]) / (1.0 + s["margin"]),
+            return_dtype=pl.Float64).alias("p_over_book"))
+    return per_rung.group_by("game_pk", "line").agg(
+        pl.col("p_over_book").median().alias("p_over"),
+        pl.col("book").n_unique().alias("n_books"))
 
 
 def ladder_implied_pmf(rungs: "pl.DataFrame",
@@ -417,6 +455,8 @@ def ladder_implied_pmf(rungs: "pl.DataFrame",
     k_max = k_max or ad.K_MAX
     out_rows = []
     for gpk, g in rungs.group_by("game_pk"):
+        if isinstance(gpk, (tuple, list)):
+            gpk = gpk[0]
         rr = g.sort("line")
         lines = rr["line"].to_numpy()
         p = rr["p_over"].to_numpy()
@@ -539,6 +579,22 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
                             encoding="utf-8")
     initial_sha = ad.sha256_file(initial_path)
     try:
+        # the alternate ladder is OVER-SIDE ONLY in the archive; the
+        # per-book de-vig margin comes from the principal market's
+        # two-sided near-close quotes
+        starts_m, odds_m, meta_m = jc.build_task_frames(
+            Path(book_lines_path), Path(envelope_path),
+            ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet",
+            ["pitcher_strikeouts"],
+            window_start=DEV_WINDOW_START, window_end=DEV_WINDOW_END)
+        odds_m = odds_m.join(
+            starts_m.select("game_pk", "first_pitch_ts", "has_commence"),
+            on="game_pk", how="inner")
+        if tier_a_only:
+            odds_m = odds_m.filter(pl.col("has_commence"))
+        nc_main = select_near_close(odds_m)
+        margins, pooled_margin = book_margins_from_two_sided(nc_main)
+
         starts_out, odds, join_meta = jc.build_task_frames(
             Path(book_lines_path), Path(envelope_path),
             ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet",
@@ -551,7 +607,7 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
         if tier_a_only:
             odds = odds.filter(pl.col("has_commence"))
         nc = select_near_close(odds)
-        rungs = ladder_rung_probs(nc)
+        rungs = ladder_rung_probs(nc, margins, pooled_margin)
         implied = ladder_implied_pmf(rungs)
         ok = implied.filter(pl.col("status") == "ok")
         pmfs = model_pmfs.filter(pl.col("block") != m0.PROTECTED_BLOCK)
