@@ -1,4 +1,32 @@
-# STATUS 8 (paired 2x2 lineup diagnostic, 2026-10-22, latest) —
+# STATUS 9 (lineup diagnostic CONTROL INVARIANT FAILED — interpretation
+# stopped per owner order, 2026-10-22, latest) —
+# The committed runner (lineup_diagnostic.py, 4 synthetic tests) ran on
+# real data (lineup_diagnostic_v1_attempt6, write-once). RESULT: the
+# CONTROL INVARIANT FAILED — max |PMF_projected - PMF_oracle| = 0.1143
+# for the batter-independent PITCHER arm (tolerance 1e-12). ROOT CAUSE:
+# the two conditions necessarily draw probabilities from DIFFERENT
+# feature-construction paths (projected = the preserved ledger's as-of
+# slot states; oracle = the pa_table-attached states), so the PITCHER
+# arm's probability VALUES differ between conditions regardless of
+# batter order. Raw outputs (n=4,681 common; FULL -0.0142 projected /
+# -0.0224 oracle; interaction -0.0081 CI [-0.0117, -0.0045]) are
+# recorded but NOT interpretable as lineup effects. The earlier
+# 2x2-script numbers (n=4,477) inherit the same violation and are
+# equally uninterpretable as lineup effects.
+# RESOLUTION OPTIONS (owner decision required):
+#   (a) same-frame cohort: both conditions from the pa_table-attached
+#       features only -> invariant holds, cohort shrinks to the ~277
+#       starts where all nine projected batters actually batted;
+#   (c) ledger-features-for-both is impossible (actual batters outside
+#       the projection have no ledger rows).
+# PER THE OWNER'S ORDER: the lineup-effect interpretation is STOPPED.
+#
+# Morning/close overlap cohort published (prerequisite for the frozen
+# early-market scoring): morning_close_cohort_v1/ - 2,109 starts, key
+# hash aadc2d2a3caa104fd6629c7b7057d8de422d4b0aa6afe51c3de75d404495d5aa.
+#
+# STATUS 8 (paired 2x2 lineup diagnostic, 2026-10-22) — SUPERSEDED by
+# STATUS 9: its numbers inherit the control-invariant violation.
 # PITCHER/FULL x projected/oracle lineups, identical eligible keys
 # (n=4,477 common), fits + BF forecasts + registered aggregation +
 # scoring held fixed; only the lineup input changed. ORACLE = the
