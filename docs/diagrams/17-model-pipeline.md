@@ -22,11 +22,11 @@ flowchart TB
 
     subgraph COUNT["Count layer (live)"]
         C1["count_layer.py<br/>Poisson expected_K<br/>+ P(K >= line)"]
-        C2["WS1c Platt calibration<br/>(per-line isotonic)"]
+        C2["WS1c Platt calibration<br/>(per-line sigmoid/Platt,<br/>not isotonic regression)"]
     end
 
     subgraph POLICY["Policy filter (live)"]
-        P1["kpi_policy.json<br/>edge_floor 0.12<br/>edge_cap 0.24<br/>under_lean premium<br/>DK+FD only<br/>game_cap 3"]
+        P1["kpi_policy.json<br/>edge_floor 0.12<br/>edge_cap 0.24<br/>under_lean premium<br/>DK+FD only<br/>game_cap (configured; check kpi_policy.json for active value)"]
         P2["market.py<br/>1/16-Kelly sizing<br/-> flat $50"]
     end
 

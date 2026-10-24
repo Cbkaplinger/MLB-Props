@@ -31,9 +31,9 @@ flowchart LR
         PMF["count PMF<br/>(24-bucket distribution)"]
     end
 
-    subgraph S5["5. MARKET EVALUATION<br/>(UNDER AUDIT)"]
+    subgraph S5["5. MARKET EVALUATION<br/>(HISTORICAL — identity repaired, independently verified)"]
         direction LR
-        MATCH["event mapping<br/>(game_pk + starter_pitcher_id)<br/>UNDER AUDIT"]
+        MATCH["event mapping<br/>(game_pk + starter_pitcher_id)<br/>HISTORICAL — identity repaired, independently verified"]
         SNAP["early snapshot<br/>vs actual opening quote"]
         CLOSE["prior-evening<br/>vs near-close"]
         CONSENSUS["per-start consensus<br/>(NOT game-level)"]
