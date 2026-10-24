@@ -168,6 +168,7 @@ def test_near_close_selects_own_player_only_after_filter():
         for side in ("over", "under"):
             rows.append(_odds_rows(game_pk=1, book="dk", line=6.5,
                                    side=side, price=price,
+                                   pitcher=who,
                                    quote_timestamp=ts, first_pitch_ts=fp))
     odds = pl.DataFrame(rows)
     # one start (key = webb logan); the event carries BOTH players'
