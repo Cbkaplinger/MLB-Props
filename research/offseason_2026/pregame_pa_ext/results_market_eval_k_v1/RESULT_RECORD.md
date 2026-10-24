@@ -1,4 +1,45 @@
-# STATUS 6 (accounting reconciliation + quote audit, 2026-10-22, latest)
+# STATUS 7 (cohort-split baseline + early-market coverage, 2026-10-22,
+# latest) — per owner order the cohorts are now REPORTED SEPARATELY
+# (they are different benchmarks, never pooled into one effect):
+#   2025H1 TRUE T-5 CLOSE (n=2,154): close 0.6890 | dumb +0.0254 |
+#     model +0.0234 CI [+0.0142, +0.0330]; Brier close ~0.2464 vs
+#     model 0.2583.
+#   2024 PRIOR-EVENING LINE (n=2,182, key hash b517101d6d6967b7):
+#     close 0.6829 | dumb +0.0502 | model +0.0371 CI [+0.0262, +0.0482];
+#     Brier 0.2449 / 0.2608. NOT a close comparison (no 2024 commence
+#     times; the snapshot is the vendor's prior-evening clock).
+#   The +0.0303 combined-cohort figure and its CI are RETIRED from
+#   headline use (mixed timing tiers).
+# CORRECTION: the 22 consensus exclusions are documented COLD-START
+# ABSTENTIONS (Chat 2's resolution); the earlier "probable starters who
+# never started" wording is withdrawn.
+# EARLY-MARKET COVERAGE (tier A, vendor snapshot clocks, verified
+# quotes, 2024-07-01..2025-06-30; snapshot labels are the vendor's
+# clocks, NOT verified first-posted opens):
+#   morning (vendor T-5h clock): 80,974 pre-cutoff rows; 2,368 starts
+#     two-sided (100%); median lead 5.0h; 9 books; overlap with the
+#     verified 2025H1 close cohort: 2,109/2,154 (97.9%).
+#   open18 (vendor T-18h clock): 15,232 pre-cutoff rows; 1,420 starts
+#     two-sided; median lead 18.0h; 8 books.
+#   board (median lead 10.0h): 52,706 rows; 2,313 starts; 9 books.
+# INPUT AVAILABILITY AT EARLY TIMESTAMPS: model inputs are strictly
+# prior-game-date; previous-day data is fully available before the
+# morning snapshot's ~T-5h timestamp -> CLEAN early benchmark. For
+# open18 (~T-18h, ~1am ET) the previous evening's late west-coast
+# games may finish AFTER the quote -> the model's as-of state
+# partially post-dates the open18 quote; any open18 scoring must
+# disclose this. PROTOCOL FROZEN before any early-market score is
+# inspected: the same frozen per-PA probabilities scored at EACH
+# market quote's own line (per-line binary events; no cross-line
+# probability deltas invented); no tuning against any market number.
+# NEXT (main modeling task, design stated): the PA-loss/count-RPS
+# reversal investigation on identical eligible keys - projected-lineup
+# count-RPS (PITCHER 1.32294 vs FULL 1.34526) vs an ORACLE-LINEUP
+# diagnostic (actual first-appearance batting order, labeled oracle);
+# if FULL's deficit narrows under the oracle, the cause is lineup
+# projection error interacting with batter features.
+#
+# STATUS 6 (accounting reconciliation + quote audit, 2026-10-22)
 # — FUNNEL (reconciled exactly): 825,326 quotes -> 406,285 own-player
 # (419,041 dropped by the identity filter) -> 82,722 near-close ->
 # 4,358 consensuses -> [bridge1 vendor-key->id: 0 unmatched] ->
