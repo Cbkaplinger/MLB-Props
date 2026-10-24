@@ -242,6 +242,9 @@ status belongs to that owner. This window stops after the docs commit.
 - [12 - Delivery and agent control](12-delivery-and-agent-control.md) - TARGET-STATE, PROPOSED (2026-10-21): checkpoint-based delivery, non-author acceptance.
 - [13 - Experiment evidence lifecycle](13-experiment-evidence-lifecycle.md) - TARGET-STATE, PROPOSED: registered -> executed -> evidence-checked -> accepted/rejected/invalid.
 - [14 - Research-to-decision boundaries](14-research-to-decision-boundaries.md) - TARGET-STATE, PROPOSED: boundary map from source data to evaluation/health evidence.
+- [15 - System map](15-system-map.md) - layer-by-layer pipeline map with file citations (PROPOSED).
+- [16 - Data lineage](16-data-lineage.md) - raw sources -> lake -> tables -> odds archive (PROPOSED).
+- [17 - Model pipeline](17-model-pipeline.md) - features -> ensemble -> count layer -> policy (PROPOSED).
 - [10 - System paths](10-system-paths.md) - production vs research boundary: inputs, components, outputs, promotion gate (reuses 01/05/08 for depth).
 - [11 - Experiment flow](11-experiment-flow.md) - frozen inputs -> paired arms -> scoring -> uncertainty -> decision. - pre-registration -> single run -> receipt -> reviewer verification -> closeout (ADR-0001).
 - ADR-0001 (evidence gates) and ADR-0002 (exact aggregation first) live in \docs/adr/\ as PROPOSED-* (numbering note in-file); the cycle PRD is \docs/adr/PROPOSED-prd-research-shipping-cycle.md\; ROLES is \docs/architecture/ROLES.md\.

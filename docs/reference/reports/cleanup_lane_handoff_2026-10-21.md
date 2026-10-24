@@ -162,6 +162,13 @@ the LARGER living-documents assignment, with explicit dispositions (2026-10-21):
 
 ## 7. Lane status and closure condition
 
+**PR states (verified 2026-10-23):** #33 MERGED, #34 OPEN (research), #35 MERGED,
+#36 CLOSED (superseded by #38), #37 MERGED, #38 MERGED, #39 MERGED, #40 MERGED,
+#41 MERGED, #42 MERGED, #43 MERGED, #44 MERGED, #45 OPEN (this PR).
+
+**Backlog-split owner: Chat 3** (per ROLES_REV 2026-10-22-r2 and NEXT.md).
+
+
 **Lane status: no implementation blockers; closure awaits review/merge of
 #33/#35 and owner acceptance of this handoff.**
 
