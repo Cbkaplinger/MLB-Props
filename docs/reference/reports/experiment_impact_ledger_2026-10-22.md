@@ -99,41 +99,43 @@ excluded and the upstream checks still pending:
 
 - Pre-repair: **invalid, preserved**. Repaired split baselines: **corrected and reverified**. Morning scoring: paused pending this ledger.
 
-## P0 EXECUTED (bounded compatibility check, corrected 2026-10-22)
+## P0 v2 EXECUTED (identity-safe, non-overwriting, 2026-10-22, latest)
 
-Artifact: \eature_request_p0/\ (write-once; ledger_compatibility_sample
-.parquet, independent_implementation_sample.parquet,
-adversarial_cases.parquet, p0_report.json). Code: research/offseason_2026/pregame_pa_ext/feature_request_p0.py\.
-Sampling recipe: ledger slots with exclusion_reason null, n=3,000,
-seed 20261022; comparisons keyed on the request row id.
+Artifact: `feature_request_p0_v4/` (write-once; partA/partB comparison
+parquets keyed on request _rid with validate="1:1", adversarial cases
+labeled by ID, report JSON). The ORIGINAL P0 directory is preserved
+with PRESERVED_MANIFEST.json (all four file hashes recorded before the
+corrected run). Code: `feature_request_p0.py` committed; the v2 audit
+script to be committed alongside this ledger update.
 
-- **(a) Frozen-function interface vs preserved ledger** (keyed, n=3,000):
-  batter-side features (p_batter_prior_w150, ew_batter, n_prior_batter),
-  lg_rate, cold_start — **0 mismatches**. Pitcher-side:
-  **611/3,000 (20.4%) mismatch** (n_prior max 1,100 PAs; rate max
-  0.046; ew max 0.197).
-- **(b) Independent inline implementation vs ledger**: 150/3,150 (4.8%)
-  mismatch on every history-dependent feature; exact elsewhere. The
-  same 150 slots mismatch under BOTH implementations -> those ledger
-  rows carry state from a different history source (identity-level
-  resolution pending).
-- **(c) Adversarial cases**: cold fallbacks behave; post-data dates
-  extend state; batters in the game but outside the projected lineup
-  get features with NO realized-appearance requirement (verified) —
-  the interface can serve the oracle construction.
-- **Representative-mismatch resolution**: the original P0 report's 761
-  pitcher-side mismatches were a P0-side join artifact — the direct
-  keyed recomputation verifies the ledger's n_prior_pitcher EXACTLY
-  (0/3,000) against entity_daily_state. The remaining defect is inside
-  the frozen attach_prior_features chain itself (pitcher-side only).
-- **Hypotheses tested**: the asof-sortedness explanation was TESTED AND
-  EXCLUDED (re-sorting p_state by (pitcher, game_date) does not change
-  the 611). Category separation — source-history difference: the 150
-  both-implementation mismatches are candidates; cutoff/join
-  difference: the 611 frozen-function-only mismatches are candidates;
-  feature-definition and implementation differences: not yet
-  implicated. ROOT CAUSE NOT DECLARED — the next bounded test isolates
-  which join inside attach_prior_features corrupts pitcher-side values.
+- **Part A** (frozen attach_prior_features vs ledger, keyed): 611/3,000
+  (20.4%) hard mismatches — ALL pitcher-side (n_prior_pitcher max
+  1,100 PAs; rate max 0.046; ew max 0.197); zero one-sided nulls;
+  batter-side, lg_rate, cold_start exact.
+- **Part B** (independent formulas vs ledger, keyed): **0 mismatches on
+  all 8 features** — the independent reproduction reproduces the
+  preserved ledger EXACTLY.
+- **Part C**: the 150-row "source-history class" DISAPPEARS after the
+  incomplete-key join is removed — it was an audit-side fan-out
+  artifact (game_pk+slot is not a unique request key: both starters
+  share slot numbers).
+
+DEMONSTRATED DIAGNOSIS (not a hypothesis):
+1. The preserved ledger's stored features are CORRECT (exactly
+   reproduced by an independent implementation).
+2. The frozen attach_prior_features chain corrupts ~20.4% of
+   pitcher-side values when called on request-row inputs — the defect
+   is in the attachment chain, not the historical state.
+3. The earlier "different history source" hypothesis is withdrawn.
+
+OPEN SCOPE QUESTION (the next bounded test): the frozen model's
+training features were built by the same attach chain on realized-PA
+rows — whether the defect fires on that row pattern (vs request-row
+inputs) determines whether M0/the frozen model inherit corrupted
+training features. Isolation test: call attach_prior_features on the
+realized-PA long frame and compare against the independent
+reconstruction on the same rows.
+
 
 ## Authoritative status per endpoint
 
