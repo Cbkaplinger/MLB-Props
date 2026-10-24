@@ -22,57 +22,127 @@ ledger; all original artifacts preserved.
 
 ## The ledger
 
+Classification key — "unaffected" now states the SPECIFIC defects
+excluded and the upstream checks still pending:
+
+- D1 = opposing-starter quote mixing + per-game market collapse
+  (market join; repaired)
+- D2 = realized-PA-conditioned slot construction (count layer)
+- D3 = projected/oracle feature-path divergence (lineup diagnostic)
+- P0 = the ledger-path compatibility check (executed this turn, below)
+
 ### 1. Market evaluation (pitcher_strikeouts vs near-close)
 
 - Code: `market_eval_k.py` at `23db50d` (rescore), accounting at `a4ded18`, runner fixes at `70883ae`.
-- Cohorts: 2025H1 true T-5 close n=2,154 (key hash in receipt); 2024 prior-evening n=2,182 (`b517101d6d6967b7`).
+- Cohorts: 2025H1 true T-5 close n=2,154; 2024 prior-evening n=2,182 (`b517101d6d6967b7`).
 - Feature builder: frozen FEAT_H3 via the serialized checkpoint (pin `176fb18b…`); ledger `fd1841e1…`; BF `c9c2762f…`; realized `af6814ec…` (label-audited 100%).
-- Comparator: de-vigged near-close consensus, per-start identity (repaired).
-- Classification: **corrected and reverified** (2025H1 cohort). The 2024 cohort is a prior-evening benchmark, not a close comparison. Historical pre-repair results: **invalid, preserved**.
+- Defects excluded: D1 (repaired + independently reviewed), D2 (its slots were always ledger-projected), D3 (no lineup conditions).
+- Upstream checks still pending: the ledger feature path itself (see P0 results — PARTIAL mismatch found).
+- Classification: **corrected and reverified** for D1/D2/D3; **unresolved on the ledger feature-path mismatch** (P0-a).
 
 ### 2. Feature/half-life ablation
 
-- Code: `ablation_features.py` at `f46b064`.
-- PA metrics (multiclass LL 1.22305 FULL vs 1.23192 PITCHER; K-marginal): scored on all 82,817 eval PAs, registered population, frozen recipe features — **unaffected** by the count-slot defect and the market join; retained.
-- Count-RPS column: scored ~277/block (realized-PA slot conditioning) — **invalid for the intended 4,823-start cohort**; the "batter features hurt count-RPS" ranking derived from it: **retracted**.
-- Half-life conclusion "does not matter": the PA log-loss evidence stands (EW30-180 within 0.0002 multiclass LL on all eval PAs); the count-RPS evidence was on the invalid subset — **retain 90d operationally; withdraw the universal claim**.
+- Corrected coverage counts (exact, per block): block_2024H2 scored
+  **117 of 2,314 starts (5.1%)**; block_2025H1 **160 of 2,509 (6.4%)**;
+  total **277 of 4,823 (5.7%)**. Slot-count distribution: median 7
+  distinct realized slots; only 5.7% of starts have all nine.
+- PA metrics (multiclass LL 1.22305 FULL vs 1.23192 PITCHER; K-marginal): scored on all 82,817 eval PAs — defects excluded: D1, D2 (per-PA scoring has no slot requirement), D3. Pending: P0 ledger-path check.
+- Count-RPS column: **invalid for the intended cohort** (D2 demonstrated); the ranking derived from it: retracted.
+- Half-life: PA evidence retained (D1/D2/D3 excluded); count evidence invalid.
 
-### 3. M0 v2 (four-class PA model)
+### 3. M0 v2
 
-- Code: `m0_multiclass.py` at `2e2482b` (+ae3cd19 fixes); executed once at the owner's delegated order.
-- Receipts: initial `aca95253…`, final `0d7decdf…`; eval keys `c6568151…` exact (82,817 PAs, 4,823 starts); ledger `fd1841e1…`.
-- EP1/EP2 are per-PA metrics on the registered population with frozen features — **unaffected** by the market-join and count-slot defects (development-only acceptance; the market join never entered M0's fitting or endpoints).
-- M0 descriptive count-RPS: used the LEDGER slots (verified) — **unaffected** by the realized-PA conditioning defect; status: development-only diagnostic (close-benchmark comparison now supersedes it as context).
+- Receipts: initial `aca95253…`, final `0d7decdf…`; eval keys `c9c2762f…`-free population: eval keys `c6568151…` exact (82,817 PAs, 4,823 starts); ledger `fd1841e1…`.
+- EP1/EP2: per-PA metrics, registered population — defects excluded: D1 (market join never entered fitting/endpoints), D2 (per-PA scoring), D3. Pending: P0 ledger-path check (the refit features come from the ledger path).
+- M0 descriptive count-RPS: ledger slots (verified) — D2 excluded; D1 excluded; pending P0.
 
-### 4. C-B1 exposure profile (rejected)
+### 4. C-B1 (rejected)
 
-- Code: `exposure_profile.py` at `b026646`; executed once; receipts `18c98d81…`/`1d125e6f…`.
-- Its per-start PMFs used the LEDGER slots (verified in `exposure_profile.py:count-rps` wiring via the frozen prior from ledger slots and the registered aggregation), population 4,823, comparator = the frozen arm through the same machinery.
-- Classification: **unaffected** by the realized-PA slot defect and the market-join defect — the rejection (delta +0.0859 CI [+0.0719, +0.0997]) stands on its own verified population. Residual caveat: the frozen prior and comparator share the ledger feature path; a defect in THAT path would reach C-B1 — covered by the ledger-path verification below.
+- Per-start PMFs from LEDGER slots (verified); population 4,823; comparator = the frozen arm through the same machinery; receipts `18c98d81…`/`1d125e6f…`.
+- Defects excluded: D1, D2, D3 (its prior and comparator both live on the ledger path — no cross-path divergence). Pending: P0 ledger-path check.
+- Classification: **unaffected by D1/D2/D3; pending P0** — the rejection stands unless the ledger-path mismatch (P0-a) reaches its prior/comparator.
 
 ### 5. Batter-recency diagnostic (rejected)
 
-- Code: `batt_recency.py`; paired log-loss on the registered 82,817-PA eval population; frozen features; receipts hash-pinned in `results_batt_recency_v1/`.
-- Classification: **unaffected** (per-PA metric, registered population, no count-layer or market dependency). Shares `build_feature_frame` — covered by the same ledger-path verification as C-B1.
+- Paired per-PA log-loss, registered 82,817-PA population, frozen features, receipts hash-pinned.
+- Defects excluded: D1, D2, D3. Pending: P0 ledger-path check (shares `build_feature_frame`).
+- Classification: **unaffected by D1/D2/D3; pending P0**.
 
-### 6. Count aggregation / Question A (count_agg_eval_v1)
+### 6. Count aggregation / Question A
 
-- Code: `count_agg_eval.py`; executed once on the registered 4,823 starts; p9 = ledger slots (verified); receipts in `results_count_agg_eval_v1/`.
-- Classification: **unaffected** by the realized-PA conditioning defect (its slots were always ledger-projected). Its comparator/PMF machinery is shared with everything above — same ledger-path coverage.
+- p9 = ledger slots (verified); population 4,823; receipts in `results_count_agg_eval_v1/`.
+- Defects excluded: D1, D2, D3. Pending: P0 ledger-path check.
+- Classification: **unaffected by D1/D2/D3; pending P0**.
 
-### 7. Workload / BF gates, I3b/I4/I5, earlier transfer decisions
+### 7. Workload / BF gates, I3b/I4/I5
 
-- Artifacts: lake `bf-workload-v1` (bf_forecasts `c9c2762f…`, start_metrics_v2 `af6814ec…`), `i3-opportunity-*`, `i4-card-source-*`, `i5-tail-*`, `pa-aggregation-abc-*`, `kcount-integration-*`.
-- These lanes produced the BF artifact that EVERY count metric consumes; their internal validation used the same builders (entity_daily_state lineage, pregame-state-v1 lineups).
-- Classification: **unresolved — shared-builder trace pending**. Historical age is not evidence of independence. The BF artifact's inputs (prior_n/prior_mean per start) are pregame state; no realized-APPEARANCE conditioning has been demonstrated in it, but the trace has not been performed.
+- **P0-parallel trace EXECUTED**: `build_bf_forecasts.py` verified as a
+  point-in-time chronological expanding pregame builder — per-pitcher
+  state is READ BEFORE the start's outcome is added (lines 132-133 vs
+  179-181), lineup-free, cold-start handled, league priors shrunk
+  (W_SHRINK); realized BF stored only as the TARGET. No
+  realized-appearance conditioning of the forecast.
+- I3b/I4/I5 artifacts consumed this same builder's output
+  (i3-opportunity-*, i4-card-source-*, i5-tail-*).
+- Classification: **BF builder traced, point-in-time verified**; the
+  I3b/I4/I5 decision logic itself is not re-audited (documentation
+  level). Their dependence on the ledger feature path does not exist
+  (lineup-free) — their inputs are the BF artifact + start_metrics.
 
 ### 8. Lineup/oracle diagnostic
 
-- Classification: **invalid as a lineup-effect estimate** (control-invariant failure + outcome-selected oracle cohort + positional output assignment + drop double-counting). Preserved as diagnostic-failure evidence.
+- **Invalid as a lineup-effect estimate** (D3 control-invariant failure, outcome-selected oracle cohort, positional assignment, drop double-counting). Preserved as failure evidence.
 
 ### 9. Market comparisons (historical)
 
-- Pre-repair results: **invalid, preserved**. The repaired 2025H1/2024 split baselines: **corrected and reverified** (independently reviewed). Morning scoring: paused pending this ledger.
+- Pre-repair: **invalid, preserved**. Repaired split baselines: **corrected and reverified**. Morning scoring: paused pending this ledger.
+
+## P0 EXECUTED (bounded compatibility check, mismatches preserved)
+
+Artifact: `feature_request_p0/` (write-once; ledger_compatibility_sample
+.parquet, independent_implementation_sample.parquet,
+adversarial_cases.parquet, p0_report.json).
+
+- **(a) Frozen-function interface vs preserved ledger** (3,000 sampled
+  slots): p_pitcher_prior_w150, p_batter_prior_w150, lg_rate,
+  cold_start — **0 mismatches** (exact). n_prior_pitcher **761
+  mismatches** (max 2,440 PAs); n_prior_batter **150** (max 2,214);
+  ew_pitcher **761** (max 0.20); ew_batter **150** (max 0.20).
+- **(b) Independent inline implementation vs ledger** (3,150 rows):
+  **150 mismatches (4.8%) on every history-dependent feature** (max
+  diffs of the same magnitude); rates/cold_start exact on the rest.
+- **(c) Adversarial cases**: cold batter/pitcher fall back to the
+  league rate with n_prior=0 and cold_start=1; pre-data dates return
+  pure league priors; post-data dates extend the state; **batters in
+  the game but outside the projected lineup get features with NO
+  realized-appearance requirement** (verified on 3 real cases) — the
+  interface CAN serve the oracle construction.
+- MISMATCHES PRESERVED; no frozen artifact repaired. The mismatch
+  subset (~5-25% depending on feature) means the ledger's state was
+  built from a history source that the pa_table-based reconstruction
+  does not fully reproduce — the root-cause split (which window/rows)
+  is the next bounded investigation.
+
+## Revised endpoint-specific rerun plan
+
+- **P0-result consequence**: the shared interface reproduces RATES
+  exactly but NOT counts/EW for ~5-25% of slots — the ablation
+  count-RPS recompute (P1) must NOT use the new interface blindly;
+  first resolve the state-source mismatch (bounded: identify the
+  150/761-mismatch slots' pitchers/dates and compare state windows).
+- **P1 (after the state-source split)**: ablation count-RPS on the
+  intended 4,823-start population, ledger-slot construction, using the
+  VERIFIED feature source.
+- **P2**: I3b/I4/I5 decision-logic re-audit — DOWNGRADED to optional:
+  the BF builder is verified point-in-time; only the shared ledger
+  feature path remains as a common dependency (P0-a).
+- **P3**: lineup diagnostic redesign — blocked on the same
+  state-source split (its two conditions need one path).
+- **P4**: morning-market scoring on the 2,109-start cohort —
+  UNAFFECTED by the P0 mismatch (it scores the ledger's own stored
+  probabilities, no reconstruction) — eligible to run once this plan
+  is accepted.
+- 2026 holdout: untouched.
 
 ## The four runner issues (investigated, fixes deferred to the plan)
 
