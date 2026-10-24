@@ -1,6 +1,36 @@
 # RESULT RECORD — market eval: pitcher_strikeouts vs the near-close line
 # (executed once 2026-10-22; dev blocks only, confirm untouched)
 #
+# STATUS 5 (full-key identity repair + rescore, 2026-10-22, FINAL) —
+# The identity repair is COMPLETE: pitcher identity now flows through
+# every stage (near-close dedup keys, consensus pivot/group/selection,
+# and the final model join all use the start key game_pk + quoted
+# pitcher; one consensus per start enforced with fail-loud fan-out
+# checks; boundary counts in the receipt). Regression tests cover the
+# demonstrated cases: two starters in one game keep distinct
+# consensuses; changing one starter's quotes leaves the other
+# unchanged; dropping one starter cannot borrow the opponent; no
+# start-level fan-out from snapshots/books; the unfiltered dedup
+# provably scored Webb on Nelson's prices.
+# REPAIRED RESCORE (write-once market_eval_k_v3_fullkey_attempt2;
+# scored-cohort parquet 1d9a00343d17956f):
+#   2025H1 true T-5 close (n=2,154): close 0.6890 | dumb +0.0254 |
+#     model +0.0234  (log loss, positive = worse than close)
+#   full repaired cohort (n=4,336): close 0.6859 | dumb +0.0379 |
+#     model +0.0303; Brier close 0.2464 vs model 0.2596;
+#   decision: model_not_better_than_close (CI excludes zero the other
+#   way). Coverage: 4,358 verified consensuses, 4,336 joined,
+#   0 unmatched, joined_start_key_unique = true; 419,041
+#   opposing-starter quotes dropped by the identity filter.
+# FINAL INTERPRETATION: with every quote belonging to its own
+# pitcher-game, the closing line beats BOTH the one-parameter baseline
+# and the frozen model - the market behaves as an efficient market
+# should. The earlier apparent edge was an artifact of the two
+# identity defects (opposing-starter quote mixing + per-game market
+# collapse); it is fully resolved. No betting edge is claimed; the
+# close is the benchmark and it wins. 2024 remains prior-evening
+# lines; no 2026 run.
+#
 # STATUS 4 (join repaired + rescored, 2026-10-22, latest) —
 # DEMONSTRATED DEFECT: the odds task frame attached a matched event's
 # game_pk to ALL its quotes; 419,041 of 825,326 rows (50.8%) quoted the

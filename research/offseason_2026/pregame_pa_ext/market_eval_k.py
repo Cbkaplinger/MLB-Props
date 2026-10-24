@@ -84,8 +84,9 @@ def select_near_close(odds: "pl.DataFrame") -> "pl.DataFrame":
     closing policy in odds-coverage-v1."""
     import polars as pl
 
-    need = {"game_pk", "book", "line", "side", "price", "quote_timestamp",
-            "snapshot", "first_pitch_ts", "has_commence"}
+    need = {"game_pk", "pitcher", "book", "line", "side", "price",
+            "quote_timestamp", "snapshot", "first_pitch_ts",
+            "has_commence"}
     missing = need - set(odds.columns)
     if missing:
         raise ValueError(f"odds frame missing columns: {sorted(missing)}")
@@ -115,26 +116,31 @@ def select_near_close(odds: "pl.DataFrame") -> "pl.DataFrame":
             & ((pl.col("first_pitch_ts") - pl.col("quote_timestamp"))
                <= cutoff)
         ).sort("quote_timestamp").unique(
-            subset=["game_pk", "book", "line", "side"], keep="last")
+            subset=["game_pk", "pitcher", "book", "line", "side"],
+            keep="last")
     tier_b = odds.filter(
         ~pl.col("has_commence") & (pl.col("snapshot") == "close")
     ).sort("quote_timestamp").unique(
-        subset=["game_pk", "book", "line", "side"], keep="last")
+        subset=["game_pk", "pitcher", "book", "line", "side"],
+        keep="last")
     return pl.concat([tier_a, tier_b])
 
 
 def consensus_over_probs(near_close: "pl.DataFrame") -> "pl.DataFrame":
-    """Per start: the consensus line (most books quoting BOTH sides at
+    """Per START (the canonical start key is game_pk + the quoted
+    pitcher's key - a game has TWO starters and each keeps its own
+    market): the consensus line (most books quoting BOTH bet sides at
     that line; ties -> line closest to the median quoted line) and the
     consensus over probability (median across books of the de-vigged
-    over probability at that line)."""
+    over probability at that line). `side` throughout is BET_SIDE
+    (over/under), never team side."""
     import polars as pl
 
     wide = near_close.pivot(
-        values="price", index=["game_pk", "book", "line"],
+        values="price", index=["game_pk", "pitcher", "book", "line"],
         on="side", aggregate_function="first")
     if "over" not in wide.columns or "under" not in wide.columns:
-        raise ValueError("near-close quotes missing over/under sides")
+        raise ValueError("near-close quotes missing over/under bet sides")
     wide = wide.filter(pl.col("over").is_not_null()
                        & pl.col("under").is_not_null())
     if wide.height == 0:
@@ -143,19 +149,22 @@ def consensus_over_probs(near_close: "pl.DataFrame") -> "pl.DataFrame":
         pl.struct(["over", "under"]).map_elements(
             lambda s: devig_over(s["over"], s["under"]),
             return_dtype=pl.Float64).alias("p_over_book"))
-    per_line = wide.group_by("game_pk", "line").agg(
+    per_line = wide.group_by("game_pk", "pitcher", "line").agg(
         pl.col("p_over_book").median().alias("p_over"),
         pl.col("book").n_unique().alias("n_books"))
-    line_counts = per_line.group_by("game_pk").agg(
+    line_counts = per_line.group_by("game_pk", "pitcher").agg(
         pl.col("n_books").max().alias("max_books"),
         pl.col("line").median().alias("median_line"))
-    per_line = per_line.join(line_counts, on="game_pk", how="left")
+    per_line = per_line.join(line_counts, on=["game_pk", "pitcher"],
+                             how="left")
     chosen = per_line.filter(
         (pl.col("n_books") == pl.col("max_books"))
     ).with_columns(
         (pl.col("line") - pl.col("median_line")).abs().alias("dist"))
-    chosen = chosen.sort("dist").unique(subset=["game_pk"], keep="first")
-    return chosen.select("game_pk", "line", "p_over", "n_books")
+    chosen = chosen.sort("dist").unique(subset=["game_pk", "pitcher"],
+                                        keep="first")
+    return chosen.select("game_pk", "pitcher", "line", "p_over",
+                         "n_books")
 
 
 def model_p_over(pmf: np.ndarray, line: float) -> float:
@@ -304,21 +313,63 @@ def run_market_eval_k(model_pmfs: "pl.DataFrame", out_dir, *,
         near_close = select_near_close(odds)
         consensus = consensus_over_probs(near_close)
 
-        # stage 3: join the registered model PMFs (identity:
-        # game_pk + side + pitcher via the join's game_pk-grain)
+        # stage 3: join the registered model PMFs on the FULL start key.
+        # The consensus's `pitcher` is the quoted player's vendor name
+        # key; map it to the MLBAM id via starts_out (identity), then
+        # join on (game_pk, side, pitcher). Enforce ONE consensus per
+        # start before the join (fail loud on fan-out).
+        cons = consensus.select("game_pk", "pitcher", "line", "p_over",
+                                "n_books")
+        dup_cons = cons.group_by("game_pk", "pitcher").agg(
+            pl.len().alias("n")).filter(pl.col("n") > 1)
+        if dup_cons.height:
+            raise ValueError(
+                f"start-level consensus fan-out: {dup_cons.height} "
+                "starts with >1 consensus")
+        cons_full = cons.join(
+            starts_out.select("game_pk", "pitcher_key",
+                              pl.col("pitcher").alias("pitcher_id")),
+            left_on=["game_pk", "pitcher"],
+            right_on=["game_pk", "pitcher_key"], how="inner")
+        n_unmatched_consensus = cons.height - cons_full.height
+        # keep the MLBAM id under the canonical name; the vendor key
+        # stays in the audit outputs. The model frame carries `side`
+        # (team side); the consensus carries only bet_side, so the join
+        # key is (game_pk, pitcher) with side inherited from the model.
+        cons_full = cons_full.select(
+            "game_pk", pl.col("pitcher_id").alias("pitcher"), "line",
+            "p_over", "n_books")
+        # one consensus per MLBAM pitcher per game (fail loud on fan-out)
+        dup_join = cons_full.group_by("game_pk", "pitcher").agg(
+            pl.len().alias("n")).filter(pl.col("n") > 1)
+        if dup_join.height:
+            raise ValueError(
+                f"verified-consensus fan-out: {dup_join.height} "
+                "(game_pk, pitcher) pairs with >1 consensus")
         pmfs = model_pmfs.filter(
             pl.col("block") != m0.PROTECTED_BLOCK)
         joined = (pmfs.join(
-            consensus.select("game_pk", "line", "p_over", "n_books"),
-            on="game_pk", how="inner"))
+            cons_full.select("game_pk", "pitcher", "line",
+                             "p_over", "n_books"),
+            on=["game_pk", "pitcher"], how="inner"))
+        # full-key uniqueness: one row per (game_pk, side, pitcher)
+        n_dup_joined = (joined.select("game_pk", "side", "pitcher")
+                        .unique().height)
+        if n_dup_joined != joined.height:
+            raise ValueError(
+                f"joined frame fan-out: {joined.height} rows vs "
+                f"{n_dup_joined} unique start keys")
         coverage = {
             "model_starts_total": int(pmfs.height),
+            "consensus_starts_total": int(cons.height),
+            "consensus_unmatched_to_model": int(n_unmatched_consensus),
             "starts_with_near_close_consensus": int(joined.height),
-            "joined_start_keys": int(joined.select(
-                "game_pk", "side", "pitcher").unique().height),
+            "joined_start_key_unique": int(
+                joined.select("game_pk", "side", "pitcher").unique()
+                .height) == joined.height,
             "join_meta": join_meta,
-            "median_books_per_start": (float(consensus["n_books"].median())
-                                       if consensus.height else None),
+            "median_books_per_start": (float(cons["n_books"].median())
+                                       if cons.height else None),
         }
         if joined.height == 0:
             raise ValueError("no starts joined to a near-close consensus")
@@ -423,13 +474,14 @@ def verified_odds_for_start(odds: "pl.DataFrame") -> "pl.DataFrame":
 
 
 def book_margins_from_two_sided(nc_main: "pl.DataFrame") -> "pl.DataFrame":
-    """Per (game_pk, book): the book's vig margin (o_raw + u_raw - 1)
-    from the PRINCIPAL market's two-sided near-close quotes. Falls back
-    to the pooled median margin for books/starts without a two-sided
-    quote (disclosed)."""
+    """Per (start, book): the book's vig margin (o_raw + u_raw - 1)
+    from the PRINCIPAL market's two-sided near-close quotes (start key =
+    game_pk + quoted pitcher). Falls back to the pooled median margin
+    for books/starts without a two-sided quote (disclosed)."""
     import polars as pl
 
-    wide = nc_main.pivot(values="price", index=["game_pk", "book"],
+    wide = nc_main.pivot(values="price",
+                         index=["game_pk", "pitcher", "book"],
                          on="side", aggregate_function="first")
     if "over" not in wide.columns or "under" not in wide.columns:
         raise ValueError("principal near-close missing over/under sides")
@@ -441,7 +493,7 @@ def book_margins_from_two_sided(nc_main: "pl.DataFrame") -> "pl.DataFrame":
             + american_to_raw(s["under"]) - 1.0,
             return_dtype=pl.Float64).alias("margin"))
     pooled = float(margins["margin"].median())
-    return margins.select("game_pk", "book", "margin"), pooled
+    return margins.select("game_pk", "pitcher", "book", "margin"), pooled
 
 
 def ladder_rung_probs(nc_alt: "pl.DataFrame",
@@ -452,17 +504,19 @@ def ladder_rung_probs(nc_alt: "pl.DataFrame",
     principal-market margin (the archived alternate ladder is over-side
     only - the under side was never captured). raw = fair * (1 + margin)
     under proportional vig, so fair = raw / (1 + margin). Consensus =
-    median across books (same rule as the principal market)."""
+    median across books (same rule as the principal market). Start key
+    = game_pk + quoted pitcher."""
     import polars as pl
 
     joined = nc_alt.filter(pl.col("side") == "over").join(
-        margins, on=["game_pk", "book"], how="left").with_columns(
+        margins, on=["game_pk", "pitcher", "book"],
+        how="left").with_columns(
         pl.col("margin").fill_null(pooled_margin))
     per_rung = joined.with_columns(
         pl.struct(["price", "margin"]).map_elements(
             lambda s: american_to_raw(s["price"]) / (1.0 + s["margin"]),
             return_dtype=pl.Float64).alias("p_over_book"))
-    return per_rung.group_by("game_pk", "line").agg(
+    return per_rung.group_by("game_pk", "pitcher", "line").agg(
         pl.col("p_over_book").median().alias("p_over"),
         pl.col("book").n_unique().alias("n_books"))
 
@@ -484,9 +538,9 @@ def ladder_implied_pmf(rungs: "pl.DataFrame",
 
     k_max = k_max or ad.K_MAX
     out_rows = []
-    for gpk, g in rungs.group_by("game_pk"):
-        if isinstance(gpk, (tuple, list)):
-            gpk = gpk[0]
+    for g in rungs.partition_by(["game_pk", "pitcher"]):
+        gpk = int(g["game_pk"][0])
+        pitcher_key = g["pitcher"][0]
         rr = g.sort("line")
         lines = rr["line"].to_numpy()
         p = rr["p_over"].to_numpy()

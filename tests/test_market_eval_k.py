@@ -42,6 +42,7 @@ def test_devig_equal_prices_is_fair():
 # ------------------------------------------------- near-close selection
 def _odds_rows(**over):
     base = dict(game_pk=1, book="dk", line=6.5, side="over", price=-110,
+                pitcher="webb logan",
                 quote_timestamp=datetime(2025, 5, 1, 23, 0,
                                          tzinfo=timezone.utc),
                 snapshot="close", first_pitch_ts=datetime(
@@ -179,18 +180,159 @@ def test_near_close_selects_own_player_only_after_filter():
     out = mk.select_near_close(own)
     assert out.height == 2  # one over + one under, Webb's prices only
     assert set(out["price"].to_list()) == {-115}
-    # WITHOUT the repair: the same dedup on the unfiltered frame keeps
-    # one arbitrary row per side - here Nelson's prices win the
-    # equal-timestamp tie-break, so Webb is scored on Nelson's prices
+    # WITHOUT the repair: the identity-aware dedup keeps 4 rows for the
+    # one start - BOTH players' quotes survive (2 per bet side), which
+    # is exactly the fan-out the filter removes; the pre-repair dedup
+    # (game_pk, book, line, side) instead kept 2 with an arbitrary
+    # winner per side (Nelson's -150 on the equal-timestamp tie-break)
     unfiltered = mk.select_near_close(odds)
-    assert unfiltered.height == 2
-    assert set(unfiltered["price"].to_list()) == {-150}
+    assert unfiltered.height == 4
+    assert set(unfiltered["pitcher"].to_list()) == {"webb logan",
+                                                    "nelson ryne"}
+
+
+# --------------------------------- start-identity through the path -----
+def _two_starter_quotes():
+    """Two starters in ONE game: different lines and prices per player,
+    multiple snapshots and books. bet_side is over/under; the quoted
+    player is the start identity."""
+    ts1 = datetime(2025, 5, 1, 23, 20, tzinfo=timezone.utc)
+    ts2 = datetime(2025, 5, 1, 23, 25, tzinfo=timezone.utc)
+    fp = datetime(2025, 5, 1, 23, 30, tzinfo=timezone.utc)
+    rows = []
+    # webb: line 6.5, price -115; nelson: line 4.5, price -150
+    for who, line0, price in (("webb logan", 6.5, -115),
+                              ("nelson ryne", 4.5, -150)):
+        for side in ("over", "under"):
+            for book in ("dk", "fd"):
+                for ts in (ts1, ts2):
+                    rows.append(_odds_rows(
+                        game_pk=1, book=book, line=line0, side=side,
+                        price=price, pitcher=who,
+                        quote_timestamp=ts, first_pitch_ts=fp))
+    odds = pl.DataFrame(rows)
+    return odds.with_columns(pl.col("pitcher").alias("pitcher_key"))
+
+
+def test_two_starters_keep_distinct_consensuses():
+    """The decisive test (owner order): two starters in one game must
+    remain two distinct market records through near-close selection and
+    consensus construction."""
+    odds = _two_starter_quotes()
+    own = mk.verified_odds_for_start(odds)
+    nc = mk.select_near_close(own)
+    cons = mk.consensus_over_probs(nc)
+    assert cons.height == 2
+    assert cons["line"].to_list().count(6.5) == 1  # webb
+    assert cons["line"].to_list().count(4.5) == 1  # nelson
+    w = cons.filter(pl.col("pitcher") == "webb logan")
+    n = cons.filter(pl.col("pitcher") == "nelson ryne")
+    assert w["p_over"][0] == pytest.approx(0.5)  # balanced -115/-115
+    assert n["p_over"][0] == pytest.approx(0.5)
+    assert w["n_books"][0] == 2 and n["n_books"][0] == 2
+
+
+def test_changing_one_starter_leaves_the_other_unchanged():
+    odds = _two_starter_quotes()
+    base = mk.consensus_over_probs(mk.select_near_close(
+        mk.verified_odds_for_start(odds)))
+    # perturb ONLY nelson's OVER side (asymmetric -> de-vigged p_over moves)
+    odds2 = odds.with_columns(
+        pl.when((pl.col("pitcher") == "nelson ryne")
+                & (pl.col("side") == "over"))
+        .then(pl.col("price") - 20).otherwise(pl.col("price"))
+        .alias("price"))
+    after = mk.consensus_over_probs(mk.select_near_close(
+        mk.verified_odds_for_start(odds2)))
+    assert base.filter(pl.col("pitcher") == "webb logan").equals(
+        after.filter(pl.col("pitcher") == "webb logan"))
+    assert not base.filter(pl.col("pitcher") == "nelson ryne").equals(
+        after.filter(pl.col("pitcher") == "nelson ryne"))
+
+
+def test_dropping_one_starter_cannot_borrow_the_opponent():
+    odds = _two_starter_quotes()
+    # drop ALL of nelson's quotes
+    alone = odds.filter(pl.col("pitcher") == "webb logan")
+    cons = mk.consensus_over_probs(mk.select_near_close(
+        mk.verified_odds_for_start(alone)))
+    assert cons.height == 1
+    assert cons["pitcher"][0] == "webb logan"
+    assert cons["line"][0] == 6.5  # webb's own line, never 4.5
+
+
+def test_no_start_level_fan_out_from_snapshots_or_books():
+    """Multiple snapshots x books x bet sides must collapse to exactly
+    ONE consensus per start (dedup keys include the start identity)."""
+    odds = _two_starter_quotes()
+    own = mk.verified_odds_for_start(odds)
+    nc = mk.select_near_close(own)
+    # per start: 2 books x 2 bet sides = 4 deduped quote rows max
+    per_start = nc.group_by("game_pk", "pitcher").agg(pl.len())
+    assert (per_start["len"] <= 4).all()
+    cons = mk.consensus_over_probs(nc)
+    assert cons.select("game_pk", "pitcher").unique().height == 2
+
+
+def test_full_key_join_two_starters_same_game():
+    """The final model join must use (game_pk, side, pitcher) - two
+    starts of one game each attach their OWN consensus, and a start
+    whose consensus is missing stays unmatched instead of borrowing."""
+    pmf = [1.0 / 24] * 24
+    pmfs = pl.DataFrame({
+        "game_pk": [1, 1], "side": ["Top", "Bot"],
+        "pitcher": [111, 222], "game_date": [date(2025, 5, 1)] * 2,
+        "block": ["block_2025H1"] * 2, "realized_k": [5, 3],
+        "pmf_baseline": [pmf, pmf],
+    })
+    # consensus keyed by vendor name key; map to MLBAM ids
+    cons = pl.DataFrame({
+        "game_pk": [1, 1], "pitcher": ["webb logan", "nelson ryne"],
+        "line": [6.5, 4.5], "p_over": [0.5, 0.55], "n_books": [2, 2],
+    })
+    starts_out = pl.DataFrame({
+        "game_pk": [1, 1], "pitcher_key": ["webb logan", "nelson ryne"],
+        "side": ["Top", "Bot"], "pitcher": [111, 222],
+    })
+    cons_full = cons.join(
+        starts_out.select("game_pk", "pitcher_key", "side",
+                          pl.col("pitcher").alias("pitcher_id")),
+        left_on=["game_pk", "pitcher"],
+        right_on=["game_pk", "pitcher_key"], how="inner")
+    cons_full = cons_full.select(
+        "game_pk", pl.col("pitcher_id").alias("pitcher"), "side", "line",
+        "p_over", "n_books")
+    joined = pmfs.join(
+        cons_full.select("game_pk", "side", "pitcher", "line", "p_over",
+                         "n_books"),
+        on=["game_pk", "side", "pitcher"], how="inner")
+    assert joined.height == 2
+    webb = joined.filter(pl.col("pitcher") == 111)
+    nelson = joined.filter(pl.col("pitcher") == 222)
+    assert webb["line"][0] == 6.5 and nelson["line"][0] == 4.5
+    # drop webb's consensus: nelson still joins to HIS OWN consensus
+    cons_one = cons.filter(pl.col("pitcher") == "nelson ryne")
+    cons_full_one = cons_one.join(
+        starts_out.select("game_pk", "pitcher_key", "side",
+                          pl.col("pitcher").alias("pitcher_id")),
+        left_on=["game_pk", "pitcher"],
+        right_on=["game_pk", "pitcher_key"], how="inner")
+    cons_full_one = cons_full_one.select(
+        "game_pk", pl.col("pitcher_id").alias("pitcher"), "side", "line",
+        "p_over", "n_books")
+    joined_one = pmfs.join(
+        cons_full_one.select("game_pk", "side", "pitcher", "line",
+                             "p_over", "n_books"),
+        on=["game_pk", "side", "pitcher"], how="inner")
+    assert joined_one.height == 1
+    assert joined_one["pitcher"][0] == 222
+    assert joined_one["line"][0] == 4.5
 
 
 # ---------------------------------------------------- ladder benchmark
 def test_ladder_implied_pmf_known_curve():
     rungs = pl.DataFrame({
-        "game_pk": [1] * 7,
+        "game_pk": [1] * 7, "pitcher": ["webb logan"] * 7,
         "line": [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5],
         "p_over": [0.95, 0.85, 0.70, 0.50, 0.30, 0.15, 0.05],
     })
@@ -209,7 +351,8 @@ def test_ladder_implied_pmf_known_curve():
     assert np.all(np.diff(post) <= 1e-12)
     # monotone non-increasing input enforcement: a crossed rung is fixed
     bad = pl.DataFrame({
-        "game_pk": [2] * 3, "line": [0.5, 1.5, 2.5],
+        "game_pk": [2] * 3, "pitcher": ["x y"] * 3,
+        "line": [0.5, 1.5, 2.5],
         "p_over": [0.60, 0.90, 0.30],  # 1.5 crossing
     })
     imp2 = mk.ladder_implied_pmf(bad)
@@ -219,9 +362,11 @@ def test_ladder_implied_pmf_known_curve():
 
 
 def test_ladder_implied_pmf_requires_two_rungs_and_first_half():
-    one = pl.DataFrame({"game_pk": [3], "line": [5.5], "p_over": [0.4]})
+    one = pl.DataFrame({"game_pk": [3], "pitcher": ["x y"],
+                        "line": [5.5], "p_over": [0.4]})
     assert mk.ladder_implied_pmf(one)["status"][0] == "no_ladder"
-    wrong = pl.DataFrame({"game_pk": [4, 4], "line": [1.0, 2.0],
+    wrong = pl.DataFrame({"game_pk": [4, 4], "pitcher": ["x y", "x y"],
+                          "line": [1.0, 2.0],
                           "p_over": [0.5, 0.3]})
     assert mk.ladder_implied_pmf(wrong)["status"][0] == "no_ladder"
 
