@@ -99,6 +99,33 @@ excluded and the upstream checks still pending:
 
 - Pre-repair: **invalid, preserved**. Repaired split baselines: **corrected and reverified**. Morning scoring: paused pending this ledger.
 
+## STATUS 10 (attachment defect REPAIRED, 2026-10-22, latest) —
+The owner's code-level lead CONFIRMED and REPAIRED: attach_prior_features
+did not sort the incoming frame before the first grouped as-of join;
+request-order sensitivity was DEMONSTRATED (same 3,000 requests,
+591-621 feature mismatches by input order) and the mechanism was
+demonstrated (pre-sorting the LEFT frame eliminates it: 0 mismatches).
+PATCH: the function sorts long by game_date internally (join contract
+enforced at the function boundary; request identity preserved).
+REGRESSION TESTS: tests/test_attach_order_invariance.py (4 tests,
+chronological/shuffled/reversed invariance + pairwise equality).
+CALLER ASSESSMENT: both historical callers (build_checkpoint's
+realized-PA training frame and the ledger build) pre-sort their inputs
+chronologically — the historical training/scoring paths were NOT
+affected by the order defect. FULL-POPULATION CHECK: the patched
+function reproduces the entire 64,215-row eligible+confirm ledger slot
+population exactly (0 mismatches, all 8 features).
+P0 v2 (previous section) results re-interpreted under the repair: the
+611 pitcher-side mismatches were ORDER artifacts of the sampled
+request input, not a persistent pipeline corruption. The independent
+reproduction (Part B) and the patched attachment (this section) AGREE
+with the preserved ledger everywhere.
+SCOPE CLOSED for the attachment contract; the ledger feature path is
+VERIFIED end-to-end (frozen state tables -> attach -> stored values).
+Remaining open items are unchanged: none blocking the morning
+benchmark or the 2026 holdout protocol; morning scoring and 2026
+access remain gated by their own orders.
+
 ## P0 v2 EXECUTED (identity-safe, non-overwriting, 2026-10-22, latest)
 
 Artifact: `feature_request_p0_v4/` (write-once; partA/partB comparison
