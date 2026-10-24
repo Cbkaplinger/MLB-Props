@@ -26,7 +26,7 @@ flowchart TB
     end
 
     subgraph POLICY["Policy filter (live)"]
-        P1["kpi_policy.json<br/>edge_floor 0.12<br/>edge_cap 0.24<br/>under_lean premium<br/>DK+FD only<br/>game_cap (configured; check kpi_policy.json for active value)"]
+        P1["kpi_policy.json<br/>edge_floor 0.12<br/>edge_cap 0.24<br/>under_lean premium<br/>DK+FD only<br/>game_cap (supported up to 3;<br/>configured value: check kpi_policy.json)"]
         P2["market.py<br/>1/16-Kelly sizing<br/-> flat $50"]
     end
 
