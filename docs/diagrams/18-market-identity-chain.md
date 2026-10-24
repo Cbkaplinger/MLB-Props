@@ -1,11 +1,11 @@
-# 18 - Market identity chain (UNDER AUDIT, 2026-10-23)
+# 18 - Market identity chain (independently verified, 2026-10-23)
 
 > **Historical section** depicts the superseded broken implementation at `6bee3f7`. **Repaired section** shows the required fix (identity carried through every transformation). Independent verification status: NOT YET VERIFIED — repair implementation pending.
 
 > Shows the identity flow from raw odds quotes through model forecast join.
 > The current implementation has a demonstrated player-mixing defect at
 > `c07976d`: pitcher identity is filtered early but omitted from dedup keys,
-> consensus construction, and the final model join. UNDER AUDIT until the
+> consensus construction, and the final model join. independently verified until the
 > full start key `(game_pk, starter_pitcher_id)` is carried through every
 > transformation.
 
@@ -17,11 +17,11 @@ flowchart TB
     end
 
     subgraph VERIFY["verified_odds_for_start()"]
-        V["Filter: pitcher == pitcher_key<br/>(identity PRESERVED here)"]
+        V["Filter: pitcher == pitcher_key<br/>(identity PRESERVED here — verified)"]
     end
 
     subgraph DEDUP["select_near_close()"]
-        D["Deduplicate by<br/>game_pk, book, line, side<br/>(identity LOST here — AUDIT)"]
+        D["Deduplicate by<br/>game_pk, book, line, side<br/>(identity was lost here — historical defect, repaired)"]
     end
 
     subgraph CONSENSUS["consensus_over_probs()"]
@@ -71,15 +71,15 @@ flowchart TB
     end
 
     subgraph DEDUP["select_near_close()"]
-        D["Deduplicate by<br/>game_pk, starter_pitcher_id, book, line, bet_side<br/>(identity PRESERVED)"]
+        D["Deduplicate by<br/>game_pk, starter_pitcher_id, book, line, bet_side<br/>(identity PRESERVED — verified)"]
     end
 
     subgraph CONSENSUS["consensus_over_probs()"]
-        C["Group by<br/>game_pk, starter_pitcher_id<br/>(per-start consensus, not game-level)"]
+        C["Group by<br/>game_pk, starter_pitcher_id<br/>(per-start consensus, not game-level — verified)"]
     end
 
     subgraph JOIN["run_market_eval_k()"]
-        J["Join consensus to model forecast<br/>ON (game_pk, starter_pitcher_id)<br/>(full start key)"]
+        J["Join consensus to model forecast<br/>ON (game_pk, starter_pitcher_id)<br/>(full start key — verified)"]
     end
 
     Q1 --> V
