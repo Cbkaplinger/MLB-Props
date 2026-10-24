@@ -1,3 +1,37 @@
+# STATUS 8 (paired 2x2 lineup diagnostic, 2026-10-22, latest) —
+# PITCHER/FULL x projected/oracle lineups, identical eligible keys
+# (n=4,477 common), fits + BF forecasts + registered aggregation +
+# scoring held fixed; only the lineup input changed. ORACLE = the
+# actual first-appearance batting order (realized lineup identity;
+# labeled ORACLE, never deployable pregame).
+#   PITCHER: projected RPS 1.29880 | oracle 1.26879 (control delta
+#     -0.0300 — NOTE: the control is NOT clean; it measures the
+#     feature-construction difference between the ledger slot path and
+#     the pa_table PA path, not batter identity, since PITCHER-only
+#     probabilities are batter-independent)
+#   FULL:    projected RPS 1.28419 | oracle 1.24548 (delta -0.0387)
+#   FULL - PITCHER | projected: -0.01462 CI [-0.02245, -0.00668]
+#   FULL - PITCHER | oracle:    -0.02331 CI [-0.03088, -0.01587]
+#   CHANGE in (FULL-PITCHER), projected -> oracle: -0.00869
+#     CI [-0.01219, -0.00514]
+# FINDINGS:
+# 1. The "batter features hurt count-RPS" reversal DOES NOT EXIST on
+#    the valid population: the earlier ablation count-RPS was computed
+#    on ~277 starts/block where all nine projected batters happened to
+#    bat (a long-game skew artifact). RETRACTED; the ablation record
+#    carries the correction.
+# 2. On the correct population (ledger-projected nine slots, all
+#    4,823 starts), FULL beats PITCHER-only on count-RPS — consistent
+#    with the per-PA ordering. Lineup-projection error is NOT
+#    demonstrated as a count-layer problem; the oracle slightly
+#    WIDENS FULL's advantage (supporting batter features as a
+#    contributor, not a liability).
+# 3. Contributor framing per owner: the oracle result SUPPORTS lineup
+#    identity as a benign-to-helpful input; it does not exclude
+#    calibration, workload, or aggregation contributions.
+# The per-PA loss ordering and the market baselines (STATUS 7) are
+# unaffected.
+#
 # STATUS 7 (cohort-split baseline + early-market coverage, 2026-10-22,
 # latest) — per owner order the cohorts are now REPORTED SEPARATELY
 # (they are different benchmarks, never pooled into one effect):

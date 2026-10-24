@@ -1,6 +1,19 @@
 # RESULTS — feature-set ablation v1 (real data, dev blocks, walk-forward)
 # (2026-10-22; model metrics ONLY per owner order - the market gap is
 #  never used for selection)
+#
+# CORRECTION (2026-10-22, after the owner-ordered 2x2 lineup
+# diagnostic): the count-RPS column below was computed on a SMALL,
+# SKEWED subset - starts where all NINE projected batters happened to
+# record a realized PA (~277 starts/block; shallow lineup slots bat
+# only in long games). On the correct population (the ledger's
+# projected nine slots, all 4,823 starts), the ordering INVERTS:
+# FULL beats PITCHER-only on count-RPS (-0.0146, CI [-0.0225,
+# -0.0067]) - consistent with the per-PA log-loss ordering. The
+# "batter features hurt the count layer" finding is RETRACTED as an
+# artifact of slot coverage. See the 2x2 diagnostic in
+# results_market_eval_k_v1/RESULT_RECORD.md (STATUS 8). The multiclass
+# and K-marginal log-loss columns (all eval PAs, 82,817) stand.
 
 Setup: train = 2023-01-01..(block train_end - 60d), eval = the
 registered dev starts' pitcher-matched PAs (82,817) per block;
