@@ -170,19 +170,20 @@ def test_near_close_selects_own_player_only_after_filter():
                                    side=side, price=price,
                                    quote_timestamp=ts, first_pitch_ts=fp))
     odds = pl.DataFrame(rows)
+    # one start (key = webb logan); the event carries BOTH players'
+    # quotes - the contamination the repair removes
     odds = odds.with_columns(pl.lit("webb logan").alias("pitcher_key"))
     own = mk.verified_odds_for_start(odds)
+    assert (own["pitcher"] == own["pitcher_key"]).all()
     out = mk.select_near_close(own)
     assert out.height == 2  # one over + one under, Webb's prices only
     assert set(out["price"].to_list()) == {-115}
-    # without the filter, the dedup would keep 2 rows but with MIXED
-    # provenance (one price per side from whichever player sorted last)
-    unfiltered = mk.select_near_close(odds.with_columns(
-        pl.lit("webb logan").alias("pitcher_key"),
-        pl.lit(None, dtype=pl.Utf8).alias("_drop")))
+    # WITHOUT the repair: the same dedup on the unfiltered frame keeps
+    # one arbitrary row per side - here Nelson's prices win the
+    # equal-timestamp tie-break, so Webb is scored on Nelson's prices
+    unfiltered = mk.select_near_close(odds)
     assert unfiltered.height == 2
-    mixed_prices = set(unfiltered["price"].to_list())
-    assert mixed_prices == {-115, -150}  # the contamination signature
+    assert set(unfiltered["price"].to_list()) == {-150}
 
 
 # ---------------------------------------------------- ladder benchmark
