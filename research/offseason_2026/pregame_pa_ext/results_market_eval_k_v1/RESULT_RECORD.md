@@ -1,6 +1,35 @@
 # RESULT RECORD — market eval: pitcher_strikeouts vs the near-close line
 # (executed once 2026-10-22; dev blocks only, confirm untouched)
 #
+# STATUS 4 (join repaired + rescored, 2026-10-22, latest) —
+# DEMONSTRATED DEFECT: the odds task frame attached a matched event's
+# game_pk to ALL its quotes; 419,041 of 825,326 rows (50.8%) quoted the
+# OPPOSING starter, and the per-(game_pk, book, line, side) dedup mixed
+# the two players' prices arbitrarily. REPAIRED by an identity filter
+# (verified_odds_for_start: quoted player == matched start's own key;
+# no outcomes/correlations involved) with regression tests.
+# Candidate-level audit (match_audit_v1, write-once): only 2
+# demonstrated wrong-EVENT picks from the +/-1-day tolerance (of 2,161),
+# 3 ambiguous doubleheader candidates, 86 starts without a
+# normalized-exact-date candidate. Correlation thresholds REMOVED as
+# acceptance criteria per owner correction; the standard is identity.
+# RESCORE (2025H1 true T-5 closes, common cohort n=2,233; full repaired
+# cohort n=4,515; 419,041 contaminated quotes + minor event drops
+# disclosed):
+#   close 0.6940 | dumb baseline 0.6603 (gap -0.0337) |
+#   frozen model 0.6572 (gap -0.0368)   [2025H1]
+#   close 0.6908 | dumb baseline 0.6616 (gap -0.0292) |
+#   frozen model 0.6533 (gap -0.0375)   [full repaired]
+# INTERPRETATION (bounded): the repair did NOT collapse the gap, so
+# "the entire apparent edge came from mismatched games" is NOT
+# demonstrated. Neither is an edge: the one-parameter baseline still
+# matches the model to ~0.003, the encompassing test remains
+# non-significant, and the principal-line de-vig price is ~50/50 by
+# market design (the standing hypothesis for why ANY K-rate model beats
+# it; testable only against a two-sided ladder, i.e. the 2026 Kalshi
+# benchmark). The market comparison remains SUSPENDED as a decision
+# input; 2024 stays prior-evening lines; no 2026 run.
+#
 # STATUS 3 (owner-ordered join-validity audit, 2026-10-22, latest) —
 # **THE MARKET COMPARISON IS UNDER AUDIT; THE JOIN FAILED VALIDITY.**
 # RETRACTED: any framing that the -0.034 gap is model skill.
