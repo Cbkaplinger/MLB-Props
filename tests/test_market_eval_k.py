@@ -132,6 +132,59 @@ def test_model_p_over_known_pmf():
         mk.model_p_over(np.ones(23), 5.5)
 
 
+# ------------------------------------------- join repair (identity) ----
+def test_verified_odds_filters_opposing_starter_quotes():
+    """Regression for the DEMONSTRATED join defect (owner order
+    2026-10-22): the odds task frame attaches a matched event's game_pk
+    to EVERY quote under that event, including the opposing starter's
+    (measured 50.8% of real rows). The identity filter keeps only rows
+    whose quoted player equals the matched start's own key."""
+    odds = pl.DataFrame({
+        "game_pk": [1, 1, 1, 1],
+        # quoted player key: two starters share the event
+        "pitcher": ["webb logan", "nelson ryne", "webb logan",
+                    "nelson ryne"],
+        "pitcher_key": ["webb logan", "webb logan", "nelson ryne",
+                        "nelson ryne"],
+        "book": ["dk"] * 4, "line": [6.5] * 4,
+        "side": ["over", "over", "over", "over"], "price": [-110] * 4,
+    })
+    out = mk.verified_odds_for_start(odds)
+    assert out.height == 2
+    # every surviving row quotes its OWN start's player
+    assert (out["pitcher"] == out["pitcher_key"]).all()
+    with pytest.raises(ValueError):
+        mk.verified_odds_for_start(odds.drop("pitcher_key"))
+
+
+def test_near_close_selects_own_player_only_after_filter():
+    """End-to-end of the repair at the near-close layer: the stale
+    behavior (mixing both starters' prices at the same (game_pk, book,
+    line, side)) must be impossible once the identity filter runs."""
+    ts = datetime(2025, 5, 1, 23, 25, tzinfo=timezone.utc)
+    fp = datetime(2025, 5, 1, 23, 30, tzinfo=timezone.utc)
+    rows = []
+    for who, price in (("webb logan", -115), ("nelson ryne", -150)):
+        for side in ("over", "under"):
+            rows.append(_odds_rows(game_pk=1, book="dk", line=6.5,
+                                   side=side, price=price,
+                                   quote_timestamp=ts, first_pitch_ts=fp))
+    odds = pl.DataFrame(rows)
+    odds = odds.with_columns(pl.lit("webb logan").alias("pitcher_key"))
+    own = mk.verified_odds_for_start(odds)
+    out = mk.select_near_close(own)
+    assert out.height == 2  # one over + one under, Webb's prices only
+    assert set(out["price"].to_list()) == {-115}
+    # without the filter, the dedup would keep 2 rows but with MIXED
+    # provenance (one price per side from whichever player sorted last)
+    unfiltered = mk.select_near_close(odds.with_columns(
+        pl.lit("webb logan").alias("pitcher_key"),
+        pl.lit(None, dtype=pl.Utf8).alias("_drop")))
+    assert unfiltered.height == 2
+    mixed_prices = set(unfiltered["price"].to_list())
+    assert mixed_prices == {-115, -150}  # the contamination signature
+
+
 # ---------------------------------------------------- ladder benchmark
 def test_ladder_implied_pmf_known_curve():
     rungs = pl.DataFrame({

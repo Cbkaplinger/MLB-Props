@@ -3,24 +3,24 @@
 #
 # STATUS 3 (owner-ordered join-validity audit, 2026-10-22, latest) —
 # **THE MARKET COMPARISON IS UNDER AUDIT; THE JOIN FAILED VALIDITY.**
-# RETRACTED: any framing that the -0.034 gap is model skill. Evidence:
-# (a) line<->realized-K correlation is only 0.206 and line<->model-mean
-# only 0.381 over the 2,245 true-close starts (a correctly matched
-# closing line should sit ~0.5-0.7 against realized K) — the attached
-# lines carry almost no start-specific information;
+# RETRACTED: any framing that the -0.034 gap is model skill.
+# OWNER CORRECTION ADOPTED: low correlation is a WARNING, not proof of
+# wrong matches, and NO correlation threshold is used as a
+# join-acceptance criterion (the earlier "~0.5-0.7 expected" gate is
+# REMOVED). The acceptance standard is IDENTITY: does this quote belong
+# to this pitcher, in this particular game, at the claimed time?
+# Evidence still standing (as warnings, not proof):
+# (a) line<->realized-K correlation 0.206, line<->model-mean 0.381
+# over the 2,245 true-close starts;
 # (b) the line's MAE (1.985) EQUALS a constant league-mean predictor's
-# MAE (1.985) — the matched lines add nothing over a constant;
-# (c) 505 of 2,161 matched events (23%) are matched at a +/-1 DAY date
-# tolerance, where doubleheaders and adjacent series make wrong-event
-# matches likely (the earlier 48.9% exact-name figure was a check-side
-# fan-out artifact, not a join defect — the id map is clean);
-# (d) a one-parameter baseline "beats" the close by -0.0305 — with
-# uninformative lines, ANY model with real signal beats them.
+# MAE (1.985) — the matched lines added nothing over a constant;
+# (c) 505 of 2,161 matched events used a +/-1 DAY date tolerance (an
+# ambiguity RISK, not a demonstrated defect count);
+# (d) a one-parameter baseline "beat" the close by -0.0305 — consistent
+# with uninformative matches but not proof of them.
 # CONSEQUENCE: the close, dumb-baseline and model gaps in this record
-# are NOT interpretable until the event join is fixed (date-tolerance
-# redesign + per-start event verification) and all three are rescored.
-# The dumb-baseline test (owner hypothesis) is nevertheless CONFIRMED
-# in its purpose: the earlier headline was not model skill.
+# are NOT interpretable until the event join is repaired by identity
+# and time evidence and all three are rescored.
 #
 # STATUS 1 (earlier): the ladder benchmark CANNOT be run validly from
 # the held archive - the alternate market is OVER-SIDE ONLY (under

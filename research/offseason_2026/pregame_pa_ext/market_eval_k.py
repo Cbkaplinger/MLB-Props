@@ -278,15 +278,27 @@ def run_market_eval_k(model_pmfs: "pl.DataFrame", out_dir, *,
                             encoding="utf-8")
     initial_sha = ad.sha256_file(initial_path)
     try:
-        # stage 1: the tested odds-coverage join (dev window only)
+        # stage 1: the tested odds-coverage join (dev window only),
+        # REPAIRED: filter quotes to the matched start's own player
+        # (identity evidence; the old per-(game_pk, book, line, side)
+        # dedup mixed both starters' prices - 50.8% of rows were the
+        # opposing pitcher's)
         starts_out, odds, join_meta = jc.build_task_frames(
             Path(book_lines_path), Path(envelope_path),
             ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet",
             [MARKET], window_start=DEV_WINDOW_START,
             window_end=DEV_WINDOW_END)
         odds = odds.join(
-            starts_out.select("game_pk", "first_pitch_ts", "has_commence"),
+            starts_out.select("game_pk", "pitcher_key", "first_pitch_ts",
+                              "has_commence"),
             on="game_pk", how="inner")
+        n_all_quotes = odds.height
+        odds = verified_odds_for_start(odds)
+        join_meta = {**join_meta,
+                     "quotes_total": n_all_quotes,
+                     "quotes_own_player": odds.height,
+                     "quotes_other_player_dropped":
+                         n_all_quotes - odds.height}
 
         # stage 2: near-close + consensus
         near_close = select_near_close(odds)
@@ -392,6 +404,24 @@ def cmp_bootstrap(per: dict, joined: "pl.DataFrame", *, n_boot: int,
 
 
 # ----------------------------------------------------- ladder benchmark
+def verified_odds_for_start(odds: "pl.DataFrame") -> "pl.DataFrame":
+    """IDENTITY FILTER (join repair, owner order 2026-10-22): the odds
+    task frame carries EVERY quote under a matched event - including the
+    opposing starter's (demonstrated: 50.8% of rows quote the other
+    pitcher; the old per-(game_pk, book, line, side) dedup then mixed
+    the two players' prices arbitrarily). Keep only rows whose QUOTED
+    player (the `pitcher` key column) equals the matched start's own
+    key. Pure identity evidence - no outcomes, predictions or
+    correlations involved."""
+    import polars as pl
+
+    need = {"game_pk", "pitcher", "pitcher_key"}
+    missing = need - set(odds.columns)
+    if missing:
+        raise ValueError(f"odds frame missing columns: {sorted(missing)}")
+    return odds.filter(pl.col("pitcher") == pl.col("pitcher_key"))
+
+
 def book_margins_from_two_sided(nc_main: "pl.DataFrame") -> "pl.DataFrame":
     """Per (game_pk, book): the book's vig margin (o_raw + u_raw - 1)
     from the PRINCIPAL market's two-sided near-close quotes. Falls back
@@ -599,10 +629,12 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
             ["pitcher_strikeouts"],
             window_start=DEV_WINDOW_START, window_end=DEV_WINDOW_END)
         odds_m = odds_m.join(
-            starts_m.select("game_pk", "first_pitch_ts", "has_commence"),
+            starts_m.select("game_pk", "pitcher_key", "first_pitch_ts",
+                            "has_commence"),
             on="game_pk", how="inner")
         if tier_a_only:
             odds_m = odds_m.filter(pl.col("has_commence"))
+        odds_m = verified_odds_for_start(odds_m)
         nc_main = select_near_close(odds_m)
         margins, pooled_margin = book_margins_from_two_sided(nc_main)
 
@@ -612,11 +644,12 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
             ["pitcher_strikeouts_alternate"],
             window_start=DEV_WINDOW_START, window_end=DEV_WINDOW_END)
         odds = odds.join(
-            starts_out.select("game_pk", "first_pitch_ts", "has_commence",
-                              "game_date"),
+            starts_out.select("game_pk", "pitcher_key", "first_pitch_ts",
+                              "has_commence", "game_date"),
             on="game_pk", how="inner")
         if tier_a_only:
             odds = odds.filter(pl.col("has_commence"))
+        odds = verified_odds_for_start(odds)
         nc = select_near_close(odds)
         rungs = ladder_rung_probs(nc, margins, pooled_margin)
         implied = ladder_implied_pmf(rungs)
