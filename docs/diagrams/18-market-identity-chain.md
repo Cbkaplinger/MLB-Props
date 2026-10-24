@@ -25,11 +25,11 @@ flowchart TB
     end
 
     subgraph CONSENSUS["consensus_over_probs()"]
-        C["Pivot/group by<br/>game_pk, book, line<br/>(both starters collapsed<br/>into one game-level market — AUDIT)"]
+        C["Pivot/group by<br/>game_pk, book, line<br/>(both starters collapsed<br/>into one game-level market — HISTORICAL DEFECT, repaired in the current implementation)"]
     end
 
     subgraph JOIN["run_market_eval_k()"]
-        J["Join consensus to model forecast<br/>ON game_pk alone<br/>(same consensus attached to<br/>both starters — AUDIT)"]
+        J["Join consensus to model forecast<br/>ON game_pk alone<br/>(same consensus attached to<br/>both starters — HISTORICAL DEFECT, repaired in the current implementation)"]
     end
 
     subgraph TARGET["Required behavior"]
@@ -92,7 +92,7 @@ flowchart TB
     J -.-> T
 ```
 
-## Unverified until independently checked
+## Verification status: independently verified at the reviewed research SHA
 
 - Both starters retain their own consensus when present in the same game.
 - Dropping one starter's quotes cannot borrow the opponent's consensus.
