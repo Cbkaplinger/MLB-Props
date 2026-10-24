@@ -1,5 +1,35 @@
-# RESULT RECORD — market eval: pitcher_strikeouts vs the near-close line
-# (executed once 2026-10-22; dev blocks only, confirm untouched)
+# STATUS 6 (accounting reconciliation + quote audit, 2026-10-22, latest)
+# — FUNNEL (reconciled exactly): 825,326 quotes -> 406,285 own-player
+# (419,041 dropped by the identity filter) -> 82,722 near-close ->
+# 4,358 consensuses -> [bridge1 vendor-key->id: 0 unmatched] ->
+# 4,336 model-cohort eligible (22 excluded: ALL absent from the model
+# frame entirely - probable starters who never started the game; 0
+# block-filtered) -> 4,336 final scored (0 lost at the final join).
+# The old metric name "consensus_unmatched_to_model" was MISLEADING
+# (it measured the vendor-key->id bridge); renamed
+# "consensus_unmatched_to_start_bridge".
+# QUOTE-SELECTION AUDIT TABLE (write-once,
+# quote_selection_audit.parquet, 82,373 rows = 4,336 starts x their
+# selected near-close quote rows): per row - game_pk, canonical
+# pitcher_id, vendor_player_key, team_side, bet_side, book, line,
+# price, quote_timestamp, bet_clock_snapshot; plus the matched event
+# linkage for all 2,154 2025H1 starts (2,182 2024 prior-evening starts
+# carry full quote provenance; their candidate-audit event linkage was
+# 2025H1-scoped and is disclosed as absent). team_side vs bet_side are
+# now DISTINCT fields (the first audit build mislabeled team side as
+# bet_side - fixed).
+# LADDER HELPER: ladder_implied_pmf output records now carry the
+# pitcher key on EVERY row including no_ladder cases (regression
+# tested); the ladder benchmark itself stays blocked and was not run.
+# PAIRED RESULTS (unchanged from STATUS 5; scored parquet
+# 1d9a00343d17956f; receipt d652e42a... / 6f69286c41765bb0...):
+#   2025H1 (n=2,154): close 0.6890 | dumb +0.0254 | model +0.0234
+#   full repaired (n=4,336): close 0.6859 | dumb +0.0379 |
+#     model +0.0303; Brier close 0.2464 vs model 0.2596
+#   decision: model_not_better_than_close (CI [+0.0236, +0.0373] on the
+#   full cohort). Code SHA for the recorded run: 23db50d (the runner's
+#   metric RENAME and the ladder-helper identity fix postdate the run
+#   and change no scored number).
 #
 # STATUS 5 (full-key identity repair + rescore, 2026-10-22, FINAL) —
 # The identity repair is COMPLETE: pitcher identity now flows through

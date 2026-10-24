@@ -362,7 +362,11 @@ def run_market_eval_k(model_pmfs: "pl.DataFrame", out_dir, *,
         coverage = {
             "model_starts_total": int(pmfs.height),
             "consensus_starts_total": int(cons.height),
-            "consensus_unmatched_to_model": int(n_unmatched_consensus),
+            # the vendor-name-key -> MLBAM-id bridge: an unmatched row
+            # here means the bridge failed, NOT that the model cohort
+            # excluded it (the funnel reconciliation separates the two)
+            "consensus_unmatched_to_start_bridge":
+                int(n_unmatched_consensus),
             "starts_with_near_close_consensus": int(joined.height),
             "joined_start_key_unique": int(
                 joined.select("game_pk", "side", "pitcher").unique()
@@ -549,7 +553,8 @@ def ladder_implied_pmf(rungs: "pl.DataFrame",
         p = np.minimum.accumulate(p)
         p = np.clip(p, 0.0, 1.0)
         if len(p) < 2 or lines[0] != 0.5:
-            out_rows.append({"game_pk": gpk, "pmf": None,
+            out_rows.append({"game_pk": gpk, "pitcher": pitcher_key,
+                             "pmf": None,
                              "n_rungs": int(len(lines)),
                              "status": "no_ladder"})
             continue
@@ -560,7 +565,8 @@ def ladder_implied_pmf(rungs: "pl.DataFrame",
         needed = np.arange(0.5, last + 0.001, 1.0)
         have = {round(float(l), 3): float(v) for l, v in zip(lines, p)}
         if any(round(float(l), 3) not in have for l in needed):
-            out_rows.append({"game_pk": gpk, "pmf": None,
+            out_rows.append({"game_pk": gpk, "pitcher": pitcher_key,
+                             "pmf": None,
                              "n_rungs": int(len(lines)),
                              "status": "no_ladder"})
             continue
@@ -578,12 +584,14 @@ def ladder_implied_pmf(rungs: "pl.DataFrame",
             pmf[k] = max(curve[k - 1] - curve[k], 0.0)
         pmf[k_max - 1] = curve[-1]
         if pmf.sum() <= 0 or np.isnan(pmf).any():
-            out_rows.append({"game_pk": gpk, "pmf": None,
+            out_rows.append({"game_pk": gpk, "pitcher": pitcher_key,
+                             "pmf": None,
                              "n_rungs": int(len(lines)),
                              "status": "no_ladder"})
             continue
         pmf = pmf / pmf.sum()
-        out_rows.append({"game_pk": gpk, "pmf": pmf.tolist(),
+        out_rows.append({"game_pk": gpk, "pitcher": pitcher_key,
+                         "pmf": pmf.tolist(),
                          "n_rungs": int(len(lines)),
                          "status": "ok"})
     return pl.DataFrame(out_rows)

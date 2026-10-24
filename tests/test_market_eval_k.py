@@ -364,7 +364,10 @@ def test_ladder_implied_pmf_known_curve():
 def test_ladder_implied_pmf_requires_two_rungs_and_first_half():
     one = pl.DataFrame({"game_pk": [3], "pitcher": ["x y"],
                         "line": [5.5], "p_over": [0.4]})
-    assert mk.ladder_implied_pmf(one)["status"][0] == "no_ladder"
+    r = mk.ladder_implied_pmf(one)
+    assert r["status"][0] == "no_ladder"
+    # identity survives every output boundary, including no_ladder rows
+    assert r["pitcher"][0] == "x y"
     wrong = pl.DataFrame({"game_pk": [4, 4], "pitcher": ["x y", "x y"],
                           "line": [1.0, 2.0],
                           "p_over": [0.5, 0.3]})
