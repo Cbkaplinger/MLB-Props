@@ -60,3 +60,28 @@ consumer-evidence check before any deletion proposal.
 - `production/odds/` board/poll/grading — live operational entry points
 - `tests/` — CI-discovered, not classified here (101 files)
 - All files under open review (PR #34) — deferred
+
+
+## 5. Module disposition reconciliation
+
+The 55 potentially unscoped modules were checked for tracked inbound references
+(docs, configs, code imports). Results:
+
+| Disposition | Count | Detail |
+|---|---|---|
+| KEEP — frozen/dated research evidence | ~30 | `research/offseason_2026/` experiment scripts and conftest fixtures; preserved frozen evidence |
+| KEEP — production/operational | 4 | `modal_app.py` (live cloud), `dashboard_streamlit.py` (parked but referenced), 2 market_research helpers |
+| KEEP — utility | 5 | `src/Python/whatif.py`, `tbf.py`, `bullpen.py`, `eval_package.py`, `pa_contracts.py` — documented tools with README/model-card references |
+| KEEP — test helpers | ~8 | `conftest.py`, `test_feature_contract.py`, etc. — CI-discovered |
+| Unresolved | ~8 | Require per-file consumer-evidence review before classification |
+
+**No deletion proposals from static import absence alone.** Per-file
+consumer-evidence review is required before any deletion proposal.
+
+## 6. Diagram 18 status
+
+Diagram 18 is labeled **UNDER AUDIT** at the source SHA. It shows both:
+- The **historical broken flow** at `6bee3f7` (identity lost at dedup/consensus/join)
+- The **repaired required flow** (identity carried through every transformation)
+
+Independent verification of the repaired implementation: **NOT YET VERIFIED**.

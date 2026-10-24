@@ -24,7 +24,7 @@ conflict.
 | Builder | Chat 1 | Scientific implementation, project-state page |
 | Trailing reviewer / fixer | Chat 2 | Independent review, bounded repairs, GitHub-side actions |
 | Cleanup (temporary) | Chat 3 | Documentation contradictions, indexes, archiving, doc budget |
-| Coordinator | Owner | Real-outcome execution, deletions, protected paths, promotion |
+| Coordinator | Owner | Real-outcome execution, deletions, protected paths, promotion, the private research lake. Sole holder of the blinding question (INCIDENT.md). |
 
 ## Worktree ownership
 
