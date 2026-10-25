@@ -47,27 +47,29 @@
 
 ## 4. Invalid historical results (preserved, superseded)
 
-| result | defect | replacement |
+| Invalid historical result | Defect class | Replacement |
 |---|---|---|
 | Pre-repair market comparisons (morning/close mixed) | D1: opposing-starter quote mixing | full-key repaired market eval |
 | Pre-repair morning v1 (tie-sensitive) | D1 residual + nondeterministic ties | morning_vs_close_v2_tie_v2 |
-| Ablation count-RPS 1.29880/1.28419 | D2: realized-PA slot conditioning | ablation_count_rps_canonical_v2 |
-| Ablation count-RPS 1.31602/1.33354 | D2 variant (different training window derivation) | ablation_count_rps_canonical_v2 (1.33457/1.31744) |
-| C-B1 lineup-effect interaction | D3: control invariant FAILED | interpretation stopped |
-| 277-start "batter features hurt count-RPS" | D2 artifact | retracted; count ordering agrees with per-PA |
-| 150-row "different history source" | audit-side fan-out | retracted |
+| Ablation count-RPS 1.29880/1.28419 | D2: realized-PA slot conditioning (277-start defect) | ablation_count_rps_canonical_v2 |
+| Interim "1.31602/1.33354" ablation count-RPS | D2 variant (different training window derivation) | ablation_count_rps_canonical_v2 (1.33457/1.31744) |
+| Lineup-diagnostic interaction −0.0087 | D3: control invariant FAILED (feature-path divergence) | interpretation stopped; resolution options documented |
+| "Batter features hurt count-RPS" (277-start) | D2 artifact | retracted; count ordering agrees with per-PA on the correct population |
+| "150-row different history source" | audit-side fan-out (game_pk+slot not unique) | retracted |
+| M0 descriptive count-RPS "edge" | market-comparison artifact (identity defects) | quarantined; close is the verified benchmark and it wins |
 
 ## 5. Accepted results
 
 | result | metric | values |
 |---|---|---|
-| Ablation count-RPS (canonical) | count-RPS, 4,823 starts | PITCHER 1.33457, FULL 1.31744, frozen 1.31761 |
+| Ablation count-RPS (canonical v2) | count-RPS, 4,823 starts | PITCHER 1.33457, FULL 1.31744; FULL − PITCHER = −0.01712 CI [−0.0249, −0.0092] |
+| Ablation vs frozen binary | count-RPS, same 4,823 keys | FULL 1.31744, frozen 1.31761; FULL − frozen = −0.00017 CI [−0.00037, +0.00003] (includes zero — no improvement established; FULL has the slightly lower observed RPS) |
 | Ablation PA log loss | multiclass LL, 82,817 PAs | LEAGUE 1.2376, PITCHER 1.2319, FULL 1.2231 |
 | M0 EP1 | K-marginal LL delta | −0.0000073, CI upper +0.0000061 (PASS) |
 | M0 EP2 | multiclass LL vs baselines | 1.2241 < 1.2263 (log5) < 1.2377 (league) (PASS) |
-| Market baseline (2025H1 T-5) | LL vs close, n=2,154 | model +0.0234 CI [+0.0142, +0.0330] |
-| Morning baseline (T-5h) | LL vs morning, n=2,109 | model +0.0225 CI [+0.0141, +0.0307] |
-| C-B1 | count-RPS delta | +0.0859 CI [+0.0719, +0.0997] (LOST, closed) |
+| Market baseline (2025H1 T-5, v2 tie fix) | LL vs close, n=2,109 | model +0.0227 CI [+0.0139, +0.0317] |
+| Morning baseline (T-5h, v2 tie fix) | LL vs morning, n=2,109 | model +0.0224 CI [+0.0139, +0.0305] |
+| C-B1 exposure profile | count-RPS delta | +0.0859 CI [+0.0719, +0.0997] (LOST, closed) |
 
 ## 6. Remaining limitations
 
@@ -76,9 +78,11 @@
   construction, not timestamp-verified.
 - The 2024 "close" snapshots are prior-evening lines (T-17..25h);
   no 2024 true-close data exists in the held archive.
-- The frozen binary's count-RPS advantage over the multinomial model
-  is ~0.00017 with CI including zero — no improvement is demonstrated,
-  but the direction is consistent across both dev blocks.
+- The frozen binary's count-RPS (1.31761) is marginally HIGHER than
+  FULL's (1.31744) — FULL has the slightly lower observed RPS. The
+  CI [−0.00037, +0.00003] includes zero, so no improvement over the
+  frozen binary is established. The direction is consistent across
+  both dev blocks.
 - The 150-slot P0 history-source mismatch (4.8%) is resolved at the
   outcome level (0 mismatches after the order repair) but the root
   cause of the original 150-row discrepancy was an audit-side artifact,
@@ -94,22 +98,17 @@
 - Calibration experiment for the frozen K-count PMF (drafted, not
   executed — see below)
 
-## 8. Calibration experiment DRAFT (not executed)
+## 8. Calibration experiment DRAFT (standalone card)
 
-Objective: improve the frozen K-count PMF's count-RPS via a
-calibration layer, without changing the PA model or the BF forecast.
+A standalone card has been drafted at
+`card_count_pmf_calibration_2026-10-24.md`. Key design decisions:
 
-Design:
-- Fit a calibration mapping on the development blocks
-  (chronological, walk-forward; same fit/cal split as the ablation).
-- Candidate mappings: temperature scaling on the per-PA K probability;
-  isotonic regression on the count-PMF CDF; per-BF-band rate
-  adjustment.
-- Evaluation: count-RPS (primary) on the identical 4,823-start
-  population; calibration diagnostics (reliability buckets) and
-  own-line LL/Brier (secondary).
-- Constraint: coherent nonnegative normalized PMFs; no selecting
-  calibration to maximize the sportsbook gap; the close benchmark is
-  reported but never used for selection.
-- Stop condition: if walk-forward count-RPS does not improve, close
-  without deploying.
+- Layer: count-PMF (not PA-level) — the calibrator maps the final 24-bucket CDF.
+- Method: linear CDF recalibration (one method, two parameters a,b).
+- Comparator: identity mapping (a=1, b=0).
+- Chronological separation: fit on block_2024H2 scored starts; score on block_2025H1 (disjoint, later).
+- PMF provenance: count_agg_eval_v1 pmf_baseline — out-of-sample walk-forward forecasts by construction.
+- Primary metric: paired count-RPS on the identical block_2025H1 starts.
+- Acceptance: upper paired 95% CI bound < 0.
+- Stop conditions: <1,000 calibration starts; `a` outside [0.5, 2.0]; PMF invariant violation; non-stationary walk-forward.
+- NOT EXECUTED — requires the registered gate and owner authorization.

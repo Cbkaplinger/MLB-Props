@@ -190,8 +190,8 @@ def consensus_over_probs(near_close: "pl.DataFrame") -> "pl.DataFrame":
         (pl.col("n_books") == pl.col("max_books"))
     ).with_columns(
         (pl.col("line") - pl.col("median_line")).abs().alias("dist"))
-    chosen = chosen.sort("dist").unique(subset=["game_pk", "pitcher"],
-                                        keep="first")
+    chosen = chosen.sort(["dist", "line"]).unique(
+        subset=["game_pk", "pitcher"], keep="first")
     return chosen.select("game_pk", "pitcher", "line", "p_over",
                          "n_books")
 
