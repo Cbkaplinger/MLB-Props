@@ -5,13 +5,21 @@
 # CORRECTION (2026-10-22, final): the count-RPS column below was
 # computed on a SMALL, SKEWED subset - starts where all NINE projected
 # batters happened to record a realized PA (117/2,314 + 160/2,509 =
-# 277/4,823, 5.7%). CORRECTED count-RPS on the INTENDED cohort (the
-# ledger's projected nine slots, all 4,823 eligible starts, same fits
-# and settings): PITCHER-only 1.29880, FULL 1.28419 - FULL BEATS
-# PITCHER-only by -0.0146 (paired CI [-0.0225, -0.0067]; the 4,477-key
-# common-cohort variant is consistent). The "batter features hurt the
-# count layer" finding is RETRACTED as an artifact of slot coverage;
-# the count ordering now AGREES with the per-PA ordering. The
+# 277/4,823, 5.7%). The 1.29880/1.28419 figures cited in an interim
+# report were WITHDRAWN (they were sourced from the invalid 4,477-key
+# lineup diagnostic, not this ablation).
+# CANONICAL count-RPS on the INTENDED cohort (all 4,823 eligible
+# starts, ledger-projected nine slots, same fits/settings; committed
+# runner ablation_count_rps.py, write-once bundle
+# ablation_count_rps_canonical_v1/): PITCHER-only 1.33354, FULL
+# 1.31602 - FULL beats PITCHER-only by -0.0175 (paired CI
+# [-0.0252, -0.0097]). Chat 2's independent reproduction: 1.33457 /
+# 1.31744 (same direction; ~0.001 delta vs the canonical bundle
+# pending reconciliation via the published per-start outputs). The
+# frozen binary's registered 1.31761 is reported alongside; claiming
+# improvement over it requires identical keys + a paired estimate
+# (not yet established). The "batter features hurt the count layer"
+# finding is RETRACTED as an artifact of slot coverage. The
 # multiclass and K-marginal log-loss columns (all eval PAs, 82,817)
 # stand unchanged.
 

@@ -13,12 +13,12 @@ vs market 0.2479.
 
 ## Reading
 
-The close and the morning quote carry nearly identical information
-about these starts: the model loses to BOTH by ~0.023 log loss, and
-the two deficits are statistically indistinguishable from each other.
-No originator-style "value before the market moves" signal exists in
-this frozen model on this cohort. The morning benchmark does not
-create an opening the close denies.
+On this 2,109-start development cohort, the frozen model loses to both
+benchmarks on average at their respective quoted lines: morning
+(+0.0225) and near-close (+0.0229). There is **no demonstrated
+aggregate early-market advantage for this frozen model**. Log loss
+measures probability accuracy, not profitability; no claim is made
+about betting returns.
 
 ## Complete-cohort near-close baseline (SEPARATE, n=4,336)
 
