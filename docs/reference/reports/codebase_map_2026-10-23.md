@@ -80,8 +80,8 @@ consumer-evidence review is required before any deletion proposal.
 
 ## 6. Diagram 18 status
 
-Diagram 18 is labeled **UNDER AUDIT** at the source SHA. It shows both:
+Diagram 18 is labeled **HISTORICAL DEFECT (repaired)** at the source SHA. It shows both:
 - The **historical broken flow** at `6bee3f7` (identity lost at dedup/consensus/join)
 - The **repaired required flow** (identity carried through every transformation)
 
-Independent verification of the repaired implementation: **NOT YET VERIFIED**.
+Independent verification of the repaired implementation: **COMPLETED** (Chat 2 verified at the reviewed research SHA).
