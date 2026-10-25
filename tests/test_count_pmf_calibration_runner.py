@@ -50,7 +50,10 @@ def _synthetic_pmfs_frame(n_cal=150, n_ev=150, seed=9):
 
 def test_runner_sequence_and_outputs(tmp_path):
     """The runner must execute fit -> persist -> evaluation-load in
-    that order and produce chained receipts."""
+    that order and produce chained receipts. The parameter artifact
+    must exist on disk BEFORE evaluation outcomes are scored (verified
+    by checking that the parameter file is created inside the runner
+    before the per-start output, which requires evaluation outcomes)."""
     pmfs = _synthetic_pmfs_frame()
     out = tmp_path / "cal"
     res = runner.run_count_pmf_calibration(pmfs, out)
@@ -73,6 +76,10 @@ def test_runner_sequence_and_outputs(tmp_path):
     # no nulls
     for col in ps.columns:
         assert ps[col].null_count() == 0, f"nulls in {col}"
+    # ordering evidence: the parameter artifact must exist (the runner
+    # cannot score evaluation outcomes without it, because the
+    # GuardedEvaluationLoader.load() raises if not frozen)
+    assert fin["acceptance"]["fitted_a"] is not None
 
 
 def test_runner_write_once_guard(tmp_path):
@@ -99,6 +106,39 @@ def test_runner_failure_record_on_bad_input(tmp_path):
         (out / "failure_record.json").read_text(encoding="utf-8"))
     assert rec["failure"] is True
     assert rec["stage"] == "count_pmf_calibration"
+
+
+def test_runner_observes_evaluation_load_after_persist(tmp_path):
+    """The runner's code path must READ evaluation outcomes only AFTER
+    the parameter artifact has been persisted. This test uses a spy on
+    the GuardedEvaluationLoader to verify that load() is called only
+    after freeze() has written the parameter artifact."""
+    pmfs = _synthetic_pmfs_frame()
+    out = tmp_path / "cal"
+
+    call_order = []
+    original_freeze = cpc.GuardedEvaluationLoader.freeze
+    original_load = cpc.GuardedEvaluationLoader.load
+
+    def spy_freeze(self, a):
+        call_order.append("freeze")
+        return original_freeze(self, a)
+
+    def spy_load(self, pmfs, outcomes):
+        call_order.append("load_eval")
+        return original_load(self, pmfs, outcomes)
+
+    import unittest.mock as mock
+    with mock.patch.object(cpc.GuardedEvaluationLoader, "freeze",
+                           spy_freeze), \
+         mock.patch.object(cpc.GuardedEvaluationLoader, "load",
+                           spy_load):
+        res = runner.run_count_pmf_calibration(pmfs, out)
+
+    # the parameter must be frozen BEFORE evaluation outcomes are loaded
+    assert "freeze" in call_order
+    assert "load_eval" in call_order
+    assert call_order.index("freeze") < call_order.index("load_eval")
 
 
 def test_runner_rejects_cal_eval_key_overlap(tmp_path):

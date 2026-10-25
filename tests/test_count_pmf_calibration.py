@@ -212,14 +212,32 @@ def test_fit_rejects_optimizer_failure():
     (simulates a numerical breakdown), then assert the fit raises."""
     from unittest.mock import patch
 
-    def _nan_objective(a):
-        return float("nan")
-
     with patch.object(cpc, "_count_rps", side_effect=ValueError("NaN")):
         pmfs = [np.ones(24) / 24] * 100
         realized = [3] * 100
         with pytest.raises((ValueError, FloatingPointError)):
             cpc.fit_calibration_a(pmfs, realized)
+
+
+def test_fit_rejects_optimizer_success_false():
+    """Separate from the exception-propagation test: mock the optimizer
+    to return a result with success=False, and assert the fit rejects
+    it with the optimizer's failure message."""
+    from unittest.mock import patch, MagicMock
+    from scipy.optimize import OptimizeResult
+
+    failed_result = OptimizeResult(
+        success=False, x=1.0, fun=1.0,
+        message="SIMULATED OPTIMIZER FAILURE")
+
+    with patch.object(cpc, "_count_rps", return_value=0.5):
+        with patch("scipy.optimize.minimize_scalar",
+                   return_value=failed_result):
+            pmfs = [np.ones(24) / 24] * 100
+            realized = [3] * 100
+            with pytest.raises(ValueError,
+                               match="SIMULATED OPTIMIZER FAILURE"):
+                cpc.fit_calibration_a(pmfs, realized)
 
 
 def test_fit_is_deterministic():

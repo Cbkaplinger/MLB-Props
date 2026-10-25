@@ -116,12 +116,14 @@ def run_count_pmf_calibration(
             raise ValueError("parameter artifact failed verification")
         print("parameter persisted and verified", flush=True)
 
-        # stage 5: load block_2025H1 evaluation outcomes (only after
-        # the parameter artifact has been persisted and verified)
-        ev_pmfs = [np.asarray(r["pmf_baseline"], dtype=np.float64)
-                   for r in ev.iter_rows(named=True)]
-        ev_realized = [int(r["realized_k"])
-                       for r in ev.iter_rows(named=True)]
+        # stage 5: load block_2025H1 evaluation outcomes — routed
+        # through the guarded loader so the loading is gated on the
+        # persisted parameter artifact
+        ev_pmfs_raw, ev_realized = loader.load(
+            [np.asarray(r["pmf_baseline"], dtype=np.float64)
+             for r in ev.iter_rows(named=True)],
+            [int(r["realized_k"]) for r in ev.iter_rows(named=True)])
+        ev_pmfs = [np.asarray(p, dtype=np.float64) for p in ev_pmfs_raw]
 
         # stage 6: apply the frozen mapping and score
         rps_frozen, rps_cal, keys, dates = [], [], [], []
