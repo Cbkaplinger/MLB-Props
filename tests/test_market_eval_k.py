@@ -191,6 +191,56 @@ def test_near_close_selects_own_player_only_after_filter():
                                                     "nelson ryne"}
 
 
+def test_deterministic_quote_selection_survives_shuffling():
+    """Order-invariance regression (owner order 2026-10-22): shuffled
+    input rows, including equal-timestamp ties, must yield the SAME
+    selected quotes under the explicit tie rule."""
+    import random
+    rows = []
+    # three books, two lines, both bet sides; some equal-timestamp
+    # pairs where the tie is broken by (book, price)
+    base_ts = datetime(2025, 5, 1, 23, 25, tzinfo=timezone.utc)
+    for book, line, price in (("dk", 6.5, -115), ("dk", 5.5, -110),
+                              ("fd", 6.5, -120), ("mgm", 5.5, -105)):
+        for side in ("over", "under"):
+            for ts in (base_ts, base_ts):  # duplicate timestamps
+                rows.append(_odds_rows(game_pk=1, book=book, line=line,
+                                       side=side, price=price,
+                                       quote_timestamp=ts))
+    frame = pl.DataFrame(rows)
+    sel = []
+    for seed in range(10):
+        rng = random.Random(seed)
+        idx = list(range(frame.height))
+        rng.shuffle(idx)
+        shuffled = frame[idx]
+        sel.append(mk.select_near_close(shuffled).sort(
+            ["book", "line", "side"]))
+    ref = sel[0]
+    for other in sel[1:]:
+        assert other.equals(ref), "quote selection is order-sensitive"
+    # explicit tie rule: latest timestamp, then (book, price) max
+    # (dk and fd quote line 6.5; mgm quotes 5.5)
+    assert ref.height == 8  # 4 (book, line) x 2 sides
+    dk65 = ref.filter((pl.col("book") == "dk") & (pl.col("line") == 6.5))
+    fd65 = ref.filter((pl.col("book") == "fd") & (pl.col("line") == 6.5))
+    assert dk65.height == 2 and fd65.height == 2
+
+
+def test_conflicting_tied_quotes_rejected():
+    """Identical (start, book, line, side, timestamp) with DIFFERENT
+    prices must fail loud, never select arbitrarily."""
+    ts = datetime(2025, 5, 1, 23, 25, tzinfo=timezone.utc)
+    rows = [
+        _odds_rows(game_pk=1, book="dk", line=6.5, side="over",
+                   price=-110, quote_timestamp=ts),
+        _odds_rows(game_pk=1, book="dk", line=6.5, side="over",
+                   price=-120, quote_timestamp=ts),  # CONFLICT
+    ]
+    with pytest.raises(ValueError, match="conflicting tied quotes"):
+        mk.select_near_close(pl.DataFrame(rows))
+
+
 # --------------------------------- start-identity through the path -----
 def _two_starter_quotes():
     """Two starters in ONE game: different lines and prices per player,

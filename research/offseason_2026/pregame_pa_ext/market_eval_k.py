@@ -106,7 +106,29 @@ def select_near_close(odds: "pl.DataFrame") -> "pl.DataFrame":
             .alias("first_pitch_ts"))
     # filter in stages: null first_pitch_ts (tier B rows) must never
     # enter the tier-A datetime arithmetic; a Null-dtype column (no
-    # commence times at all) makes tier A empty by construction
+    # commence times at all) makes tier A empty by construction.
+    # DETERMINISTIC QUOTE SELECTION (owner order 2026-10-22): dedup
+    # keys are (game_pk, pitcher, book, line, side); the winner is the
+    # row with the LATEST (quote_timestamp, book, price) tuple — an
+    # explicit total order that survives input shuffling. Conflicting
+    # tied records (same winner tuple, different price) are DETECTED
+    # and rejected rather than selected arbitrarily.
+    def _deterministic_latest(frame: "pl.DataFrame") -> "pl.DataFrame":
+        # detect conflicting ties: identical (game_pk, pitcher, book,
+        # line, side, quote_timestamp) with DIFFERENT prices
+        conflict = (frame.group_by(
+            ["game_pk", "pitcher", "book", "line", "side",
+             "quote_timestamp"])
+            .agg(pl.col("price").n_unique().alias("n_prices"))
+            .filter(pl.col("n_prices") > 1))
+        if conflict.height:
+            raise ValueError(
+                f"conflicting tied quotes: {conflict.height} "
+                "(same start/book/line/side/timestamp, different "
+                "prices) — refusing to select arbitrarily")
+        return frame.sort(["quote_timestamp", "book", "price"]).unique(
+            subset=["game_pk", "pitcher", "book", "line", "side"],
+            keep="last")
     commencing = odds.filter(pl.col("has_commence"))
     if commencing.height == 0 or odds.schema["first_pitch_ts"] == pl.Null:
         tier_a = commencing.head(0)
@@ -115,14 +137,12 @@ def select_near_close(odds: "pl.DataFrame") -> "pl.DataFrame":
             (pl.col("quote_timestamp") < pl.col("first_pitch_ts"))
             & ((pl.col("first_pitch_ts") - pl.col("quote_timestamp"))
                <= cutoff)
-        ).sort("quote_timestamp").unique(
-            subset=["game_pk", "pitcher", "book", "line", "side"],
-            keep="last")
+        )
+        tier_a = _deterministic_latest(tier_a)
     tier_b = odds.filter(
         ~pl.col("has_commence") & (pl.col("snapshot") == "close")
-    ).sort("quote_timestamp").unique(
-        subset=["game_pk", "pitcher", "book", "line", "side"],
-        keep="last")
+    )
+    tier_b = _deterministic_latest(tier_b)
     return pl.concat([tier_a, tier_b])
 
 
