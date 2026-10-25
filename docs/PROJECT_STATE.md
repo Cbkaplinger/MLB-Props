@@ -139,9 +139,10 @@ PRs, and lake files — not duplicated here.
 
 ## Integration owner update - 2026-10-23 (Chat 3; matches docs/NEXT.md)
 
-- **Market matching component: UNDER AUDIT.** The ±1-day tolerance is a
-  suspected failure mode, not a demonstrated root cause. Existing market
-  scores are quarantined pending identity verification. The
+- **Market matching: pre-repair market scores are invalid (historical,
+  preserved). Full-key identity repair implemented at 23db50d and
+  independently verified; repaired 2025H1 close comparison stands as a
+  development benchmark.**
   two-starters-one-game synthetic test is the required regression check.
 - **M0 v2 ACCEPTED as development-only diagnostic** (executed at `2e2482b`,
   Chat 2 independently verified; effects small: K log-loss delta ~-7e-06,
