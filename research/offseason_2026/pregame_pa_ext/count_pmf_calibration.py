@@ -190,8 +190,11 @@ class GuardedEvaluationLoader:
         return self._param_path
 
     def load(self, evaluation_pmfs, evaluation_outcomes):
-        """Returns evaluation data only after the parameter artifact
-        exists on disk with a valid value."""
+        """Gate for evaluation data access. Accepts prebuilt data
+        structures and returns them only after the parameter artifact
+        exists on disk with a valid value. The runner is responsible
+        for not using the returned data for any purpose other than
+        the registered evaluation."""
         if not self.is_frozen:
             raise RuntimeError(
                 "EVALUATION_OUTCOME_ISOLATION: the fitted calibration "
