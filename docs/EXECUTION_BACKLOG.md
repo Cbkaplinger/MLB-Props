@@ -16,7 +16,7 @@
 | Frozen-model replay spec | `docs/reference/oddsapi_replay_architecture.md` | How to backtest 2025-present Odds API open/close with the model frozen — **not** a queue. Freeze/work/product partition. Inventory: `reports/oddsapi_replay_inventory_2026-09-11.md`. |
 | Golden metrics | `docs/reference/golden_metrics.md` | Canonical numbers + JSON sources. Cite, do not recompute. |
 | Paper / resume | `docs/paper/manuscript.md`, `resume-summary.md` | Publication narrative — not the live work queue |
-| Cleanup history | `docs/CLEANUP_LOG.md` | Historical cleanup log — not instructions |
+| Cleanup history | `docs/archive/CLEANUP_LOG.md` | Historical cleanup log — not instructions |
 | Canonical surfaces | `docs/reference/repo_canonical_map.md` | What code/docs are canonical vs archive |
 
 If another doc’s “next steps” disagree with the Session Snapshot, **this file wins**. Fix the subordinate doc to redirect here.
