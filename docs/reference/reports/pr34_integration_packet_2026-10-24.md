@@ -63,12 +63,12 @@
 | result | metric | values |
 |---|---|---|
 | Ablation count-RPS (canonical v2) | count-RPS, 4,823 starts | PITCHER 1.33457, FULL 1.31744; FULL − PITCHER = −0.01712 CI [−0.0249, −0.0092] |
-| Ablation vs frozen binary | count-RPS, same 4,823 keys | FULL 1.31744, frozen 1.31761; FULL − frozen = −0.00017 CI [−0.00037, +0.00003] (includes zero — no improvement established; FULL has the slightly lower observed RPS) |
+| Ablation vs frozen binary | count-RPS, same 4,823 keys | FULL 1.31744, frozen 1.31761; FULL has the SLIGHTLY LOWER observed RPS (−0.00017); CI [−0.00037, +0.00003] includes zero — no improvement established |
 | Ablation PA log loss | multiclass LL, 82,817 PAs | LEAGUE 1.2376, PITCHER 1.2319, FULL 1.2231 |
 | M0 EP1 | K-marginal LL delta | −0.0000073, CI upper +0.0000061 (PASS) |
 | M0 EP2 | multiclass LL vs baselines | 1.2241 < 1.2263 (log5) < 1.2377 (league) (PASS) |
-| Market baseline (2025H1 T-5, v2 tie fix) | LL vs close, n=2,109 | model +0.0227 CI [+0.0139, +0.0317] |
-| Morning baseline (T-5h, v2 tie fix) | LL vs morning, n=2,109 | model +0.0224 CI [+0.0139, +0.0305] |
+| Market baseline (2025H1 T-5, v3 tie fix) | LL vs close, n=2,109 | model +0.0227 CI [+0.0139, +0.0317] |
+| Morning baseline (T-5h, unchanged by v3 tie fix) | LL vs morning, n=2,109 | model +0.0225 CI [+0.0139, +0.0305] |
 | C-B1 exposure profile | count-RPS delta | +0.0859 CI [+0.0719, +0.0997] (LOST, closed) |
 
 ## 6. Remaining limitations
