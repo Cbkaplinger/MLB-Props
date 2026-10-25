@@ -5,7 +5,7 @@
 > Shows the identity flow from raw odds quotes through model forecast join.
 > The current implementation has a demonstrated player-mixing defect at
 > `c07976d`: pitcher identity is filtered early but omitted from dedup keys,
-> consensus construction, and the final model join. independently verified until the
+> consensus construction, and the final model join. independently verified at the reviewed research SHA. The
 > full start key `(game_pk, starter_pitcher_id)` is carried through every
 > transformation.
 
