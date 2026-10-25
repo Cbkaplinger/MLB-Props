@@ -1,23 +1,18 @@
 """Canonical ablation count-RPS computation on the INTENDED cohort
 (all 4,823 eligible development starts, ledger-projected nine slots).
 
-RESEARCH-ONLY, write-once outputs. Owner order 2026-10-22: publish one
-committed executable computation and a canonical per-start bundle; the
-earlier 1.29880/1.28419 figures (sourced from the invalid 4,477-key
-lineup diagnostic) are WITHDRAWN, and the 277-start subset results are
-invalid for this population.
-
-Design (original settings preserved; no tuning):
-- fits: the registered StandardScaler + multinomial LogisticRegression
-  (C=1.0) per dev block, walk-forward (train 2023-01-01..block
-  train_end - 60d), feature sets PITCHER (5) and FULL (8);
-- scored population: the ledger's nine PROJECTED slot rows per eligible
-  start (no realized-PA requirement - covers all 4,823 starts);
-- scored metric: registered count-RPS (cycled prefix-mean binomial over
-  the registered BF extension) vs the registered realized K;
-- comparator context: the frozen binary arm's registered count-RPS
-  (1.31761 from count_agg_eval_v1) is reported alongside; equality of
-  keys is asserted before any comparison.
+RESEARCH-ONLY, write-once outputs. v2 repairs (owner order 2026-10-22):
+- training cutoff derived from the ACTUAL max game_date in the block's
+  training range (rows strictly before cutoff - 59d), recorded in the
+  receipt; PA-table postseason status stated;
+- frozen-binary comparison: loads the REGISTERED per-start frozen PMFs
+  (count_agg_eval_v1 pmf_baseline), asserts key-set equality, paired
+  FULL - frozen_binary via the registered slate-date bootstrap;
+- per-start output keyed on (game_pk, side, pitcher), one row per key,
+  no nulls;
+- confirm_2025H2 excluded before fitting/scoring; mutually exclusive
+  drop counters that sum to (ledger starts - scored);
+- no hardcoded frozen-binary numbers.
 """
 from __future__ import annotations
 
@@ -41,9 +36,10 @@ import kcount_combiner as kc  # noqa: E402
 
 N_BOOT = 2000
 SEED = 20261001
+PROTECTED_BLOCK = "confirm_2025H2"
 
 
-def run_ablation_count_rps(feat: "pl.DataFrame",
+def run_ablation_count_rps(feat: "pl.DataFrame", pa: "pl.DataFrame",
                            ledger: "pl.DataFrame",
                            pmfs: "pl.DataFrame",
                            realized: "pl.DataFrame",
@@ -73,8 +69,8 @@ def run_ablation_count_rps(feat: "pl.DataFrame",
             "feature_sets": {"PITCHER": ab.FEATURE_SETS["PITCHER"],
                              "FULL": ab.FEATURE_SETS["FULL"]},
             "population": ("the ledger's nine PROJECTED slot rows per "
-                           "eligible start (all 4,823; no realized-PA "
-                           "requirement)"),
+                           "eligible DEV start (confirm_2025H2 excluded "
+                           "before fitting/scoring)"),
             "bootstrap": {"n": n_boot, "seed": seed},
         },
     }
@@ -82,89 +78,129 @@ def run_ablation_count_rps(feat: "pl.DataFrame",
                             encoding="utf-8")
     initial_sha = ad.sha256_file(initial_path)
     try:
-        ledger_slots = (ledger.filter(
+        # mutually exclusive drop accounting, start-level
+        ledger_starts = (ledger.filter(
             pl.col("exclusion_reason").is_null())
-            .sort("game_pk", "side", "slot"))
+            .select("game_pk", "side", "pitcher", "block", "game_date")
+            .unique(subset=["game_pk", "side", "pitcher"]))
+        n_ledger_starts = ledger_starts.height
+        confirm = ledger_starts.filter(pl.col("block") == PROTECTED_BLOCK)
+        dev = ledger_starts.filter(pl.col("block") != PROTECTED_BLOCK)
+        drops = {
+            "confirm_block_excluded": confirm.height,
+            "out_of_dev_window": 0,
+            "nonfinite_feature_slot": 0,
+            "fewer_than_9_slots": 0,
+            "missing_bf": 0,
+            "missing_realized_k": 0,
+        }
+        # training windows: cutoff derived from the ACTUAL max game_date
+        # in each block's training range (rows strictly before cutoff-59d)
+        train_windows = {}
         windows = {}
-        for b, (te_y, te_m, te_d) in m0.DEV_BLOCK_TRAIN_END.items():
-            te = date(te_y, te_m, te_d)
-            if b == "block_2024H2":
-                windows[b] = (date(2023, 1, 1), te - timedelta(days=59),
-                              date(2024, 7, 1), date(2024, 12, 31))
-            else:
-                windows[b] = (date(2023, 1, 1), te - timedelta(days=59),
-                              date(2025, 1, 1), date(2025, 6, 30))
-        realized_map = {(r["game_pk"], r["side"], r["pitcher"]):
-                        int(r["realized_k"])
-                        for r in realized.iter_rows(named=True)}
+        for b in ("block_2024H2", "block_2025H1"):
+            te = (date(2024, 6, 30) if b == "block_2024H2"
+                  else date(2024, 12, 31))
+            in_range = pa.filter(
+                (pl.col("game_date") >= date(2023, 1, 1))
+                & (pl.col("game_date") <= te))
+            actual_max = in_range["game_date"].max()
+            cutoff = actual_max - timedelta(days=59)
+            ev_lo, ev_hi = ((date(2024, 7, 1), date(2024, 12, 31))
+                            if b == "block_2024H2"
+                            else (date(2025, 1, 1), date(2025, 6, 30)))
+            windows[b] = {"train_lo": date(2023, 1, 1),
+                          "cutoff": cutoff, "actual_max": actual_max,
+                          "eval": (ev_lo, ev_hi)}
+        # the pa_table covers REGULAR-SEASON files only (raw Savant
+        # statcast_YYYY_regular); no postseason rows exist in it.
+        postseason_note = ("pa_table is built from statcast_YYYY_regular "
+                           "files only; it contains no postseason rows")
         bf_lookup = {(r["game_pk"], r["side"], r["pitcher"]):
                      np.asarray([r[f"pmf37_{k}"] for k in range(37)])
                      for r in bf.select(
                          "game_pk", "side", "pitcher",
                          *[f"pmf37_{k}" for k in range(37)])
                      .iter_rows(named=True)}
+        realized_map = {(r["game_pk"], r["side"], r["pitcher"]):
+                        int(r["realized_k"])
+                        for r in realized.iter_rows(named=True)}
+
         arms = {}
+        ledger_slots = (ledger.filter(
+            pl.col("exclusion_reason").is_null()))
         for arm, features in (("PITCHER", ab.FEATURE_SETS["PITCHER"]),
                               ("FULL", ab.FEATURE_SETS["FULL"])):
-            lslots = (ledger_slots.select(
+            lslots = (ledger_slots.join(
+                dev.select("game_pk", "side", "pitcher"),
+                on=["game_pk", "side", "pitcher"], how="inner")
+                .sort("game_pk", "side", "slot"))
+            lslots = (lslots.select(
                 "game_pk", "side", "pitcher", "slot", "game_date",
                 *features)
                 .filter(pl.all_horizontal([pl.col(c).is_finite()
                                            for c in features])))
             probs = np.full((lslots.height, m0.N_CLASSES), np.nan)
             idx = lslots.with_row_index("_i")
-            for b, (lo_t, hi_t, lo_e, hi_e) in windows.items():
+            for b, w in windows.items():
                 train = feat.filter(
-                    (pl.col("game_date") >= lo_t)
-                    & (pl.col("game_date") < hi_t))
-                blk = idx.filter((pl.col("game_date") >= lo_e)
-                                 & (pl.col("game_date") <= hi_e))
+                    (pl.col("game_date") >= w["train_lo"])
+                    & (pl.col("game_date") < w["cutoff"]))
+                lo, hi = w["eval"]
+                blk = idx.filter((pl.col("game_date") >= lo)
+                                 & (pl.col("game_date") <= hi))
                 model = ab.fit_multinomial_features(train, features)
                 probs[blk["_i"].to_numpy()] = \
                     ab.apply_multinomial_features(blk.drop("_i"), model)
             lslots = lslots.with_columns(
-                pl.Series("p_k", probs[:, m0.N_CLASSES - m0.N_CLASSES
-                                       + m0.K_CLASS]))
+                pl.Series("p_k", probs[:, m0.K_CLASS]))
             per_start = []
-            n_skip = 0
+            n_fewer9 = 0
             n_bad_probs = 0
-            for key_parts, g in lslots.group_by(
-                    ["game_pk", "side", "pitcher"],
-                    maintain_order=True):
+            n_missing_bf = 0
+            n_missing_rk = 0
+            for g in lslots.partition_by(["game_pk", "side", "pitcher"]):
                 gpk = int(g["game_pk"][0])
                 side = g["side"][0]
                 pitcher = int(g["pitcher"][0])
                 if g.height != 9:
-                    n_skip += 1
+                    n_fewer9 += 1
+                    drops["fewer_than_9_slots"] += 1
                     continue
                 p9 = np.asarray(g.sort("slot")["p_k"].to_list(),
                                 dtype=np.float64)
-                if p9.shape != (9,) or not np.all(np.isfinite(p9)) \
-                        or p9.min() < 0 or p9.max() > 1:
-                    n_skip += 1
+                if (not np.all(np.isfinite(p9)) or p9.min() < 0
+                        or p9.max() > 1):
+                    n_bad_probs += 1
+                    drops["nonfinite_feature_slot"] += 1
                     continue
                 key = (gpk, side, pitcher)
                 b37 = bf_lookup.get(key)
+                if b37 is None:
+                    n_missing_bf += 1
+                    drops["missing_bf"] += 1
+                    continue
                 k_real = realized_map.get(key)
-                if b37 is None or k_real is None:
-                    n_skip += 1
+                if k_real is None:
+                    n_missing_rk += 1
+                    drops["missing_realized_k"] += 1
                     continue
                 b37 = b37 / b37.sum()
                 bf_ext = ad.bf_pmf_from_37(b37)
                 pmf = ad.count_pmf_from_mixture(
                     bf_ext, ad.cycled_cond_mean(p9))
+                gdate = g["game_date"][0]
                 per_start.append({
                     "game_pk": gpk, "side": side, "pitcher": pitcher,
-                    "game_date": str(g["game_date"][0]),
-                    "block": ("block_2024H2" if g["game_date"][0]
-                              <= date(2024, 12, 31)
+                    "game_date": str(gdate),
+                    "block": ("block_2024H2" if gdate <= date(2024, 12, 31)
                               else "block_2025H1"),
                     "realized_k": k_real,
                     "rps": float(kc.count_rps(pmf, k_real)),
-                    "mean_k": float((pmf * np.arange(len(pmf))).sum()),
                 })
             arms[arm] = per_start
 
+        # keyed join: one row per (game_pk, side, pitcher), no nulls
         keys_p = {(r["game_pk"], r["side"], r["pitcher"])
                   for r in arms["PITCHER"]}
         keys_f = {(r["game_pk"], r["side"], r["pitcher"])
@@ -177,38 +213,104 @@ def run_ablation_count_rps(feat: "pl.DataFrame",
                     for r in arms["PITCHER"]}
         lookup_f = {(r["game_pk"], r["side"], r["pitcher"]): r
                     for r in arms["FULL"]}
-        rP = np.asarray([lookup_p[k]["rps"] for k in common])
-        rF = np.asarray([lookup_f[k]["rps"] for k in common])
-        dates = [lookup_p[k]["game_date"] for k in common]
-        blocks = [lookup_p[k]["block"] for k in common]
+        rows_out = []
+        for k in common:
+            a, b = lookup_p[k], lookup_f[k]
+            assert a["rps"] is not None and b["rps"] is not None
+            rows_out.append({
+                "game_pk": a["game_pk"], "side": a["side"],
+                "pitcher": a["pitcher"], "block": a["block"],
+                "game_date": a["game_date"],
+                "realized_k": a["realized_k"],
+                "rps_pitcher": a["rps"], "rps_full": b["rps"],
+            })
+        out_df = pl.DataFrame(rows_out)
+        if out_df.height != len(common) \
+                or out_df.select(["game_pk", "side", "pitcher"]).unique(
+                    ).height != len(common):
+            raise ValueError("per-start output fan-out or nulls")
+        null_counts = out_df.select(
+            ["rps_pitcher", "rps_full", "realized_k"]).null_count()
+        if any(v > 0 for v in null_counts.row(0, named=True).values()):
+            raise ValueError("nulls in per-start output")
+
+        rP = np.asarray([r["rps_pitcher"] for r in rows_out])
+        rF = np.asarray([r["rps_full"] for r in rows_out])
+        dates = [r["game_date"] for r in rows_out]
+        blocks = [r["block"] for r in rows_out]
+
+        # frozen-binary comparison: REGISTERED per-start PMFs, keys asserted
+        frozen = (pmfs.select("game_pk", "side", "pitcher", "pmf_baseline")
+                  .rename({"pitcher": "pitcher_id"}))
+        fk = {(r["game_pk"], r["side"], r["pitcher_id"])
+              for r in frozen.iter_rows(named=True)}
+        keys_equal = (fk == {(r["game_pk"], r["side"], r["pitcher"])
+                             for r in rows_out})
+        frozen_rps = {}
+        if keys_equal:
+            fmap = {(r["game_pk"], r["side"], r["pitcher_id"]):
+                    r["pmf_baseline"] for r in frozen.iter_rows(named=True)}
+            for r in rows_out:
+                key = (r["game_pk"], r["side"], r["pitcher"])
+                pmf = np.asarray(fmap[key], dtype=np.float64)
+                frozen_rps[key] = float(kc.count_rps(pmf,
+                                                     r["realized_k"]))
+        rB = np.asarray([frozen_rps[k] for k in common])
 
         cmp_mod = br.load_registered_comparison()
-        res = cmp_mod.slate_date_draws({"full": rF, "pitcher": rP},
-                                       dates, blocks, n_boot=n_boot,
-                                       seed=seed)
-        d = res[:, 0] - res[:, 1]
-        ci = [float(np.percentile(d, 2.5)),
-              float(np.percentile(d, 97.5))]
+        res_f = cmp_mod.slate_date_draws({"full": rF, "pitcher": rP},
+                                         dates, blocks, n_boot=n_boot,
+                                         seed=seed)
+        ci_f = [float(np.percentile(res_f[:, 0] - res_f[:, 1], 2.5)),
+                float(np.percentile(res_f[:, 0] - res_f[:, 1], 97.5))]
+        res_b = cmp_mod.slate_date_draws({"full": rF, "frozen": rB},
+                                         dates, blocks, n_boot=n_boot,
+                                         seed=seed)
+        ci_b = [float(np.percentile(res_b[:, 0] - res_b[:, 1], 2.5)),
+                float(np.percentile(res_b[:, 0] - res_b[:, 1], 97.5))]
+        per_block = {}
+        for b in ("block_2024H2", "block_2025H1"):
+            mask = np.asarray([x == b for x in blocks])
+            per_block[b] = {
+                "n": int(mask.sum()),
+                "rps_pitcher": float(rP[mask].mean()),
+                "rps_full": float(rF[mask].mean()),
+                "rps_frozen_binary": float(rB[mask].mean()),
+            }
         metrics = {
-            "n_starts": len(common),
+            "n_scored_dev_starts": len(common),
+            "scored_equals_4823": len(common) == 4823,
+            "train_windows": {b: {"train_lo": str(w["train_lo"]),
+                                  "actual_max_game_date":
+                                      str(w["actual_max"]),
+                                  "cutoff_rows_strictly_before":
+                                      str(w["cutoff"])}
+                              for b, w in windows.items()},
+            "postseason_note": postseason_note,
+            "drop_table": drops,
+            "drops_sum_matches": (
+                n_ledger_starts - len(common)
+                == sum(drops.values())),
+            "per_block": per_block,
             "rps_pitcher_projected": float(rP.mean()),
             "rps_full_projected": float(rF.mean()),
             "diff_full_minus_pitcher": float((rF - rP).mean()),
-            "diff_full_minus_pitcher_ci95": ci,
-            "frozen_binary_registered_rps": 1.31761,
-            "frozen_binary_key_equality_asserted": True,
-            "drops": {"incomplete_slots": int(n_skip)},
+            "diff_full_minus_pitcher_ci95": ci_f,
+            "frozen_binary_comparison": {
+                "keys_equal": bool(keys_equal),
+                "rps_frozen_binary": float(rB.mean()),
+                "diff_full_minus_frozen": float((rF - rB).mean()),
+                "diff_full_minus_frozen_ci95": ci_b,
+            },
         }
-        per_start_path = out_dir / "ablation_count_rps_per_start_v1.parquet"
-        pl.DataFrame(arms["PITCHER"]).with_columns(
-            pl.Series("rps_full", rF),
-        ).write_parquet(per_start_path)
+        per_start_path = out_dir / "ablation_count_rps_per_start_v2.parquet"
+        out_df.write_parquet(per_start_path)
         metrics_path = out_dir / "metrics.json"
         metrics_path.write_text(json.dumps(metrics, indent=1,
                                            sort_keys=True),
                                 encoding="utf-8")
         outputs = {
-            "ablation_count_rps_per_start_v1.parquet":
+            "ablation_count_rps_per_start_v2.parquet":
                 ad.sha256_file(per_start_path),
             "metrics.json": ad.sha256_file(metrics_path),
         }
