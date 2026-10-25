@@ -1,13 +1,15 @@
-"""Regression test for the attach_prior_features order-sensitivity
+"""Regression tests for the attach_prior_features order-sensitivity
 defect (demonstrated 2026-10-22, repaired in the same commit): the
 function must return IDENTICAL features regardless of the input row
-order (chronological / shuffled / reversed), preserving request
-identity.
+order. Each test builds its own chronological reference independently
+(no cross-test state); shuffled and reversed inputs are derived from
+that same canonical request frame; request identity (_rid) is carried
+through and asserted.
 """
 from __future__ import annotations
 
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -41,51 +43,96 @@ def _synthetic_state(n_players=6, days=40, seed=3):
         "game_date": pl.Date, "y": pl.Int8}, orient="row")
 
 
-def _requests(pa, order):
-    reqs = pa.select(pl.col("pitcher"), pl.col("batter"),
-                     pl.col("game_date")).unique()
+def _canonical_requests(pa):
+    """The canonical request frame: unique (pitcher, batter, game_date)
+    triples sorted chronologically, with stable request IDs _rid."""
+    reqs = (pa.select(pl.col("pitcher"), pl.col("batter"),
+                      pl.col("game_date")).unique()
+            .sort("game_date", "pitcher", "batter")
+            .with_row_index("_rid"))
+    return reqs
+
+
+def _attach(requests):
+    return ad.attach_prior_features(requests, *_state_cache())
+
+
+_STATE = {}
+
+
+def _state_cache():
+    if not _STATE:
+        pa = _synthetic_state()
+        _STATE["p"] = ad.entity_daily_state(pa, "pitcher")
+        _STATE["b"] = ad.entity_daily_state(pa, "batter")
+        _STATE["l"] = ad.league_daily_state(pa)
+    return _STATE["p"], _STATE["b"], _STATE["l"]
+
+
+def _ordered(reqs, order):
+    """Derive an input ordering from the CANONICAL chronologically
+    sorted request frame; identity (_rid) travels with each row."""
     if order == "chronological":
-        return reqs.sort("game_date")
+        return reqs
     if order == "reversed":
-        return reqs.reverse()
+        return reqs.reverse()  # true reverse-chronological
     return reqs.sample(fraction=1.0, shuffle=True, seed=777)
 
 
 @pytest.mark.parametrize("order", ["chronological", "shuffled",
                                    "reversed"])
 def test_attach_prior_features_order_invariance(order):
-    """The join contract: identical requests in ANY input order must
-    produce identical features (keyed by pitcher+batter+game_date)."""
+    """Each case: attach on the reordered canonical requests, join back
+    by _rid, and require exact equality with the chronological
+    reference. Runnable standalone."""
     pa = _synthetic_state()
-    p_state = ad.entity_daily_state(pa, "pitcher")
-    b_state = ad.entity_daily_state(pa, "batter")
-    lg_state = ad.league_daily_state(pa)
-    reqs = _requests(pa, order)
-    out = ad.attach_prior_features(reqs, p_state, b_state, lg_state)
-    key = ["pitcher", "batter", "game_date"]
-    base = out.sort(key).select(key, *ad.FEAT_H3)
-    if order == "chronological":
-        globals()["_base_frame"] = base
-    else:
-        assert base.equals(globals()["_base_frame"]), (
-            f"order={order}: features differ from the chronological run")
+    p_state, b_state, lg_state = _state_cache()
+    reqs = _canonical_requests(pa)
+    n_requests = reqs.height
+    inp = _ordered(reqs, order)
+    # request-count preservation: reordering never adds/drops rows
+    assert inp.height == n_requests
+    assert set(inp["_rid"].to_list()) == set(reqs["_rid"].to_list())
+    out = ad.attach_prior_features(
+        inp.select("_rid", "pitcher", "batter", "game_date"),
+        p_state, b_state, lg_state)
+    # exactly one result per request, no fan-out
+    assert out.height == n_requests
+    one_to_one = out.group_by("_rid").agg(pl.len().alias("n"))
+    assert (one_to_one["n"] == 1).all()
+    # reference: attach on the CHRONOLOGICAL canonical frame
+    ref = ad.attach_prior_features(
+        reqs.select("_rid", "pitcher", "batter", "game_date"),
+        p_state, b_state, lg_state)
+    j = (ref.select("_rid", *ad.FEAT_H3)
+         .join(out.select("_rid", *ad.FEAT_H3), on="_rid",
+               suffix="_reordered", validate="1:1"))
+    assert j.height == n_requests
+    for f in ad.FEAT_H3:
+        a = j[f].to_numpy().astype(float)
+        b = j[f + "_reordered"].to_numpy().astype(float)
+        d = np.where(np.isnan(a) & np.isnan(b), 0.0, np.abs(a - b))
+        assert (d <= 1e-12).all(), (
+            f"order={order}: {f} is order-sensitive (max {d.max()})")
 
 
-def test_attach_prior_features_reversed_equals_chronological():
-    """Direct pairwise check with the synthetic lake: reversed input
-    order must reproduce the chronological features exactly."""
+def test_attach_prior_features_reversed_equals_chronological_pairwise():
+    """Direct pairwise check on a synthetic lake: true
+    reverse-chronological input order reproduces the chronological
+    features exactly (per-feature, per-row)."""
     pa = _synthetic_state()
-    p_state = ad.entity_daily_state(pa, "pitcher")
-    b_state = ad.entity_daily_state(pa, "batter")
-    lg_state = ad.league_daily_state(pa)
-    chron = ad.attach_prior_features(_requests(pa, "chronological"),
-                                     p_state, b_state, lg_state)
-    rev_in = _requests(pa, "reversed")
-    rev = ad.attach_prior_features(rev_in, p_state, b_state, lg_state)
-    key = ["pitcher", "batter", "game_date"]
-    j = chron.sort(key).join(rev.sort(key), on=key, suffix="_rev",
-                             how="inner")
-    assert j.height == chron.height
+    p_state, b_state, lg_state = _state_cache()
+    reqs = _canonical_requests(pa)
+    chron = ad.attach_prior_features(
+        reqs.select("_rid", "pitcher", "batter", "game_date"),
+        p_state, b_state, lg_state)
+    rev = ad.attach_prior_features(
+        reqs.reverse().select("_rid", "pitcher", "batter", "game_date"),
+        p_state, b_state, lg_state)
+    j = (chron.select("_rid", *ad.FEAT_H3)
+         .join(rev.select("_rid", *ad.FEAT_H3), on="_rid",
+               suffix="_rev", validate="1:1"))
+    assert j.height == reqs.height
     for f in ad.FEAT_H3:
         a = j[f].to_numpy().astype(float)
         b = j[f + "_rev"].to_numpy().astype(float)

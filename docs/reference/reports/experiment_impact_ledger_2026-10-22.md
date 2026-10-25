@@ -54,8 +54,7 @@ excluded and the upstream checks still pending:
 
 - Receipts: initial `aca95253…`, final `0d7decdf…`; eval keys `c6568151…` exact (82,817 PAs, 4,823 starts); ledger `fd1841e1…`. Recorded execution results and original artifacts intact.
 - EP2 (vs baselines): per-PA metrics, registered population — defects excluded: D1, D2, D3. Pending: P0-b ledger-path check.
-- **EP1 (K-marginal non-inferiority): CROSS-PATH UNRESOLVED** (Chat 2's reconciliation) — the non-inferiority contrast pairs the multiclass arm's probabilities with the frozen binary arm's `p_h3_raw`, which travel different feature paths; recorded execution results and artifacts preserved intact, but the endpoint's interpretation is suspended until the attach_prior_features defect (below) is isolated.
-- **M0 descriptive count-RPS: CROSS-PATH UNRESOLVED** for the same reason (its interpretation contrasts multiclass-implied K vs the frozen binary arm through the registered aggregation).
+- **EP1 + descriptive count-RPS: CROSS-PATH BLOCKER CLOSED** (keyed check): both arms consumed the SAME builder (`build_checkpoint.build_feature_frame` on the same realized-PA lineage), and that builder's output reproduces exactly against the independent implementation (0/8 features, 3,000 keyed rows). Same path confirmed at the comparison boundary -> no replay required for the feature-path concern. The attachment order-sensitivity defect never fired on these chronological inputs (caller assessment + full-population check). Recorded results stand as development-only acceptance.
 - Status: execution recorded; EP1 + descriptive count interpretation unresolved; EP2 pending P0-b.
 
 ### 4. C-B1 (rejected)
@@ -155,13 +154,14 @@ DEMONSTRATED DIAGNOSIS (not a hypothesis):
    is in the attachment chain, not the historical state.
 3. The earlier "different history source" hypothesis is withdrawn.
 
-OPEN SCOPE QUESTION (the next bounded test): the frozen model's
-training features were built by the same attach chain on realized-PA
-rows — whether the defect fires on that row pattern (vs request-row
-inputs) determines whether M0/the frozen model inherit corrupted
-training features. Isolation test: call attach_prior_features on the
-realized-PA long frame and compare against the independent
-reconstruction on the same rows.
+SCOPE RESOLVED: both historical callers (build_checkpoint's training
+frame and the ledger build) pre-sorted their inputs chronologically,
+and the full-population check (64,215 ledger slot rows + the M0 EP1
+boundary check) reproduces every stored feature exactly. The order
+defect never fired on historical paths. The state-source-split
+hypothesis is WITHDRAWN (no residual mismatch survives the
+sorted-input check). The ablation count-RPS correction is EXECUTED
+(PITCHER 1.29880 / FULL 1.28419 on the intended 4,823-start cohort).
 
 
 ## Authoritative status per endpoint

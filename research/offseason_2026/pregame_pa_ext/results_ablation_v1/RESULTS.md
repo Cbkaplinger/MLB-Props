@@ -2,18 +2,18 @@
 # (2026-10-22; model metrics ONLY per owner order - the market gap is
 #  never used for selection)
 #
-# CORRECTION (2026-10-22, after the owner-ordered 2x2 lineup
-# diagnostic): the count-RPS column below was computed on a SMALL,
-# SKEWED subset - starts where all NINE projected batters happened to
-# record a realized PA (~277 starts/block; shallow lineup slots bat
-# only in long games). On the correct population (the ledger's
-# projected nine slots, all 4,823 starts), the ordering INVERTS:
-# FULL beats PITCHER-only on count-RPS (-0.0146, CI [-0.0225,
-# -0.0067]) - consistent with the per-PA log-loss ordering. The
-# "batter features hurt the count layer" finding is RETRACTED as an
-# artifact of slot coverage. See the 2x2 diagnostic in
-# results_market_eval_k_v1/RESULT_RECORD.md (STATUS 8). The multiclass
-# and K-marginal log-loss columns (all eval PAs, 82,817) stand.
+# CORRECTION (2026-10-22, final): the count-RPS column below was
+# computed on a SMALL, SKEWED subset - starts where all NINE projected
+# batters happened to record a realized PA (117/2,314 + 160/2,509 =
+# 277/4,823, 5.7%). CORRECTED count-RPS on the INTENDED cohort (the
+# ledger's projected nine slots, all 4,823 eligible starts, same fits
+# and settings): PITCHER-only 1.29880, FULL 1.28419 - FULL BEATS
+# PITCHER-only by -0.0146 (paired CI [-0.0225, -0.0067]; the 4,477-key
+# common-cohort variant is consistent). The "batter features hurt the
+# count layer" finding is RETRACTED as an artifact of slot coverage;
+# the count ordering now AGREES with the per-PA ordering. The
+# multiclass and K-marginal log-loss columns (all eval PAs, 82,817)
+# stand unchanged.
 
 Setup: train = 2023-01-01..(block train_end - 60d), eval = the
 registered dev starts' pitcher-matched PAs (82,817) per block;
