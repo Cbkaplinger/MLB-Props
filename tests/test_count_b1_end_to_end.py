@@ -284,7 +284,14 @@ def test_freeze_recovery_addendum_convention():
     assert any("destination must not exist" in r
                for r in freeze["fail_closed_rules"])
     # the amendment still pins the repaired runner bytes
-    runner_sha = hashlib.sha256(RUNNER_PATH.read_bytes()).hexdigest()
+    # (git-blob extraction: platform-independent LF content, NOT the
+    #  working-tree file which may have CRLF from core.autocrlf)
+    import subprocess
+    runner_rel = "research/offseason_2026/bf_lane/run_count_b1_v1.py"
+    git_bytes = subprocess.run(
+        ["git", "-C", str(REPO), "show", f"HEAD:{runner_rel}"],
+        capture_output=True).stdout
+    runner_sha = hashlib.sha256(git_bytes).hexdigest()
     assert freeze["execution_amendment_v1"]["runner"]["sha256"] == runner_sha
 
 

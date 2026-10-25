@@ -194,3 +194,13 @@ the SSAC27 Track are preserved verbatim in
 [`docs/reference/reports/backlog_archive_2026-10-21.md`](reference/reports/backlog_archive_2026-10-21.md).
 Nothing was deleted.
 
+## Research lane (pregame-pa-ext-v2, PR #34)
+
+M0 v2 executed (both endpoints PASS, development-only); C-B1 exposure
+profile closed (LOST); ablation count-RPS canonical (FULL 1.31744,
+PITCHER 1.33457); market baseline verified (close beats model);
+calibration runner implemented and reviewed (NOT executed); 2026
+holdout untouched. Detailed experiment history:
+`docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
+Next: calibration execution on a fresh branch after #34 merges.
+

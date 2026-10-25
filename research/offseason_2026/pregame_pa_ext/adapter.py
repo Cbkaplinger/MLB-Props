@@ -227,7 +227,14 @@ def attach_prior_features(
     """Frozen prior-only features per projected (start, slot, batter) PA,
     with full provenance. Joins are asof at the start's game_date by
     pitcher / batter (backward), league asof; w150 shrinkage; EW fallback
-    to league rate when the entity has no EW history (cold start)."""
+    to league rate when the entity has no EW history (cold start).
+
+    JOIN CONTRACT (order-sensitivity defect demonstrated 2026-10-22 and
+    repaired): the incoming frame MUST be sorted by the as-of key before
+    each grouped as-of join; the function now enforces this internally
+    (regression-tested for order invariance). Request identity is
+    preserved: sorting changes row order only, never row content."""
+    long = long.sort("game_date")
     pstate = p_daily.select(
         "pitcher", "game_date",
         pl.col("prior_k").alias("prior_k_pitcher"),
