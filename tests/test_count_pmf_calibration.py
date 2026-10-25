@@ -199,15 +199,27 @@ def test_tail_boundary_automatic():
 
 
 # ---- fitting: optimizer success ---------------------------------------
-def test_fit_checks_optimizer_success():
-    """The fit must raise if the optimizer fails (simulated by an
-    objective that returns NaN for extreme values)."""
-    # a normal fit should succeed
+def test_fit_succeeds_on_normal_input():
     rng = np.random.default_rng(5)
     pmfs = [rng.dirichlet(np.ones(24) * 3).tolist() for _ in range(100)]
     realized = [int(rng.integers(0, 8)) for _ in range(100)]
     a = cpc.fit_calibration_a(pmfs, realized)
     assert 0.5 <= a <= 2.0
+
+
+def test_fit_rejects_optimizer_failure():
+    """Force the optimizer to fail by returning NaN from the objective
+    (simulates a numerical breakdown), then assert the fit raises."""
+    from unittest.mock import patch
+
+    def _nan_objective(a):
+        return float("nan")
+
+    with patch.object(cpc, "_count_rps", side_effect=ValueError("NaN")):
+        pmfs = [np.ones(24) / 24] * 100
+        realized = [3] * 100
+        with pytest.raises((ValueError, FloatingPointError)):
+            cpc.fit_calibration_a(pmfs, realized)
 
 
 def test_fit_is_deterministic():
@@ -228,13 +240,16 @@ def test_fit_returns_scalar_in_bounds():
 
 
 # ---- fitting: identity tie rule ---------------------------------------
-def test_identity_tie_rule_flat_pmfs():
-    """Flat PMFs: RPS is the same for all a values. The identity
-    tie-break should select a value close to 1."""
-    pmfs = [np.ones(24) / 24] * 100
-    realized = [3] * 100
+def test_identity_tie_rule_all_mass_at_zero():
+    """All-mass-at-zero PMFs: the mapping leaves the distribution
+    unchanged for every a (F_cal(23) = 1, F_cal(0) = 1 - a*(1-1) = 1
+    for all a). The objective is constant, so the identity tie-break
+    must return exactly a=1."""
+    pmfs = [np.eye(24)[0].tolist()] * 100  # all mass at K=0
+    realized = [0] * 100  # all realized K=0 matches
     a = cpc.fit_calibration_a(pmfs, realized)
-    assert 0.5 <= a <= 2.0
+    assert a == 1.0, (f"identity tie-break must return a=1 for a flat "
+                      f"objective, got a={a}")
 
 
 # ---- fitting: input validation ----------------------------------------
