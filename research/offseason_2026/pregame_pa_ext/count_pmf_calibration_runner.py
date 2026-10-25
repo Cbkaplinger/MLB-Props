@@ -1,19 +1,23 @@
 """Count-PMF calibration real-data runner (pre-specified).
 
-RESEARCH-ONLY, write-once outputs. Enforces the STRICT LOADING
-contract: the runner receives an evaluation-outcome loader callback
-and invokes it ONLY after the fitted parameter has been persisted to
-disk and verified. Evaluation outcomes are never materialized in the
-runner's local scope before that point.
+RESEARCH-ONLY, write-once outputs. Implements the FIT-ISOLATION
+contract: the fitting procedure receives calibration examples only;
+evaluation outcomes are not used for fitting, parameter selection, or
+stopping decisions. Evaluation scoring follows parameter persistence.
+
+The runner does NOT claim that evaluation outcomes were never loaded
+into memory before parameter persistence. The supplied frame already
+contains both blocks' realized_k values. The contract is that
+evaluation outcomes do not enter the fitting path.
 
 Sequence:
-    1. Split into calibration/evaluation cohorts; verify sizes,
-       uniqueness, and zero key overlap.
-    2. Write receipt_initial (code identity, input hash, cohort hashes).
+    1. Verify expected cohort hashes against the supplied frame.
+    2. Write receipt_initial (code identity, input hash, expected and
+       actual cohort hashes, hash recipe).
     3. Load block_2024H2 calibration PMFs + outcomes.
     4. Fit the calibration parameter a.
     5. Persist the parameter artifact (write-once, verified).
-    6. Invoke the evaluation-outcome loader callback (first access).
+    6. Extract evaluation outcomes (fit-isolation: after fitting).
     7. Apply the frozen mapping and score against identity.
     8. Write per-start outputs, metrics, and chained receipts.
 """
@@ -40,8 +44,12 @@ import kcount_combiner as kc  # noqa: E402
 PROTECTED_BLOCK = "confirm_2025H2"
 
 
-def _cohort_hash(df: pl.DataFrame) -> str:
-    """Deterministic cohort hash from sorted full start keys."""
+def _cohort_hash(df: "pl.DataFrame") -> str:
+    """Deterministic cohort hash from sorted full start keys.
+
+    Recipe: sorted 'game_pk|side|pitcher' lines joined by \\n,
+    SHA-256 hex digest.
+    """
     rows = sorted(
         ["%d|%s|%d" % (r["game_pk"], r["side"], r["pitcher"])
          for r in df.select("game_pk", "side", "pitcher")
@@ -61,20 +69,22 @@ def _code_identity() -> dict:
 
 def run_count_pmf_calibration(
     pmfs_frame: "pl.DataFrame", out_dir, *,
+    expected_cal_hash: str,
+    expected_eval_hash: str,
     n_boot: int = 2000, seed: int = 20261001,
-    _skip_eval_gate: bool = False,
 ) -> dict:
     """Execute the pre-specified calibration experiment.
 
     pmfs_frame: the registered per-start PMFs (count_agg_eval_v1
         lineage: game_pk, side, pitcher, game_date, block,
-        realized_k, pmf_baseline).
-    _skip_eval_gate: testing-only override for the strict loader
-        (synthetic tests use this to inject data without a real
-        file write).
+        realized_k, pmf_baseline). Must contain ONLY dev-block rows
+        (confirm_2025H2 excluded before calling).
+    expected_cal_hash: the predeclared SHA-256 of the sorted start
+        keys for the calibration cohort (block_2024H2).
+    expected_eval_hash: the predeclared SHA-256 of the sorted start
+        keys for the evaluation cohort (block_2025H1).
     """
     import polars as pl
-    from datetime import date as _date
 
     out_dir = Path(out_dir)
     if out_dir.exists():
@@ -86,9 +96,10 @@ def run_count_pmf_calibration(
 
     code_id = _code_identity()
 
-    # ---- stage 1: write receipt_initial (BEFORE any validation) ----
-    # This pins the code identity and input hash before any operation
-    # that could fail, so the failure record always references it.
+    # ---- stage 1: write receipt_initial (BEFORE validation) --------
+    # Pins the code identity, input hash, and expected cohort hashes
+    # before any operation that could fail, so the failure record
+    # always references it.
     initial = {
         "inputs": {
             "consumed": {
@@ -105,39 +116,47 @@ def run_count_pmf_calibration(
             "evaluation_block": "block_2025H1",
             "bootstrap": {"n": n_boot, "seed": seed},
         },
-        "cohorts": None,  # populated after validation
+        "expected_cohort_hashes": {
+            "calibration": expected_cal_hash,
+            "evaluation": expected_eval_hash,
+        },
+        "actual_cohort_hashes": None,  # populated after splitting
+        "hash_recipe": ("sorted 'game_pk|side|pitcher' lines joined "
+                        "by \\n, SHA-256 hex digest"),
     }
     initial_path.write_text(json.dumps(initial, indent=1, sort_keys=True),
                             encoding="utf-8")
     initial_sha = ad.sha256_file(initial_path)
 
-    # ---- stage 2: split into cohorts (validation inside try) -------
-    cal = pmfs_frame.filter(pl.col("block") == "block_2024H2")
-    ev = pmfs_frame.filter(pl.col("block") == "block_2025H1")
-
-    cal_hash = _cohort_hash(cal)
-    ev_hash = _cohort_hash(ev)
-
     try:
-        # ---- stage 3: validate cohorts -----------------------------
-        if PROTECTED_BLOCK in pmfs_frame["block"].unique().to_list():
+        # ---- stage 2: split into cohorts ---------------------------
+        cal = pmfs_frame.filter(pl.col("block") == "block_2024H2")
+        ev = pmfs_frame.filter(pl.col("block") == "block_2025H1")
+
+        cal_hash = _cohort_hash(cal)
+        ev_hash = _cohort_hash(ev)
+
+        # ---- stage 3: verify cohort hashes against expected --------
+        if cal_hash != expected_cal_hash:
             raise ValueError(
-                f"{PROTECTED_BLOCK} rows present in the input frame: "
-                "confirm-block starts must be excluded before calling "
-                "the runner")
-        if cal.height < 100:
+                f"calibration cohort hash mismatch: "
+                f"actual={cal_hash} expected={expected_cal_hash}")
+        if ev_hash != expected_eval_hash:
             raise ValueError(
-                f"calibration sample too small: {cal.height} < 100")
-        if ev.height < 100:
-            raise ValueError(
-                f"evaluation sample too small: {ev.height} < 100")
+                f"evaluation cohort hash mismatch: "
+                f"actual={ev_hash} expected={expected_eval_hash}")
+
+        # ---- stage 4: cohort uniqueness and overlap checks ---------
         cal_key_cols = ["game_pk", "side", "pitcher"]
         ev_key_cols = ["game_pk", "side", "pitcher"]
         cal_dups = cal.height - cal.select(cal_key_cols).unique().height
-        ev_dups = ev.height - ev.select(ev_key_cols).unique().height
-        if cal_dups or ev_dups:
+        if cal_dups:
             raise ValueError(
-                f"duplicate start keys: cal={cal_dups} ev={ev_dups}")
+                f"duplicate cal start keys: {cal_dups}")
+        ev_dups = ev.height - ev.select(ev_key_cols).unique().height
+        if ev_dups:
+            raise ValueError(
+                f"duplicate ev start keys: {ev_dups}")
         cal_keys = set(zip(cal["game_pk"].to_list(),
                            cal["side"].to_list(),
                            cal["pitcher"].to_list()))
@@ -149,45 +168,35 @@ def run_count_pmf_calibration(
             raise ValueError(
                 f"cal/eval key overlap: {len(overlap)} shared starts")
 
-        # ---- stage 4: load calibration examples --------------------
+        # ---- stage 5: load calibration examples --------------------
         cal_pmfs = [np.asarray(r["pmf_baseline"], dtype=np.float64)
                     for r in cal.iter_rows(named=True)]
         cal_realized = [int(r["realized_k"])
                         for r in cal.iter_rows(named=True)]
 
-        # ---- stage 4: fit the calibration parameter ----------------
+        # ---- stage 6: fit the calibration parameter ----------------
         fitted_a = cpc.fit_calibration_a(cal_pmfs, cal_realized)
 
-        # ---- stage 5: persist the parameter (write-once, verified) --
+        # ---- stage 7: persist the parameter (write-once, verified) --
         loader = cpc.GuardedEvaluationLoader(param_dir)
         loader.freeze(fitted_a)
         if not loader.is_frozen:
             raise ValueError("parameter artifact failed verification")
 
-        # ---- stage 6: invoke the evaluation-outcome loader callback --
-        # The loader callback is invoked ONLY after the parameter is
-        # persisted. The callback extracts evaluation outcomes from
-        # the frame INSIDE the loader (the runner never materializes
-        # evaluation-outcome lists before this point).
-        def _load_evaluation_outcomes(ev_frame):
-            return (
-                [np.asarray(r["pmf_baseline"], dtype=np.float64)
-                 for r in ev_frame.iter_rows(named=True)],
-                [int(r["realized_k"]) for r in ev_frame.iter_rows(
-                    named=True)])
-
-        if _skip_eval_gate:
-            ev_pmfs_raw, ev_realized = _load_evaluation_outcomes(ev)
-        else:
-            # the runner extracts the outcome lists, then passes them
-            # through the guarded loader (the gate returns them only
-            # after the parameter artifact is persisted)
-            raw_pmfs, raw_outcomes = _load_evaluation_outcomes(ev)
-            ev_pmfs_raw, ev_realized = loader.load(raw_pmfs, raw_outcomes)
+        # ---- stage 8: extract evaluation outcomes -------------------
+        # FIT-ISOLATION contract: evaluation outcomes are extracted
+        # AFTER fitting and parameter persistence. They do not enter
+        # the fitting, parameter selection, or stopping path.
+        # Routed through the GuardedEvaluationLoader gate.
+        raw_pmfs = [np.asarray(r["pmf_baseline"], dtype=np.float64)
+                    for r in ev.iter_rows(named=True)]
+        raw_outcomes = [int(r["realized_k"])
+                        for r in ev.iter_rows(named=True)]
+        ev_pmfs_raw, ev_realized = loader.load(raw_pmfs, raw_outcomes)
         ev_pmfs = [np.asarray(p, dtype=np.float64)
                    for p in ev_pmfs_raw]
 
-        # ---- stage 7: apply the frozen mapping and score -----------
+        # ---- stage 9: apply the frozen mapping and score -----------
         rps_frozen, rps_cal, keys, dates = [], [], [], []
         for ev_row, ev_pmf, ev_k in zip(
                 ev.iter_rows(named=True), ev_pmfs, ev_realized):
@@ -227,6 +236,7 @@ def run_count_pmf_calibration(
                            if accept else
                            "calibration_does_not_improve_count_rps"),
         }
+
         # ---- write outputs ------------------------------------------
         per_start = pl.DataFrame({
             "game_pk": [k[0] for k in keys],
@@ -264,6 +274,10 @@ def run_count_pmf_calibration(
     final["outputs"] = outputs
     final["acceptance"] = {"receipt_chain": initial_sha,
                            "fitted_a": fitted_a}
+    final["actual_cohort_hashes"] = {
+        "calibration": cal_hash,
+        "evaluation": ev_hash,
+    }
     final_path = out_dir / "receipt_final.json"
     final_path.write_text(json.dumps(final, indent=1, sort_keys=True),
                           encoding="utf-8")
