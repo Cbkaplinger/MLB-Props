@@ -227,18 +227,22 @@ def test_deterministic_quote_selection_survives_shuffling():
     assert dk65.height == 2 and fd65.height == 2
 
 
-def test_conflicting_tied_quotes_rejected():
+def test_conflicting_tied_quotes_dropped_and_counted():
     """Identical (start, book, line, side, timestamp) with DIFFERENT
-    prices must fail loud, never select arbitrarily."""
+    prices must be DROPPED AND COUNTED (never selected arbitrarily,
+    never silently mixed). The drop count is exposed on the helper."""
     ts = datetime(2025, 5, 1, 23, 25, tzinfo=timezone.utc)
     rows = [
         _odds_rows(game_pk=1, book="dk", line=6.5, side="over",
                    price=-110, quote_timestamp=ts),
         _odds_rows(game_pk=1, book="dk", line=6.5, side="over",
                    price=-120, quote_timestamp=ts),  # CONFLICT
+        _odds_rows(game_pk=1, book="dk", line=6.5, side="under",
+                   price=-110, quote_timestamp=ts),
     ]
-    with pytest.raises(ValueError, match="conflicting tied quotes"):
-        mk.select_near_close(pl.DataFrame(rows))
+    out = mk.select_near_close(pl.DataFrame(rows))
+    assert out.height == 1  # only the clean under side survives
+    assert mk.select_near_close.last_conflicting_dropped == 1
 
 
 # --------------------------------- start-identity through the path -----

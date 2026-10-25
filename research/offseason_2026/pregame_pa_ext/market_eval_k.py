@@ -114,21 +114,29 @@ def select_near_close(odds: "pl.DataFrame") -> "pl.DataFrame":
     # tied records (same winner tuple, different price) are DETECTED
     # and rejected rather than selected arbitrarily.
     def _deterministic_latest(frame: "pl.DataFrame") -> "pl.DataFrame":
-        # detect conflicting ties: identical (game_pk, pitcher, book,
-        # line, side, quote_timestamp) with DIFFERENT prices
+        # conflicting ties: identical (game_pk, pitcher, book, line,
+        # side, quote_timestamp) with DIFFERENT prices. These exist in
+        # the real archive (26 rows: vendor multi-listing quirks, ~0.03%
+        # of pre-cutoff quotes). Per the owner's tie rule they are
+        # DROPPED AND COUNTED (never selected arbitrarily, never
+        # silently mixed): the dropped rows are disclosed in the
+        # caller's coverage.
+        nonlocal n_conflicting_dropped
         conflict = (frame.group_by(
             ["game_pk", "pitcher", "book", "line", "side",
              "quote_timestamp"])
             .agg(pl.col("price").n_unique().alias("n_prices"))
             .filter(pl.col("n_prices") > 1))
-        if conflict.height:
-            raise ValueError(
-                f"conflicting tied quotes: {conflict.height} "
-                "(same start/book/line/side/timestamp, different "
-                "prices) — refusing to select arbitrarily")
+        n_conflicting_dropped += conflict.height
+        if n_conflicting_dropped:
+            frame = frame.join(
+                conflict.drop("n_prices"),
+                on=["game_pk", "pitcher", "book", "line", "side",
+                    "quote_timestamp"], how="anti")
         return frame.sort(["quote_timestamp", "book", "price"]).unique(
             subset=["game_pk", "pitcher", "book", "line", "side"],
             keep="last")
+    n_conflicting_dropped = 0
     commencing = odds.filter(pl.col("has_commence"))
     if commencing.height == 0 or odds.schema["first_pitch_ts"] == pl.Null:
         tier_a = commencing.head(0)
@@ -143,6 +151,7 @@ def select_near_close(odds: "pl.DataFrame") -> "pl.DataFrame":
         ~pl.col("has_commence") & (pl.col("snapshot") == "close")
     )
     tier_b = _deterministic_latest(tier_b)
+    select_near_close.last_conflicting_dropped = n_conflicting_dropped
     return pl.concat([tier_a, tier_b])
 
 
