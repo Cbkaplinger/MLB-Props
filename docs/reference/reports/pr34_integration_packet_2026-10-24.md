@@ -52,8 +52,7 @@
 | Pre-repair market comparisons (morning/close mixed) | D1: opposing-starter quote mixing | full-key repaired market eval |
 | Pre-repair morning v1 (tie-sensitive) | D1 residual + nondeterministic ties | morning_vs_close_v2_tie_v2 |
 | Ablation count-RPS 1.29880/1.28419 | D2: realized-PA slot conditioning (277-start defect) | ablation_count_rps_canonical_v2 |
-| Interim "1.31602/1.33354" ablation count-RPS | D2 variant (different training window derivation) | ablation_count_rps_canonical_v2 (1.33457/1.31744) |
-| Lineup-diagnostic interaction −0.0087 | D3: control invariant FAILED (feature-path divergence) | interpretation stopped; resolution options documented |
+| Lineup-diagnostic interaction −0.0087 (4,477-key) | D3: control invariant FAILED (feature-path divergence) | interpretation stopped; resolution options documented |
 | "Batter features hurt count-RPS" (277-start) | D2 artifact | retracted; count ordering agrees with per-PA on the correct population |
 | "150-row different history source" | audit-side fan-out (game_pk+slot not unique) | retracted |
 | M0 descriptive count-RPS "edge" | market-comparison artifact (identity defects) | quarantined; close is the verified benchmark and it wins |
@@ -63,7 +62,7 @@
 | result | metric | values |
 |---|---|---|
 | Ablation count-RPS (canonical v2) | count-RPS, 4,823 starts | PITCHER 1.33457, FULL 1.31744; FULL − PITCHER = −0.01712 CI [−0.0249, −0.0092] |
-| Ablation vs frozen binary | count-RPS, same 4,823 keys | FULL 1.31744, frozen 1.31761; FULL has the SLIGHTLY LOWER observed RPS (−0.00017); CI [−0.00037, +0.00003] includes zero — no improvement established |
+| Ablation vs frozen binary | count-RPS, same 4,823 keys | FULL 1.31744 vs frozen 1.31761; diff −0.00017 CI [−0.00037, +0.00003] (includes zero — no improvement established; FULL has the slightly lower observed RPS) |
 | Ablation PA log loss | multiclass LL, 82,817 PAs | LEAGUE 1.2376, PITCHER 1.2319, FULL 1.2231 |
 | M0 EP1 | K-marginal LL delta | −0.0000073, CI upper +0.0000061 (PASS) |
 | M0 EP2 | multiclass LL vs baselines | 1.2241 < 1.2263 (log5) < 1.2377 (league) (PASS) |
@@ -95,20 +94,26 @@
   aggregate advantage demonstrated)
 - I3b/I4/I5 decision-logic re-audit (optional; BF builder verified)
 - 2026 holdout (untouched; protocol defined, not run)
-- Calibration experiment for the frozen K-count PMF (drafted, not
-  executed — see below)
 
-## 8. Calibration experiment DRAFT (standalone card)
+## 8. Calibration experiment card (standalone, pre-specified, NOT executed)
 
-A standalone card has been drafted at
-`card_count_pmf_calibration_2026-10-24.md`. Key design decisions:
+A standalone card is at `card_count_pmf_calibration_2026-10-24.md`.
+Runner: `count_pmf_calibration_runner.py` at `af9cbb8`.
+Shared module: `count_pmf_calibration.py`.
 
-- Layer: count-PMF (not PA-level) — the calibrator maps the final 24-bucket CDF.
-- Method: linear CDF recalibration (one method, two parameters a,b).
-- Comparator: identity mapping (a=1, b=0).
-- Chronological separation: fit on block_2024H2 scored starts; score on block_2025H1 (disjoint, later).
-- PMF provenance: count_agg_eval_v1 pmf_baseline — out-of-sample walk-forward forecasts by construction.
-- Primary metric: paired count-RPS on the identical block_2025H1 starts.
+Key design (owner-reviewed):
+
+- Layer: count-PMF (not PA-level).
+- Method: one-parameter linear CDF recalibration — clipped mapping
+  F_cal(k) = clip(1 - a(1-F(k)), 0, 1); PMF via F_cal differences;
+  monotone by construction; F_cal(23) = 1 automatic.
+- Comparator: identity (a = 1).
+- Fit: block_2024H2 (2,314 starts) — chronological, out-of-sample.
+- Evaluate: block_2025H1 (2,509 starts) — disjoint, later.
+- Calibration/evaluation cohort hashes verified against predeclared
+  expected values in receipt_initial.
+- Primary: paired count-RPS (slate-date bootstrap).
 - Acceptance: upper paired 95% CI bound < 0.
-- Stop conditions: <1,000 calibration starts; `a` outside [0.5, 2.0]; PMF invariant violation; non-stationary walk-forward.
-- NOT EXECUTED — requires the registered gate and owner authorization.
+- Secondary: calibration diagnostics (threshold probabilities vs
+  observed frequencies); own-line LL/Brier; MAE/RMSE of point summary.
+- NOT EXECUTED — requires registered gate + owner authorization.
