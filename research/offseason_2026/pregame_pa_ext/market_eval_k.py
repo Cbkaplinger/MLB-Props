@@ -40,9 +40,18 @@ from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 import kcount_combiner as kc  # noqa: E402  (registered count metrics)
 
 # the TESTED odds-coverage join machinery (reused unchanged)
+# join_coverage lives in the private research lake (not in git). It is
+# imported LAZILY by functions that need it for real-data operations.
+# Synthetic tests inject prebuilt data and never touch this import.
 _COV_DIR = Path(r"C:\Users\ckaplinger\MLB-Props-Research\odds-coverage-v1")
-sys.path.insert(0, str(_COV_DIR))
-import join_coverage as jc  # noqa: E402
+
+
+def _get_jc():
+    """Lazy import of the private-lake join_coverage module."""
+    import importlib
+    if str(_COV_DIR) not in sys.path:
+        sys.path.insert(0, str(_COV_DIR))
+    return importlib.import_module("join_coverage")
 
 MARKET = "pitcher_strikeouts"
 DEV_WINDOW_START = "2024-07-01"
@@ -321,7 +330,7 @@ def run_market_eval_k(model_pmfs: "pl.DataFrame", out_dir, *,
         # (identity evidence; the old per-(game_pk, book, line, side)
         # dedup mixed both starters' prices - 50.8% of rows were the
         # opposing pitcher's)
-        starts_out, odds, join_meta = jc.build_task_frames(
+        starts_out, odds, join_meta = _get_jc().build_task_frames(
             Path(book_lines_path), Path(envelope_path),
             ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet",
             [MARKET], window_start=DEV_WINDOW_START,
@@ -714,7 +723,7 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
         # the alternate ladder is OVER-SIDE ONLY in the archive; the
         # per-book de-vig margin comes from the principal market's
         # two-sided near-close quotes
-        starts_m, odds_m, meta_m = jc.build_task_frames(
+        starts_m, odds_m, meta_m = _get_jc().build_task_frames(
             Path(book_lines_path), Path(envelope_path),
             ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet",
             ["pitcher_strikeouts"],
@@ -729,7 +738,7 @@ def run_ladder_benchmark(model_pmfs: "pl.DataFrame", out_dir, *,
         nc_main = select_near_close(odds_m)
         margins, pooled_margin = book_margins_from_two_sided(nc_main)
 
-        starts_out, odds, join_meta = jc.build_task_frames(
+        starts_out, odds, join_meta = _get_jc().build_task_frames(
             Path(book_lines_path), Path(envelope_path),
             ad.BF_WORKLOAD_DIR / "data" / "bf_forecasts.parquet",
             ["pitcher_strikeouts_alternate"],
