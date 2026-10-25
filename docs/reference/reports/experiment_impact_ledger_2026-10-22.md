@@ -20,6 +20,26 @@ ledger; all original artifacts preserved.
 | The drop counters are not mutually exclusive: 4,823 − 284 ≠ 4,681 | The oracle loop counts a missing-p9 start, and the completion filter recounts starts whose projected row was later dropped; the TRUE exclusion is 142 (4,823 − 4,681); the 284 figure double-counts |
 | Market-eval identity repair: verified_odds_for_start + per-start consensus + full-key join, independently reviewed at the repaired version | `market_eval_k.py`; owner code inspection; repaired rescore `market_eval_k_v3_fullkey_attempt2` (scored parquet `1d9a00343d17956f`) |
 
+## STATUS 11 (v2 source RECOVERED from the reflog, 2026-10-24, latest)
+
+The detached-HEAD v2 commit b7aad8e2d9914cc59b7e158a694890b53961d5f6
+was RECOVERED from the originating worktree reflog (no reconstruction
+needed) and restored as the branch head. RECOVERY VERIFICATION: the
+recovered runner re-executed in a new write-once directory
+(ablation_count_rps_canonical_v2_recovered2) reproduces the preserved
+attempt5 numbers EXACTLY (4,823 starts, PITCHER 1.33457, FULL
+1.31744; train windows 2024-05-02/2024-08-02 cutoffs from actual max
+game dates 2024-06-30/2024-09-30; drop table sums matched). The
+recovered source IS the original executed code. CANONICAL BUNDLE:
+ablation_count_rps_canonical_v2_recovered2/ (per-start outputs,
+metrics, receipts). The ablation count-RPS correction is now
+CANONICAL: PITCHER 1.33457, FULL 1.31744, FULL-frozen -0.00017 CI
+[-0.00037, +0.0000282] (includes zero; no improvement over frozen
+binary demonstrated). Earlier failed attempts preserved:
+ablation_count_rps_canonical_v1 (calendar cutoffs + hardcoded
+comparator - superseded), _v2 (NameError), _v2_attempt2/5 (pre-recovery
+executions of the same recovered code).
+
 ## The ledger
 
 Classification key — "unaffected" now states the SPECIFIC defects
