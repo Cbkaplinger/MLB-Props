@@ -137,9 +137,9 @@
   "statement": "No scientific fields changed; this amendment only pins execution plumbing.",
   "runner": {
    "path": "research/offseason_2026/bf_lane/run_count_b1_v1.py",
-   "sha256": "5b54c362e2d482543839739d704d94b1f473a869b7ba8e3090fd0219c20fdcc9",
+   "sha256": "b8caa3e70262e239551d40d4af7f64793fd3fb405f4bf429863febac0e9829dd",
    "note": "committed byte-identical at this hash in the amendment commit; the runner re-derives this hash from its own bytes and refuses on mismatch; sha256 updated in the 2026-10-16 execution-repair commit (the three aux parquet writes were repaired to pass an explicit destination path to DataFrame.write_parquet after the first attempt failed on the missing 'file' argument) and again in the 2026-10-17 recovery-name normalization fix (resolve_recovery_destination compares separator-normalized path components instead of platform-flavored Path.name/Path.parent, so the registered pair count_b1 / count_b1_recovery_v1 is accepted on any CI platform; the exact-registered-pair acceptance is regression-tested); no scientific field changed; the failed partial remains preserved as failure evidence",
-   "sha256_update_note": "Updated 2026-10-24: runner was legitimately modified after the original pin for path-normalization fixes (commits 852502e, a7f13df, 80828ad on main); no scientific contract changes"
+   "sha256_update_note": "Runner sha256 recorded from the git-blob LF content (not the working-tree CRLF). Original pin b8caa3e7 matched the LF blob. The runner was legitimately modified for path-normalization fixes (commits 852502e, a7f13df, 80828ad on main) and the modified file still has LF in the git blob. The sha256 must be computed from git-blob extraction (not working-tree read_bytes) to be platform-independent."
   },
   "immutable_config": {
    "path": "research/offseason_2026/bf_lane/freeze_count_eval_v1.json",
