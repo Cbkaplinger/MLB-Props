@@ -1,3 +1,5 @@
+> **Canonical role map:** `docs/roles/` (ROLES_REV 2026-10-22-r2). This file is the quick-reference layer; `docs/roles/` + `docs/NEXT.md` override wherever they conflict.
+
 # Agent instructions (this repo)
 
 **Master file for what to do next:** [`docs/EXECUTION_BACKLOG.md`](docs/EXECUTION_BACKLOG.md)
@@ -20,7 +22,7 @@ That backlog is the single holy work-state file (APPROVED / BLOCKED / waiting / 
 | PR workflow | `docs/reference/pr_workflow.md` | How to make/document/review/merge PRs; what CI green means; identity-block template |
 | Cleanup skills | `.cursor/skills/repo-*` | Evidence-first cleanup program: `repo-garbage-collector` (umbrella, routes; 11-phase policy stays at `.agents` copy) + 5 specialists + setup; glossary in `repo-garbage-collector/LANGUAGE.md` |
 
-Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); never `git push` (`.cursor/rules/git-push-policy.mdc`).
+Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); push to your own named branch (see `docs/roles/README.md` git rule).
 
 ## Operating rules
 
@@ -35,7 +37,7 @@ Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); never `git push`
 - **Experiment outputs:** research writes under `research/offseason_2026/experiments/<card>/` with card + manifest + deviations; never overwrite a prior card. Cite n, Brier/skill, ECE, ROI/WR, CLV to a file or report key.
 - **Doc conventions:** lowercase hyphenated markdown names; `docs/EXECUTION_BACKLOG.md` wins over all subordinate "next steps"; reports are dated and say SUPERSEDED when replaced; ADRs need repo evidence (else `PROPOSED-*.md`).
 - **No-2026-tuning:** do not retune floors, veto, Kelly, WS1c, Poisson, or champion from 2026 paper or juiced 2026 slices. 2026 is locked retrospective / confirmatory only. Clean 2025-select / 2026-judge once, post-9/27, pre-registered.
-- **Git:** `git status` before and after writes; never `git push` (give the owner the command); never commit unless asked; end every turn listing files created/modified.
+- **Git:** `git status` before and after writes; push to your own named branch (see `docs/roles/README.md`); never commit unless asked; end every turn listing files created/modified.
 - **Research != production:** research never edits live scorers, policy JSONs, schedules, or ledgers. Shadow columns beside live, zero live-path change, until gated promotion with revert path.
 - **Skills:** project skills live in `.cursor/skills/<name>/SKILL.md`. Ignore `/helios-*` in this repo (user-global Helios skills, not for mlb-props). Skill docs: `docs/agent/`.
 - **Where things live:** ADRs in `docs/adr/`; architecture in `docs/diagrams/` + `docs/reference/`; experiment cards in `research/offseason_2026/experiments/`; historical reports in `docs/reference/reports/`.

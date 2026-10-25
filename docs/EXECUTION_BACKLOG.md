@@ -16,7 +16,7 @@
 | Frozen-model replay spec | `docs/reference/oddsapi_replay_architecture.md` | How to backtest 2025-present Odds API open/close with the model frozen — **not** a queue. Freeze/work/product partition. Inventory: `reports/oddsapi_replay_inventory_2026-09-11.md`. |
 | Golden metrics | `docs/reference/golden_metrics.md` | Canonical numbers + JSON sources. Cite, do not recompute. |
 | Paper / resume | `docs/paper/manuscript.md`, `resume-summary.md` | Publication narrative — not the live work queue |
-| Cleanup history | `docs/CLEANUP_LOG.md` | Historical cleanup log — not instructions |
+| Cleanup history | `docs/archive/CLEANUP_LOG.md` | Historical cleanup log — not instructions |
 | Canonical surfaces | `docs/reference/repo_canonical_map.md` | What code/docs are canonical vs archive |
 
 If another doc’s “next steps” disagree with the Session Snapshot, **this file wins**. Fix the subordinate doc to redirect here.
@@ -39,29 +39,22 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ---
 
-## Session Snapshot — 2026-10-16 (B1 Ridge run EXECUTED ONCE + Chat 2 ACCEPT-WITH-LIMITATION + CLOSEOUT (D1/L2/L3 closed; commits 6ee8544 + 77c01c8, UNPUSHED pending Chat 2 exact-SHA review); count-layer registration count_b1 FROZEN NOT EXECUTED; lgbm-equal-info v2 closeout: equal-info nonlinear PA challengers RETIRED; bf-lane-v1 B0 audit PASS)
 
-### PAST — already shipped (durable)
-| Track | Status | Notes |
-| --- | --- | --- |
-| SSAC27 #1–#8 audit + pre-commit gate | DONE | Modeling half honest; betting half demoted / non-claim |
-| Phase A interim ops stance (docs) | DONE | Shadow-first framing |
-| Phase B shadow asym / line-veto lanes | DONE | 4.5-over veto best narrow candidate |
-| Deep post-freeze diagnosis | DONE | Edge≠ROI on overs; Brier skill over− / under+ |
-| Item 14 granular open calib challenger | DONE (research) | Holdout preferred global_iso; still < market — **not** live-promoted |
-| Pack A weekly settle pack + game_date bootstrap | DONE | Parallel ledgers for continuous A/B |
-| Book-quality filter | WONT_DO | Books for lines only; usually synced |
-| Live **over@4.5 hard veto** + soft probation 2.5/3.5 | **DONE 2026-09-01** | `kpi_policy` + `odds_board`; commits `7e03ced` / `0f8df76` / backlog follow-ups |
-| 2026-09-04 zero-bet incident recovery | DONE | Stale-slate root cause; 4 BET logged/sent manually |
-| **2026-09-06..08 morning-outage fix (Agent)** | **DONE 2026-09-08** | 5 automation bugs fixed + verified (see PRESENT). Full suite 280 green. |
-| **2026-09-08 beat-the-books program (Agent+user)** | **DONE (plan)** | `docs/reference/beat_the_books_program.md` — diagnosis locked (ECE 0.159 vs 0.015; xK +0.7–0.9 on BET tickets = selection amplifier; capped = breakouts+declining vets; TBF ±5.1 symmetric shrinkage) + 7 ordered WS with kill criteria; xROI −0.07, no positive-EV promise |
+## Session Snapshot — 2026-10-21 (post-split)
 
-### PRESENT — where we are / just completed
-- **LINEUP COVERAGE CHECK COMPLETE - MISSING-SLOTS ISSUE CLOSED 2026-10-20 (read-only, one script, no fitting/scoring/new framework):** the frozen lineup artifact covers the registered evaluation population COMPLETELY - 7,194/7,194 registered starts ((game_pk, side) each exactly once, = bf-workload fixed card 2024-07-01..2025-12-31, 0 missing in either direction vs the bf artifact in-window); slots 1-9 present exactly once on every start (0 null slots, 0 duplicate ids across slots; nine_distinct == 1 on 7,194/7,194); 64,746 slot assignments, 0 null ids, 690 distinct MLBAM ids, 0 absent from the frozen pa_table batter universe, 0 cold starts (prior_n == 0) at scoring as-of; PROVENANCE: reconstruction from OBSERVED prior PAs (last <=7 team-games strictly before game_date, observed batting order by first appearance; registered greedy bijection max in-slot support; frozen 2026-10-13 preregistration_variant_v2.json; gate G4 ties pools to preserved v1 outputs) - NOT actual posted lineups, NOT a forward projection; 52/64,746 slots (52 starts) are fallback_usage lineage (highest-total-usage pool batter; construction provenance, not missing data); 0 missing lineup rows, 0 ID join failures, 0 insufficient-history players (descriptive: 4,328 slots with prior_n < 150 are scored under the frozen w150 shrinkage, not excluded). No source/extraction defect found; the residual cold-start fallback-vs-exclusion policy question has 0 triggered cases in this population and remains a separate owner decision.
+**Critical path:** `docs/NEXT.md` (single source of the current action).
+**This backlog is the concise active entry point.** Historical Session
+Snapshot bullets (2026-08 through 2026-10), the CLV + Hosting Plan, the
+Strategy Plan, and the SSAC27 Track are preserved verbatim in
+[`docs/reference/reports/backlog_archive_2026-10-21.md`](reference/reports/backlog_archive_2026-10-21.md).
 
-- **SCORING RUN EXECUTED ONCE - ACCEPTANCE GATE FAILED - OUTPUT PRESERVED UNACCEPTED 2026-10-20 (#21 merged ccd0148; owner-authorized single run_real joining pipeline paext-v2-20261020T141540Z; NO overwrite, NO rerun, NO downstream use):** preflight READY (all artifact pins match; output absent; EXACT 7,194-start key-set equality lineup==bf-in-window, sym_diff=0). RUN: n_projected_starts 7,194; cutoff gate passed (all source dates strictly prior, min lag 1 day); scored 64,215 PA rows all finite in [0,1]; PMFs normalized (24 buckets, sum 1) on 7,135 starts; MLflow run 2393940213154b718124b0b323c62ff9 VERIFIED. ACCEPTANCE FAILURE: 531 cold-start PA exclusions + 59 cold-slot starts excluded from PMF arms (required: zero) - n_starts_pmf_computed 7,135 of 7,194. INVESTIGATION (read-only on the preserved output): ALL 531 rows are PITCHER-side zero-history (0 batter-side, 0 both); 59 distinct pitchers, one start each; every one of the 59 has its FIRST pa_table pitcher row on/after the scored start date = career debuts inside the registered window - a genuine population property (cf. bf-workload B0 audit career_debut availability class; bf labeled 169 under its own BF-history definition - different lineage, noted, unreconciled), NOT a source/extraction defect and NOT a runner defect (all fail-loud gates and validators passed; the runner recorded the exclusions exactly as reviewed). DISCLOSED SCOPING CORRECTION: the earlier lineup coverage check examined BATTER-side slot history only (0 cases); the registered cold_start gate is pitcher-OR-batter - the pitcher side surfaced only at the scoring boundary, which the acceptance gate caught by design. STATE: output projected_pa_probs_v1.parquet preserved write-once as UNACCEPTED; no PMF/comparative/confirmatory claims; MLflow evidence retained. OWNER DECISIONS NOW OPEN: (1) debut-pitcher handling for the 59 starts (keep registered exclusion vs a new registered decision - no fill was applied and none is proposed by the builder); (2) whether an accepted re-run is authorized ONLY after that decision (would require an output-destination decision since the parquet is write-once).
+**Current Chat 3 lane:** architecture + cleanup documentation delivered via
+PRs #33/#35/#36/#38. The backlog split (this PR) is the final cleanup
+deliverable. The read lane is STOPPED.
 
-- **DEBUT-PITCHER RECONCILIATION COMPLETE 2026-10-20 (existing artifacts only; output UNACCEPTED and untouched; report: research/offseason_2026/pregame_pa_ext/report_debut_pitcher_reconciliation_2026-10-20.md):** all 59 cold starts are ACTUAL MLB CAREER DEBUTS (as pitchers) - first pitcher-row in-window, zero earlier pitcher rows across the four-season PA table (2022-04-07..2025-09-28), 0 earlier batter rows (no conversion case). 59-vs-169 reconciled BY DEFINITION: adapter cold = zero prior PA rows in the 2022-04-07+ table; BF cold = zero prior outings within the BF build pool window (starts 2023-03-30, build_bf_forecasts.py:162). The 59 are a STRICT SUBSET of the 169 (both definitions agree on all 59: bf prior_n==0); the other 110 BF-colds have prior PA-table history predating the BF pool window (2022-only outings). Spec text located and quoted in the report: registered rule = EXCLUSION AS PROVISIONAL APPROACH, owner decision explicitly PENDING (PROJECTED_LINEUP_SPEC.md section 3 annotation + COUNT_EVAL_COMMANDS.md; league-rate fill remains the registered candidate fallback); implementation behavior = exclude + record counts, no stop, no fill - mechanical realization of the provisional rule, not policy approval. The dormant policy question is now CONCRETE (59 real cases); owner decision required before any accepted run.
+**Current Chat 1/2 lane:** M0 v1 STOPPED; Chat 1 producing per-class label
+counts; Chat 2 reproducing; v2 card or binary freeze by 2026-11-07. See
+`docs/NEXT.md` for the full critical path.
 
 - **HISTORY-BEHAVIOR DOCUMENTATION + BATTER-RECENCY PROPOSAL READY 2026-10-20 (existing code/artifacts only; NO fitting, NO predictions, NO preserved-run modification; docs: proposal_batt_recency_diagnostic_2026-10-20.md):** (1) CURRENT HISTORY BEHAVIOR (code-verified): PA table 2022-04-07..2025-09-28 is the prior source for ALL states; training rows start 2023-01-01; NO season reset anywhere (career-cumulative priors + lg cumulative); EW = half-life 90d (2^(dnum/90) weights, strictly prior), self-relative (does NOT decay toward league with absolute staleness - a 2022-only batter presents stale form as current at a 2025 start) and UNSHRUNK (any ew_den>0 yields the raw ratio; only prior_n==0 falls back to lg_rate); w150 shrinkage = (prior_k + 150*lg_rate)/(prior_n+150), target = as-of league K rate; RAW arm = frozen per-block logistic on the 8 FEAT_H3 features, L5 arm = pure log5 from the two w150 priors + lg_rate; both count-PMF arms mix over the BF cap-60 extension into 24 buckets. (2) CLASSIFICATION (from existing artifacts): the 59 are GENUINE MLB debuts - the model faces new players, not an artificial gap; appropriate improvement class = newcomer prior or explicit abstention policy, NOT better historical construction (no earlier MLB data exists in any available source; external acquisition out of scope). (3) PROPOSAL (pre-registration draft, requires separate approval before any fitting): ONE batter-only challenger - split history at a recent window R (rows inside R = recent raw K/PA; pre-R rows = anchor: EW(90d, frozen half-life) shrunk to as-of league at w150), combined p=(k_win + m*p_anchor)/(n_win + m); disjoint components (no appearance in both); newcomer = league fallback flagged, zero-history entities keep the registered exclusion; strictly-prior asof + 2 new src-date gate columns; candidate budget EXACTLY 3 configs (R=60d/m=30 primary, R=60d/m=15, R=120d/m=30), half-life fixed 90d, NO window/decay search; validation on the registered dev blocks (2024H2+2025H1) over the 7,135 eligible starts / 64,215 scored rows - identical keys for baseline and challenger, the 59 abstentions PROMINENTLY reported (99.18% coverage); confirm_2025H2 PROTECTED (no fit/score/tune/report); primary = pooled RAW Brier delta vs the UNCHANGED frozen baseline predictions, paired 2000/20261001 bootstrap, null-centered + Holm m=1. The original run STAYS FAILED against zero-exclusion acceptance; the diagnostic never relabels it. Changed paths: ONE new research-only script + card; adapter/checkpoint/freeze/BF/lineup artifacts and the preserved parquet all untouched. (4) Restricted 7,135-start baseline diagnostic = separate, smaller approval (no fitting).
 
@@ -783,6 +776,7 @@ Evidence anchors: `docs/reference/reports/postfreeze_pack_2026-09-01.md`; live e
    - **Unders: monotone improves calibration (+0.0073 on shared n=835) and reduces the unders bleed — but does NOT make it positive**: deduped under ROI@fair −0.0272 (champion) → −0.0166 (monotone). Softens but does NOT obsolete the unders-floor problem.
    - **Verdict**: swap is coherent and robust, but unders-floor still requires its own decision (not obsoleted). Per Standing Rules, the actual champion swap is NOT an approved action — it needs explicit user sign-off after this evidence is reviewed.
 
+
 ## New Items
 
 10. **[DONE 2026-09-01]** Two-tier test-gating. Added `.pre-commit-config.yaml` (local system hook: pytest on `tests/test_odds_ledger.py tests/test_real_bets.py tests/test_registries.py`). Ran `pre-commit install`; fast subset **28 passed in ~3.9s**. Full suite remains CI-only.
@@ -808,10 +802,16 @@ Evidence anchors: `docs/reference/reports/postfreeze_pack_2026-09-01.md`; live e
 14. **[DONE research 2026-09-01 — promote gated] Granular open calibration challenger (ROI path).** Fit line / line-bucket (and optional side-aware apply) isotonic/Platt on **open 2025–2026** with chrono-safe holdout; score **post-freeze** as pure OOS on skill vs market + shadow KING ROI. Do not refit on post-freeze tickets. Do not edit live calibrator / KING without sign-off. Script: production/ops/fit_granular_open_calibration.py.
 
 
+
 ## Next Session — Open Questions & Plan (evergreen)
 > **Not a second backlog.** Canonical live plan = Session Snapshot → **PAST / PRESENT / FORWARD / DEFERRED** (top of this file). Checklists below are a short mirror only.
 
 **Waiting on user (blocks these):**
+
+**Waiting on user (blocks these):**
+
+- [ ] Confirm 2.5/3.5 over style — **data rec 2026-09-11: freeze current probation** (from the archived CLV + Hosting Plan; carried forward at split)
+- [ ] **Dashboard v1** — parked until backend #113 is green; say go to unpark (from the archived CLV + Hosting Plan; carried forward at split)
 - [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
 - [ ] Ops Checkpoint A review: 5 owner questions (`docs/reference/reports/ops_contracts_2026-09-30.md`, defaults YES) + OPS-1 defaults sign-off.
 - [ ] Scoped infra/docs commit checkpoint (writers paused during staging; model/production/ledger files excluded).
@@ -828,6 +828,7 @@ Evidence anchors: `docs/reference/reports/postfreeze_pack_2026-09-01.md`; live e
 
 **Historical polish notes** (2026-08-27 freshness sweep detail, ledger refresh figures): kept in git history; intentionally not repeated here so this section cannot compete with the Snapshot.
 
+
 ## Standing Rules (apply to all of the above)
 - Never mutate historical labels (hold→bet relabeling) — always append new records instead.
 - Every real-money conclusion requires ≥50 real tickets before being treated as evidence of edge. The current 9-ticket, +24.1% ROI record is now fully auditable (6W–3L, all outcomes confirmed) — a good start, not proof; don't let it drive stake-sizing yet.
@@ -839,51 +840,6 @@ Evidence anchors: `docs/reference/reports/postfreeze_pack_2026-09-01.md`; live e
 - A pre-registered sample-size gate that is *exactly* met (not comfortably exceeded) should be treated as "not yet conclusive" — do not size up or treat as validated edge until the sample comfortably clears the threshold with margin.
 - **Measurement vs money (owner-locked 2026-09-11):** two jobs, never mixed. *Measurement* (are we right?) = devigged consensus median at the same snapshot (`consensus_cache.parquet`, never re-devig) for Brier/skill/CLV. *Money* (did we profit?) = juiced book-pair at the decision clock (DK else FD else next US book) for ROI/WR. Report both forever; cite which lane every number lives in. Dedupe (`dedupe_ledger_props`) is money-track aggregation only — selection stays per-quote, line×side cells stay per player O/U line.
 
-## SSAC27 Track — Manuscript Critical Review (added 2026-08-27)
-
-> **Status: ACTIVE.** An MIT-professor-style critical review of `docs/paper/manuscript.md` was completed 2026-08-27 (full manuscript, model-card, both diagrams, PAPER_NOTES, and the statistical audit report; figures assessed via `make_figures.py` + captions only — **no images opened**, the model can't read them). The review's core strategic verdict: **the manuscript is really two papers stapled together.** (1) The *modeling* half — leakage-safe rate×exposure forecasting, honest trial-adjusted stats (DSR), clean audit trail — is publishable and is the right SSAC27 submission. (2) The *live-betting performance* half (ROI 0.4363, Sharpe 0.4438 on 26 bets) is underpowered (its own DSR 0.0349), self-selected, and must be demoted to "illustrative" until the policy-freeze question and a placebo/null control are resolved. **Decouple them — lead with modeling rigor.**
->
-> This section turns the review's prioritized action list into executable items. Do these **IN ORDER** — they gate a credible Oct 1, 2026 abstract.
-
-1. **[APPROVED — do first] Fix the Figure 2 numbers-to-body mismatch.** `docs/paper/make_figures.py` `fig2_model_comparison` plots Mean/Ridge/LightGBM MAE (0.0854/0.0788/0.0783) titled "248-feature screen" — but the manuscript body (Table 2a, §8.6) reports the **sparse-set (72/58-feature) parity contract** (MAE ≈ 0.0767). The figure does not match the reported numbers and is a stale 248-feature-registry artifact. Regenerate against current sparse-lane artifacts, or delete. A figure that contradicts the body is disqualifying. *(Critical — 1–2 hrs.)*
-2. **[APPROVED — do second] Reconcile ECE 0.024 vs 0.0639 conflict.** §8.4 / Fig-2-reliability report "mean ECE ≈ 0.024 with no post-hoc recalibration"; the deployed profile (Table 3/A5) reports ECE 0.0639 / MCE 0.1353. The manuscript never explains why the deployed, isotonic-transfer-calibrated profile looks **2.6× worse** than the raw walk-forward stack. Either they're different lanes/populations (must be labeled as such everywhere: open / manual-26 / walk-forward, and raw vs post-cal) or there's an unexplained calibration regression. Every ECE/MCE/Brier must carry (lane, n, raw/post-cal). *(Critical — 2–4 hrs.)*
-3. **[DONE 2026-08-27 — abstract rewritten]** Rewrite the abstract. Lead with the DSR/sample-size finding (currently buried at line 22); co-locate every headline metric with its 95% CI (e.g., "ROI 0.4363, 95% CI [0.03, 0.81]"); drop or heavily qualify the +24.17u / ROI / Sortino framing until item 4 resolves the policy-freeze question. *(Critical — 1–2 hrs.)*
-4. **[DONE 2026-09-01 — FAIL]** Resolve policy-freeze vs. evaluation-window separation. **Audit verdict: FAIL.** The `n=26` lane slate dates are `2026-07-30`–`2026-08-17`, entirely before `KING_PROFILE_AUG2026` `frozen_utc=2026-08-21T16:10:00Z`. Live blend selection rule is `best_manual_roi_after_open_calibration_transfer_deduped` (`production/ops/live_krate_ensemble.json`, commit `8ad4681`). ROI/Sharpe/PnL reclassified as **pre-freeze policy-search evidence**; stripped from headline deployment claims in abstract + Table 3 + §8.2. Full write-up: `docs/reference/reports/ssac27_audit_pack_2026-09-01.md`. *(Was critical — completed.)*
-
-5. **[DONE 2026-09-01]** `N=5161` enumerated as eligible blend×floor configs. Report: `docs/reference/reports/ssac27_audit_pack_2026-09-01.md`. Manuscript §8.2 DSR provenance corrected (not feature×model×HP).
-6. **[DONE 2026-09-01]** Chronological naive MAE baselines via `models/Strikeout-Model/research/marcel_baseline.py`; Table 2b + lane caveats. Report: `docs/reference/reports/ssac27_audit_pack_2026-09-01.md`.
-7. **[DONE 2026-09-01]** Tables 3/A5 CI+lane tags (prior); equity regenerable via `docs/paper/make_figures.py` `fig_equity_top3_vs_top1()`; Fig 3 caption n/date-span/generator; honesty/slippage lineage: `docs/reference/reports/ssac27_audit_pack_2026-09-01.md`.
-8. **[DONE 2026-09-01]** Null/placebo lanes: `production/ops/run_null_decision_lane.py`. Report: `docs/reference/reports/ssac27_audit_pack_2026-09-01.md`. Manuscript §8.2.2. KING less red than nulls, still negative → no decision-edge claim.
-
-#### Completed this session — 2026-08-27 artifact inspection (numbers fixed against artifacts)
-- **[DONE — item 1] Figure 2 -> body mismatch resolved.** `make_figures.py` `fig2_model_comparison()` was a hardcoded 248-feature-registry MAE bar chart (0.0854/0.0788/0.0783) titled "248-feature screen"; it was **not referenced anywhere in the manuscript** (confirmed zero `.md`/`.html` references) and contradicted the sparse-lane parity contract (MAE ≈ 0.0767). Chose the review's "or delete" option: **removed the function + its call, and deleted the stale `docs/paper/figures/fig2_model_comparison.png`**. Rationale: it could not be regenerated without a same-lane sparse naive baseline (none exists), so deleting beats emitting a mixed-lane figure. `fig4_calibration` note relabeled to the artifact-backed `ece_mean`.
-- **[DONE — item 2 partial (labeling)] ECE 0.024 vs 0.0639 reconciled as different lanes.** Confirmed `phase11c_calibration/metadata.json` `ece_mean=0.0243`, `ece_max=0.0403`, `n_rows=4607`, `n_windows=3`, `source_predictions=.../phase11b_walkforward/walkforward_predictions.parquet`, `needs_recalibration=False` — i.e. the 0.024 is the **pre-deployment walk-forward 2024 diagnostic (4607 raw preds, 3 windows, raw no-recal)**, NOT deployed quality. The 0.0639/0.1353 is the **deployed 26-bet lane** (`open_top3_transfer...replay` `best.ece`). Added explicit lane-labeling + a "Lane clarification" block in `manuscript.md` §8.4/Fig 2 and in `manuscript.html`. No number changed — the two ECEs were never contradictory, just underlabeled. Remaining: extend the same (lane, n, raw/post-cal) tagging to Table 3/A5 and every other ECE/Brier mention (item 2's full scope).
-- **[DONE — NEW find] §8.3 slippage-table Sharpe column was wrong in both `.md` and `.html`.** The table carried a hand-extrapolated Sharpe series (0.4438/0.4387/0.4336/0.4234) that exists in **no artifact**. The authoritative `artifacts/odds_log/slippage_sensitivity_top3_floor12_aug21.csv` reports 0.4352/0.4301/0.4250/0.4148 for the same 26-bet set. ROI/PnL/Sortino already matched. **Fixed the Sharpe column in both `manuscript.md` and `manuscript.html`** + added a source/freshness note.
-- **[DONE — NEW provenance] §8.2 CI bounds ARE artifact-pinned.** The backlog previously claimed the §8.2 bootstrap CIs were "not regenerable from any committed artifact." **Inspection overturned this**: `artifacts/odds_log/quant_honesty_aug21_summary.json` contains `bootstrap_iid_ci` and `bootstrap_block_by_date_ci` that exactly match the manuscript's stated intervals. Updated the §8.2 text (`.md` + `.html`) to cite that artifact. Items 3/7 can now surface these CIs straight from the artifact.
-- **[DONE — NEW provenance] N=5161 pinned; citation added.** `quant_honesty_aug21_summary.json` `n_trials=5161` (+`sr_star=0.8544`) confirmed as the DSR/PSR/power source. Added Bailey & López de Prado (2014) *The Deflated Sharpe Ratio* as reference [12] and a provenance note in §8.2. Item 5 remains open only for a per-family **breakdown** of the 5161 (the artifact stores the count, not the enumeration).
-- **[DONE — item 4 — 2026-09-01 FAIL]** Policy-freeze audit. 26-bet slate dates `2026-07-30`–`2026-08-17` are entirely before `KING_PROFILE_AUG2026` freeze `2026-08-21T16:10:00Z`; blend selected via `best_manual_roi_after_open_calibration_transfer_deduped`. Reclassified ROI/Sharpe/PnL as policy-search evidence; demoted in abstract/Table 3/§8.2/resume-summary. Report: `docs/reference/reports/ssac27_audit_pack_2026-09-01.md`.
-
-- **[DONE — item 7 tables half] CI surface + lane tags on Tables 3 & A5.** Added bootstrap 95% CI annotations to the decision-lane ROI/PnL/Sharpe/Sortino rows of Table 3 (with footnote citing `quant_honesty_aug21_summary.json`) and a matching CI footnote on Table A5 (including the pre-correction-superseded note on that artifact's Sharpe/DD/Calmar). Also added explicit `deployed 26-bet manual lane, post-isotonic-transfer, n=26` lane tags to the ECE/MCE/Brier/LogLoss rows of both tables — closing item 2's full-scope lane-tagging for Tables 3 & A5.
-- **[DONE — parking-lot low-priority] §1.1 Related work + §8.7 illustrative framing.** Added a "Governed decisioning and performance evaluation" paragraph to §1.1 (Bailey–López de Prado [12] + market-skill/CLV methodology). Added an explicit "explicitly illustrative and anecdotal (n=3)" disclaimer at the top of §8.7 so the case narratives cannot be read as statistical evidence.
-- **[DONE — item 7 equity half, 2026-09-01]** Equity curve now produced by `docs/paper/make_figures.py`; caption cites picks CSV + n/date-span; honesty/slippage lineage report resolves Sharpe mismatch by intentional freeze (not silent rewrite).
-
-#### Flagged — artifact lineage inconsistency (RESOLVED 2026-09-01 by documentation freeze)
-- `quant_honesty_aug21_summary.json` / `slippage_sensitivity_*.csv` keep pre-correction Sharpe/DD/Calmar (0.4352/0.3685/1.1841) as **intentional diagnostic freeze** for PSR/DSR/bootstrap; manuscript headlines use authoritative replay (0.4438/0.1905/2.2903). Report: `docs/reference/reports/ssac27_audit_pack_2026-09-01.md`. Do not silently rewrite honesty metrics without regenerating the DSR pipeline.
-
-
-#### Strategy note — consensus / CLV / ROI / other-models grounding (recorded 2026-08-27, no code work)
-Grounding for how this project holds up against sportsbooks and how results are best evaluated. Drawn from `clv_basis_reconcile.json`, `clv_snapshot.json`, model-card, and manuscript §8.2/§8.5 — recorded so the framing survives, not as new approved items.
-- **Vs. consensus / sportsbooks: no demonstrated edge yet.** Full-cohort devigged beat-close rate ≈ **54.4%** (`price_devig_gt0 = 0.544`, n=493 as of 2026-09-01; was 0.551 / n=441 on 2026-08-27) and the reconcile note itself warns most K-prop lines don't move (`|clv| <= 1pp` on ~42% of props), so market-beating is near coin-flip at best; CLV skill gates still read `building_sample`. The honest defensible claim is "no proven persistent edge." To make a *consensus* comparison credible we'd need a defined devigged mid-market/timestamp consensus on the *same* matched slate universe, not just the odds-log prices we happened to capture (thin-market weakness §8.5 concedes).
-- **CLV evaluation discipline:** always report the **full-cohort** devigged basis (`price_devig_gt0/ge0`), never the flattering trailing-10 or `>=0` "didn't get worse" basis — those read much higher and are not comparable skill evidence. This is a standing reporting rule, not a one-off.
-- **Metric-lane split (keep):** ROI/Sharpe/Sortino = decision-*performance* (small-n, CI-wide, DSR-guarded — do NOT lead with it); CLV = market-*skill*; Brier/LogLoss/ECE + delta-over-naive = the publishable model-skill half. Other-models (naive/Marcel/career-prior baselines, item 6) is what turns "absolute MAE 0.0767" into a real skill claim.
-- **Reframed why of the approved items (order unchanged):** item 5 (enumerate N=5161) → DSR auditable; item 6 (naive baseline) → delta-over-naive is the most persuasive cheap modeling upgrade; item 4 (policy-freeze audit) → gating, strip ROI/Sharpe from headlines if the date can't be drawn; item 8 (placebo/null lane) → gives the null distribution DSR rests on. No change to execution order.
-
-**SSAC27 future-work (do NOT start before items 1–8 clear; these are post-deadline depth, not submission-gating):**
-- **9.** Negative-binomial + projected-TBF-distribution mixture count-layer challengers (currently not-built per model-card / audit).
-- **10.** Formal market-microstructure test for the thin-market hypothesis (§8.5), or **delete the speculation now** (15-min deletion is gating-adjacent, the test is future).
-- **11.** Full interpretability atlas (conditional permutation on frozen profiles).
-- **12.** Sustained production SLO tracking (latency/rollback distributions).
-- **13.** Live-sample accumulation toward the DSR targets the paper itself computes (n ≈ 98 for DSR>0.5; n ≈ 147 for DSR>0.8). The only thing that ever makes the *betting* half defensible. Future — but the abstract must NOT claim betting edge before this.
 
 ## Parking Lot (new ideas noticed mid-task — do not act on these until the list above is clear)
 - **Cheap agent stack (2026-09-02) — PARTIAL DONE:** ignore-files + agent-context rule shipped. Still parked: Cline/OpenCode + DeepSeek V4 Flash on Mac; kill Cursor Auto/credits; escalate Kimi/GLM; Claude escape hatch. Never route Lenovo work through Chinese APIs. Reopen when user starts Mac harness migrate.
@@ -914,3 +870,12 @@ Grounding for how this project holds up against sportsbooks and how results are 
 
 - **CHAT 3 LANE CLOSED 2026-10-19 (maintenance/quality-baseline lane; final handoff artifact cd9983b + GitHub reconciliation receipt f6a5e05, both delivered via PR #18):** eight PRs merged with receipts (#4, #11, #12, #13, #14, #15, #8, #10); cleanup skill system live (.cursor/skills/repo-*); owner-blocked items S-B (dependency tier choices, patch in PR #17) and S-C (dead-module out-of-tree ruling) handed off with exact decisions; deviations recorded (1321b72 direct push, #10 integration bypass); full accounting in docs/reference/reports/chat3_final_handoff_2026-10-19.md.
 - **HANDOFF TIP CORRECTION (Chat 3):** the final handoff artifact is commit cd9983b95a281220d5335fcf8039407f798b47cb (chat3_final_handoff_2026-10-19.md, includes the GitHub reconciliation receipt f6a5e05 + dual-window consolidation 92ae97f); branch tip is cd9983b - supersede the f6a5e05 tip reference above.
+
+## Historical Archive
+
+All dated Session Snapshot bullets (2026-08 through 2026-10), the
+CLV + Hosting Plan (2026-09-08), the Strategy Plan (2026-09-01), and
+the SSAC27 Track are preserved verbatim in
+[`docs/reference/reports/backlog_archive_2026-10-21.md`](reference/reports/backlog_archive_2026-10-21.md).
+Nothing was deleted.
+
