@@ -109,7 +109,10 @@ def fit_calibration_a(pmf_list: list[np.ndarray],
             f"({len(realized_list)})")
     if len(pmf_list) < 100:
         raise ValueError(
-            f"calibration sample too small: {len(pmf_list)} < 100")
+            f"calibration sample too small for the reusable helper: "
+            f"{len(pmf_list)} < 100 "
+            "(the registered card threshold is 1,000, enforced at the "
+            "real-data runner boundary)")
     for i, k in enumerate(realized_list):
         if not isinstance(k, (int, np.integer)) or k < 0:
             raise ValueError(

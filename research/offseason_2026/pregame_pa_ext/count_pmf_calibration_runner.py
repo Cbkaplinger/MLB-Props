@@ -38,6 +38,7 @@ from pregame_pa_ext import adapter as ad  # noqa: E402
 from pregame_pa_ext import batt_recency as br  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 from pregame_pa_ext import count_pmf_calibration as cpc  # noqa: E402
+from pregame_pa_ext import market_eval_k as mk  # noqa: E402
 
 import kcount_combiner as kc  # noqa: E402
 
@@ -129,9 +130,32 @@ def run_count_pmf_calibration(
     initial_sha = ad.sha256_file(initial_path)
 
     try:
-        # ---- stage 2: split into cohorts ---------------------------
+        # ---- stage 2: reject unexpected block labels ----------------
+        # The runner accepts only the two registered dev blocks.
+        # Protected blocks (confirm_2025H2) and any unrecognized block
+        # must fail the run, not be silently filtered.
+        seen_blocks = set(pmfs_frame["block"].unique().to_list())
+        allowed = {"block_2024H2", "block_2025H1"}
+        forbidden = seen_blocks - allowed
+        if forbidden:
+            raise ValueError(
+                f"unexpected block labels in the input frame: "
+                f"{sorted(forbidden)}; the runner accepts only "
+                f"{sorted(allowed)}")
+
+        # ---- stage 3: split into cohorts ---------------------------
         cal = pmfs_frame.filter(pl.col("block") == "block_2024H2")
         ev = pmfs_frame.filter(pl.col("block") == "block_2025H1")
+
+        # registered card threshold: 1,000 calibration starts minimum
+        if cal.height < 1000:
+            raise ValueError(
+                f"calibration cohort below the registered 1,000-start "
+                f"threshold: {cal.height}")
+        if ev.height < 1000:
+            raise ValueError(
+                f"evaluation cohort below the registered 1,000-start "
+                f"threshold: {ev.height}")
 
         cal_hash = _cohort_hash(cal)
         ev_hash = _cohort_hash(ev)
@@ -210,6 +234,44 @@ def run_count_pmf_calibration(
         rps_frozen = np.asarray(rps_frozen)
         rps_cal = np.asarray(rps_cal)
 
+        # secondary diagnostics (card §10): threshold reliability,
+        # full-CDF calibration, MAE/RMSE of point summaries
+        thresholds = [4.5, 5.5, 6.5, 7.5]
+        reliability = []
+        for t in thresholds:
+            pred_frozen = [float(mk.model_p_over(np.asarray(p), t))
+                           for p in ev_pmfs]
+            pred_cal = [float(mk.model_p_over(
+                cpc.linear_cdf_calibrate(np.asarray(p), fitted_a), t))
+                for p in ev_pmfs]
+            obs = [1.0 if k > t else 0.0 for k in ev_realized]
+            for pname, preds in (("frozen", pred_frozen),
+                                 ("calibrated", pred_cal)):
+                reliability.append({
+                    "threshold": t, "predictor": pname,
+                    "n": len(preds),
+                    "mean_predicted": float(np.mean(preds)),
+                    "observed_frequency": float(np.mean(obs)),
+                })
+        mean_k_frozen = [float((np.asarray(p) * np.arange(24)).sum())
+                         for p in ev_pmfs]
+        mean_k_cal = [float((cpc.linear_cdf_calibrate(
+            np.asarray(p), fitted_a) * np.arange(24)).sum())
+            for p in ev_pmfs]
+        mae_frozen = float(np.mean(np.abs(
+            np.asarray(mean_k_frozen) - np.asarray(ev_realized))))
+        mae_cal = float(np.mean(np.abs(
+            np.asarray(mean_k_cal) - np.asarray(ev_realized))))
+        rmse_frozen = float(np.sqrt(np.mean(
+            (np.asarray(mean_k_frozen) - np.asarray(ev_realized)) ** 2)))
+        rmse_cal = float(np.sqrt(np.mean(
+            (np.asarray(mean_k_cal) - np.asarray(ev_realized)) ** 2)))
+        secondary = {
+            "threshold_reliability": reliability,
+            "mae_frozen": mae_frozen, "mae_calibrated": mae_cal,
+            "rmse_frozen": rmse_frozen, "rmse_calibrated": rmse_cal,
+        }
+
         # paired bootstrap
         cmp_mod = br.load_registered_comparison()
         blocks = ["block_2025H1"] * len(dates)
@@ -235,6 +297,7 @@ def run_count_pmf_calibration(
             "acceptance": ("calibration_improves_count_rps"
                            if accept else
                            "calibration_does_not_improve_count_rps"),
+            "secondary": secondary,
         }
 
         # ---- write outputs ------------------------------------------

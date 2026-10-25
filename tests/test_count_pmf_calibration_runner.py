@@ -30,7 +30,7 @@ def _cohort_hash(df):
     return hashlib.sha256("\n".join(rows).encode("utf-8")).hexdigest()
 
 
-def _synthetic_pmfs_frame(n_cal=150, n_ev=150, seed=9):
+def _synthetic_pmfs_frame(n_cal=1100, n_ev=1100, seed=9):
     """A registered-shaped PMF frame with two dev blocks."""
     rng = np.random.default_rng(seed)
     rows = []

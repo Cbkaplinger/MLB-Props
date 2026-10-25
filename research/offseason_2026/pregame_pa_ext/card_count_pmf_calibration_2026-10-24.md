@@ -30,9 +30,23 @@ inactive for k = 23 since F(23) = 1 gives F_cal(23) = 1 exactly).
 ### Parameter domain
 
 a ∈ [0.5, 2.0]. Values outside this range trigger the stop condition.
-a = 1 is the identity (no calibration). a > 1 stretches the CDF
-(moves mass away from the mode); a < 1 compresses it (moves mass
-toward the mode).
+a = 1 is the identity (no calibration).
+
+### Directional behavior (NOT symmetric dispersion adjustment)
+
+For a < 1 (clip typically inactive): the calibrated PMF is
+p_cal(0) = 1 − a + a·p(0) and p_cal(k) = a·p(k) for k ≥ 1. This adds
+mass at zero and scales the positive-count probabilities — a
+directional correction, NOT narrowing around the mode.
+
+For a > 1 (clip may fire at the lower boundary): the transformed CDF
+is shifted downward, removing low-count mass and rescaling the
+remaining survival probabilities. The clip fires only when
+a·(1−F(0)) > 1. It is an asymmetric, directional correction.
+
+The mapping does NOT independently adjust location and dispersion.
+A failed calibration experiment rejects THIS mapping, not calibration
+in general.
 
 ### Boundary behavior
 
@@ -82,7 +96,12 @@ positive. The registered tail interpretation is unchanged.
 - Non-unique solutions: if two values of a produce count-RPS within
   1e-10, the one closer to 1 (identity) is selected. The fitted value
   and the objective value are both recorded.
-- The fitted a is FROZEN before any block_2025H1 outcome is accessed.
+- The fitted a is FROZEN before any block_2025H1 outcome enters the
+  scoring path. The runner implements the FIT-ISOLATION contract:
+  the supplied frame already contains evaluation outcomes, but the
+  fitting procedure receives calibration examples only and evaluation
+  outcomes do not enter fitting, parameter selection, or stopping
+  decisions. This is NOT a strict physical-loading guarantee.
 
 ## 5. Inputs and keys (pinned, separate fit/evaluation hashes)
 
@@ -180,5 +199,9 @@ records preserved. No 2025H2 confirmation fitting; no 2026 access.
 6. Normalization: p_cal sums to 1 within 1e-9 for all tested a.
 7. Deterministic fitting: the same calibration input always produces
    the same fitted a.
-8. Evaluation-outcome isolation: the fitted a is computed BEFORE any
-   evaluation-set outcome is accessed (verified by construction).
+8. Evaluation-outcome isolation (FIT-ISOLATION contract): the fitted a
+   is computed BEFORE any block_2025H1 outcome enters the scoring path.
+   The supplied frame contains both blocks' outcomes; the contract is
+   that evaluation outcomes do not enter fitting, parameter selection,
+   or stopping decisions. This is not a strict physical-loading
+   guarantee.
