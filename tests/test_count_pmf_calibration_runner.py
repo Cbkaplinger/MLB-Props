@@ -147,20 +147,112 @@ def test_runner_rejects_cohort_hash_mismatch(tmp_path):
     assert (out / "failure_record.json").exists()
 
 
-def test_runner_rejects_cal_eval_key_overlap(tmp_path):
-    """A (game_pk, side, pitcher) triple appearing in BOTH blocks must
-    fail loud. The cohort-hash check fires first because the test uses
-    dummy hashes; the key-overlap check is the inner check."""
-    pmfs = _synthetic_pmfs_frame(n_cal=150, n_ev=150)
-    cal_rows = pmfs.filter(pl.col("block") == "block_2024H2").head(50)
-    duplicated = cal_rows.with_columns(
-        pl.lit("block_2025H1").alias("block"))
-    combined = pl.concat([pmfs, duplicated])
-    out = tmp_path / "cal_overlap"
-    with pytest.raises(ValueError):
+def test_runner_rejects_999_calibration_starts(tmp_path):
+    """999 calibration starts: below the registered 1,000 threshold,
+    fitting must never be called."""
+    pmfs = _synthetic_pmfs_frame(n_cal=1100, n_ev=1100)
+    cal_h, ev_h = _expected_hashes(pmfs)
+    bad = pmfs.filter(pl.col("block") == "block_2024H2").head(999)
+    combined = pl.concat([bad,
+                          pmfs.filter(pl.col("block") == "block_2025H1")])
+    out = tmp_path / "cal999"
+    with pytest.raises(ValueError, match="1,000-start"):
+        runner.run_count_pmf_calibration(
+            combined, out, expected_cal_hash=cal_h,
+            expected_eval_hash=ev_h)
+    assert (out / "failure_record.json").exists()
+    assert not (out / "receipt_final.json").exists()
+    assert not (out / "fitted_parameter" / "fitted_a.json").exists()
+
+
+def test_runner_accepts_exactly_1000_calibration_starts(tmp_path):
+    """Exactly 1,000 calibration starts: pass the size gate and
+    proceed to evaluation."""
+    pmfs = _synthetic_pmfs_frame(n_cal=1100, n_ev=1100)
+    cal_h, ev_h = _expected_hashes(pmfs)
+    cal = pmfs.filter(pl.col("block") == "block_2024H2").head(1000)
+    ev = pmfs.filter(pl.col("block") == "block_2025H1")
+    trimmed = pl.concat([cal, ev])
+    cal_h_t, ev_h_t = _expected_hashes(trimmed)
+    out = tmp_path / "cal1000"
+    res = runner.run_count_pmf_calibration(
+        trimmed, out, expected_cal_hash=cal_h_t,
+        expected_eval_hash=ev_h_t)
+    assert res["metrics"]["n_calibration"] == 1000
+
+
+def test_runner_rejects_protected_block_row(tmp_path):
+    """A single confirm_2025H2 row in the input frame must be rejected
+    before fitting."""
+    pmfs = _synthetic_pmfs_frame(n_cal=1100, n_ev=1100)
+    confirm_row = pmfs.head(1).with_columns(
+        pl.lit("confirm_2025H2").alias("block"))
+    combined = pl.concat([pmfs, confirm_row])
+    out = tmp_path / "cal_confirm"
+    with pytest.raises(ValueError, match="unexpected block labels"):
         runner.run_count_pmf_calibration(
             combined, out, expected_cal_hash="0" * 64,
             expected_eval_hash="0" * 64)
+
+
+def test_runner_rejects_arbitrary_unexpected_label(tmp_path):
+    """An unrecognized block label must also be rejected."""
+    pmfs = _synthetic_pmfs_frame(n_cal=1100, n_ev=1100)
+    weird = pmfs.head(1).with_columns(
+        pl.lit("block_2026 preseason").alias("block"))
+    combined = pl.concat([pmfs, weird])
+    out = tmp_path / "cal_weird"
+    with pytest.raises(ValueError, match="unexpected block labels"):
+        runner.run_count_pmf_calibration(
+            combined, out, expected_cal_hash="0" * 64,
+            expected_eval_hash="0" * 64)
+
+
+def test_runner_secondary_diagnostics_numerical(tmp_path):
+    """The secondary diagnostics must match independently calculated
+    values, not just field-existence assertions."""
+    pmfs = _synthetic_pmfs_frame(n_cal=1100, n_ev=1100)
+    cal_h, ev_h = _expected_hashes(pmfs)
+    out = tmp_path / "cal_diag"
+    res = runner.run_count_pmf_calibration(
+        pmfs, out, expected_cal_hash=cal_h, expected_eval_hash=ev_h)
+    sec = res["metrics"]["secondary"]
+    # independently verify MAE for the frozen arm
+    ps = pl.read_parquet(out / "calibration_per_start_v1.parquet")
+    mean_ks = []
+    for r in ps.iter_rows(named=True):
+        pmfs_row = pmfs.filter(
+            (pl.col("game_pk") == r["game_pk"])
+            & (pl.col("pitcher") == r["pitcher"]))
+        pmf = np.asarray(pmfs_row["pmf_baseline"][0], dtype=np.float64)
+        mean_ks.append(float((pmf * np.arange(24)).sum()))
+    actual = ps["realized_k"].to_numpy()
+    assert sec["mae_frozen"] == pytest.approx(
+        np.mean(np.abs(np.asarray(mean_ks) - actual)), abs=1e-9)
+    # threshold reliability: predicted vs observed must be in [0,1]
+    for r in sec["threshold_reliability"]:
+        assert 0 <= r["mean_predicted"] <= 1
+        assert 0 <= r["observed_frequency"] <= 1
+
+
+def test_runner_rejects_cal_eval_key_overlap(tmp_path):
+    """A (game_pk, side, pitcher) triple appearing in BOTH blocks must
+    fail loud. Uses sufficiently large cohorts and correctly computed
+    expected hashes so the overlap check (not the hash or size check)
+    fires."""
+    pmfs = _synthetic_pmfs_frame(n_cal=1100, n_ev=1100)
+    cal_part = pmfs.filter(pl.col("block") == "block_2024H2")
+    # take 50 cal rows and copy them with the eval block label
+    cal_rows = cal_part.head(50)
+    duplicated = cal_rows.with_columns(
+        pl.lit("block_2025H1").alias("block"))
+    combined = pl.concat([pmfs, duplicated])
+    cal_h, ev_h = _expected_hashes(combined)
+    out = tmp_path / "cal_overlap"
+    with pytest.raises(ValueError, match="key overlap"):
+        runner.run_count_pmf_calibration(
+            combined, out, expected_cal_hash=cal_h,
+            expected_eval_hash=ev_h)
 
 
 def test_runner_observes_evaluation_load_after_persist(tmp_path):

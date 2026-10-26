@@ -148,14 +148,12 @@ def run_count_pmf_calibration(
         ev = pmfs_frame.filter(pl.col("block") == "block_2025H1")
 
         # registered card threshold: 1,000 calibration starts minimum
+        # (the card specifies this minimum for CALIBRATION only; the
+        # evaluation cohort size is not separately thresholded)
         if cal.height < 1000:
             raise ValueError(
                 f"calibration cohort below the registered 1,000-start "
                 f"threshold: {cal.height}")
-        if ev.height < 1000:
-            raise ValueError(
-                f"evaluation cohort below the registered 1,000-start "
-                f"threshold: {ev.height}")
 
         cal_hash = _cohort_hash(cal)
         ev_hash = _cohort_hash(ev)
@@ -234,11 +232,15 @@ def run_count_pmf_calibration(
         rps_frozen = np.asarray(rps_frozen)
         rps_cal = np.asarray(rps_cal)
 
-        # secondary diagnostics (card §10): threshold reliability,
-        # full-CDF calibration, MAE/RMSE of point summaries
-        thresholds = [4.5, 5.5, 6.5, 7.5]
+        # secondary diagnostics (card §9): threshold reliability at
+        # the model's OWN quoted lines (mean of each start's PMF,
+        # rounded to the nearest half-line), full-CDF calibration,
+        # MAE/RMSE of point summaries
+        own_lines = sorted(set(
+            round(float((np.asarray(p) * np.arange(24)).sum()) + 0.5)
+            - 0.5 for p in ev_pmfs))
         reliability = []
-        for t in thresholds:
+        for t in own_lines:
             pred_frozen = [float(mk.model_p_over(np.asarray(p), t))
                            for p in ev_pmfs]
             pred_cal = [float(mk.model_p_over(
@@ -271,6 +273,61 @@ def run_count_pmf_calibration(
             "mae_frozen": mae_frozen, "mae_calibrated": mae_cal,
             "rmse_frozen": rmse_frozen, "rmse_calibrated": rmse_cal,
         }
+
+        # full-CDF calibration: predicted vs empirical CDF at each
+        # bucket k = 0..23
+        F_frozen_all = np.cumsum(np.asarray(ev_pmfs, dtype=np.float64),
+                                 axis=0)
+        F_cal_all = np.cumsum(
+            np.asarray([cpc.linear_cdf_calibrate(np.asarray(p), fitted_a)
+                        for p in ev_pmfs], dtype=np.float64), axis=0)
+        empirical_cdf = np.zeros(24)
+        for k in range(24):
+            empirical_cdf[k] = sum(1 for kk in ev_realized if kk <= k) \
+                / len(ev_realized)
+        cdf_calibration = []
+        for k in range(24):
+            cdf_calibration.append({
+                "bucket": k,
+                "pred_cdf_frozen": float(F_frozen_all[:, k].mean()),
+                "pred_cdf_calibrated": float(F_cal_all[:, k].mean()),
+                "empirical_cdf": float(empirical_cdf[k]),
+            })
+        secondary["cdf_calibration"] = cdf_calibration
+
+        # own-line LL/Brier: model vs calibrated at the model's own
+        # quoted lines (not the market's)
+        eps = 1e-12
+        own_line_ll_frozen, own_line_ll_cal = [], []
+        own_line_brier_frozen, own_line_brier_cal = [], []
+        for r, p_cal_pmf in zip(ev.iter_rows(named=True),
+                                [cpc.linear_cdf_calibrate(
+                                    np.asarray(p), fitted_a)
+                                 for p in ev_pmfs]):
+            pmf_f = np.asarray(r["pmf_baseline"], dtype=np.float64)
+            pmf_c = np.asarray(p_cal_pmf, dtype=np.float64)
+            k_real = r["realized_k"]
+            mean_f = float((pmf_f * np.arange(24)).sum())
+            mean_c = float((pmf_c * np.arange(24)).sum())
+            p_over_f = mk.model_p_over(pmf_f, mean_f)
+            p_over_c = mk.model_p_over(pmf_c, mean_c)
+            o = 1.0 if k_real > mean_f else 0.0
+            own_line_ll_frozen.append(
+                -(o * np.log(p_over_f + eps)
+                  + (1 - o) * np.log(1 - p_over_f + eps)))
+            own_line_ll_cal.append(
+                -(o * np.log(p_over_c + eps)
+                  + (1 - o) * np.log(1 - p_over_c + eps)))
+            own_line_brier_frozen.append((p_over_f - o) ** 2)
+            own_line_brier_cal.append((p_over_c - o) ** 2)
+        secondary["own_line_ll_frozen"] = float(
+            np.mean(own_line_ll_frozen))
+        secondary["own_line_ll_calibrated"] = float(
+            np.mean(own_line_ll_cal))
+        secondary["own_line_brier_frozen"] = float(
+            np.mean(own_line_brier_frozen))
+        secondary["own_line_brier_calibrated"] = float(
+            np.mean(own_line_brier_cal))
 
         # paired bootstrap
         cmp_mod = br.load_registered_comparison()

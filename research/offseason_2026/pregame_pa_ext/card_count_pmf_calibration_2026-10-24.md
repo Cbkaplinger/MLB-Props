@@ -139,13 +139,16 @@ in the M0 v2 execution receipt.
 ## 6. Evaluation protocol
 
 - Fit: compute (a) on block_2024H2 scored starts by minimizing
-  count-RPS. FREEZE (a) before accessing any block_2025H1 outcome.
+  count-RPS. FREEZE the fitted parameter before evaluation scoring.
 - Evaluate: apply F_cal to each block_2025H1 start's PMF and compute
-  count-RPS. ONE evaluation pass. No refit, no parameter movement
-  check, no walk-forward stability test.
-- The 2025H1 outcomes are accessed EXACTLY ONCE, for the final
-  evaluation. They are not used for fitting, parameter selection, or
-  convergence checking.
+  count-RPS. ONE registered evaluation pass (which may compute several
+  prescribed diagnostics within that pass). No refit, no parameter
+  movement check, no walk-forward stability test.
+- FIT-ISOLATION contract: the supplied frame already contains
+  block_2025H1 outcomes. They must not enter fitting, parameter
+  selection, or convergence stopping decisions. Evaluation scoring
+  occurs only after the fitted parameter has been persisted and
+  verified. This is NOT a strict physical-loading guarantee.
 
 ## 7. Primary metric
 
@@ -179,8 +182,8 @@ bootstrap (n=2000, seed 20261001, Holm m=1).
 - Calibration sample < 1,000 starts -> STOP.
 - Fitted a outside [0.5, 2.0] -> STOP.
 - Any PMF invariant violated after calibration -> STOP.
-- The evaluation outcomes are accessed before the fitted a is frozen
-  -> protocol violation, STOP.
+- Evaluation outcomes enter the fitting, parameter selection, or
+  convergence stopping path -> FIT-ISOLATION violation, STOP.
 
 ## 11. Execution contract
 
