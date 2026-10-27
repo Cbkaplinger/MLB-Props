@@ -27,7 +27,7 @@ Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); push to your own
 ## Operating rules
 
 - **Purpose:** personal MLB pitcher-strikeout prop desk. Frozen model + policy/market/execution work. Retrain path is closed; dashboard is parked.
-- **Start here, in order:** `docs/EXECUTION_BACKLOG.md` -> `CONTEXT.md` -> `docs/reference/repo_canonical_map.md` -> this file.
+- **Start here, in order:** `docs/EXECUTION_BACKLOG.md` -> `docs/NEXT.md` (current action) -> `docs/roles/README.md` (precedence; then your own card) -> `CONTEXT.md` -> `docs/reference/repo_canonical_map.md` -> this file.
 - **Environment:** Python >=3.11, `.venv` active. `py -3.11 -m venv .venv` then `pip install -e ".[research,dev]"`. Raw Savant via `MLB_PROPS_SAVANT_DATA_DIR` / `MLB_PROPS_DATA_DIR` when not under `data/`.
 - **Tests:** `python -m pytest` (full); pre-commit hook runs `tests/test_odds_ledger.py tests/test_real_bets.py tests/test_registries.py`. Prefer Polars; pandas only at plot/sklearn/LightGBM boundaries.
 - **Lint:** no separate linter configured; keep ASCII-only in research scripts (cp1252 consoles), use `pl` patterns from `use-polars.mdc`.

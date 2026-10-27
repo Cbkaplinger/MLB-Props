@@ -18,6 +18,11 @@ Operating standard for all agent windows and the owner. Complements
 **Never** edit another chat's worktree or branch. Never merge, close another
 chat's PR, or delete a branch without explicit authorization for that action.
 
+**Repair ownership.** Repairs to another chat's implementation require an
+explicit path-ownership transfer recorded on the PR for the named paths, and
+the repair is reviewed by a non-author. A reviewer/fixer assignment does not
+imply standing permission to edit the builder's implementation.
+
 ## 2. Making a PR
 
 1. Branch from **fetched `origin/main`** (or the relevant base) in your worktree:
@@ -82,6 +87,12 @@ substitute for the independent review verdict or owner authorization.
 
 - The reviewer **fetches and pins the exact PR head SHA** before reviewing;
   a pushed change re-opens review of the delta only.
+- A review response **names the exact reviewed head SHA**. When the review
+  target moves, the next review explicitly **supersedes or retains** each
+  earlier finding; a finding raised against a superseded SHA is re-validated
+  against the current head before it blocks.
+- The published review target does not move without an explicit superseding
+  handoff from its author.
 - Review verdicts are `READY` (exact SHA) or **one concrete blocker**.
 - Builder self-check is never independent READY.
 - Reopen passed checks only when the delta affects them.
