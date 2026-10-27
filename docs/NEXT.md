@@ -1,10 +1,14 @@
 # NEXT — single source of the current action
 
-Owner: architect. Updated 2026-10-22 (evening). ROLES_REV 2026-10-22-r2. Read `docs/roles/README.md` first.
+Owner: architect. Work-state text last updated 2026-10-22 (evening); confirmation-policy amendment 2026-10-27. ROLES_REV 2026-10-27-r1. Read `docs/roles/README.md` first.
+
+## Confirmation-policy amendment (2026-10-27)
+
+`docs/roles/README.md` now distinguishes repository delegation from mandatory connector confirmation. The orchestrator requests owner confirmation with the exact resolved target and full arguments before each side-effecting connector write. Approval covers that write only, not a later merge, experiment, or protected-data access. Local agent permissions are not otherwise changed. This docs-only amendment does not refresh the historical work-state sections below or assign new scientific work; reconcile current assignments through `docs/EXECUTION_BACKLOG.md` and exact-SHA review receipts.
 
 ## Standing delegation
 
-The owner delegates routine project decisions and execution authority to the architect within agreed scope. When relevant tests and required checks pass, proceed without requesting repeated authorization. Escalate only material scope changes, unresolved correctness risks, spending, production changes, or irreversible actions with unclear consequences. Existing repository protections still apply.
+The owner delegates routine project decisions and execution authority to the architect within agreed scope. When relevant tests and required checks pass, proceed without requesting repeated authorization, except where a mandatory tool confirmation or approval gate applies (see `docs/roles/README.md`). Escalate only material scope changes, unresolved correctness risks, spending, production changes, or irreversible actions with unclear consequences. Existing repository protections still apply.
 
 **Language:** all chat reports and review comments must be in English.
 
