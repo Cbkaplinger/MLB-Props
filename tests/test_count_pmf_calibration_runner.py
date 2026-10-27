@@ -235,6 +235,190 @@ def test_runner_secondary_diagnostics_numerical(tmp_path):
         assert 0 <= r["observed_frequency"] <= 1
 
 
+def test_runner_full_cdf_bucket_axis_and_row_order_invariance(tmp_path):
+    """Regression test for Defect 1:
+    - Multiple starts with distinct, hand-checkable PMFs.
+    - Every reported CDF bucket k=0..23 checked against an independently
+      calculated expected value (accumulated across buckets axis=1, then
+      averaged across starts).
+    - All reported CDF values in [0, 1], nondecreasing across buckets,
+      and final bucket k=23 equal to 1.0.
+    - Reordering evaluation rows does not change aggregate diagnostics.
+    """
+    # Construct two distinct hand-checkable PMFs:
+    # PMF A: mass 0.25 at k=0, 0.50 at k=1, 0.25 at k=2 (CDF: 0.25, 0.75, 1.0, ..., 1.0)
+    # PMF B: mass 0.50 at k=2, 0.50 at k=4 (CDF: 0, 0, 0.50, 0.50, 1.0, ..., 1.0)
+    pmf_a = np.zeros(24, dtype=np.float64)
+    pmf_a[0], pmf_a[1], pmf_a[2] = 0.25, 0.50, 0.25
+    pmf_b = np.zeros(24, dtype=np.float64)
+    pmf_b[2], pmf_b[4] = 0.50, 0.50
+
+    rows = []
+    # 1,000 calibration starts (alternating A and B so fitted_a is deterministic)
+    for i in range(1000):
+        pmf = pmf_a if (i % 2 == 0) else pmf_b
+        k = 1 if (i % 2 == 0) else 3
+        rows.append((9000000 + i, "Top", 700000 + i, "2024-08-15",
+                     "block_2024H2", k, pmf.tolist()))
+    # 4 evaluation starts: 2 with PMF A (realized k=1), 2 with PMF B (realized k=4)
+    ev_specs = [
+        (9100000, "Top", 800000, "2025-04-15", "block_2025H1", 1, pmf_a.tolist()),
+        (9100001, "Bot", 800001, "2025-04-15", "block_2025H1", 4, pmf_b.tolist()),
+        (9100002, "Top", 800002, "2025-04-16", "block_2025H1", 1, pmf_a.tolist()),
+        (9100003, "Bot", 800003, "2025-04-16", "block_2025H1", 4, pmf_b.tolist()),
+    ]
+    rows.extend(ev_specs)
+    frame = pl.DataFrame(rows, schema={
+        "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
+        "game_date": pl.Utf8, "block": pl.Utf8,
+        "realized_k": pl.Int64, "pmf_baseline": pl.List(pl.Float64),
+    }, orient="row")
+
+    cal_h, ev_h = _expected_hashes(frame)
+    res1 = runner.run_count_pmf_calibration(
+        frame, tmp_path / "run_order1",
+        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+
+    fitted_a = res1["metrics"]["fitted_a"]
+    cdf_rows = res1["metrics"]["secondary"]["cdf_calibration"]
+    assert len(cdf_rows) == 24
+
+    # Hand-computed expected frozen CDF average (50% PMF A + 50% PMF B):
+    # k=0: 0.5*0.25 + 0.5*0.00 = 0.125
+    # k=1: 0.5*0.75 + 0.5*0.00 = 0.375
+    # k=2: 0.5*1.00 + 0.5*0.50 = 0.750
+    # k=3: 0.5*1.00 + 0.5*0.50 = 0.750
+    # k>=4: 0.5*1.00 + 0.5*1.00 = 1.000
+    exp_frozen_cdf = [0.125, 0.375, 0.750, 0.750] + [1.0] * 20
+    cal_a = cpc.linear_cdf_calibrate(pmf_a, fitted_a)
+    cal_b = cpc.linear_cdf_calibrate(pmf_b, fitted_a)
+    exp_cal_cdf = 0.5 * np.cumsum(cal_a) + 0.5 * np.cumsum(cal_b)
+    exp_emp_cdf = [0.0, 0.5, 0.5, 0.5] + [1.0] * 20
+
+    prev_f, prev_c, prev_e = 0.0, 0.0, 0.0
+    for k in range(24):
+        row = cdf_rows[k]
+        assert row["bucket"] == k
+        pf = row["pred_cdf_frozen"]
+        pc = row["pred_cdf_calibrated"]
+        pe = row["empirical_cdf"]
+        # In [0, 1]
+        assert 0.0 <= pf <= 1.0
+        assert 0.0 <= pc <= 1.0
+        assert 0.0 <= pe <= 1.0
+        # Nondecreasing across buckets
+        assert pf >= prev_f - 1e-12
+        assert pc >= prev_c - 1e-12
+        assert pe >= prev_e - 1e-12
+        prev_f, prev_c, prev_e = pf, pc, pe
+        # Exact match to hand-calculated values
+        assert pf == pytest.approx(exp_frozen_cdf[k], abs=1e-12)
+        assert pc == pytest.approx(float(exp_cal_cdf[k]), abs=1e-12)
+        assert pe == pytest.approx(exp_emp_cdf[k], abs=1e-12)
+
+    assert cdf_rows[23]["pred_cdf_frozen"] == pytest.approx(1.0, abs=1e-12)
+    assert cdf_rows[23]["pred_cdf_calibrated"] == pytest.approx(1.0, abs=1e-12)
+    assert cdf_rows[23]["empirical_cdf"] == pytest.approx(1.0, abs=1e-12)
+
+    # Row-reordering invariance: reverse the evaluation rows and shuffle calibration rows
+    frame_reordered = frame.reverse()
+    res2 = runner.run_count_pmf_calibration(
+        frame_reordered, tmp_path / "run_order2",
+        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+    assert res2["metrics"]["fitted_a"] == pytest.approx(fitted_a, abs=1e-12)
+    assert res2["metrics"]["rps_frozen_mean"] == pytest.approx(
+        res1["metrics"]["rps_frozen_mean"], abs=1e-12)
+    assert res2["metrics"]["rps_calibrated_mean"] == pytest.approx(
+        res1["metrics"]["rps_calibrated_mean"], abs=1e-12)
+    for k in range(24):
+        assert res2["metrics"]["secondary"]["cdf_calibration"][k] == pytest.approx(
+            cdf_rows[k], abs=1e-12)
+    assert res2["metrics"]["secondary"]["own_line_ll_frozen"] == pytest.approx(
+        res1["metrics"]["secondary"]["own_line_ll_frozen"], abs=1e-12)
+    assert res2["metrics"]["secondary"]["own_line_ll_calibrated"] == pytest.approx(
+        res1["metrics"]["secondary"]["own_line_ll_calibrated"], abs=1e-12)
+    assert res2["metrics"]["secondary"]["own_line_brier_frozen"] == pytest.approx(
+        res1["metrics"]["secondary"]["own_line_brier_frozen"], abs=1e-12)
+    assert res2["metrics"]["secondary"]["own_line_brier_calibrated"] == pytest.approx(
+        res1["metrics"]["secondary"]["own_line_brier_calibrated"], abs=1e-12)
+
+
+def test_runner_own_line_event_consistency_across_integer_boundary(tmp_path):
+    """Regression test for Defect 2:
+    Construct a case where calibration moves the PMF mean across an
+    integer boundary (e.g. frozen mean = 4.8 -> t_own = 4.5, i.e. K >= 5,
+    while calibrated mean > 5.0, which under the old bug switched the
+    calibrated event to K >= 6 while still scoring against o = 1{K >= 5}).
+    Verify both frozen and calibrated probabilities are evaluated at the
+    identical frozen-derived half-line t_own = 4.5 and scored against the
+    same label o = 1{realized_k > 4.5}.
+    """
+    # Calibration cohort: 1,000 starts where realized K is systematically high
+    # so fitted_a > 1 (stretches survival curve upward, increasing mean K).
+    pmf_cal = np.zeros(24, dtype=np.float64)
+    pmf_cal[0] = 0.30
+    pmf_cal[5] = 0.40
+    pmf_cal[8] = 0.30
+    rows = []
+    for i in range(1000):
+        rows.append((9000000 + i, "Top", 700000 + i, "2024-08-15",
+                     "block_2024H2", 8, pmf_cal.tolist()))
+
+    # Evaluation PMF:
+    # p(0) = 0.20, p(5) = 0.40, p(7) = 0.40
+    # Frozen mean = 0*0.20 + 5*0.40 + 7*0.40 = 4.80 (< 5.0)
+    # Deterministic frozen half-line: floor(4.80 + 0.5) - 0.5 = 4.5 (event: K >= 5)
+    # Under frozen PMF: P(K > 4.5) = p(5) + p(7) = 0.80, whereas P(K > 5.2) = p(7) = 0.40.
+    pmf_ev = np.zeros(24, dtype=np.float64)
+    pmf_ev[0] = 0.20
+    pmf_ev[5] = 0.40
+    pmf_ev[7] = 0.40
+    mean_f = float((pmf_ev * np.arange(24)).sum())
+    assert mean_f == pytest.approx(4.80, abs=1e-12)
+
+    # Set realized_k = 5 (so K > 4.5 is True: o = 1.0, whereas K > 5.5 is False)
+    for i in range(10):
+        rows.append((9100000 + i, "Bot", 800000 + i, "2025-04-15",
+                     "block_2025H1", 5, pmf_ev.tolist()))
+
+    frame = pl.DataFrame(rows, schema={
+        "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
+        "game_date": pl.Utf8, "block": pl.Utf8,
+        "realized_k": pl.Int64, "pmf_baseline": pl.List(pl.Float64),
+    }, orient="row")
+
+    cal_h, ev_h = _expected_hashes(frame)
+    res = runner.run_count_pmf_calibration(
+        frame, tmp_path / "run_boundary",
+        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+
+    fitted_a = res["metrics"]["fitted_a"]
+    pmf_c = cpc.linear_cdf_calibrate(pmf_ev, fitted_a)
+    mean_c = float((pmf_c * np.arange(24)).sum())
+    # Confirm that calibration crossed the integer 5.0 boundary:
+    # mean_f = 4.80 < 5.0 < mean_c
+    assert mean_f < 5.0 < mean_c
+
+    # Expected shared threshold is t_own = 4.5 (event K >= 5) for BOTH arms
+    t_own = 4.5
+    p_over_f = float(pmf_ev[5:].sum())
+    p_over_c_same_event = float(pmf_c[5:].sum())
+    p_over_c_wrong_event = float(pmf_c[6:].sum())  # what mean_c > 5.0 previously gave
+    assert p_over_c_same_event != pytest.approx(p_over_c_wrong_event, abs=1e-3)
+
+    eps = 1e-12
+    exp_ll_f = -np.log(p_over_f + eps)
+    exp_ll_c = -np.log(p_over_c_same_event + eps)
+    exp_brier_f = (p_over_f - 1.0) ** 2
+    exp_brier_c = (p_over_c_same_event - 1.0) ** 2
+
+    sec = res["metrics"]["secondary"]
+    assert sec["own_line_ll_frozen"] == pytest.approx(exp_ll_f, abs=1e-12)
+    assert sec["own_line_ll_calibrated"] == pytest.approx(exp_ll_c, abs=1e-12)
+    assert sec["own_line_brier_frozen"] == pytest.approx(exp_brier_f, abs=1e-12)
+    assert sec["own_line_brier_calibrated"] == pytest.approx(exp_brier_c, abs=1e-12)
+
+
 def test_runner_rejects_cal_eval_key_overlap(tmp_path):
     """A (game_pk, side, pitcher) triple appearing in BOTH blocks must
     fail loud. Uses sufficiently large cohorts and correctly computed

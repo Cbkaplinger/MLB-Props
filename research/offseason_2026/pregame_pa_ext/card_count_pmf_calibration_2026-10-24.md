@@ -170,9 +170,15 @@ bootstrap (n=2000, seed 20261001, Holm m=1).
 
 - Calibration reliability: predicted threshold probabilities vs
   observed threshold frequencies, at each of the model's own quoted
-  lines (own-line LL/Brier).
+  lines (own-line LL/Brier). Each start's own quoted half-line is
+  defined deterministically from its frozen PMF mean as
+  `t_own = max(0.5, floor(mean_frozen + 0.5) - 0.5)`, and both the
+  frozen and calibrated distributions are scored at that identical
+  `t_own` against the shared outcome indicator `1{realized_k > t_own}`.
 - Count-PMF calibration: predicted CDF vs empirical CDF at each
-  bucket k = 0..23 (the full PMF, not just the mean).
+  bucket k = 0..23 (the full PMF, not just the mean; cumulative sum
+  taken across count buckets k = 0..23 per start, then averaged across
+  starts).
 - MAE/RMSE of the point summary (mean of the PMF) vs actual K.
 - The fitted a value.
 - No selecting the method by sportsbook gap.

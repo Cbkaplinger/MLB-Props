@@ -233,12 +233,16 @@ def run_count_pmf_calibration(
         rps_cal = np.asarray(rps_cal)
 
         # secondary diagnostics (card §9): threshold reliability at
-        # the model's OWN quoted lines (mean of each start's PMF,
-        # rounded to the nearest half-line), full-CDF calibration,
-        # MAE/RMSE of point summaries
-        own_lines = sorted(set(
-            round(float((np.asarray(p) * np.arange(24)).sum()) + 0.5)
-            - 0.5 for p in ev_pmfs))
+        # the model's OWN quoted lines (mean of each start's frozen PMF,
+        # rounded to the nearest half-line: floor(mean + 0.5) - 0.5,
+        # floored at 0.5 so lines are valid positive half-lines X.5),
+        # full-CDF calibration, MAE/RMSE of point summaries
+        def _own_half_line(pmf_arr: np.ndarray) -> float:
+            mean_k = float((np.asarray(pmf_arr, dtype=np.float64)
+                            * np.arange(24)).sum())
+            return max(0.5, float(np.floor(mean_k + 0.5) - 0.5))
+
+        own_lines = sorted(set(_own_half_line(p) for p in ev_pmfs))
         reliability = []
         for t in own_lines:
             pred_frozen = [float(mk.model_p_over(np.asarray(p), t))
@@ -275,12 +279,12 @@ def run_count_pmf_calibration(
         }
 
         # full-CDF calibration: predicted vs empirical CDF at each
-        # bucket k = 0..23
+        # bucket k = 0..23 (cumsum across buckets axis=1, NOT starts axis=0)
         F_frozen_all = np.cumsum(np.asarray(ev_pmfs, dtype=np.float64),
-                                 axis=0)
+                                 axis=1)
         F_cal_all = np.cumsum(
             np.asarray([cpc.linear_cdf_calibrate(np.asarray(p), fitted_a)
-                        for p in ev_pmfs], dtype=np.float64), axis=0)
+                        for p in ev_pmfs], dtype=np.float64), axis=1)
         empirical_cdf = np.zeros(24)
         for k in range(24):
             empirical_cdf[k] = sum(1 for kk in ev_realized if kk <= k) \
@@ -295,8 +299,10 @@ def run_count_pmf_calibration(
             })
         secondary["cdf_calibration"] = cdf_calibration
 
-        # own-line LL/Brier: model vs calibrated at the model's own
-        # quoted lines (not the market's)
+        # own-line LL/Brier: model vs calibrated evaluated at the SAME
+        # per-start threshold t_own derived deterministically from the
+        # frozen forecast (_own_half_line(pmf_f)), with the shared
+        # outcome indicator o = 1{k_real > t_own}
         eps = 1e-12
         own_line_ll_frozen, own_line_ll_cal = [], []
         own_line_brier_frozen, own_line_brier_cal = [], []
@@ -307,11 +313,10 @@ def run_count_pmf_calibration(
             pmf_f = np.asarray(r["pmf_baseline"], dtype=np.float64)
             pmf_c = np.asarray(p_cal_pmf, dtype=np.float64)
             k_real = r["realized_k"]
-            mean_f = float((pmf_f * np.arange(24)).sum())
-            mean_c = float((pmf_c * np.arange(24)).sum())
-            p_over_f = mk.model_p_over(pmf_f, mean_f)
-            p_over_c = mk.model_p_over(pmf_c, mean_c)
-            o = 1.0 if k_real > mean_f else 0.0
+            t_own = _own_half_line(pmf_f)
+            p_over_f = mk.model_p_over(pmf_f, t_own)
+            p_over_c = mk.model_p_over(pmf_c, t_own)
+            o = 1.0 if k_real > t_own else 0.0
             own_line_ll_frozen.append(
                 -(o * np.log(p_over_f + eps)
                   + (1 - o) * np.log(1 - p_over_f + eps)))
