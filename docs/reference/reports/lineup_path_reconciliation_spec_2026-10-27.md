@@ -4,6 +4,12 @@ Status: **SPECIFICATION PUBLISHED FOR CHAT 2 REVIEW — not executed, not
 authorized.** This is a measurement-reconciliation candidate only. It is
 NOT evidence that lineup quality is the dominant model bottleneck.
 
+**Active scope (2026-10-27 revision): STAGE A ONLY.** Stage A
+(prediction-path equivalence) is the only active task. Stage B (outcome
+scoring) is DEFERRED: a Stage A PASS does NOT authorize Stage B; Stage B
+requires its own explicit owner authorization after review of the Stage
+A receipts.
+
 Frozen calibration branch `research/calibration-exec-gate-v1` at
 `1321e4bf45ca1673985612b2994cbda4eca23f9f` (PR #48) is untouched by this
 spec; calibration remains unexecuted and unauthorized.
@@ -79,42 +85,150 @@ involving it is interpreted on the scored subpopulation only.
 
 **Purpose:** demonstrate that both lineup conditions' probabilities come
 from ONE feature-construction path, so that any later contrast is
-interpretable. Stage A reads NO outcomes.
+interpretable. Stage A reads NO outcomes and computes NO scores.
 
-- **Invariant:** for the batter-independent control arm, the two
-  construction routes must produce identical PMFs: per start, per
-  bucket k=0..23, `max |PMF diff| ≤ 1e-12` for every keyed start.
-- **Allowed inputs (already-registered artifacts only):** the preserved
-  ledger `projected_pa_probs_v1.parquet` (`fd1841e1…`), the frozen
-  serialized checkpoint (pin `176fb18b…`; raw sha `d266a1cd…`),
-  `bf_forecasts.parquet` (`c9c2762f…`), and the feature lineage verified
-  by the M0 EP1 keyed check and the P0 full-population check
-  (64,215 slot rows, 0 mismatches). No new feature construction beyond
-  the two registered conditions' existing definitions.
-- **Keyed cohort construction:** every start keyed by
-  `(game_pk, side, pitcher)`; both arms attach features by KEY (never
-  list order); exactly one row per key; fail-loud fan-out checks at
-  every join (the game_pk+slot non-uniqueness lesson from P0 Part C
-  applies).
-- **Exclusion accounting:** the eligible population is the 4,823
-  ledger-slot starts. Exclusions are counted in **mutually exclusive**
-  buckets with a mandatory sum check
-  (`4,823 = scored + excluded`, each start counted once). The prior
-  demonstrated double-count (the 284 figure vs the true 142 exclusion)
-  must be reconciled and reported in the receipt.
-- **Tolerance:** 1e-12 absolute per-bucket PMF difference — the same
-  bound used by the registered preflight identity checks.
-- **Failure behavior:** if the control invariant fails on ANY start or
-  bucket, STOP immediately: write the failure receipt, run NO Stage B,
-  attempt NO variant or rescue, and report SHA / command / exit code /
-  receipt to the architect (Chat 1 registered-stop rule).
-- **Stage A output:** keyed comparison parquet + receipt recording the
-  control max |PMF diff|, the exclusion accounting, and the consumed
-  input hashes. No outcome-based numbers of any kind.
+### 3a. Data boundary (complete)
 
-## 4. Stage B — outcome scoring (gated on Stage A PASS)
+- **No realized-K labels.** `start_metrics_v2.parquet` (`af6814ec…`) is
+  NOT consumed in Stage A. No scoring, no RPS, no log loss, no Brier, no
+  bootstrap is computed in Stage A.
+- **Realized-PA-derived inputs — full disclosure.** Two distinct things
+  must not be conflated:
+  1. **Pregame player-history features** (prior PA counts, rates, EWMA
+     as of the start) are derived from plate appearances BEFORE the
+     start. These are legitimate pregame inputs, identical to what every
+     authorized experiment consumed, and are permitted in Stage A.
+  2. **Within-game realized-PA conditioning** (the "oracle" slot
+     construction of Section 2) is realized-PA-derived selection and is
+     EXCLUDED from Stage A entirely. Stage A compares construction
+     routes for the batter-independent control arm only, where both
+     routes must use pregame states.
+  If any consumed value is found to embed within-game realized-PA
+  conditioning, Stage A stops and reports it as a boundary violation.
+- **Every consumed artifact (enumerated):**
 
-- Runs ONLY after Stage A PASS is recorded in a receipt.
+| artifact | role in Stage A | identity |
+|---|---|---|
+| Preserved ledger slot projections | the registered per-(start, slot) p_h3_raw probabilities and pregame states | `projected_pa_probs_v1.parquet`, sha `fd1841e1…` |
+| Frozen serialized checkpoint | the feature-builder lineage (FEAT_H3, pin `176fb18b…`) | `h3_raw_checkpoint.json`, raw sha `d266a1cd…` |
+| BF workload forecasts | pregame BF distribution feeding both arms' count-PMF aggregation identically | `bf_forecasts.parquet`, sha `c9c2762f…` |
+| Verified builder code | `build_feature_frame` (M0-EP1 keyed check) + repaired `attach_prior_features` (P0 full-population check) | committed code at the executing SHA |
+| NOT consumed | `start_metrics_v2.parquet` (realized K) — Stage B only; anything 2026 or `confirm_2025H2` — prohibited | — |
+
+### 3b. Fixed features
+
+The eight registered FEAT_H3 features, exactly as verified in P0 Part B
+(independent reproduction, 0/8 mismatches on 3,000 keyed rows; full
+64,215-slot population check, 0 mismatches): pitcher-side prior PA
+count, pitcher-side prior rate, pitcher-side EWMA rate, batter-side
+prior PA count, batter-side prior rate, batter-side EWMA rate, league
+rate, `cold_start` (combined pitcher-or-batter flag, `adapter.py`
+definition). NO feature is modified, added, dropped, or recomputed with
+different settings. Any deviation is a spec violation.
+
+### 3c. Keyed attachment
+
+- Every start is keyed by `(game_pk, side, pitcher)`; every slot by
+  `(game_pk, side, pitcher, slot)`. The `game_pk+slot` non-uniqueness
+  lesson from P0 Part C is enforced: both starters share slot numbers,
+  so all joins carry the full key.
+- `attach_prior_features` sorts the incoming frame chronologically
+  internally (repaired contract; regression-tested
+  `tests/test_attach_order_invariance.py`); request identity is
+  preserved; attachment is by KEY, never by list position.
+- As-of joins use each slot's pregame timestamp; no state may read at or
+  after first-pitch.
+- Fan-out checks at every join fail loud (`validate="1:1"` keyed
+  comparisons).
+
+### 3d. Intermediate comparisons (each gets its own receipt section)
+
+| # | intermediate | comparison | tolerance |
+|---|---|---|---|
+| I1 | attached feature vectors | each route vs the ledger's stored per-(start, slot) values, keyed | exact (0 mismatches, all 8 features) |
+| I2 | per-slot PA probabilities | route A vs route B per (start, slot) | ≤1e-12 absolute |
+| I3 | per-start count PMFs (24 buckets) | route A vs route B after identical BF aggregation | ≤1e-12 absolute per bucket |
+| I4 | control invariant (the gate) | max over I3 | ≤1e-12 for every keyed start |
+
+### 3e. Eligibility and exclusions
+
+- Eligible population: all 4,823 ledger-slot dev starts
+  (`block_2024H2` ∪ `block_2025H1`). The control arm has no
+  completion filter — the ≥9-realized-slots requirement belonged to the
+  oracle condition and does not apply in Stage A.
+- Any exclusion must be pre-declared in this spec, counted in mutually
+  exclusive buckets, and must satisfy the sum check
+  `4,823 = scored + excluded` with each start counted exactly once.
+  The prior demonstrated double-count (the 284 figure vs the true 142
+  exclusion) is reconciled in the receipt.
+- Protected partitions (`confirm_2025H2`, anything 2026) are absent from
+  the consumed frame; the runner rejects unexpected block labels.
+
+### 3f. Justification of the control invariant
+
+The batter-independent control arm must be path-invariant BY
+CONSTRUCTION: batter-side inputs are identical by definition, and
+pitcher-side inputs come from the same pregame state tables through the
+same verified builder. The merged evidence chain — M0 EP1 keyed check
+(same builder on both arms, reproduces the independent implementation
+0/8 features on 3,000 keyed rows) and P0 (attachment reproduces the
+64,215-row ledger population exactly after the order repair) — supports
+identical outputs up to floating-point associativity noise. The 1e-12
+bound is the same absolute tolerance already used by the registered
+preflight identity checks. The demonstrated failure (max |PMF diff| =
+0.1143, ~11 orders of magnitude above the bound) was therefore a real
+path divergence, not noise — which is exactly what Stage A must rule
+out deterministically.
+
+### 3g. Synthetic end-to-end smoke-test plan (no real data)
+
+Implemented as committed tests before any authorized Stage A run, on a
+deterministic fixture (2 games × 2 starters × 9 slots with
+hand-computable pregame states):
+
+1. **Keyed-attachment order invariance:** chronological, shuffled, and
+   reversed request orders produce identical attached features and
+   identical PMFs (extends `test_attach_order_invariance.py` to the
+   count-PMF boundary).
+2. **Fan-out detection:** a duplicate/ambiguous key fixture must fail
+   the join loudly (no silent borrowing).
+3. **Exclusion accounting:** a fixture with a declared exclusion
+   satisfies the exclusive-bucket sum check; an inconsistent counter
+   fixture must fail.
+4. **Control invariant PASS:** the synthetic two-route control
+   comparison holds at ≤1e-12 across all 24 buckets.
+5. **Failure-mode proof:** a deliberately corrupted route (one feature
+   attached by list order) MUST fail the control invariant — proving
+   the gate can actually fire.
+6. **Boundary check:** the Stage A code path asserts it never reads
+   realized-K labels (e.g., the synthetic frame omits them entirely and
+   the loader would raise).
+
+The smoke tests are synthetic-only and require no authorization beyond
+the standing synthetic-test permission; they are the precondition for
+requesting Stage A authorization, not a substitute for it.
+
+### 3h. Failure behavior
+
+If the control invariant fails on ANY start or bucket at any
+intermediate I1–I4, STOP immediately: write the failure receipt, run NO
+Stage B, attempt NO variant or rescue, and report SHA / command / exit
+code / receipt to the architect (Chat 1 registered-stop rule).
+
+### 3i. Stage A output
+
+Keyed comparison parquet + receipt recording: control max |PMF diff|,
+the I1–I4 intermediate tables, the exclusion accounting with sum check,
+the consumed-input hashes, and the executing code identity. No
+outcome-based numbers of any kind.
+
+## 4. Stage B — outcome scoring (DEFERRED)
+
+**Stage B is deferred. A Stage A PASS does NOT authorize it.** Stage B
+requires its own explicit owner authorization after Chat 2 reviews the
+Stage A receipts. For completeness, its registered shape when and if
+authorized:
+
 - Metric: paired count-RPS, projected-lineup states vs oracle lineup
   states, on the single verified path; slate-date bootstrap (n=2000,
   seed 20261001 convention); Holm correction m=1 — the same registered
@@ -128,10 +242,16 @@ interpretable. Stage A reads NO outcomes.
 
 ## 5. Required authorization
 
-Owner approval for ONE diagnostic run (Stage A; Stage B only on PASS).
-Prohibited without separate authorization: protected-partition access
-(`confirm_2025H2`, anything 2026), fitting, threshold search,
-live-path changes, and any calibration execution.
+- **Synthetic smoke tests (Section 3g):** permitted under the standing
+  synthetic-test permission; precondition for requesting Stage A.
+- **Stage A real-data run:** requires owner approval of the exact run
+  after this spec passes Chat 2 review.
+- **Stage B:** separately authorized only after Stage A receipts are
+  reviewed.
+- Prohibited without separate authorization: protected-partition access
+  (`confirm_2025H2`, anything 2026), fitting, threshold search,
+  LightGBM or any model tuning, live-path changes, and any calibration
+  execution.
 
 ## 6. Artifact identities
 
@@ -163,9 +283,13 @@ Registered input identities consumed by any authorized run: ledger
 ## 7. Review target
 
 Chat 2 reviews THIS document as the complete specification: classification
-(Section 0 header), established evidence and retired figures (Section 1),
-oracle definition (Section 2), Stage A contract (Section 3), Stage B gate
-(Section 4), authorization scope (Section 5), and artifact identities
-(Section 6). Return `SPEC READY FOR OWNER AUTHORIZATION` or one
-consolidated blocker list. No diagnostic execution before the owner
-authorizes the exact run.
+(header), established evidence and retired figures (Section 1),
+oracle definition (Section 2), the Stage A contract with data boundary,
+fixed features, keyed attachment, intermediate comparisons, eligibility,
+invariant justification, and synthetic smoke tests (Section 3), the
+DEFERRED Stage B shape (Section 4), authorization scope (Section 5), and
+artifact identities (Section 6). Return `SPEC READY FOR OWNER
+AUTHORIZATION` (Stage A only) or one consolidated blocker list. Only the
+changed content relative to the previously reviewed head `b2090cc` needs
+re-review. No diagnostic execution before the owner authorizes the exact
+Stage A run.

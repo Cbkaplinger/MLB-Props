@@ -206,8 +206,17 @@ holdout untouched. Detailed experiment history:
 Next (2026-10-27): lineup prediction-path reconciliation -
 specification published at
 [`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
-(measurement-reconciliation candidate; Stage A path-equivalence gate,
-Stage B outcome scoring gated on PASS; awaiting Chat 2 spec review then
-owner authorization; NOT executed). Calibration execution remains gated
+(measurement-reconciliation candidate; **Stage A only active** -
+prediction-path equivalence, no outcomes read; Stage B deferred and NOT
+authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
+authorization; NOT executed). Calibration execution remains gated
 behind PR #48 merge + owner authorization; frozen at `1321e4b`.
+
+### Model inventory (compact; for the architect; 2026-10-27)
+
+| lane | entry point | target | estimator | checkpoint / artifact | prediction unit | downstream consumer | evidence status |
+|---|---|---|---|---|---|---|---|
+| Production k-rate (frozen champion) | `production/ops/run_daily.py`; blend selection `production/ops/live_krate_ensemble.json` | pregame k-rate per qualifying starter | LightGBM blend (0.00 sparse72 / 0.60 sparse72_monotone / 0.40 final58) + Ridge TBF + Poisson count layer + WS1c per-line Platt | frozen 2025-lock champion; policy KING_AUG2026 (`kpi_policy.json`, `line_floor_policy.json`) | per pitcher-game k-rate -> count distribution | policy filter -> sizing (flat $50u, 1/16-Kelly anchor) | frozen; retrain path closed; no 2026 tuning; `tests/test_live_stack_pin.py` |
+| PA research (pregame-pa-ext-v2) | `research/offseason_2026/pregame_pa_ext/` (`build_checkpoint.py` -> `m0_multiclass.py`) | per-PA outcome probabilities (`p_h3_raw` per projected slot) | L3 ridge logistic (tree challenger KILLED 2026-09-30; LightGBM equal-information CLOSED - logistic stays the PA representative) | `h3_raw_checkpoint.json`, pin `176fb18b...`, raw sha `d266a1cd...` | per (start, slot) PA | count layer (ledger slots + BF aggregation) -> per-start K PMF -> count-RPS / market-eval / calibration | M0 v2 development acceptance only (NOT production approval); ablation / aggregation / C-B1 / recency resolved; calibration implemented, unexecuted |
+| Docs lane | PR #49 (`docs/lineup-path-reconciliation-spec`, head `b2090cc`) | Stage A specification | n/a | n/a | n/a | Chat 2 spec review -> owner authorization | in review |
 
