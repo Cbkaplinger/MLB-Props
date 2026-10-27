@@ -180,33 +180,67 @@ preflight identity checks. The demonstrated failure (max |PMF diff| =
 path divergence, not noise — which is exactly what Stage A must rule
 out deterministically.
 
-### 3g. Synthetic end-to-end smoke-test plan (no real data)
+### 3g. Ordering contract (storage order vs semantic order)
 
-Implemented as committed tests before any authorized Stage A run, on a
-deterministic fixture (2 games × 2 starters × 9 slots with
-hand-computable pregame states):
+Two different "orders" are in play and must never be conflated:
 
-1. **Keyed-attachment order invariance:** chronological, shuffled, and
-   reversed request orders produce identical attached features and
-   identical PMFs (extends `test_attach_order_invariance.py` to the
-   count-PMF boundary).
-2. **Fan-out detection:** a duplicate/ambiguous key fixture must fail
-   the join loudly (no silent borrowing).
-3. **Exclusion accounting:** a fixture with a declared exclusion
-   satisfies the exclusive-bucket sum check; an inconsistent counter
-   fixture must fail.
-4. **Control invariant PASS:** the synthetic two-route control
-   comparison holds at ≤1e-12 across all 24 buckets.
-5. **Failure-mode proof:** a deliberately corrupted route (one feature
-   attached by list order) MUST fail the control invariant — proving
-   the gate can actually fire.
-6. **Boundary check:** the Stage A code path asserts it never reads
-   realized-K labels (e.g., the synthetic frame omits them entirely and
-   the loader would raise).
+1. **Storage order** — the row order of a dataframe delivered to the
+   pipeline. A keyed pipeline MUST tolerate arbitrary storage-row
+   permutation: with identical keyed inputs, results are identical.
+2. **Semantic lineup order** — which batter occupies which slot. This
+   is part of the prediction input, not a storage artifact. Changing
+   the semantic slot sequence can legitimately change the
+   workload-weighted count mixture (a pitcher who faces only part of
+   another lineup cycle does not face every slot equally).
+
+The registered control invariant is therefore exactly:
+
+> With identical keyed inputs, identical SEMANTIC slot sequence,
+> identical frozen checkpoint, and identical workload PMF, both
+> construction routes must agree (≤1e-12 per bucket).
+
+It is NOT: "every permutation of the actual lineup must produce the same
+PMF." Semantic-order changes are permitted to change the PMF; the
+synthetic suite proves the machinery can detect such a change (a gate
+that could not fire would be vacuous).
+
+### 3h. Synthetic end-to-end smoke tests (IMPLEMENTED)
+
+Bundle: `tests/test_lineup_path_smoke.py` — 12 tests, synthetic only,
+no real-data artifacts, no realized labels, pure injected frames running
+the identical frozen code path. The deterministic fixture (2 games × 2
+starters × 9 slots, hand-computable pregame states) exercises:
+
+1. **(e) feature equality:** attached FEAT_H3 features equal
+   hand-computed expectations derived in the test from the fixture's
+   integers and the frozen constants (W_PRIOR=150, half-life 90d) — an
+   independent expected-value fixture, not two wrappers over one
+   shared helper.
+2. **(a) storage-row permutation:** shuffled PA-history rows and
+   shuffled projected rows produce identical attached features by key
+   and identical 24-bucket PMFs.
+3. **(b) semantic reorder detection:** swapping which batter occupies
+   slots 1/2 legitimately changes the mixture; the machinery detects
+   the difference (gate not vacuous).
+4. **(c) wrong-key attachment:** relabeling a batter key produces a
+   detectable multi-field mismatch vs the correct attachment.
+5. **(d) fan-out / duplicates fail loud:** duplicate start keys and
+   missing slot columns raise; attachment preserves row count (no
+   silent fan-out).
+6. **(f) PMF equality:** identical semantic inputs through the adapter
+   machinery vs an independent reimplementation (explicit loops +
+   `math.lgamma`, sharing no helper with the adapter's vectorized
+   tables) agree within 1e-12 per bucket.
+7. **(g) prohibited inputs:** a Stage A input gate refuses any frame
+   carrying realized-K label columns; the strictly-prior property is
+   verified on the real machinery (a same-date PA row never influences
+   the attached state).
+8. **Failure-mode proof:** the intentional-defect cases (3, 4, 5, 7)
+   demonstrate the gates actually fire.
 
 The smoke tests are synthetic-only and require no authorization beyond
 the standing synthetic-test permission; they are the precondition for
-requesting Stage A authorization, not a substitute for it.
+requesting the Stage A real-data run, not a substitute for it.
 
 ### 3h. Failure behavior
 
