@@ -38,6 +38,7 @@ from pregame_pa_ext import adapter as ad  # noqa: E402
 from pregame_pa_ext import batt_recency as br  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 from pregame_pa_ext import count_pmf_calibration as cpc  # noqa: E402
+from pregame_pa_ext import market_eval_k as mk  # noqa: E402
 
 import kcount_combiner as kc  # noqa: E402
 
@@ -129,9 +130,30 @@ def run_count_pmf_calibration(
     initial_sha = ad.sha256_file(initial_path)
 
     try:
-        # ---- stage 2: split into cohorts ---------------------------
+        # ---- stage 2: reject unexpected block labels ----------------
+        # The runner accepts only the two registered dev blocks.
+        # Protected blocks (confirm_2025H2) and any unrecognized block
+        # must fail the run, not be silently filtered.
+        seen_blocks = set(pmfs_frame["block"].unique().to_list())
+        allowed = {"block_2024H2", "block_2025H1"}
+        forbidden = seen_blocks - allowed
+        if forbidden:
+            raise ValueError(
+                f"unexpected block labels in the input frame: "
+                f"{sorted(forbidden)}; the runner accepts only "
+                f"{sorted(allowed)}")
+
+        # ---- stage 3: split into cohorts ---------------------------
         cal = pmfs_frame.filter(pl.col("block") == "block_2024H2")
         ev = pmfs_frame.filter(pl.col("block") == "block_2025H1")
+
+        # registered card threshold: 1,000 calibration starts minimum
+        # (the card specifies this minimum for CALIBRATION only; the
+        # evaluation cohort size is not separately thresholded)
+        if cal.height < 1000:
+            raise ValueError(
+                f"calibration cohort below the registered 1,000-start "
+                f"threshold: {cal.height}")
 
         cal_hash = _cohort_hash(cal)
         ev_hash = _cohort_hash(ev)
@@ -210,6 +232,108 @@ def run_count_pmf_calibration(
         rps_frozen = np.asarray(rps_frozen)
         rps_cal = np.asarray(rps_cal)
 
+        # secondary diagnostics (card §9): threshold reliability at
+        # the model's OWN quoted lines (mean of each start's frozen PMF,
+        # rounded to the nearest half-line: floor(mean + 0.5) - 0.5,
+        # floored at 0.5 so lines are valid positive half-lines X.5),
+        # full-CDF calibration, MAE/RMSE of point summaries
+        def _own_half_line(pmf_arr: np.ndarray) -> float:
+            mean_k = float((np.asarray(pmf_arr, dtype=np.float64)
+                            * np.arange(24)).sum())
+            return max(0.5, float(np.floor(mean_k + 0.5) - 0.5))
+
+        own_lines = sorted(set(_own_half_line(p) for p in ev_pmfs))
+        reliability = []
+        for t in own_lines:
+            pred_frozen = [float(mk.model_p_over(np.asarray(p), t))
+                           for p in ev_pmfs]
+            pred_cal = [float(mk.model_p_over(
+                cpc.linear_cdf_calibrate(np.asarray(p), fitted_a), t))
+                for p in ev_pmfs]
+            obs = [1.0 if k > t else 0.0 for k in ev_realized]
+            for pname, preds in (("frozen", pred_frozen),
+                                 ("calibrated", pred_cal)):
+                reliability.append({
+                    "threshold": t, "predictor": pname,
+                    "n": len(preds),
+                    "mean_predicted": float(np.mean(preds)),
+                    "observed_frequency": float(np.mean(obs)),
+                })
+        mean_k_frozen = [float((np.asarray(p) * np.arange(24)).sum())
+                         for p in ev_pmfs]
+        mean_k_cal = [float((cpc.linear_cdf_calibrate(
+            np.asarray(p), fitted_a) * np.arange(24)).sum())
+            for p in ev_pmfs]
+        mae_frozen = float(np.mean(np.abs(
+            np.asarray(mean_k_frozen) - np.asarray(ev_realized))))
+        mae_cal = float(np.mean(np.abs(
+            np.asarray(mean_k_cal) - np.asarray(ev_realized))))
+        rmse_frozen = float(np.sqrt(np.mean(
+            (np.asarray(mean_k_frozen) - np.asarray(ev_realized)) ** 2)))
+        rmse_cal = float(np.sqrt(np.mean(
+            (np.asarray(mean_k_cal) - np.asarray(ev_realized)) ** 2)))
+        secondary = {
+            "threshold_reliability": reliability,
+            "mae_frozen": mae_frozen, "mae_calibrated": mae_cal,
+            "rmse_frozen": rmse_frozen, "rmse_calibrated": rmse_cal,
+        }
+
+        # full-CDF calibration: predicted vs empirical CDF at each
+        # bucket k = 0..23 (cumsum across buckets axis=1, NOT starts axis=0)
+        F_frozen_all = np.cumsum(np.asarray(ev_pmfs, dtype=np.float64),
+                                 axis=1)
+        F_cal_all = np.cumsum(
+            np.asarray([cpc.linear_cdf_calibrate(np.asarray(p), fitted_a)
+                        for p in ev_pmfs], dtype=np.float64), axis=1)
+        empirical_cdf = np.zeros(24)
+        for k in range(24):
+            empirical_cdf[k] = sum(1 for kk in ev_realized if kk <= k) \
+                / len(ev_realized)
+        cdf_calibration = []
+        for k in range(24):
+            cdf_calibration.append({
+                "bucket": k,
+                "pred_cdf_frozen": float(F_frozen_all[:, k].mean()),
+                "pred_cdf_calibrated": float(F_cal_all[:, k].mean()),
+                "empirical_cdf": float(empirical_cdf[k]),
+            })
+        secondary["cdf_calibration"] = cdf_calibration
+
+        # own-line LL/Brier: model vs calibrated evaluated at the SAME
+        # per-start threshold t_own derived deterministically from the
+        # frozen forecast (_own_half_line(pmf_f)), with the shared
+        # outcome indicator o = 1{k_real > t_own}
+        eps = 1e-12
+        own_line_ll_frozen, own_line_ll_cal = [], []
+        own_line_brier_frozen, own_line_brier_cal = [], []
+        for r, p_cal_pmf in zip(ev.iter_rows(named=True),
+                                [cpc.linear_cdf_calibrate(
+                                    np.asarray(p), fitted_a)
+                                 for p in ev_pmfs]):
+            pmf_f = np.asarray(r["pmf_baseline"], dtype=np.float64)
+            pmf_c = np.asarray(p_cal_pmf, dtype=np.float64)
+            k_real = r["realized_k"]
+            t_own = _own_half_line(pmf_f)
+            p_over_f = mk.model_p_over(pmf_f, t_own)
+            p_over_c = mk.model_p_over(pmf_c, t_own)
+            o = 1.0 if k_real > t_own else 0.0
+            own_line_ll_frozen.append(
+                -(o * np.log(p_over_f + eps)
+                  + (1 - o) * np.log(1 - p_over_f + eps)))
+            own_line_ll_cal.append(
+                -(o * np.log(p_over_c + eps)
+                  + (1 - o) * np.log(1 - p_over_c + eps)))
+            own_line_brier_frozen.append((p_over_f - o) ** 2)
+            own_line_brier_cal.append((p_over_c - o) ** 2)
+        secondary["own_line_ll_frozen"] = float(
+            np.mean(own_line_ll_frozen))
+        secondary["own_line_ll_calibrated"] = float(
+            np.mean(own_line_ll_cal))
+        secondary["own_line_brier_frozen"] = float(
+            np.mean(own_line_brier_frozen))
+        secondary["own_line_brier_calibrated"] = float(
+            np.mean(own_line_brier_cal))
+
         # paired bootstrap
         cmp_mod = br.load_registered_comparison()
         blocks = ["block_2025H1"] * len(dates)
@@ -235,6 +359,7 @@ def run_count_pmf_calibration(
             "acceptance": ("calibration_improves_count_rps"
                            if accept else
                            "calibration_does_not_improve_count_rps"),
+            "secondary": secondary,
         }
 
         # ---- write outputs ------------------------------------------

@@ -30,9 +30,23 @@ inactive for k = 23 since F(23) = 1 gives F_cal(23) = 1 exactly).
 ### Parameter domain
 
 a ∈ [0.5, 2.0]. Values outside this range trigger the stop condition.
-a = 1 is the identity (no calibration). a > 1 stretches the CDF
-(moves mass away from the mode); a < 1 compresses it (moves mass
-toward the mode).
+a = 1 is the identity (no calibration).
+
+### Directional behavior (NOT symmetric dispersion adjustment)
+
+For a < 1 (clip typically inactive): the calibrated PMF is
+p_cal(0) = 1 − a + a·p(0) and p_cal(k) = a·p(k) for k ≥ 1. This adds
+mass at zero and scales the positive-count probabilities — a
+directional correction, NOT narrowing around the mode.
+
+For a > 1 (clip may fire at the lower boundary): the transformed CDF
+is shifted downward, removing low-count mass and rescaling the
+remaining survival probabilities. The clip fires only when
+a·(1−F(0)) > 1. It is an asymmetric, directional correction.
+
+The mapping does NOT independently adjust location and dispersion.
+A failed calibration experiment rejects THIS mapping, not calibration
+in general.
 
 ### Boundary behavior
 
@@ -82,7 +96,12 @@ positive. The registered tail interpretation is unchanged.
 - Non-unique solutions: if two values of a produce count-RPS within
   1e-10, the one closer to 1 (identity) is selected. The fitted value
   and the objective value are both recorded.
-- The fitted a is FROZEN before any block_2025H1 outcome is accessed.
+- The fitted a is FROZEN before any block_2025H1 outcome enters the
+  scoring path. The runner implements the FIT-ISOLATION contract:
+  the supplied frame already contains evaluation outcomes, but the
+  fitting procedure receives calibration examples only and evaluation
+  outcomes do not enter fitting, parameter selection, or stopping
+  decisions. This is NOT a strict physical-loading guarantee.
 
 ## 5. Inputs and keys (pinned, separate fit/evaluation hashes)
 
@@ -120,13 +139,16 @@ in the M0 v2 execution receipt.
 ## 6. Evaluation protocol
 
 - Fit: compute (a) on block_2024H2 scored starts by minimizing
-  count-RPS. FREEZE (a) before accessing any block_2025H1 outcome.
+  count-RPS. FREEZE the fitted parameter before evaluation scoring.
 - Evaluate: apply F_cal to each block_2025H1 start's PMF and compute
-  count-RPS. ONE evaluation pass. No refit, no parameter movement
-  check, no walk-forward stability test.
-- The 2025H1 outcomes are accessed EXACTLY ONCE, for the final
-  evaluation. They are not used for fitting, parameter selection, or
-  convergence checking.
+  count-RPS. ONE registered evaluation pass (which may compute several
+  prescribed diagnostics within that pass). No refit, no parameter
+  movement check, no walk-forward stability test.
+- FIT-ISOLATION contract: the supplied frame already contains
+  block_2025H1 outcomes. They must not enter fitting, parameter
+  selection, or convergence stopping decisions. Evaluation scoring
+  occurs only after the fitted parameter has been persisted and
+  verified. This is NOT a strict physical-loading guarantee.
 
 ## 7. Primary metric
 
@@ -148,9 +170,15 @@ bootstrap (n=2000, seed 20261001, Holm m=1).
 
 - Calibration reliability: predicted threshold probabilities vs
   observed threshold frequencies, at each of the model's own quoted
-  lines (own-line LL/Brier).
+  lines (own-line LL/Brier). Each start's own quoted half-line is
+  defined deterministically from its frozen PMF mean as
+  `t_own = max(0.5, floor(mean_frozen + 0.5) - 0.5)`, and both the
+  frozen and calibrated distributions are scored at that identical
+  `t_own` against the shared outcome indicator `1{realized_k > t_own}`.
 - Count-PMF calibration: predicted CDF vs empirical CDF at each
-  bucket k = 0..23 (the full PMF, not just the mean).
+  bucket k = 0..23 (the full PMF, not just the mean; cumulative sum
+  taken across count buckets k = 0..23 per start, then averaged across
+  starts).
 - MAE/RMSE of the point summary (mean of the PMF) vs actual K.
 - The fitted a value.
 - No selecting the method by sportsbook gap.
@@ -160,8 +188,8 @@ bootstrap (n=2000, seed 20261001, Holm m=1).
 - Calibration sample < 1,000 starts -> STOP.
 - Fitted a outside [0.5, 2.0] -> STOP.
 - Any PMF invariant violated after calibration -> STOP.
-- The evaluation outcomes are accessed before the fitted a is frozen
-  -> protocol violation, STOP.
+- Evaluation outcomes enter the fitting, parameter selection, or
+  convergence stopping path -> FIT-ISOLATION violation, STOP.
 
 ## 11. Execution contract
 
@@ -180,5 +208,9 @@ records preserved. No 2025H2 confirmation fitting; no 2026 access.
 6. Normalization: p_cal sums to 1 within 1e-9 for all tested a.
 7. Deterministic fitting: the same calibration input always produces
    the same fitted a.
-8. Evaluation-outcome isolation: the fitted a is computed BEFORE any
-   evaluation-set outcome is accessed (verified by construction).
+8. Evaluation-outcome isolation (FIT-ISOLATION contract): the fitted a
+   is computed BEFORE any block_2025H1 outcome enters the scoring path.
+   The supplied frame contains both blocks' outcomes; the contract is
+   that evaluation outcomes do not enter fitting, parameter selection,
+   or stopping decisions. This is not a strict physical-loading
+   guarantee.
