@@ -202,5 +202,12 @@ PITCHER 1.33457); market baseline verified (close beats model);
 calibration runner implemented and reviewed (NOT executed); 2026
 holdout untouched. Detailed experiment history:
 `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
-Next: calibration execution on a fresh branch after #34 merges.
+
+Next (2026-10-27): lineup prediction-path reconciliation -
+specification published at
+[`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
+(measurement-reconciliation candidate; Stage A path-equivalence gate,
+Stage B outcome scoring gated on PASS; awaiting Chat 2 spec review then
+owner authorization; NOT executed). Calibration execution remains gated
+behind PR #48 merge + owner authorization; frozen at `1321e4b`.
 
