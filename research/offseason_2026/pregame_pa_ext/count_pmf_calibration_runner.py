@@ -23,6 +23,7 @@ Sequence:
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import sys
@@ -43,6 +44,14 @@ from pregame_pa_ext import market_eval_k as mk  # noqa: E402
 import kcount_combiner as kc  # noqa: E402
 
 PROTECTED_BLOCK = "confirm_2025H2"
+
+# Technical execution-acceptance token. Presenting this token at the
+# registered entry point (CLI --execution-ack or the direct callable's
+# execution_ack keyword) is a TECHNICAL GATE ONLY. It proves the caller
+# invoked the registered entry point deliberately; it is NOT evidence
+# of owner authorization, which remains a separate procedural
+# requirement recorded outside this code path.
+EXECUTION_ACK_TOKEN = "EXECUTE-COUNT-PMF-CALIBRATION-V1"
 
 
 def _cohort_hash(df: "pl.DataFrame") -> str:
@@ -70,9 +79,11 @@ def _code_identity() -> dict:
 
 def run_count_pmf_calibration(
     pmfs_frame: "pl.DataFrame", out_dir, *,
+    execution_ack: str,
     expected_cal_hash: str,
     expected_eval_hash: str,
     n_boot: int = 2000, seed: int = 20261001,
+    ack_route: str = "direct-call",
 ) -> dict:
     """Execute the pre-specified calibration experiment.
 
@@ -80,11 +91,27 @@ def run_count_pmf_calibration(
         lineage: game_pk, side, pitcher, game_date, block,
         realized_k, pmf_baseline). Must contain ONLY dev-block rows
         (confirm_2025H2 excluded before calling).
+    execution_ack: REQUIRED explicit execution-acceptance token. Must
+        equal EXECUTION_ACK_TOKEN. Checked before any input handling,
+        fitting, scoring, or output creation. Technical gate only;
+        NOT proof of owner authorization.
     expected_cal_hash: the predeclared SHA-256 of the sorted start
         keys for the calibration cohort (block_2024H2).
     expected_eval_hash: the predeclared SHA-256 of the sorted start
         keys for the evaluation cohort (block_2025H1).
+    ack_route: provenance label recorded in the receipt ("cli" when
+        invoked through main(), "direct-call" otherwise).
     """
+    # ---- stage 0: execution-acceptance gate -------------------------
+    # Must run BEFORE the write-once check, directory creation, input
+    # hashing, fitting, or scoring.
+    if execution_ack != EXECUTION_ACK_TOKEN:
+        raise ValueError(
+            "execution acknowledgement missing or invalid: refusing "
+            "to run before loading input, fitting, scoring, or "
+            "creating output; supply the registered "
+            "EXECUTION_ACK_TOKEN (technical gate only, not owner "
+            "authorization)")
     import polars as pl
 
     out_dir = Path(out_dir)
@@ -102,6 +129,14 @@ def run_count_pmf_calibration(
     # before any operation that could fail, so the failure record
     # always references it.
     initial = {
+        "execution_acknowledgement": {
+            "route": ack_route,
+            "token": execution_ack,
+            "note": ("technical execution-acceptance gate only; "
+                     "recording this token is NOT proof of owner "
+                     "authorization, which remains a separate "
+                     "procedural requirement"),
+        },
         "inputs": {
             "consumed": {
                 "model_pmfs_full_frame": m0._frame_sha(pmfs_frame),
@@ -411,3 +446,55 @@ def run_count_pmf_calibration(
     return {"out_dir": str(out_dir), "metrics": metrics,
             "receipt_final": final,
             "receipt_initial_sha256": initial_sha}
+
+
+def main(argv=None) -> int:
+    """Registered CLI entry point for the real-data calibration run.
+
+    Gate order: the execution acknowledgement is validated BEFORE the
+    input parquet is read, before fitting, before scoring, and before
+    any output directory is created. Without a valid --execution-ack
+    the CLI exits 2 with no side effects.
+    """
+    p = argparse.ArgumentParser(
+        description=("Count-PMF calibration runner (registered, "
+                     "write-once). Requires an explicit execution "
+                     "acknowledgement token; the token is a technical "
+                     "gate only and is NOT proof of owner "
+                     "authorization."))
+    p.add_argument("--pmfs", required=True,
+                   help="registered per-start PMF parquet")
+    p.add_argument("--out-dir", required=True,
+                   help="fresh write-once output directory")
+    p.add_argument("--expected-cal-hash", required=True)
+    p.add_argument("--expected-eval-hash", required=True)
+    p.add_argument("--n-boot", type=int, default=2000)
+    p.add_argument("--seed", type=int, default=20261001)
+    p.add_argument("--execution-ack", required=True,
+                   help="registered EXECUTION_ACK_TOKEN")
+    args = p.parse_args(argv)
+
+    # ---- gate BEFORE loading real input -----------------------------
+    if args.execution_ack != EXECUTION_ACK_TOKEN:
+        print("EXECUTION REFUSED: missing or invalid execution "
+              "acknowledgement (--execution-ack). No input was "
+              "loaded, nothing was fitted or scored, and no output "
+              "was created. The acknowledgement token gates the "
+              "technical run only; owner authorization is a separate "
+              "procedural requirement.", file=sys.stderr)
+        return 2
+
+    pmfs = pl.read_parquet(args.pmfs)
+    result = run_count_pmf_calibration(
+        pmfs, args.out_dir,
+        execution_ack=args.execution_ack,
+        ack_route="cli",
+        expected_cal_hash=args.expected_cal_hash,
+        expected_eval_hash=args.expected_eval_hash,
+        n_boot=args.n_boot, seed=args.seed)
+    print(json.dumps(result["metrics"], indent=1, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

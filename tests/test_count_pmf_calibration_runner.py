@@ -21,6 +21,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]
 from pregame_pa_ext import count_pmf_calibration as cpc  # noqa: E402
 from pregame_pa_ext import count_pmf_calibration_runner as runner  # noqa: E402
 
+# Every synthetic test call site passes the token explicitly: the
+# synthetic-test route is an acknowledged route, not an unacknowledged
+# bypass. The token is a technical execution-acceptance gate only and
+# is NOT evidence of owner authorization.
+ACK = runner.EXECUTION_ACK_TOKEN
+
 
 def _cohort_hash(df):
     rows = sorted(
@@ -66,7 +72,8 @@ def test_runner_sequence_and_outputs(tmp_path):
     cal_h, ev_h = _expected_hashes(pmfs)
     out = tmp_path / "cal"
     res = runner.run_count_pmf_calibration(
-        pmfs, out, expected_cal_hash=cal_h, expected_eval_hash=ev_h)
+            pmfs, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
     # receipts
     assert (out / "receipt_initial.json").exists()
     assert (out / "receipt_final.json").exists()
@@ -103,11 +110,12 @@ def test_runner_write_once_guard(tmp_path):
     cal_h, ev_h = _expected_hashes(pmfs)
     out = tmp_path / "cal"
     runner.run_count_pmf_calibration(
-        pmfs, out, expected_cal_hash=cal_h, expected_eval_hash=ev_h)
+            pmfs, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
     with pytest.raises(ValueError, match="write-once violation"):
         runner.run_count_pmf_calibration(
-            pmfs, out, expected_cal_hash=cal_h,
-            expected_eval_hash=ev_h)
+            pmfs, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
 
 
 def test_runner_failure_record_on_bad_input(tmp_path):
@@ -122,8 +130,8 @@ def test_runner_failure_record_on_bad_input(tmp_path):
     out = tmp_path / "cal_fail"
     with pytest.raises(ValueError):
         runner.run_count_pmf_calibration(
-            bad, out, expected_cal_hash=cal_h,
-            expected_eval_hash=ev_h)
+            bad, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
     assert (out / "receipt_initial.json").exists()
     assert (out / "failure_record.json").exists()
     assert not (out / "receipt_final.json").exists()
@@ -142,8 +150,8 @@ def test_runner_rejects_cohort_hash_mismatch(tmp_path):
     out = tmp_path / "cal_mismatch"
     with pytest.raises(ValueError, match="cohort hash mismatch"):
         runner.run_count_pmf_calibration(
-            pmfs, out, expected_cal_hash=wrong_cal,
-            expected_eval_hash=ev_h)
+            pmfs, out, execution_ack=ACK,
+            expected_cal_hash=wrong_cal, expected_eval_hash=ev_h)
     assert (out / "failure_record.json").exists()
 
 
@@ -158,8 +166,8 @@ def test_runner_rejects_999_calibration_starts(tmp_path):
     out = tmp_path / "cal999"
     with pytest.raises(ValueError, match="1,000-start"):
         runner.run_count_pmf_calibration(
-            combined, out, expected_cal_hash=cal_h,
-            expected_eval_hash=ev_h)
+            combined, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
     assert (out / "failure_record.json").exists()
     assert not (out / "receipt_final.json").exists()
     assert not (out / "fitted_parameter" / "fitted_a.json").exists()
@@ -176,8 +184,8 @@ def test_runner_accepts_exactly_1000_calibration_starts(tmp_path):
     cal_h_t, ev_h_t = _expected_hashes(trimmed)
     out = tmp_path / "cal1000"
     res = runner.run_count_pmf_calibration(
-        trimmed, out, expected_cal_hash=cal_h_t,
-        expected_eval_hash=ev_h_t)
+        trimmed, out, execution_ack=ACK,
+        expected_cal_hash=cal_h_t, expected_eval_hash=ev_h_t)
     assert res["metrics"]["n_calibration"] == 1000
 
 
@@ -191,8 +199,8 @@ def test_runner_rejects_protected_block_row(tmp_path):
     out = tmp_path / "cal_confirm"
     with pytest.raises(ValueError, match="unexpected block labels"):
         runner.run_count_pmf_calibration(
-            combined, out, expected_cal_hash="0" * 64,
-            expected_eval_hash="0" * 64)
+            combined, out, execution_ack=ACK,
+            expected_cal_hash="0" * 64, expected_eval_hash="0" * 64)
 
 
 def test_runner_rejects_arbitrary_unexpected_label(tmp_path):
@@ -204,8 +212,8 @@ def test_runner_rejects_arbitrary_unexpected_label(tmp_path):
     out = tmp_path / "cal_weird"
     with pytest.raises(ValueError, match="unexpected block labels"):
         runner.run_count_pmf_calibration(
-            combined, out, expected_cal_hash="0" * 64,
-            expected_eval_hash="0" * 64)
+            combined, out, execution_ack=ACK,
+            expected_cal_hash="0" * 64, expected_eval_hash="0" * 64)
 
 
 def test_runner_secondary_diagnostics_numerical(tmp_path):
@@ -215,7 +223,8 @@ def test_runner_secondary_diagnostics_numerical(tmp_path):
     cal_h, ev_h = _expected_hashes(pmfs)
     out = tmp_path / "cal_diag"
     res = runner.run_count_pmf_calibration(
-        pmfs, out, expected_cal_hash=cal_h, expected_eval_hash=ev_h)
+            pmfs, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
     sec = res["metrics"]["secondary"]
     # independently verify MAE for the frozen arm
     ps = pl.read_parquet(out / "calibration_per_start_v1.parquet")
@@ -276,8 +285,9 @@ def test_runner_full_cdf_bucket_axis_and_row_order_invariance(tmp_path):
 
     cal_h, ev_h = _expected_hashes(frame)
     res1 = runner.run_count_pmf_calibration(
-        frame, tmp_path / "run_order1",
-        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+            frame, tmp_path / "run_order1",
+            execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
 
     fitted_a = res1["metrics"]["fitted_a"]
     cdf_rows = res1["metrics"]["secondary"]["cdf_calibration"]
@@ -323,8 +333,9 @@ def test_runner_full_cdf_bucket_axis_and_row_order_invariance(tmp_path):
     # Row-reordering invariance: reverse the evaluation rows and shuffle calibration rows
     frame_reordered = frame.reverse()
     res2 = runner.run_count_pmf_calibration(
-        frame_reordered, tmp_path / "run_order2",
-        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+            frame_reordered, tmp_path / "run_order2",
+            execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
     assert res2["metrics"]["fitted_a"] == pytest.approx(fitted_a, abs=1e-12)
     assert res2["metrics"]["rps_frozen_mean"] == pytest.approx(
         res1["metrics"]["rps_frozen_mean"], abs=1e-12)
@@ -389,8 +400,9 @@ def test_runner_own_line_event_consistency_across_integer_boundary(tmp_path):
 
     cal_h, ev_h = _expected_hashes(frame)
     res = runner.run_count_pmf_calibration(
-        frame, tmp_path / "run_boundary",
-        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+            frame, tmp_path / "run_boundary",
+            execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
 
     fitted_a = res["metrics"]["fitted_a"]
     pmf_c = cpc.linear_cdf_calibrate(pmf_ev, fitted_a)
@@ -435,8 +447,8 @@ def test_runner_rejects_cal_eval_key_overlap(tmp_path):
     out = tmp_path / "cal_overlap"
     with pytest.raises(ValueError, match="key overlap"):
         runner.run_count_pmf_calibration(
-            combined, out, expected_cal_hash=cal_h,
-            expected_eval_hash=ev_h)
+            combined, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
 
 
 def test_runner_observes_evaluation_load_after_persist(tmp_path):
@@ -464,9 +476,179 @@ def test_runner_observes_evaluation_load_after_persist(tmp_path):
          mock.patch.object(cpc.GuardedEvaluationLoader, "load",
                            spy_load):
         res = runner.run_count_pmf_calibration(
-            pmfs, out, expected_cal_hash=cal_h,
-            expected_eval_hash=ev_h)
+            pmfs, out, execution_ack=ACK,
+            expected_cal_hash=cal_h, expected_eval_hash=ev_h)
 
     assert "freeze" in call_order
     assert "load_eval" in call_order
     assert call_order.index("freeze") < call_order.index("load_eval")
+
+def test_runner_refuses_without_ack_before_output_creation(tmp_path):
+    """A missing or invalid execution_ack must refuse BEFORE the
+    write-once check, directory creation, receipt writing, fitting, or
+    scoring: the output directory must not exist at all. Omitting the
+    keyword entirely also refuses (required keyword-only argument)."""
+    pmfs = _synthetic_pmfs_frame()
+    out = tmp_path / "no_ack"
+    with pytest.raises(ValueError, match="execution acknowledgement"):
+        runner.run_count_pmf_calibration(
+            pmfs, out, execution_ack=None,
+            expected_cal_hash="0" * 64,
+            expected_eval_hash="0" * 64)
+    assert not out.exists()
+    assert not (out / "receipt_initial.json").exists()
+    assert not (out / "failure_record.json").exists()
+    with pytest.raises(TypeError):
+        runner.run_count_pmf_calibration(
+            pmfs, out,
+            expected_cal_hash="0" * 64, expected_eval_hash="0" * 64)
+    assert not out.exists()
+
+
+def test_runner_refuses_wrong_token_before_output_creation(tmp_path):
+    """A wrong token is also refused before any side effect."""
+    pmfs = _synthetic_pmfs_frame()
+    out = tmp_path / "bad_token"
+    with pytest.raises(ValueError, match="execution acknowledgement"):
+        runner.run_count_pmf_calibration(
+            pmfs, out, execution_ack="NOT-THE-REGISTERED-TOKEN",
+            expected_cal_hash="0" * 64, expected_eval_hash="0" * 64)
+    assert not out.exists()
+
+
+def test_runner_accepted_ack_records_acknowledgement_in_receipt(tmp_path):
+    """The accepted path must record the technical acknowledgement
+    (token, route, and the not-owner-authorization note) in the
+    initial receipt, and the chained final receipt inherits it."""
+    pmfs = _synthetic_pmfs_frame()
+    cal_h, ev_h = _expected_hashes(pmfs)
+    out = tmp_path / "ack_receipt"
+    res = runner.run_count_pmf_calibration(
+        pmfs, out, execution_ack=ACK,
+        expected_cal_hash=cal_h, expected_eval_hash=ev_h)
+    init = json.loads(
+        (out / "receipt_initial.json").read_text(encoding="utf-8"))
+    ack = init["execution_acknowledgement"]
+    assert ack["token"] == runner.EXECUTION_ACK_TOKEN
+    assert ack["route"] == "direct-call"
+    assert "NOT proof of owner authorization" in ack["note"]
+    fin = res["receipt_final"]
+    assert fin["execution_acknowledgement"]["token"] == \
+        runner.EXECUTION_ACK_TOKEN
+
+
+def test_runner_accepted_ack_preserves_calculations(tmp_path):
+    """The acknowledged synthetic path must produce identical metrics
+    across two identical runs (same seed) and match the independent
+    frozen-arm MAE, proving the gate did not alter calculations."""
+    pmfs = _synthetic_pmfs_frame()
+    cal_h, ev_h = _expected_hashes(pmfs)
+    res1 = runner.run_count_pmf_calibration(
+        pmfs, tmp_path / "ack_calc1", execution_ack=ACK,
+        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+    res2 = runner.run_count_pmf_calibration(
+        pmfs, tmp_path / "ack_calc2", execution_ack=ACK,
+        expected_cal_hash=cal_h, expected_eval_hash=ev_h, n_boot=50)
+    assert res1["metrics"] == res2["metrics"]
+    ps = pl.read_parquet(
+        tmp_path / "ack_calc1" / "calibration_per_start_v1.parquet")
+    mean_ks = []
+    for r in ps.iter_rows(named=True):
+        pmfs_row = pmfs.filter(
+            (pl.col("game_pk") == r["game_pk"])
+            & (pl.col("pitcher") == r["pitcher"]))
+        pmf = np.asarray(pmfs_row["pmf_baseline"][0], dtype=np.float64)
+        mean_ks.append(float((pmf * np.arange(24)).sum()))
+    sec = res1["metrics"]["secondary"]
+    assert sec["mae_frozen"] == pytest.approx(
+        np.mean(np.abs(np.asarray(mean_ks) - ps["realized_k"].to_numpy())),
+        abs=1e-9)
+
+
+def test_cli_refuses_without_ack_before_input_load_or_output(
+        tmp_path, monkeypatch, capsys):
+    """The registered CLI must exit 2 WITHOUT a valid token BEFORE
+    reading the input parquet and BEFORE creating the output
+    directory. A missing --execution-ack flag is refused by argparse
+    with exit code 2; a present-but-invalid token is refused by the
+    gate with the same code and no side effects."""
+    loaded = []
+    real_read = runner.pl.read_parquet
+
+    def spy_read(path, *a, **k):
+        loaded.append(str(path))
+        return real_read(path, *a, **k)
+
+    monkeypatch.setattr(runner.pl, "read_parquet", spy_read)
+    pmfs_path = tmp_path / "pmfs.parquet"
+    _synthetic_pmfs_frame().write_parquet(pmfs_path)
+    out = tmp_path / "cli_out"
+    with pytest.raises(SystemExit) as ei:
+        runner.main([
+            "--pmfs", str(pmfs_path), "--out-dir", str(out),
+            "--expected-cal-hash", "0" * 64,
+            "--expected-eval-hash", "0" * 64,
+        ])
+    assert ei.value.code == 2
+    assert loaded == []
+    assert not out.exists()
+    out2 = tmp_path / "cli_out_bad_token"
+    rc = runner.main([
+        "--pmfs", str(pmfs_path), "--out-dir", str(out2),
+        "--expected-cal-hash", "0" * 64,
+        "--expected-eval-hash", "0" * 64,
+        "--execution-ack", "WRONG-TOKEN",
+    ])
+    assert rc == 2
+    assert loaded == []
+    assert not out2.exists()
+    assert "EXECUTION REFUSED" in capsys.readouterr().err
+
+
+def test_cli_refuses_wrong_token_before_input_load_or_output(
+        tmp_path, monkeypatch):
+    loaded = []
+    real_read = runner.pl.read_parquet
+
+    def spy_read(path, *a, **k):
+        loaded.append(str(path))
+        return real_read(path, *a, **k)
+
+    monkeypatch.setattr(runner.pl, "read_parquet", spy_read)
+    pmfs_path = tmp_path / "pmfs.parquet"
+    _synthetic_pmfs_frame().write_parquet(pmfs_path)
+    out = tmp_path / "cli_out_wrong"
+    rc = runner.main([
+        "--pmfs", str(pmfs_path), "--out-dir", str(out),
+        "--expected-cal-hash", "0" * 64,
+        "--expected-eval-hash", "0" * 64,
+        "--execution-ack", "WRONG-TOKEN",
+    ])
+    assert rc == 2
+    assert loaded == []
+    assert not out.exists()
+
+
+def test_cli_accepted_ack_runs_registered_path(tmp_path, capsys):
+    """With the token, the CLI loads the parquet, runs the registered
+    experiment, records route="cli" in the receipt, and prints the
+    metrics JSON."""
+    pmfs = _synthetic_pmfs_frame()
+    cal_h, ev_h = _expected_hashes(pmfs)
+    pmfs_path = tmp_path / "pmfs.parquet"
+    pmfs.write_parquet(pmfs_path)
+    out = tmp_path / "cli_ok"
+    rc = runner.main([
+        "--pmfs", str(pmfs_path), "--out-dir", str(out),
+        "--expected-cal-hash", cal_h, "--expected-eval-hash", ev_h,
+        "--execution-ack", runner.EXECUTION_ACK_TOKEN,
+    ])
+    assert rc == 0
+    assert (out / "receipt_final.json").exists()
+    fin = json.loads(
+        (out / "receipt_final.json").read_text(encoding="utf-8"))
+    assert fin["execution_acknowledgement"]["route"] == "cli"
+    assert fin["execution_acknowledgement"]["token"] == \
+        runner.EXECUTION_ACK_TOKEN
+    out_json = capsys.readouterr().out
+    assert "fitted_a" in out_json
