@@ -1,8 +1,8 @@
 # PR workflow — how this repository makes, documents, reviews, and merges pull requests
 
 Operating standard for all agent windows and the owner. Complements
-[`AGENTS.md`](../../AGENTS.md) (entry point), the role cards under
-`docs/agent_roles/` (governance PR pending), and
+[`AGENTS.md`](../../AGENTS.md) (entry point), the canonical role cards under
+`docs/roles/` (precedence in `docs/roles/README.md`), and
 [`repo_canonical_map.md`](repo_canonical_map.md) (what surfaces exist).
 
 ## 1. Who does what
