@@ -40,21 +40,35 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Session Snapshot — 2026-10-21 (post-split)
+## Session Snapshot — 2026-10-28 (baseline lane checkpoint 786b9fd)
 
-**Critical path:** `docs/NEXT.md` (single source of the current action).
+**Critical path:** `docs/NEXT.md` (single source of the current action;
+ROLES_REV 2026-10-28-r1 on PR #46 at `1e8c59c`).
 **This backlog is the concise active entry point.** Historical Session
 Snapshot bullets (2026-08 through 2026-10), the CLV + Hosting Plan, the
 Strategy Plan, and the SSAC27 Track are preserved verbatim in
 [`docs/reference/reports/backlog_archive_2026-10-21.md`](reference/reports/backlog_archive_2026-10-21.md).
 
-**Current Chat 3 lane:** architecture + cleanup documentation delivered via
-PRs #33/#35/#36/#38. The backlog split (this PR) is the final cleanup
-deliverable. The read lane is STOPPED.
+**Current Chat 1 lane (PR #50, `research/baseline-benchmark-v1`):** superseding
+checkpoint `786b9fd` published (delta `776fbdf -> 786b9fd`). All three
+architect source-level findings fixed with regression tests: derived starts
+retain `game_date` (inconsistent dates fail loud); overlap validation asserts
+one row per key on both sides before any join (no silent `.unique()`);
+missing FIELDS vs null fields (missing source coverage) are distinct failure
+classes; new identity + domain guards (both-halves anomaly, y in {0,1},
+side/role domains, at_bat_number >= 1). End-to-end synthetic integration
+`derive_start_outcomes -> start_outcomes -> build_arms_v2 -> keyed PMFs`
+passes. Evidence: `pytest tests/test_starter_outcomes.py
+tests/test_baseline_ladder.py -q` => 35 passed. Real-source derivation,
+overlap validation against the real 2024H2 artifact, and scoring remain
+authorization-gated. Stage A unchanged at `ca00e4d` (PR #49).
 
-**Current Chat 1/2 lane:** M0 v1 STOPPED; Chat 1 producing per-class label
-counts; Chat 2 reproducing; v2 card or binary freeze by 2026-11-07. See
-`docs/NEXT.md` for the full critical path.
+**Current Chat 3 lane:** startup-policy reconciliation + duplicate-guidance
+reduction on PR #46, not blocked by baseline review.
+
+**Current Chat 2 lane:** reviews the `786b9fd` derivation/adapter checkpoint
+(supersedes the `776fbdf` target per the updated PR #50 handoff); Stage A
+review target stays `ca00e4d` (PR #49).
 
 
 ## Execution Order
