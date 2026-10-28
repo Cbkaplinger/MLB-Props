@@ -108,7 +108,7 @@ flowchart TB
 - Live ops: `production/README.md`; market protocol: `docs/reference/market_clv_gates.md`.
 - Active live k-rate blend config: `production/ops/live_krate_ensemble.json`.
 - Focused monitoring loop: `production/notebooks/results_kpi_monitor.ipynb`,
-  `results_calibration_lab.ipynb`, `results_gate_policy.ipynb`,
+  `results_calibration_lab.ipynb`, `results_bettable_cohort.ipynb` (hosts retired gate-policy audit),
   `results_pnl_clv.ipynb`, and `production/ops/policy_simulator.py`.
 - Exit-anomaly layer is postgame governance only (no pregame leakage): source tags,
   training mask, rolling-policy weighting, and walk-forward A/B harness.

@@ -105,7 +105,7 @@ flowchart TB
   `scripts/run_walkforward_anomaly_ab.py`,
   `scripts/run_walkforward_anomaly_sensitivity.py`.
 - Focused ops loop: `production/notebooks/results_kpi_monitor.ipynb`,
-  `results_calibration_lab.ipynb`, `results_gate_policy.ipynb`,
+  `results_calibration_lab.ipynb`, `results_bettable_cohort.ipynb` (hosts retired gate-policy audit),
   `results_pnl_clv.ipynb`, plus `production/ops/policy_simulator.py`.
 - Open polling is parity-locked to board artifacts by default:
   `production/odds/poll_odds.py --snapshot open --from-recommendations`.

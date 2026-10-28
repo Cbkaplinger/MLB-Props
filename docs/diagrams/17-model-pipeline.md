@@ -1,7 +1,9 @@
 # 17 - Model pipeline (PROPOSED, 2026-10-23)
 
-> Shows the frozen model pipeline from point-in-time features through count
-> PMF and market comparison. Each node cites the implementing module.
+> Detail view supplementing 01-architecture.md (the architecture overview):
+> adds the frozen model pipeline from point-in-time features through count
+> PMF and market comparison, with per-node module citations. Each node cites
+> the implementing module.
 
 ```mermaid
 flowchart TB

@@ -1,7 +1,9 @@
 # 19 - Pipeline stages (PROPOSED, 2026-10-23)
 
-> Six distinct stages with explicit boundaries. The market identity bridge
-> (stage 5) is independently verified at the reviewed research SHA.
+> Detail view supplementing 01-architecture.md (the architecture overview):
+> adds the six-stage boundary view and the market-timing documentation.
+> The market identity bridge (stage 5) is independently verified at the
+> reviewed research SHA.
 
 ```mermaid
 flowchart LR
