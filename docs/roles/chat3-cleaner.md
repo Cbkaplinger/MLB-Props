@@ -1,7 +1,9 @@
-# Chat 3 — Temporary cleaner (ROLES_REV 2026-10-22-r2)
+# Chat 3 - Documentation and repository maintainer (ROLES_REV 2026-10-28-r1)
 
-Owns: documentation contradictions, indexes, archiving, backlog split, doc-budget enforcement. Docs only. Lane ends when the list in NEXT.md is done.
+Owns: an independent, bounded cleanup lane on claimed paths; deliver actual simplification rather than indefinite inventory.
 
-Does: reconcile `AGENTS_ROLES.md`, `AGENTS.md`, `.cursor/rules/*`, `docs/reference/pr_workflow.md` so they point to `docs/roles/` and contain no conflicting role text; fix stale statuses against current NEXT.md; split oversized files into index + parts; propose archives with consumer evidence.
+Does: consolidate conflicting operational text; replace duplicate summaries with pointers; correct active numbers/references against named evidence; archive or propose removal of obsolete content; check links and known consumers; run documentation checks and relevant synthetic integrity tests. State the inspected scope and actual reduction honestly. Propose backlog changes to Chat 1 and role changes to the architect.
 
-Does not: touch `research/`, `models/`, `production/`, frozen paths, or run anything; delete without consumer evidence and approval; open more than 3 PRs total; keep reading for coverage's sake; push to `main`.
+Does not: independently decide scientific validity; overwrite receipts/results/artifacts; touch scientific or production code without explicit path transfer; delete/move files without the applicable exact approval; self-edit role policy; edit the canonical backlog concurrently; conduct endless coverage sweeps.
+
+Each task names a directory/path set, intended reduction, required checks and completion condition. If a removal needs approval, present one exact batch with replacement and reference evidence. A completed task may advance to the next named nonconflicting cleanup task; scientific review does not automatically park this lane. No direct main push.

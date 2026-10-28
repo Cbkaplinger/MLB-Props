@@ -1,33 +1,27 @@
-# NEXT — current action
+# NEXT - current action
 
-Owner: architect. Updated 2026-10-27. ROLES_REV 2026-10-22-r2 remains unchanged. Read docs/roles/README.md first. Frozen registrations, pins and protected-data rules remain authoritative.
+Owner: architect. Updated 2026-10-28. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
-## Workflow reset
+## Scientific milestone
 
-Use EXECUTION_BACKLOG.md as the only work queue. This page is its short current-action pointer, not another backlog. Existing proposed ADRs/PRDs are not automatically adopted. C-B1 is completed/rejected per the latest handoff; do not rebuild it. Preserve historical evidence and reconcile its source in the backlog.
+Complete prediction-path verification and produce a valid historical baseline benchmark using existing machinery. Do not reopen distribution families, TTO, calibration, execution strategies or general architecture.
 
-Cycle: specify one question -> implement -> synthetic tests -> publish exact SHA -> one consolidated independent review -> authorized development run if needed -> reproduce -> retain/reject -> merge -> update current action. Review computational deltas only; do not reopen cleared findings without new evidence. Merge, execution and promotion are distinct decisions.
+PR #49: reviewed Stage A code at ca00e4d; real-artifact run remains subject to its explicit authorization. Correct current summaries to distinguish raw dev ledger starts (4,866) from eligible scoring starts (4,823) and 43 excluded starts. Preserve computational identity; no outcome scoring in Stage A.
 
-## Current assignments
+PR #50: existing baseline helpers are reusable. The Jul-Dec-2024 estimation restriction reflects a limited start-outcome artifact, not optimal history. Preserve v1 in history; implement a versioned historical starter-outcome derivation and proposed 2023-2024 training benchmark. Verify source coverage, starter/opener definition, K/BF definitions, duplicates and existing-artifact overlap. Implement and synthetic-test now; real-source derivation/validation and scoring need their applicable authorization. Do not silently refit the frozen incumbent or call unequal-history packages isolated effects.
 
-Chat 1: own scientific implementation and the canonical backlog. Address one consolidated review of PR #49. Stage A only is active: define prediction-path equivalence, all input artifacts, fixed features, keyed joins, exclusions, and synthetic smoke tests. Distinguish no realized-K scoring from any realized-PA-derived inputs. Stage B remains deferred, not automatically authorized by Stage A PASS. Do not alter the frozen calibration branch or run real-data diagnostics without the applicable authorization.
+Chat 1 builds this bounded slice on the existing baseline lane; Stage A's review target stays unchanged. Chat 2 reviews the new derivation/adapter checkpoint, input boundaries, independent fixtures and overlap plan. Reuse known aggregators, scorer and date-cluster comparison; no new harness.
 
-Chat 2: close PR #48 integration after architect delegation on that PR, current-head PASS and green checks; verify integrated identities once. Review PR #49's published head rather than searching again for publication. Return one actionable blocker list or PASS, and review only changed content thereafter. No automatic calibration execution.
+## Independent cleanup lane
 
-Chat 3: ACTIVE on its existing cleanup branch/PR. Reconcile stale operational instructions, precedence links, supersession labels and diagram pointers. Do not edit scientific code, frozen cards, results, artifacts or the canonical backlog concurrently with Chat 1. Propose backlog corrections to Chat 1. Claim exact paths before editing. Preserve unknown local changes; no deletions or branch pruning without explicit approval. This architect-owned NEXT update is authorized for inclusion in the cleanup PR.
+Chat 3 continues on PR #46, not blocked by baseline review. First close the existing startup-policy reconciliation using these architect-owned role replacements. Next reduce duplicate operational guidance in claimed paths: one current authority, links instead of copied rules, correct misleading current claims, exact archive/delete candidates when justified. Preserve scientific source evidence. Send backlog corrections to Chat 1. No global cleanup claims.
 
-Architect: resolve scope and sequencing, own NEXT and role changes, delegate integration explicitly, and select the next experiment from evidence. Argon is finished and inactive.
+Architect owns pending integration decisions for the existing reviewed PRs, including PR #48; delegation is recorded on the relevant PR. There are four open PRs at inspection: #46, #48, #49, #50. No new PR until integration reduces that count. No unsafe history rewriting to simplify stacked PRs.
 
-## Baseline-to-advanced sequence
+## Completion and next phase
 
-1. Close prediction-path correctness with synthetic tests and a separately authorized Stage A if needed.
-2. Freeze one runnable baseline: target, features, estimator, workload, scorer, partitions and artifact identities. Inventory LightGBM regression separately from binary/multiclass PA research; do not silently switch lanes.
-3. Test one feature family at fixed settings against that baseline; assess both its component endpoint and downstream K distribution.
-4. Freeze features; run a bounded, chronologically validated hyperparameter search for the explicitly selected model. Preserve all trials. No confirmation/2026 tuning.
-5. Lock the candidate; evaluate under its registered rules. Calibration is optional and separately fitted/evaluated for that candidate. Confirmation, paper operations and production require their own gates.
+Outputs: one Stage A receipt bundle after authorization, one validated historical-outcome artifact after authorization, one baseline scorecard after authorized scoring. A failed gate localizes a repair; a negative forecast result closes a hypothesis.
 
-Calibration execution, Stage B, new model families, market reconstruction, Kelly and live execution remain deferred. Existing M0 development acceptance is not production approval.
+Then: isolate one workload or PA improvement -> freeze selected features -> bounded time-ordered tuning -> locked evaluation -> optional calibration -> separately authorized confirmation/operations. Differentiate coefficient training, feature history and evaluation exposure. Protected partitions and old registrations remain unchanged.
 
-## Handoff
-
-Report: ROLES_REV | task | full SHA | tests/checks | durable PR/artifact link | next action | concrete blocker or none. No polling, repeated owner relays, duplicate queues or new governance documents. FAIL is localized repair; a valid negative result closes that hypothesis. No retries to seek a favorable result.
+Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
