@@ -236,15 +236,16 @@ def test_baseline_training_window_guard_at_execution_boundary():
     # guard requires the block column to exist at all
     with pytest.raises(bl.BaselineError, match="block' column"):
         bl.build_arms(_train_rows(), starts, _bf37_fixture_lookup())
-    # valid training rows (declared block) pass the guard
-    ok = _train_rows().with_columns(pl.lit("block_2024H2").alias("block"))
+    # valid training rows (declared block + date-verified) pass the guard
+    ok = (_train_rows()
+          .with_columns(pl.lit("block_2024H2").alias("block"))
+          .with_columns(pl.lit(date(2024, 9, 15)).alias("game_date")))
     bl.assert_train_window(ok)
 
 
 def test_baseline_training_window_date_boundary_guard(tmp_path):
     """Training rows dated after the 2025-06-30 dev boundary are refused
     even when correctly block-labeled (double boundary check)."""
-    from datetime import date as d
     rows = _train_rows().with_columns(
         pl.lit("block_2024H2").alias("block"),
         pl.lit(date(2026, 1, 5)).alias("game_date"))
@@ -253,3 +254,37 @@ def test_baseline_training_window_date_boundary_guard(tmp_path):
         bl.assert_train_window(rows)
     ok = rows.with_columns(pl.lit(date(2024, 9, 15)).alias("game_date"))
     bl.assert_train_window(ok)  # valid: no raise
+
+
+def test_baseline_training_window_rejects_missing_or_null_dates():
+    """Undateable training rows cannot be verified against the window:
+    a missing game_date column and null game_date values both fail
+    loud (the guard must never skip date verification)."""
+    labeled = _train_rows().with_columns(pl.lit("block_2024H2")
+                                         .alias("block"))
+    with pytest.raises(bl.BaselineError,
+                       match="missing required 'game_date'"):
+        bl.assert_train_window(labeled)
+    with_nulls = labeled.with_columns(
+        pl.when(pl.col("pitcher") == 700001).then(None)
+        .otherwise(pl.lit(date(2024, 9, 15))).alias("game_date"))
+    with pytest.raises(bl.BaselineError, match="null game_date"):
+        bl.assert_train_window(with_nulls)
+
+
+def test_baseline_training_window_rejects_mislabeled_early_2025():
+    """Early-2025 rows mislabeled block_2024H2 must be refused: the
+    derived block (via the registered ad.add_block rule) contradicts
+    the label (block/date consistency)."""
+    mislabeled = _train_rows().with_columns(
+        pl.lit("block_2024H2").alias("block"),
+        pl.lit(date(2025, 4, 15)).alias("game_date"))  # derived: 2025H1
+    with pytest.raises(bl.BaselineError,
+                       match="training block/date inconsistent"):
+        bl.assert_train_window(mislabeled)
+    # a correctly labeled early-2025 row would be EVALUATION data, so a
+    # block_2025H1 label also fails the training-window restriction
+    eval_rows = mislabeled.with_columns(pl.lit("block_2025H1")
+                                        .alias("block"))
+    with pytest.raises(bl.BaselineError, match="estimation is restricted"):
+        bl.assert_train_window(eval_rows)

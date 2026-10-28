@@ -212,6 +212,39 @@ authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
 authorization; NOT executed). Calibration execution remains gated
 behind PR #48 merge + owner authorization; frozen at `1321e4b`.
 
+Next (2026-10-27): lineup prediction-path reconciliation -
+specification published at
+[`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
+(measurement-reconciliation candidate; **Stage A only active** -
+prediction-path equivalence, no outcomes read; Stage B deferred and NOT
+authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
+authorization; NOT executed). Calibration execution remains gated
+behind PR #48 merge + owner authorization; frozen at `1321e4b`.
+
+### Two-scorecard design (baseline benchmark; recorded 2026-10-27)
+
+Two SEPARATE scorecards, never merged into one number:
+
+1. **Full-distribution scorecard** (forecast quality): registered
+   count-RPS primary; baseline-ladder arms (P population / S simple
+   pitcher / F frozen incumbent; `baseline_ladder.py`, PR #50,
+   dependent on PR #49); estimation from block_2024H2 outcomes only;
+   primary contrast S vs F declared (delta = RPS(S) - RPS(F)); P
+   contrasts descriptive. Diagnostics: capped-mean residual MAE/RMSE
+   (bucket-23 cap labeled separately from uncapped E[K]),
+   threshold reliability with bin counts, ECE/MCE non-decisive.
+2. **Same-contract market scorecard** (separate measurement lane,
+   NOT AUTHORIZED for new scoring): reuse the repaired
+   `market_eval_k.py` v3 full-key machinery (identity filter
+   `verified_odds_for_start`, per-start consensus, true T-5 close
+   cohort) for model-vs-market paired over/under log loss on identical
+   contracts. Existing verified quote coverage
+   (`results_market_eval_k_v1/RESULT_RECORD.md`): 825,326 quotes ->
+   406,285 own-player -> 82,722 near-close -> 4,358 consensuses ->
+   4,336 model-cohort eligible; 2025H1 true T-5 close n=2,154 (2,182
+   2024 prior-evening rows). Executable EV/ROI stay in the money lane,
+   never mixed with measurement.
+
 ### Model inventory (compact; for the architect; 2026-10-27)
 
 | lane | entry point | target | estimator | checkpoint / artifact | prediction unit | downstream consumer | evidence status |

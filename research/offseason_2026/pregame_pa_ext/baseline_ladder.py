@@ -90,11 +90,19 @@ class BaselineError(RuntimeError):
 def assert_train_window(train_rows: pl.DataFrame) -> None:
     """EXECUTION-BOUNDARY GUARD for the training-only estimation contract.
     Enforced by build_arms() (the only arm-construction entry point):
-    training rows must carry a `block` column whose values are exactly
-    the declared TRAIN_BLOCK, and game_date must lie within the
-    registered dev window (<= 2025-06-30). Low-level helpers
-    (shrunk_pitcher_rates, empirical_*) stay pure over injected values;
-    the window is enforced HERE, at the boundary."""
+    - a `block` column must exist and carry exactly the declared
+      TRAIN_BLOCK;
+    - a `game_date` column must exist with NO null values (an
+      undateable row cannot be verified against the window);
+    - every row's block label must equal the label derived from its
+      game_date by the registered `ad.add_block` rule: rows dated after
+      the 2025-06-30 dev boundary are refused (target-date boundary),
+      and an early-2025 row mislabeled block_2024H2 is refused
+      (block/date consistency);
+    - game_date must lie within the declared training window
+      (<= 2024-12-31 for the registered 2024H2 training block).
+    Low-level helpers (shrunk_pitcher_rates, empirical_*) stay pure
+    over injected values; the window is enforced HERE, at the boundary."""
     if "block" not in train_rows.columns:
         raise BaselineError(
             "training rows missing required 'block' column; the "
@@ -104,13 +112,30 @@ def assert_train_window(train_rows: pl.DataFrame) -> None:
         raise BaselineError(
             f"training window violated: rows carry blocks {sorted(blocks)};"
             f" estimation is restricted to {TRAIN_BLOCK}")
-    if "game_date" in train_rows.columns:
-        over = train_rows.filter(
-            pl.col("game_date") > pl.date(2025, 6, 30))
-        if over.height:
-            raise BaselineError(
-                "training window violated: rows dated after the "
-                f"2025-06-30 dev boundary: {over.height}")
+    if "game_date" not in train_rows.columns:
+        raise BaselineError(
+            "training rows missing required 'game_date' column; the "
+            "training/evaluation date guard cannot be verified")
+    if train_rows["game_date"].null_count():
+        raise BaselineError(
+            "training window violated: null game_date rows cannot be "
+            "date-verified")
+    derived = ad.add_block(
+        train_rows.select("game_date"))["block"].alias("_expected_block")
+    labeled = train_rows.with_columns(derived)
+    over = labeled.filter(pl.col("_expected_block") == "confirm_2025H2")
+    if over.height:
+        raise BaselineError(
+            "training window violated: rows dated after the 2025-06-30 "
+            f"dev boundary: {over.height}")
+    mislabeled = labeled.filter(
+        pl.col("_expected_block") != pl.col("block"))
+    if mislabel := mislabeled.height:
+        examples = mislabeled.head(5).select(
+            "game_date", "block", "_expected_block").rows()
+        raise BaselineError(
+            f"training block/date inconsistent: {mislabel} rows; "
+            f"examples: {examples}")
 
 
 def _sha_file(path) -> str:  # noqa: ANN001
