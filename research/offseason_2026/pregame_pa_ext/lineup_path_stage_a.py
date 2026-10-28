@@ -170,14 +170,26 @@ def _route_a(ledger: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame,
 
 
 def _route_b(lineups: pl.DataFrame, pa_table: pl.DataFrame,
-             models: dict) -> pl.DataFrame:
+             models: dict, permitted_starts: pl.DataFrame) -> tuple[
+        pl.DataFrame, int]:
     """Reconstructed attachment representation: pregame PA history ->
     daily states -> projected lineups -> attach_prior_features -> frozen
-    checkpoint coefficients. Shares NO computed object with route A."""
+    checkpoint coefficients. Shares NO computed object with route A.
+
+    PERMITTED TARGET POPULATION (registered boundary): reconstruction is
+    restricted to the ledger's dev-window starts (permitted_starts).
+    Starts in the lineups artifact dated past the 2025-06-30 boundary
+    (confirm_2025H2 window or later) are NEVER reconstructed or
+    predicted -- the lineups frame is pre-filtered before
+    ``projected_long`` and the count is recorded."""
+    permitted = lineups.join(
+        permitted_starts, on=["game_pk", "side", "pitcher"],
+        how="semi")
+    n_target = permitted.height
     p_daily = ad.entity_daily_state(pa_table, "pitcher")
     b_daily = ad.entity_daily_state(pa_table, "batter")
     lg = ad.league_daily_state(pa_table)
-    long, _n_uncovered = ad.projected_long(lineups)
+    long, _n_uncovered = ad.projected_long(permitted)
     pf = ad.attach_prior_features(long, p_daily, b_daily, lg)
     pf = ad.add_block(pf)
     probs = np.full(pf.height, np.nan, dtype=np.float64)
@@ -197,7 +209,7 @@ def _route_b(lineups: pl.DataFrame, pa_table: pl.DataFrame,
     if dup:
         raise StageAFailure(
             f"route B (start, slot) keys not unique: {dup} duplicates")
-    return route_b
+    return route_b, n_target
 
 
 def _write_json(path: Path, payload: dict) -> str:
@@ -267,7 +279,11 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
         # filtering, so starts whose slots are all unusable still appear
         # in the denominator and their exclusion bucket.
         route_a, dev_starts, a_meta = _route_a(ledger)
-        route_b = _route_b(lineups, pa_table, models)
+        # Route B reconstructs ONLY the permitted dev-window targets:
+        # protected partitions and out-of-window starts in the lineups
+        # artifact are never reconstructed or predicted.
+        route_b, n_route_b_targets = _route_b(lineups, pa_table, models,
+                                              dev_starts)
 
         # ---- mutually exclusive exclusion accounting -------------------
         start_key = ["game_pk", "side", "pitcher"]
@@ -420,6 +436,7 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
             "route_a_unusable_slot_rows_dropped": a_meta[
                 "unusable_slot_rows_dropped"],
             "n_dev_rows_unfiltered": a_meta["n_dev_rows_unfiltered"],
+            "route_b_target_population": n_route_b_targets,
             "i1_mismatched_slots": 0,
             "i2_max_abs_diff": i2_max,
             "i4_control_max_abs_pmf_diff": i4_max,

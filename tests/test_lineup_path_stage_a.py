@@ -496,6 +496,34 @@ def test_stage_a_route_b_slot_drop_fails_keying(tmp_path):
     assert rec["gate"] == "I1_keying"
 
 
+def test_stage_a_route_b_never_reconstructs_protected_targets(tmp_path):
+    """Boundary regression (confirmed defect on real artifacts: the
+    projected-lineups artifact extends to 2025-09-28, i.e. 2,328 starts
+    past the dev boundary): route B must reconstruct ONLY the permitted
+    dev-window target population. A confirm-period start present in the
+    lineups artifact is never reconstructed, never predicted, and never
+    compared."""
+    extra_row = {"game_pk": 900003, "side": "Top", "pitcher": 700003,
+                 "game_date": date(2025, 8, 1), "nine_distinct": True}
+    for s in range(1, 10):
+        extra_row[f"u_slot_{s}"] = 800200 + s
+    lineups = pl.concat([
+        _lineups(),
+        pl.DataFrame([extra_row], schema=_lineups().schema),
+    ])
+    res = sa.run_stage_a(_ledger_fixture(), lineups, _pa_history(),
+                         _bf(), _models(), tmp_path / "btarget")
+    m = res["metrics"]
+    # protected target: reconstructed count == permitted dev targets only
+    assert m["route_b_target_population"] == 2
+    assert m["n_dev_starts"] == 2 and m["n_compared"] == 2
+    assert res["status"] == "PASS"
+    # the protected start appears in no keyed output
+    i1 = pl.read_parquet(tmp_path / "btarget"
+                         / "i1_feature_comparison.parquet")
+    assert set(i1["game_pk"].unique().to_list()) == {900001, 900002}
+
+
 # ----------------------------------------------------- CLI integration
 def _run_cli(tmp_path: Path, monkeypatch, ledger=None):  # noqa: ANN001
     paths, shas, models = None, None, None

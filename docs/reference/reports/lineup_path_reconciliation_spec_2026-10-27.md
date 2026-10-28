@@ -343,6 +343,19 @@ checkpoint`, `m0._frame_sha`; dev-block constants reuse
 exercises; the I4 control gate has a dedicated white-box
 aggregation-divergence test that fires with I1/I2 passing.
 
+**Boundary correction (confirmed defect, 2026-10-27):** the real
+projected-lineups artifact (`b6a1947c…`) extends to 2025-09-28 and
+contains 2,328 starts past the 2025-06-30 dev boundary. The pre-fix
+runner reconstructed every start in the lineups artifact — i.e. it
+would have reconstructed 2,328 protected-partition targets (and failed
+on the missing checkpoint block). Corrected: Route B reconstructs ONLY
+the ledger's dev-window target population (pre-filter before
+`projected_long`); `route_b_target_population` is recorded in the
+receipt; regression test
+`test_stage_a_route_b_never_reconstructs_protected_targets` proves a
+past-boundary start is never reconstructed, predicted, or compared.
+No eligible starts, tolerances, or scientific meaning changed.
+
 ## 4. Stage B — outcome scoring (DEFERRED)
 
 **Stage B is deferred. A Stage A PASS does NOT authorize it.** Stage B
