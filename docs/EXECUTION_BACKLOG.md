@@ -56,6 +56,17 @@ deliverable. The read lane is STOPPED.
 counts; Chat 2 reproducing; v2 card or binary freeze by 2026-11-07. See
 `docs/NEXT.md` for the full critical path.
 
+**CHAT 3 PARKED 2026-10-27 (architect directive):** count-PMF calibration v1
+reviewed READY locally at receipt `1381e72` / computational `e34213a`
+(chain `3291fc5 -> e34213a -> 1381e72` verified read-only; paext-v2 worktree
+clean); integration push/PR owned by Chat 1. Chat 3 stays parked until the
+calibration PR merges or the lane is explicitly parked. Resume conditions:
+docs reconciliation, supersession links, ADR/PRD integration into existing
+conventions, diagram updates; no file deletions without ownership
+confirmation; no scientific code or result records. A stray uncommitted
+backlog edit in the detached main checkout was preserved (diff archived) and
+its content recreated in this entry; the main checkout was restored.
+
 
 ## Execution Order
 

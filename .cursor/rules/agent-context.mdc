@@ -9,9 +9,11 @@ This repo’s disk weight is mostly `data/`, `artifacts/`, `.venv/`, and `.git` 
 Those paths are excluded by `.cursorignore` / `.clineignore`. Do **not** try to “discover” them.
 
 ## Open first (in order)
-1. `docs/EXECUTION_BACKLOG.md` — master work queue (PAST / PRESENT / FORWARD / DEFERRED)
-2. `docs/reference/repo_canonical_map.md` — what is canonical vs archive
-3. `AGENTS.md` — pointer table only
+1. `docs/roles/README.md` — role authority; then your own role card
+2. `docs/EXECUTION_BACKLOG.md` — master work queue (sole writer: Chat 1)
+3. `docs/NEXT.md` — current action
+4. `docs/reference/repo_canonical_map.md` — what is canonical vs archive
+5. `AGENTS.md` — pointer table only
 
 ## Prefer reading
 - `production/` ops + odds scripts
@@ -25,4 +27,3 @@ Those paths are excluded by `.cursorignore` / `.clineignore`. Do **not** try to 
 - Invent a parallel backlog or “next session” doc
 
 Live odds path today: SharpAPI (`SHARPAPI_KEY`) via `production/odds/poll_odds.py`.
-Historical K-line / CLV backfill research: `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`

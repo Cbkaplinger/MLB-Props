@@ -1,30 +1,27 @@
-# NEXT — single source of the current action
+# NEXT - current action
 
-Owner: architect. Updated 2026-10-22 (evening). ROLES_REV 2026-10-22-r2. Read `docs/roles/README.md` first.
+Owner: architect. Updated 2026-10-28. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
-## Standing delegation
+## Scientific milestone
 
-The owner delegates routine project decisions and execution authority to the architect within agreed scope. When relevant tests and required checks pass, proceed without requesting repeated authorization. Escalate only material scope changes, unresolved correctness risks, spending, production changes, or irreversible actions with unclear consequences. Existing repository protections still apply.
+Complete prediction-path verification and produce a valid historical baseline benchmark using existing machinery. Do not reopen distribution families, TTO, calibration, execution strategies or general architecture.
 
-**Language:** all chat reports and review comments must be in English.
+PR #49: reviewed Stage A code at ca00e4d; real-artifact run remains subject to its explicit authorization. Correct current summaries to distinguish raw dev ledger starts (4,866) from eligible scoring starts (4,823) and 43 excluded starts. Preserve computational identity; no outcome scoring in Stage A.
 
-## M0 v2 — ACCEPTED (development-only)
+PR #50: existing baseline helpers are reusable. The Jul-Dec-2024 estimation restriction reflects a limited start-outcome artifact, not optimal history. Preserve v1 in history; implement a versioned historical starter-outcome derivation and proposed 2023-2024 training benchmark. Verify source coverage, starter/opener definition, K/BF definitions, duplicates and existing-artifact overlap. Implement and synthetic-test now; real-source derivation/validation and scoring need their applicable authorization. Do not silently refit the frozen incumbent or call unequal-history packages isolated effects.
 
-- v1 STOPPED at `71b236f` (class 4 structurally absent); preserved run stays UNACCEPTED.
-- v2 executed once at `2e2482b` (fix head `ae3cd19`; attempt 1 defect record preserved). Chat 2 independently verified receipts, pins (4,823 / 82,817 / `c6568151`), block isolation and endpoint math: PASS.
-- EP1 and EP2 pass. Effects are small: K log-loss delta about -7e-06; multiclass 1.2241 vs log5 1.2263 vs league 1.2377; count-RPS delta -0.000169. Accepted as a valid diagnostic, not as evidence of practical betting value.
-- No promotion, production, or betting use without the separate gate.
+Chat 1 builds this bounded slice on the existing baseline lane; Stage A's review target stays unchanged. Chat 2 reviews the new derivation/adapter checkpoint, input boundaries, independent fixtures and overlap plan. Reuse known aggregators, scorer and date-cluster comparison; no new harness.
 
-## Critical path
+## Independent cleanup lane
 
-1. Chat 1: build C-B1 (exposure profile) through the synthetic-first evaluation runner, paired count-RPS, slate-date bootstrap and receipts. No real-data run until its registered gate is met.
-2. Chat 2: one check of the C-B1 runner when Chat 1 declares it ready; concrete defects only.
-3. Architect: decide the next registered step from the M0 result (finer taxonomy, e.g. HR/HBP split, only if C-B1 needs it).
+Chat 3 continues on PR #46, not blocked by baseline review. First close the existing startup-policy reconciliation using these architect-owned role replacements. Next reduce duplicate operational guidance in claimed paths: one current authority, links instead of copied rules, correct misleading current claims, exact archive/delete candidates when justified. Preserve scientific source evidence. Send backlog corrections to Chat 1. No global cleanup claims.
 
-## Chat 3 cleanup lane
+Architect owns pending integration decisions for the existing reviewed PRs, including PR #48; delegation is recorded on the relevant PR. There are four open PRs at inspection: #46, #48, #49, #50. No new PR until integration reduces that count. No unsafe history rewriting to simplify stacked PRs.
 
-One focused stream: remove verified dead or duplicate files, move misplaced files, collapse stale docs, retire obsolete diagrams, prune branches proven merged or redundant. Correct the reported size math with a reproducible tracked-file measurement. No status documents, no research coordination.
+## Completion and next phase
 
-## Parked
+Outputs: one Stage A receipt bundle after authorization, one validated historical-outcome artifact after authorization, one baseline scorecard after authorized scoring. A failed gate localizes a repair; a negative forecast result closes a hypothesis.
 
-Decision-flip result unaccepted pending a receipted rerun. Coverage policy for cold-start starts is a product decision (default league-rate prior, flagged). Promotion is separate from M0.
+Then: isolate one workload or PA improvement -> freeze selected features -> bounded time-ordered tuning -> locked evaluation -> optional calibration -> separately authorized confirmation/operations. Differentiate coefficient training, feature history and evaluation exposure. Protected partitions and old registrations remain unchanged.
+
+Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.

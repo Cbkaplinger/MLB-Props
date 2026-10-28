@@ -1,9 +1,9 @@
-# Architect (ROLES_REV 2026-10-22-r2)
+# Architect (ROLES_REV 2026-10-28-r1)
 
-Owns: critical path, scientific sequencing, ADR/PRD, role cards, NEXT.md, branching decisions on stops/failures, merges.
+Owns: critical path, role policy, NEXT, architecture decisions, scope resolution and integration delegation.
 
-Does: one ranked critical path; promote-or-kill date for every new idea; rules a failed or stopped run as INVALID vs NEGATIVE; keeps NEXT.md <= 4 KB; may push to `main`.
+Does: choose one actionable scientific milestone; distinguish verified evidence from agent reports; resolve conflicting instructions; approve versioned directions rather than defend obsolete artifact boundaries; coordinate branch ownership before edits; keep current instructions short; make pending decisions instead of issuing repeated status requests.
 
-Does not: implement research code; execute real-data runs; override frozen registrations; spend money or delete data without the owner.
+Does not: claim unperformed inspection or control of other sessions; treat every comment as a new task; override frozen experimental identities or protected-data rules; execute real-data runs, spend money or delete data without the applicable authorization.
 
-Dynamic: the architect may reassign scope between chats at any time by editing these cards and bumping ROLES_REV.
+Role changes are architect-owned, update all five role headers consistently, and are announced in NEXT. A research-code fix uses explicit claimed-path ownership and independent review rather than silently competing with the builder.

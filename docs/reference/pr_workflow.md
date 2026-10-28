@@ -1,8 +1,8 @@
 # PR workflow — how this repository makes, documents, reviews, and merges pull requests
 
 Operating standard for all agent windows and the owner. Complements
-[`AGENTS.md`](../../AGENTS.md) (entry point), the role cards under
-`docs/agent_roles/` (governance PR pending), and
+[`AGENTS.md`](../../AGENTS.md) (entry point), the canonical role cards under
+`docs/roles/` (precedence in `docs/roles/README.md`), and
 [`repo_canonical_map.md`](repo_canonical_map.md) (what surfaces exist).
 
 ## 1. Who does what
@@ -17,6 +17,11 @@ Operating standard for all agent windows and the owner. Complements
 
 **Never** edit another chat's worktree or branch. Never merge, close another
 chat's PR, or delete a branch without explicit authorization for that action.
+
+**Repair ownership.** Repairs to another chat's implementation require an
+explicit path-ownership transfer recorded on the PR for the named paths, and
+the repair is reviewed by a non-author. A reviewer/fixer assignment does not
+imply standing permission to edit the builder's implementation.
 
 ## 2. Making a PR
 
@@ -62,6 +67,23 @@ Config + input hashes, when applicable:
 
 A PR whose body cannot state its tested SHA and CI run is not mergeable.
 
+### Test-result vocabulary
+
+Report results under the exact category they belong to; never upgrade a
+weaker category's label:
+
+| Category | Meaning |
+| --- | --- |
+| Targeted synthetic tests | A named test file or `-k` selection on synthetic fixtures; cite the exact command and pass/fail counts |
+| Synthetic integration tests | The `pytest -m integration` lane (synthetic-only default; artifact-pinned cases skip with named reasons when private artifacts are absent) |
+| Full-suite results | `pytest -q -rs` over the whole tree (CI job `test-and-validate`, or the local equivalent); state which ran |
+| Private-artifact validation | Runs that consumed private-lake artifacts (sha-verified inputs); name the artifact identities; never implied by the categories above |
+| Real forecast evaluation | Owner-authorized scoring against real outcomes; never implied by any category above |
+
+The pre-commit hook (fast trio: `test_odds_ledger`, `test_real_bets`,
+`test_registries`) is a local gate, not a full-suite result; report it as
+"pre-commit fast trio".
+
 ## 5. CI — what green means
 
 Workflow: `.github/workflows/ci.yml` (job `test-and-validate`):
@@ -82,8 +104,16 @@ substitute for the independent review verdict or owner authorization.
 
 - The reviewer **fetches and pins the exact PR head SHA** before reviewing;
   a pushed change re-opens review of the delta only.
-- Review verdicts are `READY` (exact SHA) or **one concrete blocker**.
-- Builder self-check is never independent READY.
+- A review response **names the exact reviewed head SHA**. When the review
+  target moves, the next review explicitly **supersedes or retains** each
+  earlier finding; a finding raised against a superseded SHA is re-validated
+  against the current head before it blocks.
+- The published review target does not move without an explicit superseding
+  handoff from its author.
+- Review responses classify findings **BLOCKER / NONBLOCKING / RESOLVED**
+  (response format and finding rules: `docs/roles/README.md`); a checkpoint
+  passes only with an explicit independent review at the named SHA.
+- Builder self-check is never independent review.
 - Reopen passed checks only when the delta affects them.
 
 ## 7. Merge rules
@@ -91,7 +121,8 @@ substitute for the independent review verdict or owner authorization.
 Merge only when ALL hold:
 1. Scope authorized by the owner (or standing lane authority).
 2. Exact-head CI green (verify the run on the live head, not an older report).
-3. Independent review verdict recorded (READY or accepted-as-docs).
+3. Independent review verdict recorded at the reviewed SHA
+   (finding classification per `docs/roles/README.md`).
 4. No unresolved review threads.
 5. Merge order respects the current integration plan (single `main`, no
    force-push, no history rewrite).

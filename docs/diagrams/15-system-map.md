@@ -1,7 +1,8 @@
-# System map — MLB Props (data through decision)
+# 15 - System map (PROPOSED, 2026-10-23)
 
-> Layer-by-layer map of the pipeline, from source data through evaluation.
-> Each node cites the file(s) that implement it. Edges show data flow.
+> Detail view supplementing 01-architecture.md (the architecture overview):
+> adds the file-cited layer-by-layer map with per-module status. 01 is the
+> overview of record; where the two disagree, fix both.
 > Dashed edges are health/monitoring side-channels.
 
 ```mermaid
@@ -33,7 +34,7 @@ flowchart LR
     end
 
     subgraph POLICY["Policy + sizing"]
-        P1["kpi_policy.json<br/>floors, cap, under-lean,<br/>DK+FD, clip, game_cap"]
+        P1["kpi_policy.json<br/>floors, cap, under-lean,<br/>DK+FD, clip, max_stake_per_game"]
         P2["market.py<br/>stake calculation, 1/16-Kelly"]
     end
 

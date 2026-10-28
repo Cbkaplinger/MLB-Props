@@ -53,7 +53,7 @@ Statuses: dated evidence = point-in-time record; PROPOSAL = awaiting owner; LIVE
 | [`forward_diary_archive_2026-09-14.md`](forward_diary_archive_2026-09-14.md) | 2026-09-14 | Forward diary archive ? 2026-09-14 | dated evidence |
 | [`freeze_playbook_2026-09-11.md`](freeze_playbook_2026-09-11.md) | 2026-09-11 | Freeze playbook ? 2026-09-11 (reproducibility contract) | dated evidence |
 | [`granular_open_calibration_2026-09-01.md`](granular_open_calibration_2026-09-01.md) | 2026-09-01 | Granular open calibration challenger | dated evidence |
-| [`historical_clv_odds_apis_2026-09-02.md`](historical_clv_odds_apis_2026-09-02.md) | 2026-09-02 | Historical K-line / CLV odds APIs ? research note (2026-09-02) | dated evidence |
+| [`historical_clv_odds_apis_2026-09-02.md`](historical_clv_odds_apis_2026-09-02.md) | 2026-09-02 | Historical K-line / CLV odds APIs ? research note (2026-09-02) | dated evidence - FILE REMOVED (PR #41, 23-file cleanup); git history preserves it |
 | [`hygiene_automation_design_2026-10-16.md`](hygiene_automation_design_2026-10-16.md) | 2026-10-16 | Repository hygiene automation design ? 2026-10-16 (Chat 3, DESIGN ONLY) | dated evidence |
 | [`juiced_replay_ledger_2026-09-11.md`](juiced_replay_ledger_2026-09-11.md) | 2026-09-11 | Juiced frozen-model replay ledger ? 2026-09-11 | dated evidence |
 | [`known_issues_overnight_p2_2026-10-13.md`](known_issues_overnight_p2_2026-10-13.md) | 2026-10-13 | KNOWN ISSUES ? overnight-p2 (recorded 2026-10-13) | DATED ISSUE RECORD - verify currency before citing |
