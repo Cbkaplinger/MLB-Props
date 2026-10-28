@@ -40,21 +40,35 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Session Snapshot — 2026-10-21 (post-split)
+## Session Snapshot — 2026-10-28 (baseline lane checkpoint 786b9fd)
 
-**Critical path:** `docs/NEXT.md` (single source of the current action).
+**Critical path:** `docs/NEXT.md` (single source of the current action;
+ROLES_REV 2026-10-28-r1 on PR #46 at `1e8c59c`).
 **This backlog is the concise active entry point.** Historical Session
 Snapshot bullets (2026-08 through 2026-10), the CLV + Hosting Plan, the
 Strategy Plan, and the SSAC27 Track are preserved verbatim in
 [`docs/reference/reports/backlog_archive_2026-10-21.md`](reference/reports/backlog_archive_2026-10-21.md).
 
-**Current Chat 3 lane:** architecture + cleanup documentation delivered via
-PRs #33/#35/#36/#38. The backlog split (this PR) is the final cleanup
-deliverable. The read lane is STOPPED.
+**Current Chat 1 lane (PR #50, `research/baseline-benchmark-v1`):** superseding
+checkpoint `786b9fd` published (delta `776fbdf -> 786b9fd`). All three
+architect source-level findings fixed with regression tests: derived starts
+retain `game_date` (inconsistent dates fail loud); overlap validation asserts
+one row per key on both sides before any join (no silent `.unique()`);
+missing FIELDS vs null fields (missing source coverage) are distinct failure
+classes; new identity + domain guards (both-halves anomaly, y in {0,1},
+side/role domains, at_bat_number >= 1). End-to-end synthetic integration
+`derive_start_outcomes -> start_outcomes -> build_arms_v2 -> keyed PMFs`
+passes. Evidence: `pytest tests/test_starter_outcomes.py
+tests/test_baseline_ladder.py -q` => 35 passed. Real-source derivation,
+overlap validation against the real 2024H2 artifact, and scoring remain
+authorization-gated. Stage A unchanged at `ca00e4d` (PR #49).
 
-**Current Chat 1/2 lane:** M0 v1 STOPPED; Chat 1 producing per-class label
-counts; Chat 2 reproducing; v2 card or binary freeze by 2026-11-07. See
-`docs/NEXT.md` for the full critical path.
+**Current Chat 3 lane:** startup-policy reconciliation + duplicate-guidance
+reduction on PR #46, not blocked by baseline review.
+
+**Current Chat 2 lane:** reviews the `786b9fd` derivation/adapter checkpoint
+(supersedes the `776fbdf` target per the updated PR #50 handoff); Stage A
+review target stays `ca00e4d` (PR #49).
 
 **CHAT 3 PARKED 2026-10-27 (architect directive):** count-PMF calibration v1
 reviewed READY locally at receipt `1381e72` / computational `e34213a`
@@ -222,6 +236,57 @@ prediction-path equivalence, no outcomes read; Stage B deferred and NOT
 authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
 authorization; NOT executed). Calibration execution remains gated
 behind PR #48 merge + owner authorization; frozen at `1321e4b`.
+
+Next (2026-10-27): lineup prediction-path reconciliation -
+specification published at
+[`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
+(measurement-reconciliation candidate; **Stage A only active** -
+prediction-path equivalence, no outcomes read; Stage B deferred and NOT
+authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
+authorization; NOT executed). Calibration execution remains gated
+behind PR #48 merge + owner authorization; frozen at `1321e4b`.
+
+### Two-scorecard design (baseline benchmark; recorded 2026-10-27)
+
+Two SEPARATE scorecards, never merged into one number:
+
+1. **Full-distribution scorecard** (forecast quality): registered
+   count-RPS primary; baseline-ladder arms (P population / S simple
+   pitcher / F frozen incumbent; `baseline_ladder.py`, PR #50,
+   dependent on PR #49); estimation from block_2024H2 outcomes only;
+   primary contrast S vs F declared (delta = RPS(S) - RPS(F)); P
+   contrasts descriptive. Diagnostics: capped-mean residual MAE/RMSE
+   (bucket-23 cap labeled separately from uncapped E[K]),
+   threshold reliability with bin counts, ECE/MCE non-decisive.
+2. **Same-contract market scorecard** (separate measurement lane,
+   NOT AUTHORIZED for new scoring): reuse the repaired
+   `market_eval_k.py` v3 full-key machinery (identity filter
+   `verified_odds_for_start`, per-start consensus, true T-5 close
+   cohort) for model-vs-market paired over/under log loss on identical
+   contracts. Existing verified quote coverage
+   (`results_market_eval_k_v1/RESULT_RECORD.md`): 825,326 quotes ->
+   406,285 own-player -> 82,722 near-close -> 4,358 consensuses ->
+   4,336 model-cohort eligible; 2025H1 true T-5 close n=2,154 (2,182
+   2024 prior-evening rows). Executable EV/ROI stay in the money lane,
+   never mixed with measurement.
+
+### Split / exposure table (roles separated; verified from preserved evidence; recorded 2026-10-28; old windows preserved verbatim -- never rewritten)
+
+**Arm-history statement (explicit):** baseline arms P and S estimate from **block_2024H2 start outcomes only** (2,334 start rows dated 2024-07-01..2024-12-31 in `start_metrics_v2`). Arm F (frozen incumbent) uses the frozen per-block EXPANDING recipe: coefficients fit on PA rows dated up to each block's train end (2024-06-30 for the 2024H2 model; 2024-12-31 for the 2025H1 model; 2025-06-30 for the confirm model) plus strictly-prior feature states -- so F's 2025H1 predictions consume 2024H2 PA outcomes in both coefficients and features. **P/S vs F is a PACKAGE benchmark, not equal-history model attribution.**
+
+| window | dates | coefficient fitting | feature history | baseline estimation (P/S) | designated evaluation | actual executed uses (as recorded) |
+|---|---|---|---|---|---|---|
+| Pre-window history | 2022-04-07 .. 2024-06-30 | YES -- expanding PA-row fits (block train ends 2024-06-30); verified reconstruction n_fit 730,841 PA rows (PA table holds 731,347 rows over 2022-04-07..2025-09-28) | YES -- strictly-prior states for every scored start (`entity_daily_state`) | NO | NO | checkpoint reconstruction (one authorized run, MLflow-verified); ledger feature states; BF builder priors |
+| block_2024H2 | 2024-07-01 .. 2024-12-31 | YES for the 2025H1/confirm models (PA rows <= their train ends); NO for the 2024H2 model | YES | YES -- P/S training window (2,334 start rows; declared interval 2024-07-01..2024-12-31) | Designated: calibration FIT cohort (2,314, `d38b10aa...`) -- **UNEXECUTED** | count-agg v1 + ablation canonical scoring (4,823-start eligible cohort); market-eval 2024 prior-evening rows (n=2,182, relabeled, excluded from close comparisons) |
+| block_2025H1 | 2025-01-01 .. 2025-06-30 | NO (its model trains <= 2024-12-31) | YES (its PA rows feed confirm-period feature states) | NO (reserved) | Designated: calibration EVAL cohort (2,509, `f77d7a66...`) -- **UNEXECUTED**; baseline-ladder evaluation cohort (2,509) | Question A scoring; market-eval 2025H1 true T-5 close (n=2,154); ablation count-RPS scoring |
+| confirm_2025H2 (protected) | 2025-07-01 .. 2025-09-28 | NO (its model trains <= 2025-06-30; confirm outcomes never fit) | partial -- its PA rows exist in the PA table but no scored window is downstream | NO | Designated: confirmation ("2025-select/2026-judge once, post-9/27, pre-registered") -- **UNEXECUTED** | Verified scoped access: slot/lineup ROW-COUNT and label metadata only (20,952 slot rows, 2,328 starts, 144 unusable-row reasons read as metadata; 2,328 past-boundary lineups starts counted for the Stage A boundary fix); ZERO outcome scoring, ZERO fitting |
+| 2026 | 2026 season | -- | -- | -- | Designated: retrospective/confirmatory only (no-2026-tuning rule) | Verified ZERO access: no registered artifact contains 2026 rows (PA table and start_metrics end 2025-09-28); nothing read, scored, or fit |
+
+Notes: (1) calibration is DESIGNATED on its cohorts but UNEXECUTED (runner merged, gated at `1321e4b`). (2) The historical 277-start ablation subset and the invalid lineup diagnostic are preserved superseded evidence, not current window uses. (3) `start_metrics_v2` window counts verified: 2,334 / 2,532 / 2,328 (2024H2 / 2025H1 / 2025H2).
+
+### Proposed calendar walk-forward (PROPOSAL ONLY -- no data access or scoring authorized)
+
+After the baseline scorecard closes, feature-experiment and tuning folds would be calendar-anchored expanding windows inside the dev evidence, with confirmation untouched: F1 fit 2024-07-01..2024-12-31 -> score 2025-01-01..2025-03-31; F2 fit <= 2025-03-31 -> score 2025-04-01..2025-06-30; optional F3 fold only if the owner extends the dev evidence (never confirm/2026 for tuning). Every fold scored with the registered count-RPS + slate-date paired scheme; all folds reported (no fold selection); Holm across the declared contrasts; the frozen incumbent stays fixed; each feature challenger pre-registered before its fold. This is a PROPOSAL ONLY: no new data access, scoring, or fitting is authorized by it.
 
 ### Model inventory (compact; for the architect; 2026-10-27)
 
