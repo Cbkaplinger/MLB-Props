@@ -2,6 +2,8 @@
 
 **Status 2026-10-20 (status/pointer update; command and pin sections below unchanged): both commands have now executed once.** RECONSTRUCTION ran once (2026-10-20, verified <=1e-8, serialized, tracked; registered pin armed - registration MERGED via PR #21 at `ccd0148`). SCORING ran once (`run_real`, MLflow run `2393940213154b718124b0b323c62ff9`, pipeline_id `paext-v2-20261020T141540Z`, phase=scoring, VERIFIED for artifact integrity) and **FAILED its zero-exclusion acceptance gate**: 531 pitcher-side cold-start PA exclusions and 59 pitcher-cold starts (7,135 of 7,194 starts fully scored) - authoritatively classified as 57 debut-date newcomers plus two window-limited veterans (Dietrich Enns 608650, Kyle Hart 606996). The output parquet is PRESERVED UNACCEPTED (write-once, untouched). NO further real-data execution is authorized; the abstain-vs-handle population decision is the open owner gate. The separation below (reconstruction once vs scoring repeatable, serialized artifact only, never refits) still governs any future authorized run.
 
+**Navigation notice 2026-10-27 (docs-only; command and history sections below unchanged):** the accepted lane state has advanced past the 2026-10-20 status block above. The Question A diagnostic (exact heterogeneous count aggregation) was executed once and its authoritative record is `results_count_agg_eval_v1/RESULT_RECORD.md` (2026-10-21; commits `6000631`, `c9ab8f2`); the Question B pre-registration card followed (PR #25, `a8382e1`); C-B1 is closed per `docs/NEXT.md` (2026-10-27). The commands, pins, and run records in this file remain the governed reference for any future authorized execution of the two commands below; no further real-data execution is authorized.
+
 
 Lane: `research/offseason_2026/pregame_pa_ext/` (branch
 `research/pregame-pa-ext-v2`). Worktree:
@@ -189,7 +191,7 @@ portable tracking CI lane executes the complete tracking module with a
 zero-skip guard (PR #22, merged `3c62655`). Suite counts carry their
 suite + head per the reporting rule.
 
-## Local suite status (retained failure — receipt note)
+## Local suite status (retained failure — receipt note; dated 2026-10-20, commit `d4d810e`)
 
 The local full suite is NOT fully passing: it carries **1 pre-existing,
 CRLF-dependent failure**,
