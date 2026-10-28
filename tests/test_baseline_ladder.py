@@ -121,14 +121,6 @@ def test_baseline_pitcher_arm_matches_independent_mixture():
     assert model is not None
 
 
-def _bf37_fixture():
-    v = np.full(37, 0.0)
-    v[:35] = 0.02
-    v[35] = 0.20
-    v[36] = 0.10
-    return v
-
-
 # ------------------------------------------------------------- build arms
 def test_baseline_build_arms_training_only_and_cold_start():
     train = (_train_rows()

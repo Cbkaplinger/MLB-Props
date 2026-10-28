@@ -31,7 +31,7 @@ def _pa_source_frame():
     """Canonical fixture: two games x two sides (one starter each) +
     reliever rows + one out-of-window 2022 row."""
     rows = [
-        # game 1: Top starter P1 (6 PA, 3 K), reliever R1 (2 PA), Bot starter P2 (5 PA, 2 K)
+        # game 1: Top starter P1 (6 PA, 3 K), reliever R1 (2 PA, 0 K), Bot starter P2 (2 PA, 1 K)
         (900001, date(2023, 5, 2), P1, 1, "starter_pa", "Top", 2),
         (900001, date(2023, 5, 2), P1, 0, "starter_pa", "Top", 3),
         (900001, date(2023, 5, 2), P1, 1, "starter_pa", "Top", 4),
@@ -42,7 +42,7 @@ def _pa_source_frame():
         (900001, date(2023, 5, 2), R1, 0, "reliever_pa", "Top", 9),
         (900001, date(2023, 5, 2), P2, 1, "starter_pa", "Bot", 1),
         (900001, date(2023, 5, 2), P2, 0, "starter_pa", "Bot", 2),
-        # game 2 (2024): Top starter P3 (4 PA, 4 K), Bot starter P1 again
+        # game 2 (2024): Top starter P3 (4 PA, 4 K), Bot starter P1 again (4 PA, 1 K)
         (900002, date(2024, 8, 15), P3, 1, "starter_pa", "Top", 1),
         (900002, date(2024, 8, 15), P3, 1, "starter_pa", "Top", 2),
         (900002, date(2024, 8, 15), P3, 1, "starter_pa", "Top", 3),
@@ -104,6 +104,20 @@ def test_baseline_derivation_excludes_relievers():
 def test_baseline_derivation_deterministic():
     a = _derive()["start_outcomes"]
     b = _derive()["start_outcomes"]
+    assert a.equals(b)
+
+
+def test_baseline_derivation_deterministic_under_shuffled_storage_order():
+    """The SAME rows in a different storage order derive identical
+    starts: the derivation sorts its output and never depends on source
+    row order (fixed permutation, no RNG)."""
+    pa = _pa_source()
+    assert pa.height == 19
+    perm = [5, 0, 11, 3, 18, 1, 9, 14, 2, 16, 7, 4, 12, 6, 17, 10, 8,
+            13, 15]
+    shuffled = pa[perm]
+    a = so.derive_start_outcomes(pa)["start_outcomes"]
+    b = so.derive_start_outcomes(shuffled)["start_outcomes"]
     assert a.equals(b)
 
 
@@ -237,7 +251,11 @@ def _bf():
 
 
 def test_baseline_contract_sha_stable():
-    assert so.contract_sha() == so.contract_sha()
+    """The v2 contract identity is PINNED, not self-compared: any change
+    to DERIVED_CONTRACT or the declared train interval changes this
+    digest and requires an explicit superseding handoff."""
+    assert so.contract_sha() == (
+        "be39e14440ca3a9b150e87927f8ad29ad30f5273ce2ae4f9acc2cccac5523eeb")
 
 
 # ------------------------------------------- architect-finding regressions
