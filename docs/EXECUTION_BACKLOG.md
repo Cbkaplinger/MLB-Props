@@ -245,15 +245,19 @@ Two SEPARATE scorecards, never merged into one number:
    2024 prior-evening rows). Executable EV/ROI stay in the money lane,
    never mixed with measurement.
 
-### Split / exposure table (actual windows, as executed; recorded 2026-10-28; old windows preserved verbatim -- never rewritten)
+### Split / exposure table (roles separated; verified from preserved evidence; recorded 2026-10-28; old windows preserved verbatim -- never rewritten)
 
-| window | dates | contents / registered identity | known prior uses (as executed) | current status |
-|---|---|---|---|---|
-| Pre-window history | < 2024-07-01 | PA-history rows only (PA table, strictly-prior states); block_2024H1 out of scope by construction | PA-model training inputs (expanding, per-block train ends 2024-06-30 / 2024-12-31 / 2025-06-30; n_fit 730,841 PA rows in the verified reconstruction); BF builder priors | permitted as strictly-prior history only |
-| block_2024H2 | 2024-07-01 .. 2024-12-31 | 2,314 eligible starts (calibration cohort `d38b10aa...`); ledger dev rows 21,006 slots (180 unusable) | calibration FIT cohort; count-agg / ablation scoring; baseline-ladder TRAINING window (declared interval 2024-07-01..2024-12-31); market-eval 2024 prior-evening rows (n=2,182, relabeled, excluded from close comparisons) | development data (inspected; not a fresh final test) |
-| block_2025H1 | 2025-01-01..2025-06-30 | 2,509 eligible starts (cohort hash `f77d7a66...`); market close n=2,154 | calibration EVALUATION cohort; Question A scoring; market-eval 2025H1 close comparisons; baseline-ladder evaluation cohort | dev evaluation only; paired-contrast endpoint |
-| confirm_2025H2 (protected) | 2025-07-01..2025-09-28 | 2,328 ledger starts / 20,952 slot rows (144 unusable); 2,328 lineups starts past the Stage A boundary | NONE -- never fitted, never compared (Stage A drops + counts only; 20,952 confirm slot rows count-only) | protected; "2025-select/2026-judge once, post-9/27, pre-registered" rule |
-| 2026 | 2026 season | untouched | NONE (no access, no scoring, no tuning) | locked retrospective/confirmatory only; no-2026-tuning rule |
+**Arm-history statement (explicit):** baseline arms P and S estimate from **block_2024H2 start outcomes only** (2,334 start rows dated 2024-07-01..2024-12-31 in `start_metrics_v2`). Arm F (frozen incumbent) uses the frozen per-block EXPANDING recipe: coefficients fit on PA rows dated up to each block's train end (2024-06-30 for the 2024H2 model; 2024-12-31 for the 2025H1 model; 2025-06-30 for the confirm model) plus strictly-prior feature states -- so F's 2025H1 predictions consume 2024H2 PA outcomes in both coefficients and features. **P/S vs F is a PACKAGE benchmark, not equal-history model attribution.**
+
+| window | dates | coefficient fitting | feature history | baseline estimation (P/S) | designated evaluation | actual executed uses (as recorded) |
+|---|---|---|---|---|---|---|
+| Pre-window history | 2022-04-07 .. 2024-06-30 | YES -- expanding PA-row fits (block train ends 2024-06-30); verified reconstruction n_fit 730,841 PA rows (PA table holds 731,347 rows over 2022-04-07..2025-09-28) | YES -- strictly-prior states for every scored start (`entity_daily_state`) | NO | NO | checkpoint reconstruction (one authorized run, MLflow-verified); ledger feature states; BF builder priors |
+| block_2024H2 | 2024-07-01 .. 2024-12-31 | YES for the 2025H1/confirm models (PA rows <= their train ends); NO for the 2024H2 model | YES | YES -- P/S training window (2,334 start rows; declared interval 2024-07-01..2024-12-31) | Designated: calibration FIT cohort (2,314, `d38b10aa...`) -- **UNEXECUTED** | count-agg v1 + ablation canonical scoring (4,823-start eligible cohort); market-eval 2024 prior-evening rows (n=2,182, relabeled, excluded from close comparisons) |
+| block_2025H1 | 2025-01-01 .. 2025-06-30 | NO (its model trains <= 2024-12-31) | YES (its PA rows feed confirm-period feature states) | NO (reserved) | Designated: calibration EVAL cohort (2,509, `f77d7a66...`) -- **UNEXECUTED**; baseline-ladder evaluation cohort (2,509) | Question A scoring; market-eval 2025H1 true T-5 close (n=2,154); ablation count-RPS scoring |
+| confirm_2025H2 (protected) | 2025-07-01 .. 2025-09-28 | NO (its model trains <= 2025-06-30; confirm outcomes never fit) | partial -- its PA rows exist in the PA table but no scored window is downstream | NO | Designated: confirmation ("2025-select/2026-judge once, post-9/27, pre-registered") -- **UNEXECUTED** | Verified scoped access: slot/lineup ROW-COUNT and label metadata only (20,952 slot rows, 2,328 starts, 144 unusable-row reasons read as metadata; 2,328 past-boundary lineups starts counted for the Stage A boundary fix); ZERO outcome scoring, ZERO fitting |
+| 2026 | 2026 season | -- | -- | -- | Designated: retrospective/confirmatory only (no-2026-tuning rule) | Verified ZERO access: no registered artifact contains 2026 rows (PA table and start_metrics end 2025-09-28); nothing read, scored, or fit |
+
+Notes: (1) calibration is DESIGNATED on its cohorts but UNEXECUTED (runner merged, gated at `1321e4b`). (2) The historical 277-start ablation subset and the invalid lineup diagnostic are preserved superseded evidence, not current window uses. (3) `start_metrics_v2` window counts verified: 2,334 / 2,532 / 2,328 (2024H2 / 2025H1 / 2025H2).
 
 ### Proposed calendar walk-forward (PROPOSAL ONLY -- no data access or scoring authorized)
 
