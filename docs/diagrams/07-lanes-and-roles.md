@@ -4,7 +4,7 @@
 > APPROVES PROMOTION. Reuses the evidence-lifecycle states in diagram 13
 > (diagram 09 was retired there; PR #40). Owner decisions and builder
 > actions are separated.
-> Role definitions are canonical at `docs/roles/` (ROLES_REV 2026-10-22-r2);
+> Role definitions are canonical at `docs/roles/` (ROLES_REV 2026-10-28-r1);
 > where this diagram conflicts with them or `docs/NEXT.md`, those win.
 
 ```mermaid

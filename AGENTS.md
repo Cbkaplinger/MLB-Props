@@ -1,4 +1,4 @@
-> **Canonical role map:** `docs/roles/` (ROLES_REV 2026-10-22-r2). This file is the quick-reference layer; `docs/roles/` + `docs/NEXT.md` override wherever they conflict.
+> **Canonical role map:** `docs/roles/` (ROLES_REV 2026-10-28-r1). This file is the quick-reference layer; `docs/roles/` + `docs/NEXT.md` override wherever they conflict.
 
 # Agent instructions (this repo)
 

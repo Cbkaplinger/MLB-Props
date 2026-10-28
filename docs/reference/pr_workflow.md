@@ -93,8 +93,10 @@ substitute for the independent review verdict or owner authorization.
   against the current head before it blocks.
 - The published review target does not move without an explicit superseding
   handoff from its author.
-- Review verdicts are `READY` (exact SHA) or **one concrete blocker**.
-- Builder self-check is never independent READY.
+- Review responses classify findings **BLOCKER / NONBLOCKING / RESOLVED**
+  (response format and finding rules: `docs/roles/README.md`); a checkpoint
+  passes only with an explicit independent review at the named SHA.
+- Builder self-check is never independent review.
 - Reopen passed checks only when the delta affects them.
 
 ## 7. Merge rules
@@ -102,7 +104,8 @@ substitute for the independent review verdict or owner authorization.
 Merge only when ALL hold:
 1. Scope authorized by the owner (or standing lane authority).
 2. Exact-head CI green (verify the run on the live head, not an older report).
-3. Independent review verdict recorded (READY or accepted-as-docs).
+3. Independent review verdict recorded at the reviewed SHA
+   (finding classification per `docs/roles/README.md`).
 4. No unresolved review threads.
 5. Merge order respects the current integration plan (single `main`, no
    force-push, no history rewrite).
