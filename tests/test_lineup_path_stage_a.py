@@ -379,6 +379,123 @@ def test_stage_a_incomplete_slots_excluded(tmp_path):
     assert res["status"] == "PASS"
 
 
+# ------------------------------- consolidated-review regression tests
+def test_stage_a_denominator_before_null_filter(tmp_path):
+    """Population denominator is established BEFORE null-probability
+    filtering: a dev start whose only slots are unusable (null p_h3_raw)
+    must still appear in the denominator and land in an exclusion
+    bucket; the sum check holds over the unfiltered population."""
+    led = _ledger_fixture()
+    # start 2: all 9 slots unusable
+    led_null = led.with_columns(
+        pl.when(pl.col("game_pk") == 900002)
+        .then(pl.lit(None)).otherwise(pl.col("p_h3_raw"))
+        .alias("p_h3_raw"))
+    res = sa.run_stage_a(led_null, _lineups(), _pa_history(), _bf(),
+                         _models(), tmp_path / "denom")
+    m = res["metrics"]
+    assert m["n_dev_starts"] == 2          # unfiltered denominator
+    assert m["n_compared"] == 1            # only start 1
+    assert m["exclusion_buckets"] == {"slot_coverage_below_9": 1}
+    assert m["population_sum_check"] is True
+    assert m["route_a_unusable_slot_rows_dropped"] == 9
+    ex = pl.read_parquet(tmp_path / "denom" / "exclusions.parquet")
+    assert ex.height == 1
+    assert (ex["game_pk"][0], ex["reason"][0]) == (900002,
+                                                   "slot_coverage_below_9")
+
+
+def test_stage_a_partial_null_slots_excluded(tmp_path):
+    """A start with SOME unusable slots drops those rows and falls below
+    the 9-slot requirement -> excluded, still in the denominator."""
+    led = _ledger_fixture()
+    led_partial = led.with_columns(
+        pl.when((pl.col("game_pk") == 900001)
+                & (pl.col("slot") == 9))
+        .then(pl.lit(None)).otherwise(pl.col("p_h3_raw"))
+        .alias("p_h3_raw"))
+    res = sa.run_stage_a(led_partial, _lineups(), _pa_history(), _bf(),
+                         _models(), tmp_path / "partial")
+    m = res["metrics"]
+    assert m["n_dev_starts"] == 2
+    assert m["n_compared"] == 1
+    assert m["exclusion_buckets"] == {"slot_coverage_below_9": 1}
+    assert m["route_a_unusable_slot_rows_dropped"] == 1
+
+
+def test_stage_a_block_date_inconsistent_fails(tmp_path):
+    """A dev-labeled row INSIDE the dev window whose label contradicts
+    its game_date must fail loud (block/date consistency, via the reused
+    ad.add_block rule). Rows dated past the boundary hit the boundary
+    gate instead (separate test)."""
+    led = _ledger_fixture()
+    bad = led.head(1).with_columns(
+        pl.lit(date(2024, 8, 15)).alias("game_date"),
+        pl.lit("block_2025H1").alias("block"))  # derived: block_2024H2
+    with pytest.raises(sa.StageAFailure,
+                       match="block_date_inconsistent"):
+        sa.run_stage_a(pl.concat([led, bad]), _lineups(), _pa_history(),
+                       _bf(), _models(), tmp_path / "bdate")
+    assert (tmp_path / "bdate" / "failure_record.json").exists()
+
+
+def test_stage_a_dev_rows_past_target_date_boundary(tmp_path):
+    """A dev-labeled row dated after the 2025-06-30 target boundary is
+    refused (explicit protected-partition/target-date boundary)."""
+    led = _ledger_fixture()
+    bad = led.head(1).with_columns(
+        pl.lit(date(2025, 8, 1)).alias("game_date"))  # derived: confirm
+    with pytest.raises(sa.StageAFailure,
+                       match="dev_rows_past_target_date_boundary"):
+        sa.run_stage_a(pl.concat([led, bad]), _lineups(), _pa_history(),
+                       _bf(), _models(), tmp_path / "bound")
+    assert (tmp_path / "bound" / "failure_record.json").exists()
+
+
+def test_stage_a_i4_aggregation_divergence_gate(tmp_path, monkeypatch):
+    """White-box aggregation-divergence mutation: I1 and I2 pass, but a
+    perturbed PMF aggregation on route B only must fire the I4 control
+    gate -- proving the gate fires independently of I1/I2."""
+    orig = ad.start_count_pmfs
+    calls = {"n": 0}
+
+    def spy(p9_h3, p9_l5, bf37):
+        calls["n"] += 1
+        out = orig(p9_h3, p9_l5, bf37)
+        if calls["n"] % 2 == 0:  # every route-B call
+            out = dict(out)
+            out["pmf_h3_raw"] = out["pmf_h3_raw"].copy()
+            out["pmf_h3_raw"][0] += 1e-9
+        return out
+
+    monkeypatch.setattr(sa.ad, "start_count_pmfs", spy)
+    with pytest.raises(sa.StageAFailure, match="I4_control_max_diff"):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), _pa_history(),
+                       _bf(), _models(), tmp_path / "i4")
+    out = tmp_path / "i4"
+    rec = json.loads((out / "failure_record.json").read_text(
+        encoding="utf-8"))
+    assert rec["gate"] == "I4_control_max_diff"
+    assert rec["detail"]["control_max_abs_pmf_diff"] > 1e-12
+    assert not (out / "receipt_final.json").exists()
+
+
+def test_stage_a_route_b_slot_drop_fails_keying(tmp_path):
+    """Route B losing a slot (uncovered lineup slot) while route A has 9
+    usable slots must fail the keyed join gate (I1_keying), never a
+    silent partial comparison."""
+    lineups = _lineups().with_columns(
+        pl.when(pl.col("game_pk") == 900002)
+        .then(pl.lit(None)).otherwise(pl.col("u_slot_9"))
+        .alias("u_slot_9"))
+    with pytest.raises(sa.StageAFailure, match="I1_keying"):
+        sa.run_stage_a(_ledger_fixture(), lineups, _pa_history(), _bf(),
+                       _models(), tmp_path / "keying")
+    rec = json.loads((tmp_path / "keying" / "failure_record.json")
+                     .read_text(encoding="utf-8"))
+    assert rec["gate"] == "I1_keying"
+
+
 # ----------------------------------------------------- CLI integration
 def _run_cli(tmp_path: Path, monkeypatch, ledger=None):  # noqa: ANN001
     paths, shas, models = None, None, None

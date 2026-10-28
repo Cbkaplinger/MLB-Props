@@ -49,12 +49,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pregame_pa_ext import adapter as ad  # noqa: E402
+from pregame_pa_ext import batt_recency as br  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 
 PROHIBITED_LABELS = {"realized_k", "y_true", "k_actual", "outcome_k"}
 PERMITTED_HISTORY_LABEL = "y"  # PA-history table only (strictly-prior input)
-DEV_BLOCKS = ("block_2024H2", "block_2025H1")
+DEV_BLOCKS = tuple(br.DEV_BLOCKS)  # registered dev blocks (reuse)
 PROTECTED_BLOCK = "confirm_2025H2"
+# target-date boundaries: identical to ad.add_block's registered bounds
+DEV_LAST_DATE = (2025, 6, 30)  # anything later is protected partition
 FEATURES = list(ad.FEAT_H3)
 TOL = 1e-12
 SLOTS = tuple(range(1, 10))
@@ -94,21 +97,23 @@ def assert_no_realized_labels(frame: pl.DataFrame, name: str) -> None:
             "Stage A is outcome-score-free")
 
 
-def _block_of(game_date) -> str:  # noqa: ANN001
-    d = game_date
-    if d is None:
-        return "unknown"
-    if (d.year, d.month, d.day) <= (2024, 12, 31):
-        return "block_2024H2"
-    if (d.year, d.month, d.day) <= (2025, 6, 30):
-        return "block_2025H1"
-    return PROTECTED_BLOCK
+def _route_a(ledger: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame,
+                                            dict]:
+    """Preserved ledger representation.
 
+    POPULATION DENOMINATOR FIRST (registered rule): the dev-start
+    denominator is established from ALL dev-block rows BEFORE any
+    null-probability filtering, so a start whose slots are all unusable
+    still appears in the population and is excluded with a reason.
 
-def _route_a(ledger: pl.DataFrame) -> tuple[pl.DataFrame, dict]:
-    """Preserved ledger representation: dev-block rows only; protected
-    partition rows are dropped (counted, never read into comparisons);
-    unusable slots (null p_h3_raw) are dropped and counted."""
+    Protected partition + target-date boundaries (explicit):
+    - block labels outside DEV_BLOCKS + {confirm_2025H2} -> FAIL;
+    - every consumed dev row's block label must equal the label derived
+      from its game_date by the registered ``ad.add_block`` bounds
+      (block/date inconsistency fails loud);
+    - ``confirm_2025H2`` rows (and any row dated after the dev boundary)
+      are dropped and only their COUNT is recorded (never compared).
+    """
     blocks = set(ledger["block"].unique().to_list())
     unexpected = blocks - set(DEV_BLOCKS) - {PROTECTED_BLOCK}
     if unexpected:
@@ -116,8 +121,36 @@ def _route_a(ledger: pl.DataFrame) -> tuple[pl.DataFrame, dict]:
             f"unexpected block labels in the ledger frame: "
             f"{sorted(unexpected)}; allowed: {sorted(DEV_BLOCKS)} + "
             f"protected {PROTECTED_BLOCK} (dropped, never compared)")
-    protected_rows = int((ledger["block"] == PROTECTED_BLOCK).sum())
+    # population denominator BEFORE any null-probability filtering
     dev = ledger.filter(pl.col("block").is_in(list(DEV_BLOCKS)))
+    dev_starts = (dev.select("game_pk", "side", "pitcher")
+                  .unique().sort("game_pk", "side", "pitcher"))
+    # block/date consistency via the registered bounds (helper reuse:
+    # ad.add_block IS the registered block rule). Gate order:
+    # (a) target-date boundary -- a DEV-labeled row dated past the
+    #     2025-06-30 boundary is refused (protected partition);
+    # (b) label/date consistency -- a DEV-labeled row inside the window
+    #     whose label contradicts its date is refused.
+    derived = ad.add_block(dev.select("game_date"))["block"].alias(
+        "_expected_block")
+    labeled = dev.with_columns(derived)
+    over_boundary = labeled.filter(
+        pl.col("_expected_block") == PROTECTED_BLOCK)
+    if over_boundary.height:
+        raise StageAFailure(
+            "dev_rows_past_target_date_boundary: dev-labeled rows with "
+            f"game_date after {DEV_LAST_DATE}: {over_boundary.height}")
+    inconsistent = labeled.filter(
+        pl.col("_expected_block") != pl.col("block"))
+    if inconsistent.height:
+        examples = inconsistent.head(5).select(
+            "game_pk", "slot", "block", "_expected_block").rows()
+        raise StageAFailure(
+            f"block_date_inconsistent: {examples}")
+    # protected partition: confirm-labeled rows are dropped BEFORE any
+    # comparison; only their count is recorded
+    protected_rows = int((ledger["block"] == PROTECTED_BLOCK).sum())
+    dev = dev.filter(pl.col("block") != PROTECTED_BLOCK)
     usable = dev.filter(pl.col("p_h3_raw").is_not_null())
     dropped_unusable = int(dev.height - usable.height)
     route_a = usable.select(
@@ -130,8 +163,10 @@ def _route_a(ledger: pl.DataFrame) -> tuple[pl.DataFrame, dict]:
         raise StageAFailure(
             f"route A (start, slot) keys not unique: {dup} duplicates")
     meta = {"protected_rows_dropped": protected_rows,
-            "unusable_slot_rows_dropped": dropped_unusable}
-    return route_a, meta
+            "unusable_slot_rows_dropped": dropped_unusable,
+            "n_dev_rows_unfiltered": int(ledger.filter(
+                pl.col("block").is_in(list(DEV_BLOCKS))).height)}
+    return route_a, dev_starts, meta
 
 
 def _route_b(lineups: pl.DataFrame, pa_table: pl.DataFrame,
@@ -227,12 +262,14 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
 
     try:
         # ---- routes ----------------------------------------------------
-        route_a, a_meta = _route_a(ledger)
+        # Population denominator FIRST (registered rule): dev_starts comes
+        # from the unfiltered dev-block rows, before any null-probability
+        # filtering, so starts whose slots are all unusable still appear
+        # in the denominator and their exclusion bucket.
+        route_a, dev_starts, a_meta = _route_a(ledger)
         route_b = _route_b(lineups, pa_table, models)
 
-        # ---- population + mutually exclusive exclusion accounting -----
-        dev_starts = (route_a.select("game_pk", "side", "pitcher")
-                      .unique().sort("game_pk", "side", "pitcher"))
+        # ---- mutually exclusive exclusion accounting -------------------
         start_key = ["game_pk", "side", "pitcher"]
         lineup_starts = set(map(tuple, lineups.select(
             "game_pk", "side", "pitcher").unique().iter_rows()))
@@ -382,6 +419,7 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
                 "protected_rows_dropped"],
             "route_a_unusable_slot_rows_dropped": a_meta[
                 "unusable_slot_rows_dropped"],
+            "n_dev_rows_unfiltered": a_meta["n_dev_rows_unfiltered"],
             "i1_mismatched_slots": 0,
             "i2_max_abs_diff": i2_max,
             "i4_control_max_abs_pmf_diff": i4_max,
@@ -408,7 +446,15 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
             raise ValueError("IMMUTABLE initial receipt modified")
         return {"out_dir": str(out_dir), "metrics": metrics,
                 "status": "PASS", "receipt_initial_sha256": initial_sha}
-    except StageAFailure:
+    except StageAFailure as exc:
+        # route-stage gate failures (raised inside _route_a/_route_b)
+        # must also leave a failure receipt chained to the initial one
+        fr = out_dir / "failure_record.json"
+        if not fr.exists():
+            _write_json(fr, {"stage": STAGE, "failure": True,
+                             "gate": "route_stage",
+                             "detail": {"error": str(exc)[:500]},
+                             "initial_receipt_sha256": initial_sha})
         raise
     except Exception as exc:
         fail("unexpected_error", {"error": repr(exc)})

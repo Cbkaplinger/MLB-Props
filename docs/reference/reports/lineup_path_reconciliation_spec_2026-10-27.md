@@ -164,17 +164,31 @@ different settings. Any deviation is a spec violation.
 
 ### 3e. Eligibility and exclusions
 
-- Eligible population: all 4,823 ledger-slot dev starts
-  (`block_2024H2` ∪ `block_2025H1`). The control arm has no
-  completion filter — the ≥9-realized-slots requirement belonged to the
-  oracle condition and does not apply in Stage A.
-- Any exclusion must be pre-declared in this spec, counted in mutually
-  exclusive buckets, and must satisfy the sum check
-  `4,823 = scored + excluded` with each start counted exactly once.
-  The prior demonstrated double-count (the 284 figure vs the true 142
+- **Population denominator FIRST (registered rule):** the dev-start
+  denominator is established from ALL dev-block rows BEFORE any
+  null-probability filtering, so a start whose slots are all unusable
+  still appears in the denominator and lands in an exclusion bucket.
+- Eligible population: all dev ledger-slot starts
+  (`block_2024H2` ∪ `block_2025H1`, labels date-verified below). The
+  control arm has no completion filter — the ≥9-realized-slots
+  requirement belonged to the oracle condition and does not apply in
+  Stage A.
+- **Exclusion buckets (mutually exclusive, first-match priority):**
+  `missing_lineup_coverage` -> `slot_coverage_below_9` (usable slots
+  <9 in either route; covers all-unusable starts) -> `missing_bf`.
+  Mandatory sum check: `n_dev_starts = n_compared + n_excluded`.
+- **Protected partition + target-date boundaries (explicit):**
+  1. block labels outside the two dev blocks + `confirm_2025H2` fail
+     loud;
+  2. a DEV-labeled row dated after the 2025-06-30 boundary is refused
+     (`dev_rows_past_target_date_boundary`);
+  3. a DEV-labeled row inside the window whose label contradicts its
+     date is refused (`block_date_inconsistent`; derivation reuses the
+     registered `ad.add_block` rule);
+  4. `confirm_2025H2` rows are dropped BEFORE any comparison and only
+     their count is recorded.
+- The prior demonstrated double-count (the 284 figure vs the true 142
   exclusion) is reconciled in the receipt.
-- Protected partitions (`confirm_2025H2`, anything 2026) are absent from
-  the consumed frame; the runner rejects unexpected block labels.
 
 ### 3f. Justification of the control invariant
 
@@ -319,8 +333,15 @@ python <repo>/research/offseason_2026/pregame_pa_ext/lineup_path_stage_a.py \
   --expected-bf-sha c9c2762f...
 ```
 
-Status: **RUNNER READY FOR INDEPENDENT REVIEW.** No real-artifact
-execution has occurred; the output directory does not exist.
+Status: **RUNNER READY FOR INDEPENDENT REVIEW (revised per consolidated
+review).** No real-artifact execution has occurred; the output directory
+does not exist. Helper reuse: `ad.add_block` (block rule),
+`ad.attach_prior_features`, `ad.apply_h3_raw`, `ad.projected_long`,
+`ad.start_count_pmfs`, `ad.validate_bf37_by_start`, `ad.load_serialized_
+checkpoint`, `m0._frame_sha`; dev-block constants reuse
+`batt_recency.DEV_BLOCKS`. Each mutation test names the exact gate it
+exercises; the I4 control gate has a dedicated white-box
+aggregation-divergence test that fires with I1/I2 passing.
 
 ## 4. Stage B — outcome scoring (DEFERRED)
 
