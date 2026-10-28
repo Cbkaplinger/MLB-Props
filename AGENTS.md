@@ -27,7 +27,7 @@ Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); push to your own
 ## Operating rules
 
 - **Purpose:** personal MLB pitcher-strikeout prop desk. Frozen model + policy/market/execution work. Retrain path is closed; dashboard is parked.
-- **Start here, in order:** `docs/EXECUTION_BACKLOG.md` -> `docs/NEXT.md` (current action) -> `docs/roles/README.md` (precedence; then your own card) -> `CONTEXT.md` -> `docs/reference/repo_canonical_map.md` -> this file.
+- **Start here, in order:** follow the "Open first" list in `.cursor/rules/agent-context.mdc` (single startup order; roles/README + your card first, then backlog/NEXT).
 - **Environment:** Python >=3.11, `.venv` active. `py -3.11 -m venv .venv` then `pip install -e ".[research,dev]"`. Raw Savant via `MLB_PROPS_SAVANT_DATA_DIR` / `MLB_PROPS_DATA_DIR` when not under `data/`.
 - **Tests:** `python -m pytest` (full); pre-commit hook runs `tests/test_odds_ledger.py tests/test_real_bets.py tests/test_registries.py`. Prefer Polars; pandas only at plot/sklearn/LightGBM boundaries.
 - **Lint:** no separate linter configured; keep ASCII-only in research scripts (cp1252 consoles), use `pl` patterns from `use-polars.mdc`.
@@ -45,8 +45,7 @@ Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); push to your own
 ## Cheap-agent / Mac handoff (2026-09-02)
 
 - Context excludes: `.cursorignore`, `.clineignore` (same rules), `.cursorindexingignore`
-- Always-on rule: `.cursor/rules/agent-context.mdc` -> backlog + `docs/reference/repo_canonical_map.md`
-- Historical CLV API research: `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`
+- Always-on rule: `.cursor/rules/agent-context.mdc` (startup order + context discipline)
 - Live odds remain SharpAPI (`SHARPAPI_KEY`); do not confuse with historical backfill vendors
 
-See [AGENTS_ROLES.md](docs/AGENTS_ROLES.md) for the full role map.
+Historical role detail: [AGENTS_ROLES.md](docs/AGENTS_ROLES.md) (superseded for current policy by [`docs/roles/`](docs/roles/README.md)).

@@ -29,7 +29,8 @@ Each says what it measured and what followed. History, not instructions.
 
 - **Current guidance (read these first, trust these):** the five "Start here"
   docs above, `current_state_2026-10-16.md` (research model-stack state),
-  `pr_workflow.md`, `AGENTS_ROLES.md` (in `docs/`), `repo_canonical_map.md`.
+  `pr_workflow.md`, `docs/roles/` (canonical role cards; `docs/AGENTS_ROLES.md`
+  in `docs/` is the historical detail layer), `repo_canonical_map.md`.
 - **Historical evidence (cite, do not obey):** everything under `reports/`
   with a date in its name. Dated reports describe what was true at their
   timestamp; later merged work supersedes individual claims. When a dated

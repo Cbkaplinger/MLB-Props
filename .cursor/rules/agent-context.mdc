@@ -27,4 +27,3 @@ Those paths are excluded by `.cursorignore` / `.clineignore`. Do **not** try to 
 - Invent a parallel backlog or “next session” doc
 
 Live odds path today: SharpAPI (`SHARPAPI_KEY`) via `production/odds/poll_odds.py`.
-Historical K-line / CLV backfill research: `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`

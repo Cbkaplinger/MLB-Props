@@ -1,7 +1,9 @@
 # ROLES — orchestration (builder / reviewer / cleaner)
 
 **Status:** PROPOSED (2026-10-21; pending owner approval)
-Complements `docs/AGENTS_ROLES.md`; this file adds the per-role behavioral
+Superseded for current role policy by `docs/roles/` (ROLES_REV 2026-10-28-r1);
+where this file conflicts with `docs/roles/` or `docs/NEXT.md`, those win.
+Preserved as a proposal record; this file adds the per-role behavioral
 contract for the current research cycle.
 
 ## Builder (Chat 1)
