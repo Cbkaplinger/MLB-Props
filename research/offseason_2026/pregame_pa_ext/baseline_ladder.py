@@ -237,15 +237,19 @@ def mean_k_capped(pmf: np.ndarray) -> float:
 
 
 def build_arms(train_rows: pl.DataFrame, starts: pl.DataFrame,
-               bf_lookup: dict) -> dict:
+               bf_lookup: dict, *,
+               window_guard=assert_train_window) -> dict:
     """Fit the two reference arms on TRAINING rows only and emit per-start
     PMFs on the registered support for the given eligible starts.
 
     starts: eligible evaluation starts (game_pk, side, pitcher).
     bf_lookup: start key -> bf37 vector (the FIXED registered workload).
+    window_guard: the training-window guard to enforce at this boundary
+    (default: the v1 contract guard). Contract v2 passes its own
+    versioned guard; the arm construction itself is shared.
     Returns {arm: {start_key: pmf}} plus declared settings.
     """
-    assert_train_window(train_rows)  # execution-boundary date/block guard
+    window_guard(train_rows)  # execution-boundary date/block guard
     rates = shrunk_pitcher_rates(train_rows)
     pop_pmf = population_arm_pmf(
         train_rows["realized_k"].to_numpy())
