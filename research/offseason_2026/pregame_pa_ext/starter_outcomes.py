@@ -20,6 +20,16 @@ STARTER DEFINITION (registered prespec, reused -- not invented):
   EXCLUDED (counted).
 
 EXPLICIT HANDLING:
+- Field vs source-coverage failures are DISTINCT: an absent column is a
+  missing FIELD (schema gap); a null value in a present column is
+  missing source coverage (an incomplete source row). Null-field checks
+  never claim to prove source-row completeness -- they only prove the
+  present rows are field-complete.
+- Outcome/field domains: `y` must be 0/1; `inning_topbot` must be
+  'Top'/'Bot'; `pitcher_role` must be starter_pa/reliever_pa;
+  `at_bat_number` must be >= 1.
+- Identity: a pitcher appearing in BOTH halves of one game is an
+  identity anomaly and fails loud.
 - Starter/opener roles: every PA row of a derived start must carry
   `pitcher_role == 'starter_pa'`; a game-side with more than one
   pitcher carrying starter rows (opener/bulk situations) fails loud --
@@ -29,12 +39,16 @@ EXPLICIT HANDLING:
 - Missing rows: null `y` or null identity fields fail loud.
 - Duplicates: duplicate (game_pk, pitcher, at_bat_number) rows fail
   loud.
+- Dates: each derived start retains its `game_date`; inconsistent
+  game_date values within one pitcher-game fail loud.
 - Exact definitions: realized_bf = PA-row count of the starter's
   (game_pk, side, pitcher); realized_k = integer sum of `y`. No
   imputation, no capped counting.
 
 OVERLAP VALIDATION (registered contract): the derived 2024H2 window is
-compared against the existing start artifact on IDENTICAL keys; exact
+compared against the existing start artifact on IDENTICAL keys; each
+side must carry exactly one row per key BEFORE any join (duplicate or
+conflicting keys fail loud -- never deduplicated silently); exact
 agreement is required, and discrepancies are reported per key with a
 reason class -- never patched silently. Real-source validation requires
 its applicable authorization.
@@ -84,18 +98,40 @@ def frame_sha(frame: "pl.DataFrame") -> str:
 
 
 def require_columns(pa: "pl.DataFrame") -> None:
-    """All identity/outcome fields must be present and complete."""
+    """All identity/outcome fields must be present, field-complete, and
+    within their registered domains. Missing FIELDS (absent columns) and
+    null fields (missing source coverage in present rows) are distinct
+    failure classes; null checks do NOT prove source-row completeness."""
     required = ["game_pk", "game_date", "pitcher", "y",
                 "pitcher_role", "inning_topbot", "at_bat_number"]
     missing = [c for c in required if c not in pa.columns]
     if missing:
-        raise DerivationError(f"PA rows missing columns: {missing}")
+        raise DerivationError(
+            f"missing field(s) {missing}: the PA source schema lacks "
+            "required columns (field/schema gap)")
     for c in required:
         n = pa[c].null_count()
         if n:
+            kind = ("missing source coverage: outcomes not recorded in "
+                    "present source rows" if c == "y" else
+                    "incomplete identity fields in present source rows")
             raise DerivationError(
-                f"missing rows detected: {n} null values in required "
-                f"column '{c}'")
+                f"null values in required field '{c}': {n} rows ({kind})")
+    domains = {
+        "y (must be 0/1)": pa.filter(~pl.col("y").is_in([0, 1])),
+        f"inning_topbot (must be {list(SIDES)})":
+            pa.filter(~pl.col("inning_topbot").is_in(list(SIDES))),
+        f"pitcher_role (must be {[ROLE_START, ROLE_RELIEF]})":
+            pa.filter(~pl.col("pitcher_role").is_in([ROLE_START,
+                                                     ROLE_RELIEF])),
+        "at_bat_number (must be >= 1)":
+            pa.filter(pl.col("at_bat_number") < 1),
+    }
+    for label, bad in domains.items():
+        if bad.height:
+            raise DerivationError(
+                f"domain violation in {label}: {bad.height} rows outside "
+                "the registered domain")
 
 
 def derive_start_outcomes(pa: "pl.DataFrame", *,
@@ -106,7 +142,8 @@ def derive_start_outcomes(pa: "pl.DataFrame", *,
     injected PA frame over the declared training interval.
 
     Same input -> same output rows in the same order (sorted by
-    game_pk, side, pitcher)."""
+    game_pk, side, pitcher). Each derived start retains its game_date;
+    inconsistent dates within one pitcher-game fail loud."""
     require_columns(pa)
     window = pa.filter(
         (pl.col("game_date") >= pl.date(*map(int, train_start.split("-"))))
@@ -127,8 +164,33 @@ def derive_start_outcomes(pa: "pl.DataFrame", *,
     pg = (window.group_by("game_pk", "pitcher", "inning_topbot")
           .agg(n_pa=pl.len(), k=pl.col("y").sum(),
                first_ab=pl.col("at_bat_number").min(),
+               game_date_min=pl.col("game_date").min(),
+               game_date_max=pl.col("game_date").max(),
                roles=pl.col("pitcher_role").unique().sort())
           .rename({"inning_topbot": "side"}))
+
+    # ---- identity contract: one half per pitcher-game ---------------
+    both_halves = (pg.group_by("game_pk", "pitcher").agg(n=pl.len())
+                   .filter(pl.col("n") > 1))
+    if both_halves.height:
+        examples = both_halves.head(3).rows()
+        raise DerivationError(
+            "identity anomaly: "
+            f"{both_halves.height} pitchers appear in BOTH halves of a "
+            "game (a pitcher-game must map to exactly one side); "
+            f"examples: {examples}")
+
+    # ---- date contract: one game_date per pitcher-game --------------
+    date_bad = pg.filter(
+        pl.col("game_date_min") != pl.col("game_date_max"))
+    if date_bad.height:
+        examples = date_bad.head(3).select(
+            "game_pk", "side", "pitcher",
+            "game_date_min", "game_date_max").rows()
+        raise DerivationError(
+            "inconsistent game_date within start: "
+            f"{date_bad.height} pitcher-games carry more than one "
+            f"game_date; examples: {examples}")
 
     # ---- starter prespec: first pitcher per (game_pk, side) ---------
     starts = (pg.sort("first_ab")
@@ -160,6 +222,7 @@ def derive_start_outcomes(pa: "pl.DataFrame", *,
 
     out = starts.select(
         pl.col("game_pk"), pl.col("side"), pl.col("pitcher"),
+        pl.col("game_date_min").alias("game_date"),
         pl.col("n_pa").cast(pl.Int64).alias("realized_bf"),
         pl.col("k").cast(pl.Int64).alias("realized_k"),
         pl.col("first_ab"),
@@ -174,11 +237,27 @@ def validate_against_registered(derived: "pl.DataFrame",
                                 registered: "pl.DataFrame") -> dict:
     """Overlap validation: compare the derived 2024H2 window against the
     existing start artifact on IDENTICAL keys (game_pk, side, pitcher).
-    Returns a per-reason discrepancy report; discrepancies are explained,
-    never patched silently."""
+    Each side must carry EXACTLY ONE row per key before any join:
+    duplicate or conflicting keys fail loud and are never silently
+    deduplicated. Returns a per-reason discrepancy report; discrepancies
+    are explained, never patched silently."""
     keys = ["game_pk", "side", "pitcher"]
-    d = derived.select(*keys, "realized_bf", "realized_k").unique()
-    r = registered.select(*keys, "realized_bf", "realized_k").unique()
+    d = derived.select(*keys, "realized_bf", "realized_k")
+    r = registered.select(*keys, "realized_bf", "realized_k")
+
+    def one_row_per_key(frame: "pl.DataFrame", name: str) -> None:
+        dup = (frame.group_by(*keys).agg(n=pl.len())
+               .filter(pl.col("n") > 1))
+        if dup.height:
+            examples = (frame.join(dup.select(*keys), on=keys, how="semi")
+                        .sort(*keys).head(10).rows())
+            raise DerivationError(
+                f"overlap validation refused: {dup.height} {name} keys "
+                "carry more than one row (duplicate or conflicting "
+                f"outcomes); examples: {examples}")
+
+    one_row_per_key(d, "derived")
+    one_row_per_key(r, "registered")
     both = d.join(r, on=keys, how="inner", suffix="_r")
     mismatched_bf = both.filter(
         pl.col("realized_bf") != pl.col("realized_bf_r"))
