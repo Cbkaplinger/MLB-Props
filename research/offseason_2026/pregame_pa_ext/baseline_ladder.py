@@ -42,10 +42,22 @@ Cold-start rule (declared): a pitcher with no training-window history
 receives the population shrunk rate (the same fallback convention as
 the frozen attach machinery's league-rate EW fallback).
 
-Component isolation: P vs S vs F vary ONLY the K information while the
-workload input is held fixed for S and F (registered BF). A workload
-comparison (registered BF vs empirical BF) is a SEPARATE later arm and
-is deliberately out of scope here.
+Component isolation qualification (registered interpretation limits):
+- P vs S changes BOTH personalization and distribution construction
+  (empirical count PMF vs rate x workload mixture): it is an OVERALL
+  BENCHMARK contrast, not a pure pitcher-information effect.
+- S vs F holds the workload input fixed (registered BF for both) but
+  still differs in probability construction and aggregation details: it
+  is a PACKAGE comparison, not an isolated batter-feature effect.
+- Isolated single-component attribution requires the owner's controlled
+  substitution/crossover design and is out of scope here.
+
+Primary contrast (declared BEFORE scoring): Arm S vs Arm F, per-start
+paired count-RPS difference delta = RPS(S) - RPS(F) on identical keys;
+S "wins" (complexity fails to earn its place) iff the upper 95% CI of
+delta < 0; the incumbent earns its complexity iff the LOWER CI > 0.
+The P-vs-F and P-vs-S contrasts are DESCRIPTIVE only and never select
+anything (multiplicity handled by declaration, not by tuning).
 """
 from __future__ import annotations
 
@@ -73,6 +85,32 @@ K_MAX = ad.K_MAX      # 24 buckets; last absorbs >= 23 -- reuse
 
 class BaselineError(RuntimeError):
     """Baseline benchmark guards fail loud."""
+
+
+def assert_train_window(train_rows: pl.DataFrame) -> None:
+    """EXECUTION-BOUNDARY GUARD for the training-only estimation contract.
+    Enforced by build_arms() (the only arm-construction entry point):
+    training rows must carry a `block` column whose values are exactly
+    the declared TRAIN_BLOCK, and game_date must lie within the
+    registered dev window (<= 2025-06-30). Low-level helpers
+    (shrunk_pitcher_rates, empirical_*) stay pure over injected values;
+    the window is enforced HERE, at the boundary."""
+    if "block" not in train_rows.columns:
+        raise BaselineError(
+            "training rows missing required 'block' column; the "
+            "training/evaluation date guard cannot be verified")
+    blocks = set(train_rows["block"].unique().to_list())
+    if blocks != {TRAIN_BLOCK}:
+        raise BaselineError(
+            f"training window violated: rows carry blocks {sorted(blocks)};"
+            f" estimation is restricted to {TRAIN_BLOCK}")
+    if "game_date" in train_rows.columns:
+        over = train_rows.filter(
+            pl.col("game_date") > pl.date(2025, 6, 30))
+        if over.height:
+            raise BaselineError(
+                "training window violated: rows dated after the "
+                f"2025-06-30 dev boundary: {over.height}")
 
 
 def _sha_file(path) -> str:  # noqa: ANN001
@@ -167,6 +205,7 @@ def build_arms(train_rows: pl.DataFrame, starts: pl.DataFrame,
     bf_lookup: start key -> bf37 vector (the FIXED registered workload).
     Returns {arm: {start_key: pmf}} plus declared settings.
     """
+    assert_train_window(train_rows)  # execution-boundary date/block guard
     rates = shrunk_pitcher_rates(train_rows)
     pop_pmf = population_arm_pmf(
         train_rows["realized_k"].to_numpy())
@@ -190,26 +229,45 @@ def build_arms(train_rows: pl.DataFrame, starts: pl.DataFrame,
 
 
 def paired_contrast(scores_a: dict, scores_b: dict, dates: dict,
-                    blocks: list, *, n_boot: int = 2000,
+                    blocks: dict, *, n_boot: int = 2000,
                     seed: int = 20261001) -> dict:
-    """Registered paired comparison: per-start score differences
-    resampled by the slate-date scheme (existing machinery). scores_*:
-    start key -> per-start score (e.g., count-RPS); dates: start key ->
-    game_date; blocks: per-start block labels (same length as the key
-    list, matching the registered slate_date_draws signature)."""
-    keys = sorted(set(scores_a) & set(scores_b))
-    if not keys:
-        raise BaselineError("no common scored keys for the paired contrast")
+    """THE declared primary contrast: delta = RPS(S) - RPS(F) per start,
+    resampled by the registered slate-date scheme.
+
+    EQUAL-KEY CONTRACT (no silent intersection): both score dicts must
+    carry exactly the same key set; any missing key fails loud with the
+    missing keys reported per side. dates and blocks are dicts keyed by
+    the SAME keys and are aligned to the canonical sorted key order."""
+    keys_a = set(scores_a)
+    keys_b = set(scores_b)
+    if keys_a != keys_b:
+        raise BaselineError(
+            "unequal scored key sets (silent intersection is forbidden): "
+            f"missing_in_b={sorted(keys_a - keys_b)} "
+            f"missing_in_a={sorted(keys_b - keys_a)}")
+    missing_dates = keys_a - set(dates)
+    if missing_dates or set(dates) != keys_a:
+        raise BaselineError(
+            f"date metadata misaligned: missing={sorted(missing_dates)}, "
+            f"extra={sorted(set(dates) - keys_a)}")
+    if set(blocks) != keys_a:
+        raise BaselineError(
+            "block metadata keys do not match the scored key set")
+    keys = sorted(keys_a)
     a = np.asarray([scores_a[k] for k in keys], dtype=np.float64)
     b = np.asarray([scores_b[k] for k in keys], dtype=np.float64)
     cmp_mod = br.load_registered_comparison()
     res = cmp_mod.slate_date_draws(
-        {"a": a, "b": b}, [dates[k] for k in keys], blocks,
-        n_boot=n_boot, seed=seed)
+        {"a": a, "b": b}, [dates[k] for k in keys],
+        [blocks[k] for k in keys], n_boot=n_boot, seed=seed)
     delta = float(a.mean() - b.mean())
     reps = res[:, 0] - res[:, 1]
     ci = [float(np.percentile(reps, 2.5)),
           float(np.percentile(reps, 97.5))]
     return {"mean_a": float(a.mean()), "mean_b": float(b.mean()),
             "delta_a_minus_b": delta, "ci95": ci, "n_starts": len(keys),
-            "n_boot": n_boot, "seed": seed}
+            "n_boot": n_boot, "seed": seed,
+            "primary_pair": "S_vs_F",
+            "interpretation": "delta<0: simple baseline matches or beats "
+                              "the incumbent (complexity not earned); "
+                              "delta>0: incumbent advantage"}

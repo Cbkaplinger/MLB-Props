@@ -6,6 +6,7 @@ conventions, and the registered paired contrast machinery."""
 from __future__ import annotations
 
 import sys
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -130,7 +131,9 @@ def _bf37_fixture():
 
 # ------------------------------------------------------------- build arms
 def test_baseline_build_arms_training_only_and_cold_start():
-    train = _train_rows()
+    train = (_train_rows()
+             .with_columns(pl.lit("block_2024H2").alias("block"))
+             .with_columns(pl.lit(date(2024, 9, 15)).alias("game_date")))
     starts = pl.DataFrame(
         [(9001001, "Top", 700001), (9001002, "Bot", 999999)],
         schema={"game_pk": pl.Int64, "side": pl.Utf8,
@@ -167,14 +170,86 @@ def test_baseline_paired_contrast_registered_machinery():
     scores_b = {(1, "Top", 700001): 1.35, (2, "Bot", 700002): 1.29}
     dates = {(1, "Top", 700001): "2025-04-15",
              (2, "Bot", 700002): "2025-04-15"}
-    blocks = ["block_2025H1", "block_2025H1"]
+    blocks = {(1, "Top", 700001): "block_2025H1",
+              (2, "Bot", 700002): "block_2025H1"}
     out = bl.paired_contrast(scores_a, scores_b, dates, blocks, n_boot=50)
     assert out["n_starts"] == 2
     assert out["delta_a_minus_b"] == pytest.approx(-0.045, abs=1e-12)
+    assert out["primary_pair"] == "S_vs_F"
     assert len(out["ci95"]) == 2
     # determinism under the fixed seed
     again = bl.paired_contrast(scores_a, scores_b, dates, blocks,
                                n_boot=50, seed=20261001)
     assert again["ci95"] == out["ci95"]
-    with pytest.raises(bl.BaselineError, match="no common scored keys"):
-        bl.paired_contrast({(2, "x", 1): 1.0}, scores_b, dates, blocks)
+
+
+def test_baseline_unequal_key_sets_fail_loud():
+    """Equal-key contract: no silent intersection. Missing keys must be
+    reported per side and the contrast must refuse to run."""
+    scores_a = {(1, "Top", 700001): 1.30, (2, "Bot", 700002): 1.25,
+                (3, "Top", 700003): 1.40}
+    scores_b = {(1, "Top", 700001): 1.35, (2, "Bot", 700002): 1.29}
+    dates = {k: "2025-04-15" for k in scores_a}
+    blocks = {k: "block_2025H1" for k in scores_a}
+    with pytest.raises(bl.BaselineError, match="unequal scored key sets"):
+        bl.paired_contrast(scores_a, scores_b, dates, blocks, n_boot=10)
+    # both directions of missing keys must be reported
+    with pytest.raises(bl.BaselineError,
+                       match=r"missing_in_b.*missing_in_a") as ei:
+        bl.paired_contrast(scores_a, scores_b, dates, blocks, n_boot=10)
+    assert "(2, 'x', 1)" not in str(ei.value)  # sanity: no fabricated keys
+
+
+def test_baseline_metadata_misalignment_fails(tmp_path):
+    """Dates and blocks must be aligned by the same scored keys:
+    a missing date or mismatched block metadata fails loud instead of
+    being silently reindexed."""
+    scores_a = {(1, "Top", 700001): 1.30, (2, "Bot", 700002): 1.25}
+    scores_b = dict(scores_a)
+    dates = {(1, "Top", 700001): "2025-04-15"}  # missing key 2
+    blocks = {(1, "Top", 700001): "block_2025H1",
+              (2, "Bot", 700002): "block_2025H1"}
+    with pytest.raises(bl.BaselineError, match="date metadata misaligned"):
+        bl.paired_contrast(scores_a, scores_b, dates, blocks, n_boot=10)
+    blocks_bad = {(1, "Top", 700001): "block_2025H1"}  # missing key 2
+    with pytest.raises(bl.BaselineError, match="block metadata"):
+        bl.paired_contrast(scores_a, scores_b,
+                           {(1, "Top", 700001): "2025-04-15",
+                            (2, "Bot", 700002): "2025-04-15"},
+                           blocks_bad, n_boot=10)
+
+
+def test_baseline_training_window_guard_at_execution_boundary():
+    """Invalid training-window inputs fail at build_arms (the execution
+    boundary): evaluation-block rows and a missing block column are
+    refused before any estimation."""
+    starts = pl.DataFrame(
+        [(9001001, "Top", 700001), (9001002, "Bot", 999999)],
+        schema={"game_pk": pl.Int64, "side": pl.Utf8,
+                "pitcher": pl.Int64}, orient="row")
+    # guard fires on evaluation-block rows passed as training input
+    with pytest.raises(bl.BaselineError, match="training window violated"):
+        bl.build_arms(
+            _train_rows().with_columns(
+                pl.lit("block_2025H1").alias("block")),
+            starts, _bf37_fixture_lookup())
+    # guard requires the block column to exist at all
+    with pytest.raises(bl.BaselineError, match="block' column"):
+        bl.build_arms(_train_rows(), starts, _bf37_fixture_lookup())
+    # valid training rows (declared block) pass the guard
+    ok = _train_rows().with_columns(pl.lit("block_2024H2").alias("block"))
+    bl.assert_train_window(ok)
+
+
+def test_baseline_training_window_date_boundary_guard(tmp_path):
+    """Training rows dated after the 2025-06-30 dev boundary are refused
+    even when correctly block-labeled (double boundary check)."""
+    from datetime import date as d
+    rows = _train_rows().with_columns(
+        pl.lit("block_2024H2").alias("block"),
+        pl.lit(date(2026, 1, 5)).alias("game_date"))
+    with pytest.raises(bl.BaselineError,
+                       match="after the 2025-06-30 dev boundary"):
+        bl.assert_train_window(rows)
+    ok = rows.with_columns(pl.lit(date(2024, 9, 15)).alias("game_date"))
+    bl.assert_train_window(ok)  # valid: no raise
