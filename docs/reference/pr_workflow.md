@@ -67,6 +67,23 @@ Config + input hashes, when applicable:
 
 A PR whose body cannot state its tested SHA and CI run is not mergeable.
 
+### Test-result vocabulary
+
+Report results under the exact category they belong to; never upgrade a
+weaker category's label:
+
+| Category | Meaning |
+| --- | --- |
+| Targeted synthetic tests | A named test file or `-k` selection on synthetic fixtures; cite the exact command and pass/fail counts |
+| Synthetic integration tests | The `pytest -m integration` lane (synthetic-only default; artifact-pinned cases skip with named reasons when private artifacts are absent) |
+| Full-suite results | `pytest -q -rs` over the whole tree (CI job `test-and-validate`, or the local equivalent); state which ran |
+| Private-artifact validation | Runs that consumed private-lake artifacts (sha-verified inputs); name the artifact identities; never implied by the categories above |
+| Real forecast evaluation | Owner-authorized scoring against real outcomes; never implied by any category above |
+
+The pre-commit hook (fast trio: `test_odds_ledger`, `test_real_bets`,
+`test_registries`) is a local gate, not a full-suite result; report it as
+"pre-commit fast trio".
+
 ## 5. CI — what green means
 
 Workflow: `.github/workflows/ci.yml` (job `test-and-validate`):
