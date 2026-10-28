@@ -245,6 +245,20 @@ Two SEPARATE scorecards, never merged into one number:
    2024 prior-evening rows). Executable EV/ROI stay in the money lane,
    never mixed with measurement.
 
+### Split / exposure table (actual windows, as executed; recorded 2026-10-28; old windows preserved verbatim -- never rewritten)
+
+| window | dates | contents / registered identity | known prior uses (as executed) | current status |
+|---|---|---|---|---|
+| Pre-window history | < 2024-07-01 | PA-history rows only (PA table, strictly-prior states); block_2024H1 out of scope by construction | PA-model training inputs (expanding, per-block train ends 2024-06-30 / 2024-12-31 / 2025-06-30; n_fit 730,841 PA rows in the verified reconstruction); BF builder priors | permitted as strictly-prior history only |
+| block_2024H2 | 2024-07-01 .. 2024-12-31 | 2,314 eligible starts (calibration cohort `d38b10aa...`); ledger dev rows 21,006 slots (180 unusable) | calibration FIT cohort; count-agg / ablation scoring; baseline-ladder TRAINING window (declared interval 2024-07-01..2024-12-31); market-eval 2024 prior-evening rows (n=2,182, relabeled, excluded from close comparisons) | development data (inspected; not a fresh final test) |
+| block_2025H1 | 2025-01-01..2025-06-30 | 2,509 eligible starts (cohort hash `f77d7a66...`); market close n=2,154 | calibration EVALUATION cohort; Question A scoring; market-eval 2025H1 close comparisons; baseline-ladder evaluation cohort | dev evaluation only; paired-contrast endpoint |
+| confirm_2025H2 (protected) | 2025-07-01..2025-09-28 | 2,328 ledger starts / 20,952 slot rows (144 unusable); 2,328 lineups starts past the Stage A boundary | NONE -- never fitted, never compared (Stage A drops + counts only; 20,952 confirm slot rows count-only) | protected; "2025-select/2026-judge once, post-9/27, pre-registered" rule |
+| 2026 | 2026 season | untouched | NONE (no access, no scoring, no tuning) | locked retrospective/confirmatory only; no-2026-tuning rule |
+
+### Proposed calendar walk-forward (PROPOSAL ONLY -- no data access or scoring authorized)
+
+After the baseline scorecard closes, feature-experiment and tuning folds would be calendar-anchored expanding windows inside the dev evidence, with confirmation untouched: F1 fit 2024-07-01..2024-12-31 -> score 2025-01-01..2025-03-31; F2 fit <= 2025-03-31 -> score 2025-04-01..2025-06-30; optional F3 fold only if the owner extends the dev evidence (never confirm/2026 for tuning). Every fold scored with the registered count-RPS + slate-date paired scheme; all folds reported (no fold selection); Holm across the declared contrasts; the frozen incumbent stays fixed; each feature challenger pre-registered before its fold. This is a PROPOSAL ONLY: no new data access, scoring, or fitting is authorized by it.
+
 ### Model inventory (compact; for the architect; 2026-10-27)
 
 | lane | entry point | target | estimator | checkpoint / artifact | prediction unit | downstream consumer | evidence status |

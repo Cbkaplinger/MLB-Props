@@ -272,6 +272,22 @@ def test_baseline_training_window_rejects_missing_or_null_dates():
         bl.assert_train_window(with_nulls)
 
 
+def test_baseline_training_window_lower_bound():
+    """Rows dated before the registered projection-window start
+    (2024-07-01) are refused: no permitted outcomes exist earlier, and
+    block_2024H1 is out of scope by construction."""
+    early = _train_rows().with_columns(
+        pl.lit("block_2024H2").alias("block"),
+        pl.lit(date(2024, 5, 2)).alias("game_date"))
+    with pytest.raises(bl.BaselineError,
+                       match="before the registered projection-window"):
+        bl.assert_train_window(early)
+    ok = early.with_columns(pl.lit(date(2024, 7, 1)).alias("game_date"))
+    bl.assert_train_window(ok)  # lower bound inclusive: no raise
+    upper = ok.with_columns(pl.lit(date(2024, 12, 31)).alias("game_date"))
+    bl.assert_train_window(upper)  # upper bound inclusive: no raise
+
+
 def test_baseline_training_window_rejects_mislabeled_early_2025():
     """Early-2025 rows mislabeled block_2024H2 must be refused: the
     derived block (via the registered ad.add_block rule) contradicts

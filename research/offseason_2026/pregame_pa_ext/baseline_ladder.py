@@ -79,6 +79,14 @@ from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 
 TRAIN_BLOCK = "block_2024H2"
 EVAL_BLOCK = "block_2025H1"
+# Exact baseline training interval (declared):
+#   lower bound 2024-07-01 -- the first date of the registered projection
+#   window (no permitted outcomes exist earlier in the registered
+#   artifacts; block_2024H1 is out of scope by construction)
+#   upper bound 2024-12-31 -- the block_2024H2/block_2025H1 boundary.
+# Evaluation cohort: block_2025H1 eligible starts (2025-01-01..2025-06-30).
+TRAIN_FIRST_DATE = (2024, 7, 1)
+TRAIN_LAST_DATE = (2024, 12, 31)
 W_PRIOR = ad.W_PRIOR  # registered shrinkage weight (150) -- reuse
 K_MAX = ad.K_MAX      # 24 buckets; last absorbs >= 23 -- reuse
 
@@ -128,6 +136,13 @@ def assert_train_window(train_rows: pl.DataFrame) -> None:
         raise BaselineError(
             "training window violated: rows dated after the 2025-06-30 "
             f"dev boundary: {over.height}")
+    before = labeled.filter(
+        pl.col("game_date") < pl.date(*TRAIN_FIRST_DATE))
+    if before.height:
+        raise BaselineError(
+            "training window violated: rows dated before the registered "
+            f"projection-window start {TRAIN_FIRST_DATE} (no permitted "
+            f"outcomes exist earlier): {before.height}")
     mislabeled = labeled.filter(
         pl.col("_expected_block") != pl.col("block"))
     if mislabel := mislabeled.height:
