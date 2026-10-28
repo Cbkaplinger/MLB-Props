@@ -24,6 +24,9 @@ Mermaid-compatible viewer.
 - Training and pregame inference are separate lanes; forecast cutoff marked per file.
 - Solid edges = verified implemented paths; dashed edges = proposals.
 - Research never feeds production automatically; REJECTED stays listed, never live.
+- Status labels such as LIVE/FROZEN describe **deployment topology** (which code
+  path is the production path), not current operational enablement; the app's
+  paused/running state is recorded per diagram (see 05) and in the backlog.
 - Keep the phase diagrams separate; do not collapse into one mega-chart.
 
 ## Canonical prose

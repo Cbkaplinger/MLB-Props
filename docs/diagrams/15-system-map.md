@@ -34,7 +34,7 @@ flowchart LR
     end
 
     subgraph POLICY["Policy + sizing"]
-        P1["kpi_policy.json<br/>floors, cap, under-lean,<br/>DK+FD, clip, game_cap"]
+        P1["kpi_policy.json<br/>floors, cap, under-lean,<br/>DK+FD, clip, max_stake_per_game"]
         P2["market.py<br/>stake calculation, 1/16-Kelly"]
     end
 
