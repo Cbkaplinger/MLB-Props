@@ -105,15 +105,27 @@ interpretable. Stage A reads NO outcomes and computes NO scores.
      routes must use pregame states.
   If any consumed value is found to embed within-game realized-PA
   conditioning, Stage A stops and reports it as a boundary violation.
-- **Every consumed artifact (enumerated):**
+- **Every consumed artifact (enumerated; amended 2026-10-27 with the
+  dependency finding below):**
 
 | artifact | role in Stage A | identity |
 |---|---|---|
-| Preserved ledger slot projections | the registered per-(start, slot) p_h3_raw probabilities and pregame states | `projected_pa_probs_v1.parquet`, sha `fd1841e1…` |
-| Frozen serialized checkpoint | the feature-builder lineage (FEAT_H3, pin `176fb18b…`) | `h3_raw_checkpoint.json`, raw sha `d266a1cd…` |
-| BF workload forecasts | pregame BF distribution feeding both arms' count-PMF aggregation identically | `bf_forecasts.parquet`, sha `c9c2762f…` |
-| Verified builder code | `build_feature_frame` (M0-EP1 keyed check) + repaired `attach_prior_features` (P0 full-population check) | committed code at the executing SHA |
-| NOT consumed | `start_metrics_v2.parquet` (realized K) — Stage B only; anything 2026 or `confirm_2025H2` — prohibited | — |
+| Preserved ledger slot projections | Route A: the registered per-(start, slot) stored features and p_h3_raw probabilities | `projected_pa_probs_v1.parquet`, sha `fd1841e1…` |
+| Frozen serialized checkpoint | Route B coefficients (pin `176fb18b…` payload / raw `d266a1cd…`), enforced by `load_serialized_checkpoint` | `h3_raw_checkpoint.json` |
+| BF workload forecasts | identical keyed workload PMF feeding both routes' count-PMF aggregation | `bf_forecasts.parquet`, sha `c9c2762f…` |
+| Pregame PA history (DEPENDENCY FINDING) | Route B strictly-prior player-history states (`entity_daily_state`/`league_daily_state`); its `y` column is the ONE permitted history label, never a scored-start outcome | `pa_table.parquet`, sha `1d3be629…` — already registered in `freeze_pregame_pa_ext_v2.json` `checkpoint_registration.registered_inputs` |
+| Projected lineups (DEPENDENCY FINDING) | Route B semantic slot->batter map (`projected_long`) | `projected_lineups_variant_v2.parquet`, sha `b6a1947c…` |
+| Verified builder code | `build_feature_frame`-lineage attach machinery + repaired `attach_prior_features` | committed code at the executing SHA |
+| NOT consumed | `start_metrics_v2.parquet` (realized K) — Stage B only; anything 2026 or `confirm_2025H2` (dropped, count recorded, never compared) | — |
+
+**Dependency finding (2026-10-27, resolved before coding loaders):** the
+original §3a enumeration omitted two artifacts Route B cannot exist
+without — the pregame PA history and the projected lineups. Both were
+verified present and found ALREADY REGISTERED (the PA table is a
+registered input of the checkpoint reconstruction in
+`freeze_pregame_pa_ext_v2.json`; the lineups artifact is the registered
+projection input). No new dataset was introduced; this amendment makes
+the enumeration complete before any loader was written.
 
 ### 3b. Fixed features
 
@@ -242,10 +254,9 @@ The smoke tests are synthetic-only and require no authorization beyond
 the standing synthetic-test permission; they are the precondition for
 requesting the Stage A real-data run, not a substitute for it.
 
-### 3h. Failure behavior
+### 3h-bis. Failure behavior
 
-If the control invariant fails on ANY start or bucket at any
-intermediate I1–I4, STOP immediately: write the failure receipt, run NO
+If any gate fails, STOP immediately: write the failure receipt, run NO
 Stage B, attempt NO variant or rescue, and report SHA / command / exit
 code / receipt to the architect (Chat 1 registered-stop rule).
 
@@ -255,6 +266,61 @@ Keyed comparison parquet + receipt recording: control max |PMF diff|,
 the I1–I4 intermediate tables, the exclusion accounting with sum check,
 the consumed-input hashes, and the executing code identity. No
 outcome-based numbers of any kind.
+
+### 3j. Stage A runner (IMPLEMENTED — pending independent review)
+
+Executable checkpoint: `research/offseason_2026/pregame_pa_ext/
+lineup_path_stage_a.py` with CLI `main()` (`python
+<repo>/research/offseason_2026/pregame_pa_ext/lineup_path_stage_a.py ...`).
+
+- Routes: A = preserved ledger stored features/p_h3_raw (dev blocks
+  only; `confirm_2025H2` rows dropped and counted, never compared); B =
+  fresh reconstruction (PA history -> daily states -> projected lineups
+  -> attach_prior_features -> `apply_h3_raw` with the registered
+  checkpoint). Never both sides from one computed object.
+- Gates before aggregation: I1 keyed per-slot batter + 8-feature
+  comparison (exact); I2 keyed p_h3_raw (<=1e-12); structural
+  exclusions in exclusive buckets with the mandatory sum check;
+  I3 per-start 24-bucket PMF comparison via the registered machinery
+  from each route's own p9 and the SAME keyed BF row; I4 control max
+  <=1e-12. PMF comparison runs only under identical semantic slot
+  order (I1 batter equality) and identical workload/aggregation.
+- Gate-level mutation tests prove the actual runner refuses PASS:
+  ledger probability corruption (I2), stored-feature corruption (I1),
+  reconstruction-input corruption (PA-history outcome flip -> I1),
+  semantic reorder (I1 batter). A gate that could not fire would be
+  vacuous.
+- Outputs: write-once `receipt_initial.json` (written before
+  validation, chained), keyed `i1/i2/i3/exclusions` parquets,
+  `receipt_final.json` (PASS) or `failure_record.json` (FAIL).
+  Exit codes: 0 PASS; 1 registered gate failure; 2 refusal
+  (prohibited labels / write-once / input identity mismatch).
+- CLI requires explicit `--expected-*-sha` for all five input files;
+  mismatches refuse before loading. Real checkpoint loading enforces
+  the registered payload pin (`176fb18b…`) via
+  `load_serialized_checkpoint`.
+
+Exact gated invocation template (paths per the registered research-data
+convention; placeholders elided here, registered verbatim at
+authorization time):
+
+```text
+python <repo>/research/offseason_2026/pregame_pa_ext/lineup_path_stage_a.py \
+  --ledger <research-data>/pregame-pa-ext-v2/outputs/projected_pa_probs_v1.parquet \
+  --lineups <research-data>/pregame-state-v1/data/projected_lineups_variant_v2.parquet \
+  --pa-table <research-data>/overnight-p2/data/pa_table.parquet \
+  --checkpoint <research-data>/pregame-pa-ext-v2/checkpoints/h3_raw_checkpoint.json \
+  --bf <research-data>/bf-workload-v1/data/bf_forecasts.parquet \
+  --out-dir <research-data>/pregame-pa-ext-v2/diagnostics/lineup_path_stage_a_v1 \
+  --expected-ledger-sha fd1841e1... \
+  --expected-lineups-sha b6a1947c... \
+  --expected-pa-table-sha 1d3be629... \
+  --expected-checkpoint-sha d266a1cd... \
+  --expected-bf-sha c9c2762f...
+```
+
+Status: **RUNNER READY FOR INDEPENDENT REVIEW.** No real-artifact
+execution has occurred; the output directory does not exist.
 
 ## 4. Stage B — outcome scoring (DEFERRED)
 
