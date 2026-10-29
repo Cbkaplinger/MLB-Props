@@ -421,6 +421,78 @@ def test_missing_workload_start_is_counted_not_refused(tmp_path):
 
 
 # ------------------- keyed forecast table: reorder + cohort identity
+def _with_invalid_label(matchup_batter: int, value) -> pl.DataFrame:
+    """Assessment frame with one row's class_label set to an invalid
+    value (matched projected batters AND the unmatched replacement are
+    both coverable)."""
+    return _assessment().with_columns(
+        pl.when(pl.col("batter") == matchup_batter)
+        .then(value).otherwise(pl.col("class_label"))
+        .alias("class_label"))
+
+
+def test_negative_class_label_refuses(tmp_path):
+    with pytest.raises(ValueError, match="invalid class labels"):
+        _run(tmp_path, out="out_neg",
+             assessment=_with_invalid_label(800001, -1))
+    failure = json.loads((tmp_path / "out_neg" / "failure_record.json")
+                         .read_text(encoding="utf-8"))
+    assert "invalid class labels" in failure["error"]
+    assert not (tmp_path / "out_neg"
+                / "multiclass_baseline_per_start_v1.parquet").exists()
+
+
+def test_out_of_range_class_label_refuses(tmp_path):
+    with pytest.raises(ValueError, match="invalid class labels"):
+        _run(tmp_path, out="out_oob",
+             assessment=_with_invalid_label(800002, 7))
+    failure = json.loads((tmp_path / "out_oob" / "failure_record.json")
+                         .read_text(encoding="utf-8"))
+    assert "invalid class labels" in failure["error"]
+
+
+def test_null_class_label_refuses(tmp_path):
+    bad = _assessment().with_columns(
+        pl.when(pl.col("batter") == 800001)
+        .then(None).otherwise(pl.col("class_label"))
+        .alias("class_label"))
+    with pytest.raises(ValueError, match="invalid class labels"):
+        _run(tmp_path, out="out_null", assessment=bad)
+    failure = json.loads((tmp_path / "out_null" / "failure_record.json")
+                         .read_text(encoding="utf-8"))
+    assert "invalid class labels" in failure["error"]
+
+
+def test_non_integer_class_label_dtype_refuses(tmp_path):
+    bad = _assessment().with_columns(
+        pl.col("class_label").cast(pl.Float64))
+    with pytest.raises(ValueError, match="integer dtype"):
+        _run(tmp_path, out="out_type", assessment=bad)
+
+
+def test_invalid_label_on_unmatched_replacement_refuses(tmp_path):
+    """800999 is the replacement batter with NO projected matchup: the
+    validity guard still refuses (the guard precedes matchup alignment
+    and realized-K derivation)."""
+    with pytest.raises(ValueError, match="invalid class labels"):
+        _run(tmp_path, out="out_rep",
+             assessment=_with_invalid_label(800999, -1))
+    failure = json.loads((tmp_path / "out_rep" / "failure_record.json")
+                         .read_text(encoding="utf-8"))
+    assert "invalid class labels" in failure["error"]
+    assert "800999" in failure["error"]  # representative identity kept
+
+
+def test_invalid_label_error_preserves_identities(tmp_path):
+    with pytest.raises(ValueError, match="invalid class labels"):
+        _run(tmp_path, out="out_ident",
+             assessment=_with_invalid_label(800001, -1))
+    failure = json.loads((tmp_path / "out_ident" / "failure_record.json")
+                         .read_text(encoding="utf-8"))
+    assert "900001" in failure["error"] and "800001" in failure["error"]
+
+
+# ------------------- keyed forecast table: reorder + cohort identity
 def test_reordered_feature_output_keeps_probabilities_keyed(tmp_path):
     """Deliberately reorder the feature-constructor output rows: each
     matchup must keep ITS OWN probability (keyed carry-through), so any

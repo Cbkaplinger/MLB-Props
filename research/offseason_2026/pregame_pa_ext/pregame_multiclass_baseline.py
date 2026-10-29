@@ -270,7 +270,32 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                              "refusing a vacuous baseline")
         actual = assessment.select(
             "game_pk", "side", "pitcher", "at_bat_number", "batter",
-            "class_label").with_columns(
+            "class_label")
+        # LABEL-VALIDITY GUARD (before is_k, realized K, probability
+        # indexing, or any scoring): every completed assessment PA must
+        # carry a valid, non-null integer class label in [0, N_CLASSES).
+        # Invalid labels (including -1 unknowns) STOP the run with
+        # evidence: they are never classified as non-K, never scored via
+        # negative indexing, and never silently dropped from starter
+        # totals.
+        if not actual["class_label"].dtype.is_integer():
+            raise ValueError(
+                "assessment class_label must be an integer dtype; got "
+                f"{actual['class_label'].dtype}")
+        invalid = actual.filter(
+            pl.col("class_label").is_null()
+            | (pl.col("class_label") < 0)
+            | (pl.col("class_label") >= N_CLASSES))
+        if invalid.height:
+            examples = invalid.select(*REQ_KEYS, "at_bat_number", "batter",
+                                      "class_label").head(5).rows()
+            raise ValueError(
+                f"invalid class labels in the assessment outcomes: "
+                f"{invalid.height} rows (require integer class_label in "
+                f"[0, {N_CLASSES})); examples: {examples}; preparation "
+                "evidence preserved: refusing rather than classifying "
+                "unknowns as non-K or scoring incomplete starter totals")
+        actual = actual.with_columns(
             (pl.col("class_label") == K_CLASS).cast(pl.Int64)
             .alias("is_k"))
         if actual.select("game_pk", "side", "pitcher", "at_bat_number",
