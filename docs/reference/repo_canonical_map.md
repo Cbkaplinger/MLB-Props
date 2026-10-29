@@ -38,6 +38,10 @@ This file is the cleanup anchor for "what is canonical vs optional vs archive."
 ## Canonical daily surfaces
 
 - **`docs/EXECUTION_BACKLOG.md`** — master work-state / approvals / agent plan (not a runtime script; open first)
+- **`docs/NEXT.md`** — immediate critical path (architect-owned; short pointer)
+- **`docs/ROADMAP.md`** — research direction, compact idea register, pivot rules (architect-owned; role text lives in `docs/roles/`)
+- **`docs/DECISIONS.md`** — decision register + production/research boundary (full historical ADR text lives in `docs/archive/consolidated/adr/`, pinned by blob)
+- **`docs/roles/README.md`** — canonical role cards (ROLES_REV; overrides copied role text anywhere)
 - `production/ops/run_daily.py` (morning refresh/score entrypoint)
 - `production/ops/live_krate_ensemble.json` (active k-rate blend selection)
 - `production/odds/grade_odds_ledger.py` (settle + CLV updates)
@@ -106,6 +110,16 @@ Delete only after all checks pass:
 - One-off artifacts copied into tracked docs when the canonical source is in `artifacts/`.
 - Dated non-protected artifacts via dry-run first:
   - `python scripts/prune_artifacts.py --min-age-days 45`
+
+## Consolidation slice 1 retirement mapping (2026-10-28; Chat 3, awaiting architect approval)
+
+| Candidate | Unique content destination | Status |
+| --- | --- | --- |
+| `docs/DECISIONS.md` embedded verbatim ADR/PRD quotes (lines were ~120) | Decision + status kept in the register; full text retained at `docs/archive/consolidated/adr/*` (pinned blobs recorded in-file) | **Done in slice 1** (in-file trim; archived files untouched) |
+| `docs/ROADMAP.md` copied role paragraph | `docs/roles/README.md` (ROLES_REV 2026-10-28-r1) | **Done in slice 1** (replaced with canonical link) |
+| `docs/ROADMAP.md` idea content | `docs/ROADMAP.md` idea-register record format added; Deferred list remains the register | **Done in slice 1** (format only; no content moved yet) |
+| `docs/README.md` missing authority pointers | Authority map table added | **Done in slice 1** |
+| Superseded source documents of the four claimed files | Archived originals + git history | **No file deletions in slice 1**; deletion batch requires the lifecycle checks (unique content captured, mapping recorded, links updated, no frozen dependency, approved batch) |
 
 ## Explicit non-targets for deletion
 
