@@ -631,3 +631,132 @@ def test_stage_a_empty_comparison_population_refused(tmp_path):
     assert failure["detail"]["n_compared"] == 0
     assert not (out / "receipt_final.json").exists()
     assert not (out / "i1_feature_comparison.parquet").exists()
+
+
+
+# --------------------------- temporal invariants + same-game key identity
+def _remap_second_start_to_same_game(led, lin, bf):
+    """Fold start 900002 (Bot, P2) into game_pk 900001: two starters in
+    ONE game must remain distinct full keys (side, pitcher)."""
+    def remap(frame):
+        return frame.with_columns(
+            pl.when(pl.col("game_pk") == 900002).then(900001)
+            .otherwise(pl.col("game_pk")).alias("game_pk"))
+    return remap(led), remap(lin), remap(bf)
+
+
+def test_stage_a_same_game_two_starters_distinct_keys(tmp_path):
+    led2, lin2, bf2 = _remap_second_start_to_same_game(
+        _ledger_fixture(), _lineups(), _bf())
+    res = sa.run_stage_a(led2, lin2, _pa_history(), bf2, _models(),
+                         tmp_path / "same_game")
+    assert res["status"] == "PASS"
+    assert res["metrics"]["n_compared"] == 2
+    i1 = pl.read_parquet(Path(res["out_dir"])
+                         / "i1_feature_comparison.parquet")
+    keys = {(r["game_pk"], r["side"], r["pitcher"])
+            for r in i1.iter_rows(named=True)}
+    assert keys == {(900001, "Top", P1), (900001, "Bot", P2)}
+
+
+def test_stage_a_future_pa_rows_cannot_change_outputs(tmp_path):
+    """Contamination invariance: PA rows dated STRICTLY AFTER the target
+    game date must not move any route-B output (the backward as-of at
+    the start's game_date cannot reach them)."""
+    res_a = sa.run_stage_a(_ledger_fixture(), _lineups(), _pa_history(),
+                           _bf(), _models(), tmp_path / "clean")
+    contaminated = pl.concat([
+        _pa_history(),
+        pl.DataFrame(
+            [(date(2024, 9, 1), P1, 800001, 1),
+             (date(2024, 9, 1), P2, 800101, 0),
+             (date(2025, 1, 1), P1, 800003, 1)],
+            schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                    "batter": pl.Int64, "y": pl.Int64},
+            orient="row")])
+    res_b = sa.run_stage_a(_ledger_fixture(), _lineups(), contaminated,
+                           _bf(), _models(), tmp_path / "contaminated")
+    assert res_a["status"] == "PASS" and res_b["status"] == "PASS"
+    for name in ("i1_feature_comparison.parquet",
+                 "i2_prob_comparison.parquet",
+                 "i3_pmf_comparison.parquet"):
+        a = pl.read_parquet(Path(res_a["out_dir"]) / name).sort(
+            ["game_pk", "side", "pitcher", "bucket"]
+            if "i3" in name else
+            ["game_pk", "side", "pitcher", "slot"])
+        b = pl.read_parquet(Path(res_b["out_dir"]) / name).sort(
+            ["game_pk", "side", "pitcher", "bucket"]
+            if "i3" in name else
+            ["game_pk", "side", "pitcher", "slot"])
+        assert a.rows() == b.rows(), name
+
+
+def test_stage_a_same_date_pa_y_cannot_enter_state(tmp_path):
+    """Same-date PA rows are excluded from the prior state by the
+    registered shift(1) (declared date-level convention, mirrors
+    pregame-state-v1): their PRESENCE may legitimately create the
+    target-date state row (surfacing strictly-earlier history), but
+    their y VALUES must not enter any state. Two runs identical except
+    for the same-date rows' y must produce byte-identical outputs."""
+    same_date_rows = pl.DataFrame(
+        [(GAME_DATE, P1, 800001, 1), (GAME_DATE, P1, 800002, 1),
+         (GAME_DATE, P2, 800101, 1), (GAME_DATE, P2, 800102, 0)],
+        schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                "batter": pl.Int64, "y": pl.Int64},
+        orient="row")
+    pa_y1 = pl.concat([_pa_history(), same_date_rows])
+    pa_y0 = same_date_rows.with_columns(
+        (pl.lit(1, pl.Int64) - pl.col("y")).alias("y"))
+    pa_y0 = pl.concat([_pa_history(), pa_y0])
+    # Both runs REFUSE: the appended target-date rows create a state row
+    # AT the target date whose shift(1) prior legitimately surfaces the
+    # 07-15 rows, which disagrees with the ledger fixture's hand features
+    # (built for the baseline no-later-state scenario). The INVARIANT is
+    # that flipping the same-date y values changes nothing at all: the
+    # two runs' comparison artifacts must be byte-identical, and the
+    # refusal gate must be the same I1 representation disagreement in
+    # both - never a same-date-outcome effect.
+    with pytest.raises(sa.StageAFailure):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), pa_y1,
+                       _bf(), _models(), tmp_path / "same_y1")
+    with pytest.raises(sa.StageAFailure):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), pa_y0,
+                       _bf(), _models(), tmp_path / "same_y0")
+    f_a = json.loads((tmp_path / "same_y1" / "failure_record.json")
+                     .read_text())
+    f_b = json.loads((tmp_path / "same_y0" / "failure_record.json")
+                     .read_text())
+    assert f_a["gate"] == "I1_feature_mismatch"
+    assert f_b["gate"] == "I1_feature_mismatch"
+    # the I1 refusal fires before i2/i3 are written; the i1 artifact
+    # carries the full route-A vs route-B per-slot feature rows, which is
+    # where a same-date y leak would have to appear
+    assert (tmp_path / "same_y1" / "i2_prob_comparison.parquet").exists() \
+        is False
+    a = pl.read_parquet(tmp_path / "same_y1"
+                        / "i1_feature_comparison.parquet").sort(
+        ["game_pk", "side", "pitcher", "slot"])
+    b = pl.read_parquet(tmp_path / "same_y0"
+                        / "i1_feature_comparison.parquet").sort(
+        ["game_pk", "side", "pitcher", "slot"])
+    assert a.rows() == b.rows()
+
+
+def test_stage_a_mutating_latest_prior_pa_row_changes_forecasts(tmp_path):
+    """Positive control: the latest STRICTLY-PRIOR contributing row is
+    live state. Changing batter 800003's 07-01 row (the prior source for
+    its 07-15 state) must break route-A/route-B equivalence -> the
+    reconciliation refuses with I1_feature_mismatch. If it did NOT
+    refuse, the as-of would not be consuming prior history."""
+    pa2 = _pa_history().with_columns(
+        pl.when((pl.col("game_date") == D1)
+                & (pl.col("pitcher") == P2)
+                & (pl.col("batter") == 800003))
+        .then(0).otherwise(pl.col("y")).alias("y"))
+    with pytest.raises(sa.StageAFailure, match="I1_feature_mismatch"):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), pa2,
+                       _bf(), _models(), tmp_path / "mutated")
+    failure = json.loads((tmp_path / "mutant_record" / "failure_record.json")
+                         .read_text()) if False else json.loads(
+        (tmp_path / "mutated" / "failure_record.json").read_text())
+    assert failure["gate"] == "I1_feature_mismatch"
