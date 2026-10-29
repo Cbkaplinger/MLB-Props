@@ -760,3 +760,67 @@ def test_stage_a_mutating_latest_prior_pa_row_changes_forecasts(tmp_path):
                          .read_text()) if False else json.loads(
         (tmp_path / "mutated" / "failure_record.json").read_text())
     assert failure["gate"] == "I1_feature_mismatch"
+
+
+
+# -------------- row-presence invariance: KNOWN temporal discrepancy ----
+# The registered state construction emits a state row only on dates with
+# PA activity, and its prior excludes that date's own rows. The as-of at
+# the forecast date therefore picks the LATEST ACTIVITY-date state row,
+# so the support the forecast can use depends on whether an eventual
+# target-date row exists - exactly the row-presence sensitivity the
+# architect asked us to isolate. Hand math for batter 800003
+# (rows: 07-01 y=1, 07-15 y=1; forecast 2024-08-15):
+#   required support = BOTH strictly-prior rows  -> prior_k=2, prior_n=2
+#   baseline (no target-date row) effective prior -> 1/1 (07-15 PA dropped)
+#   with a target-date row present                -> 2/2 (07-15 row exposed)
+# The direction is UNDERCOUNT (missing most-recent eligible observation),
+# not target-label leakage: the same-date y never enters (shift(1)).
+@pytest.mark.xfail(strict=True, reason=(
+    "row-presence sensitivity: state boundary = last PA-activity date, "
+    "not the forecast cutoff; correction requires a versioned state "
+    "construction (prior aggregated over rows strictly before the "
+    "forecast date), which changes pregame feature semantics and needs "
+    "an explicit versioned decision"))
+def test_stage_a_prior_support_includes_all_eligible_precutoff_rows():
+    st = ad.entity_daily_state(_pa_history(), "batter")
+    eff = (st.filter((pl.col("batter") == 800003)
+                     & (pl.col("game_date") <= GAME_DATE))
+           .sort("game_date").tail(1))
+    # hand math: both pre-cutoff rows are eligible support
+    assert eff["prior_n"][0] == 2
+    assert eff["prior_k"][0] == 2
+
+
+def test_stage_a_row_presence_reproducer_pinned():
+    """Pinned reproducer (NOT xfail): the effective prior state for a
+    fixed forecast request changes when a target-date PA row is present,
+    even though the legitimate pre-cutoff history is identical."""
+    st_base = ad.entity_daily_state(_pa_history(), "batter")
+    eff_base = (st_base.filter((pl.col("batter") == 800003)
+                               & (pl.col("game_date") <= GAME_DATE))
+                .sort("game_date").tail(1))
+    pa_plus = pl.concat([_pa_history(), pl.DataFrame(
+        [(GAME_DATE, P1, 800003, 1)],
+        schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                "batter": pl.Int64, "y": pl.Int64}, orient="row")])
+    st_plus = ad.entity_daily_state(pa_plus, "batter")
+    eff_plus = (st_plus.filter((pl.col("batter") == 800003)
+                               & (pl.col("game_date") <= GAME_DATE))
+                .sort("game_date").tail(1))
+    # identical legitimate pre-cutoff history; different effective support
+    assert eff_base["game_date"][0] == date(2024, 7, 15)
+    assert eff_plus["game_date"][0] == GAME_DATE
+    assert (eff_base["prior_n"][0], eff_base["prior_k"][0]) == (1, 1)
+    assert (eff_plus["prior_n"][0], eff_plus["prior_k"][0]) == (2, 2)
+    # and the same-date row's own y is NOT what moved the state: the
+    # prior aggregate excludes it (shift); the PRESENCE moved the boundary
+    pa_flip = pl.concat([_pa_history(), pl.DataFrame(
+        [(GAME_DATE, P1, 800003, 0)],
+        schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                "batter": pl.Int64, "y": pl.Int64}, orient="row")])
+    st_flip = ad.entity_daily_state(pa_flip, "batter")
+    eff_flip = (st_flip.filter((pl.col("batter") == 800003)
+                               & (pl.col("game_date") <= GAME_DATE))
+                .sort("game_date").tail(1))
+    assert (eff_flip["prior_n"][0], eff_flip["prior_k"][0]) == (2, 2)
