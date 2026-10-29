@@ -75,9 +75,14 @@ chain intact (initial c2a3afdd... == recorded chain); outputs write-once at
 PR #51 (executor-side recomputation: all hashes, linkage, and field
 reconciliation MATCH; independent Chat 2 signature owed on the record).
 RUN-EXECUTION EVIDENCE = PR #51 comments (run record 6487951982;
-verification 6488030762). **SCORECARD IMPLEMENTED (checkpoint b99a3d6,
-branch research/baseline-history-scorecard-v1, on top of PR #51 head
-8047529; awaiting Chat 2 review):** `history_sensitivity_scorecard.py`
+verification 6488030762). **SCORECARD IMPLEMENTED + CLI REPAIRED (superseding checkpoint = the
+commit carrying this line; supersedes b99a3d6 as review target;** the
+reviewer's consolidated review cleared the scientific construction and
+found one blocker: the missing `__main__` guard meant the documented
+launch command exited 0 without calling main(); repair = the standard
+two-line guard + two real-subprocess tests proving exit 2 refusal with
+nonexistent inputs (zero side effects) and exit 0 with full evidence
+(report, per-start parquet, receipts, cli route, hash reconciliation).
 implements the ONE history-only contrast - Arm S_v2 (accepted derived
 artifact 95ac3638, 2023-2024 training) vs Arm S_v1 (registered
 start_metrics_v2 2024H2 slice) with the registered ladder machinery held

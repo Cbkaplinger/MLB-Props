@@ -619,3 +619,7 @@ def main(argv=None) -> int:
                       "outputs": result["outputs"]},
                      indent=1, sort_keys=True, default=str))
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

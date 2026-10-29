@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -445,3 +446,74 @@ def test_receipt_linkage_and_output_hashes(tmp_path):
         res["receipt_initial_sha256"]
     for name, dig in res["outputs"].items():
         assert _sha(out / name) == dig
+
+
+
+SCRIPT = (Path(__file__).resolve().parents[1] / "research"
+          / "offseason_2026" / "pregame_pa_ext"
+          / "history_sensitivity_scorecard.py")
+
+
+def _cli_argv(h, out_dir: Path, ack: str) -> list:
+    return ["--s-v1-source", h["s1_path"],
+            "--s-v2-source", h["s2_path"],
+            "--eval-pmfs", h["eval_path"], "--bf-source", h["bf_path"],
+            "--expected-s-v1-sha256", h["s1_sha"],
+            "--expected-s-v2-sha256", h["s2_sha"],
+            "--expected-eval-pmfs-sha256", h["eval_sha"],
+            "--expected-bf-sha256", h["bf_sha"],
+            "--expected-eval-cohort-hash", h["eval_hash"],
+            "--out-dir", str(out_dir), "--execution-ack", ack]
+
+
+# --------------------------------------- 9. real subprocess launch route
+def test_subprocess_invalid_ack_refuses_before_input_handling(tmp_path):
+    """The documented launch command must actually invoke main(): a
+    wrong token must exit exactly 2 with the refusal message and zero
+    side effects - proven with NONEXISTENT input paths, which also
+    proves refusal precedes any input handling."""
+    argv = ["--s-v1-source", str(tmp_path / "missing1.parquet"),
+        "--s-v2-source", str(tmp_path / "missing2.parquet"),
+        "--eval-pmfs", str(tmp_path / "missing3.parquet"),
+        "--bf-source", str(tmp_path / "missing4.parquet"),
+        "--expected-s-v1-sha256", "0" * 64,
+        "--expected-s-v2-sha256", "0" * 64,
+        "--expected-eval-pmfs-sha256", "0" * 64,
+        "--expected-bf-sha256", "0" * 64,
+        "--expected-eval-cohort-hash", "0" * 64,
+        "--out-dir", str(tmp_path / "out_ack_cli"),
+        "--execution-ack", "WRONG-TOKEN"]
+    r = subprocess.run([sys.executable, str(SCRIPT), *argv],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 2
+    assert "EXECUTION REFUSED" in r.stderr
+    assert not (tmp_path / "out_ack_cli").exists()
+    assert not (tmp_path / "out_ack_cli" / "receipt_initial.json").exists()
+
+
+def test_subprocess_valid_execution_produces_full_evidence(tmp_path):
+    h = _write(tmp_path)
+    argv = _cli_argv(h, tmp_path / "out_sub", ACK)
+    r = subprocess.run([sys.executable, str(SCRIPT), *argv],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0
+    out = tmp_path / "out_sub"
+    for name in ("history_sensitivity_report.json",
+                 "history_sensitivity_per_start_v1.parquet",
+                 "receipt_initial.json", "receipt_final.json"):
+        assert (out / name).exists()
+    report = json.loads((out / "history_sensitivity_report.json")
+                        .read_text(encoding="utf-8"))
+    assert report["primary_contrast"]["primary_pair"] == "S_v2_vs_S_v1"
+    assert report["windows"]["s_v1_estimation"] == ["2024-07-01",
+                                                    "2024-12-31"]
+    assert report["counts"]["assessment_starts"] == 4
+    final = json.loads((out / "receipt_final.json").read_text(
+        encoding="utf-8"))
+    assert final["execution_acknowledgement"]["route"] == "cli"
+    assert final["acceptance"]["receipt_chain"] == _sha(
+        out / "receipt_initial.json")
+    for name, dig in final["outputs"].items():
+        assert _sha(out / name) == dig
+    ps = pl.read_parquet(out / "history_sensitivity_per_start_v1.parquet")
+    assert ps.height == 4
