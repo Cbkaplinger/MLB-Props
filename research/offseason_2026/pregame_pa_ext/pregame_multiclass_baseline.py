@@ -76,6 +76,7 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                                     out_dir, *,
                                     train_start: str, train_end: str,
                                     execution_ack: str,
+                                    expected_cohort_hash: str | None = None,
                                     ack_route: str = "direct-call") -> dict:
     """Execute the synthetic-capable end-to-end multiclass baseline.
 
@@ -196,9 +197,28 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
         model = m0.fit_multinomial(feat_train)
         probs_ref1 = m0.apply_multinomial(feat_req, model)
 
+        # ---- KEYED forecast table: probabilities live on the exact
+        # feature rows that generated them. apply_multinomial consumed
+        # feat_req rows in feat_req order, so positional attachment WITHIN
+        # feat_req is valid; the keyed table then carries (game_pk, side,
+        # pitcher, slot, batter) explicitly and is the ONLY source for PA
+        # scoring and count aggregation. No positional transfer back to
+        # any other frame. -------------------------------------------
+        forecast_table = feat_req.with_columns(
+            pl.Series("p_k", probs_ref1[:, K_CLASS]),
+            pl.Series("prob_rows", [list(map(float, row)) for row in
+                                    probs_ref1]),
+        ).select("game_pk", "side", "pitcher", "slot", "batter",
+                 "p_k", "prob_rows")
+
         # ---- K marginal = strikeout class probability -----------------
-        p_k_ref1 = probs_ref1[:, K_CLASS]
-        p_k_ref0 = np.full(long.height, k_rate)
+        # keyed: every p_k lives on its (game_pk, side, pitcher, slot,
+        # batter) forecast row; population reference = same rows, constant
+        if forecast_table.height != long.height:
+            raise ValueError("keyed forecast table row count deviates "
+                             "from the request rows; internal alignment "
+                             "error")
+        p_k_ref0 = np.full(forecast_table.height, k_rate)
 
         # ---- fixed-workload count aggregation --------------------------
         _require_columns(bf, REQ_KEYS + [f"pmf37_{j}" for j in range(37)],
@@ -209,13 +229,12 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
         bf_starts = set(map(tuple, bf.select(*REQ_KEYS).unique()
                             .iter_rows()))
 
-        def _start_pmfs(p_k_vec: np.ndarray, keys: dict) -> dict:
+        def _start_pmfs(table: pl.DataFrame, keys) -> dict:
             """Build count PMFs only for the requested starts (count-
             scoring population); a requested start lacking 9 usable
             slots or BF coverage must have been excluded upstream."""
             by_start = {}
-            for r in long.with_columns(
-                    pl.Series("p_k", p_k_vec)).iter_rows(named=True):
+            for r in table.iter_rows(named=True):
                 key = (int(r["game_pk"]), str(r["side"]), int(r["pitcher"]))
                 if key not in keys:
                     continue
@@ -270,32 +289,29 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
 
         # ---- explicit matchup alignment (never slot-keyed) -------------
         matchup = ["game_pk", "side", "pitcher", "batter"]
-        fc = long.with_columns(
-            pl.Series("p_k_fc", probs_ref1[:, K_CLASS]),
-            pl.Series("row_ix", np.arange(long.height)))
-        j = actual.join(fc.select("game_pk", "side", "pitcher", "slot",
-                                  "batter", "p_k_fc", "row_ix"),
-                        on=matchup, how="left", validate="m:1")
-        matched = j.filter(pl.col("p_k_fc").is_not_null())
+        j = actual.join(forecast_table, on=matchup, how="left",
+                        validate="m:1")
+        matched = j.filter(pl.col("p_k").is_not_null())
         n_unmatched_actual = j.height - matched.height
-        fc_keys = set(map(tuple, fc.select(matchup).unique().iter_rows()))
+        fc_keys = set(map(tuple, forecast_table.select(matchup)
+                          .unique().iter_rows()))
         actual_keys = set(map(tuple, actual.select(matchup).unique()
                               .iter_rows()))
         n_proj_without_actual = len(fc_keys - actual_keys)
         y_pa = matched["class_label"].to_numpy()
-        ix = matched["row_ix"].to_numpy()
+        probs_matched = np.asarray(
+            matched["prob_rows"].to_list(), dtype=np.float64)
 
         pa_ll_ref0 = float(-np.mean(np.log(np.clip(
-            np.tile(pop, (long.height, 1))[ix], 1e-15, 1.0)[
+            np.tile(pop, (matched.height, 1)), 1e-15, 1.0)[
                 np.arange(matched.height), y_pa])))
-        pa_ll_ref1 = float(m0.multiclass_log_loss(
-            y_pa, probs_ref1[ix]))
+        pa_ll_ref1 = float(m0.multiclass_log_loss(y_pa, probs_matched))
 
         # ---- count-scoring coverage: explicit buckets, separate from
         # PA-exclusion accounting (realized K is independent of lineup
         # coverage: replacement batters count) ---------------------------
-        lin_starts = set(map(tuple, long.select(*REQ_KEYS).unique()
-                             .iter_rows()))
+        lin_starts = set(map(tuple, forecast_table.select(*REQ_KEYS)
+                             .unique().iter_rows()))
         bf_starts = set(map(tuple, bf.select(*REQ_KEYS).unique()
                             .iter_rows()))
         count_scored, count_excluded = {}, {}
@@ -304,7 +320,7 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                 count_excluded[key] = "no_projected_lineup_request"
             elif key not in bf_starts:
                 count_excluded[key] = "missing_bf"
-            elif sum(1 for r in long.iter_rows(named=True)
+            elif sum(1 for r in forecast_table.iter_rows(named=True)
                      if (int(r["game_pk"]), str(r["side"]),
                          int(r["pitcher"])) == key) != 9:
                 count_excluded[key] = "slot_coverage_below_9"
@@ -313,6 +329,16 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
         if not count_scored:
             raise ValueError("empty count-scoring population: refusing a "
                              "vacuous baseline")
+        # declared eligible-cohort identity: required to match, no silent
+        # population change (registered sorted-key recipe)
+        cohort_hash = hashlib.sha256("\n".join(
+            sorted("%d|%s|%d" % k for k in count_scored))
+            .encode("utf-8")).hexdigest()
+        if expected_cohort_hash is not None and \
+                cohort_hash != expected_cohort_hash:
+            raise ValueError(
+                f"scored cohort identity mismatch: "
+                f"actual={cohort_hash} expected={expected_cohort_hash}")
         covered = pl.DataFrame(
             [{"game_pk": k[0], "side": k[1], "pitcher": k[2],
               "game_date": request_dates[k]} for k in count_scored],
@@ -325,8 +351,10 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                       int(r["pitcher"])): np.asarray(
             [r[f"pmf37_{j}"] for j in range(37)], dtype=np.float64)
             for r in bf_val.iter_rows(named=True)}
-        pmfs_ref0 = _start_pmfs(p_k_ref0, count_scored)
-        pmfs_ref1 = _start_pmfs(p_k_ref1, count_scored)
+        pmfs_ref0 = _start_pmfs(
+            forecast_table.with_columns(
+                pl.lit(float(pop[K_CLASS])).alias("p_k")), count_scored)
+        pmfs_ref1 = _start_pmfs(forecast_table, count_scored)
         count_scores = {}
         for name, pmfs in (("ref0_population", pmfs_ref0),
                            ("ref1_multinomial", pmfs_ref1)):
@@ -350,7 +378,7 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
         k_scores = {
             "ref0_population": _binary(np.full(matched.height,
                                                pop[K_CLASS])),
-            "ref1_multinomial": _binary(matched["p_k_fc"].to_numpy()),
+            "ref1_multinomial": _binary(matched["p_k"].to_numpy()),
         }
 
         # ---- paired count-RPS uncertainty (registered slate-date
@@ -411,6 +439,7 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                     r: sum(1 for v in count_excluded.values() if v == r)
                     for r in sorted(set(count_excluded.values()))},
             },
+            "scored_cohort_sha256": cohort_hash,
             "model_identity": {"family": "sklearn multinomial logistic "
                                          "(existing m0.fit_multinomial, "
                                          "C=1.0)",
@@ -482,11 +511,35 @@ def main(argv=None) -> int:
     p.add_argument("--train-end", required=True)
     p.add_argument("--out-dir", required=True)
     p.add_argument("--execution-ack", required=True)
+    p.add_argument("--expected-pa-sha256", default=None)
+    p.add_argument("--expected-lineups-sha256", default=None)
+    p.add_argument("--expected-assessment-sha256", default=None)
+    p.add_argument("--expected-bf-sha256", default=None)
+    p.add_argument("--expected-cohort-hash", default=None,
+                   help="registered sorted-start-key SHA-256 of the "
+                        "declared eligible assessment cohort")
     args = p.parse_args(argv)
     if args.execution_ack != EXECUTION_ACK_TOKEN:
         print("EXECUTION REFUSED: invalid acknowledgement; no input "
               "read, nothing created.", file=sys.stderr)
         return 2
+    files = {"PA source": args.pa_source,
+             "projected lineups": args.lineups,
+             "assessment outcomes": args.assessment,
+             "BF workload": args.bf_source}
+    expected = {"PA source": args.expected_pa_sha256,
+                "projected lineups": args.expected_lineups_sha256,
+                "assessment outcomes": args.expected_assessment_sha256,
+                "BF workload": args.expected_bf_sha256}
+    for name, path in files.items():
+        pth = Path(path)
+        exp = expected[name]
+        if exp is not None:
+            actual = hashlib.sha256(pth.read_bytes()).hexdigest()
+            if actual != exp:
+                raise ValueError(
+                    f"input identity mismatch for {name}: "
+                    f"actual={actual} expected={exp}")
     pa = pl.read_parquet(args.pa_source)
     lineups = pl.read_parquet(args.lineups)
     assessment = pl.read_parquet(args.assessment)
@@ -494,7 +547,9 @@ def main(argv=None) -> int:
     res = run_pregame_multiclass_baseline(
         pa, lineups, assessment, bf, args.out_dir,
         train_start=args.train_start, train_end=args.train_end,
-        execution_ack=args.execution_ack, ack_route="cli")
+        execution_ack=args.execution_ack,
+        expected_cohort_hash=args.expected_cohort_hash,
+        ack_route="cli")
     print(json.dumps({"baseline_identity": res["baseline_identity"],
                       "results": res["results"],
                       "counts": res["counts"],

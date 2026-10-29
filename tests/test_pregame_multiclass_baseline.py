@@ -147,7 +147,7 @@ def _write(tmp_path, pa=None, lineups=None, assessment=None, bf=None):
 
 
 def _run(tmp_path, out="out", pa=None, lineups=None, assessment=None,
-         bf=None, ack=ACK):
+         bf=None, ack=ACK, cohort_hash=None):
     h = _write(tmp_path, pa, lineups, assessment, bf)
     res = pm.run_pregame_multiclass_baseline(
         h and (pa if pa is not None else _pa_frame()),
@@ -155,7 +155,8 @@ def _run(tmp_path, out="out", pa=None, lineups=None, assessment=None,
         assessment if assessment is not None else _assessment(),
         bf if bf is not None else _bf(), tmp_path / out,
         train_start="2024-06-01", train_end="2024-07-31",
-        execution_ack=ack)
+        execution_ack=ack,
+        expected_cohort_hash=cohort_hash)
     return res, h
 
 
@@ -293,6 +294,25 @@ def test_empty_training_population_refused(tmp_path):
 #  see test_missing_workload_start_is_counted_not_refused)
 
 
+def test_subprocess_file_identity_mismatch_refuses(tmp_path):
+    h = _write(tmp_path)
+    script = (Path(__file__).resolve().parents[1] / "research"
+              / "offseason_2026" / "pregame_pa_ext"
+              / "pregame_multiclass_baseline.py")
+    argv = [sys.executable, str(script),
+            "--pa-source", h["pa_path"], "--lineups", h["lineups_path"],
+            "--assessment", h["assessment_path"], "--bf-source",
+            h["bf_path"],
+            "--expected-pa-sha256", "0" * 64,
+            "--train-start", "2024-06-01", "--train-end", "2024-07-31",
+            "--out-dir", str(tmp_path / "out_sha"),
+            "--execution-ack", ACK]
+    r = subprocess.run(argv, capture_output=True, text=True, timeout=300)
+    assert r.returncode != 0
+    assert "input identity mismatch" in r.stderr
+    assert not (tmp_path / "out_sha").exists()
+
+
 def test_subprocess_invocation_produces_evidence(tmp_path):
     h = _write(tmp_path)
     script = (Path(__file__).resolve().parents[1] / "research"
@@ -398,3 +418,56 @@ def test_missing_workload_start_is_counted_not_refused(tmp_path):
     assert c["count_scored_starts"] == 1
     assert c["count_excluded_starts"] == {"missing_bf": 1}
     assert c["assessment_pas_matched_to_projections"] == 18
+
+
+# ------------------- keyed forecast table: reorder + cohort identity
+def test_reordered_feature_output_keeps_probabilities_keyed(tmp_path):
+    """Deliberately reorder the feature-constructor output rows: each
+    matchup must keep ITS OWN probability (keyed carry-through), so any
+    positional transfer to another frame would be detected."""
+    from pregame_pa_ext import m0_multiclass as m0
+    pa = _pa_frame()
+    labeled = m0.build_multiclass_labels(pa)
+    long, _ = ad.projected_long(_lineups())
+    cutoffs = labeled["game_date"].unique().to_list() + [GAME_DATE]
+    p_v2, b_v2, lg_v2, _ = fsv.build_v2_states(labeled, cutoffs)
+    feat = ad.attach_prior_features(
+        long.select("game_date", "pitcher", "batter", "game_pk", "side",
+                    "slot"), p_v2, b_v2, lg_v2)
+    labels = _assessment().select("game_pk", "side", "pitcher", "batter",
+                                  "class_label")
+    feat_l = feat.join(labels, on=["game_pk", "side", "pitcher", "batter"],
+                       how="left")
+    model = m0.fit_multinomial(feat_l)  # synthetic fit, >=2 classes
+    probs_canon = m0.apply_multinomial(feat, model)
+    table_canon = feat.with_columns(
+        pl.Series("p_k", probs_canon[:, 0])).select(
+        "game_pk", "side", "pitcher", "slot", "batter", "p_k")
+    # DELIBERATELY REORDERED feature output (reverse), then predict and
+    # key from the reordered frame
+    feat_rev = feat.reverse()
+    probs_rev = m0.apply_multinomial(feat_rev, model)
+    table_rev = feat_rev.with_columns(
+        pl.Series("p_k", probs_rev[:, 0])).select(
+        "game_pk", "side", "pitcher", "slot", "batter", "p_k")
+    # different rows carry different probabilities in this fixture
+    assert table_canon["p_k"].n_unique() > 1
+    joined = table_canon.join(
+        table_rev, on=["game_pk", "side", "pitcher", "slot", "batter"],
+        suffix="_rev")
+    assert joined["p_k"].to_list() == \
+        pytest.approx(joined["p_k_rev"].to_list())
+
+
+def test_scored_cohort_identity_enforced(tmp_path):
+    correct = hashlib.sha256("\n".join(
+        sorted(["%d|%s|%d" % (900001, "Top", P1),
+                "%d|%s|%d" % (900001, "Bot", P2)]))
+        .encode("utf-8")).hexdigest()
+    res, _ = _run(tmp_path, out="out_cohort", cohort_hash=correct)
+    report = json.loads(
+        (Path(res["out_dir"]) / "multiclass_baseline_report.json")
+        .read_text(encoding="utf-8"))
+    assert report["scored_cohort_sha256"] == correct
+    with pytest.raises(ValueError, match="scored cohort identity mismatch"):
+        _run(tmp_path, out="out_cohort_bad", cohort_hash="0" * 64)
