@@ -88,10 +88,12 @@ route, hash reconciliation). STATE: derivation completed; scorecard
 implemented; CLI repair delivered at the canonical checkpoint; prior
 scientific findings retained; architect statically inspected the narrow
 repair (not an independent review; repair authored in the reviewer's
-session - ownership failure acknowledged); integration = scorecard PR
-with base research/baseline-v2-derivation-runner still to be opened;
-NEXT = execution decision. Real scorecard estimation/scoring: NOT yet
-authorized.
+session - ownership failure acknowledged); ownership failure acknowledged); integration = scorecard PR #52 OPEN
+(https://github.com/Cbkaplinger/MLB-Props/pull/52, base
+research/baseline-v2-derivation-runner, head 2c02e46) with CI GREEN
+(test-and-validate + tracking, run 40893412390);
+NEXT = architect integration + execution decision. Real scorecard
+estimation/scoring: NOT yet authorized.
 implements the ONE history-only contrast - Arm S_v2 (accepted derived
 artifact 95ac3638, 2023-2024 training) vs Arm S_v1 (registered
 start_metrics_v2 2024H2 slice) with the registered ladder machinery held
