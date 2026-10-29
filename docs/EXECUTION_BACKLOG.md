@@ -75,20 +75,30 @@ chain intact (initial c2a3afdd... == recorded chain); outputs write-once at
 PR #51 (executor-side recomputation: all hashes, linkage, and field
 reconciliation MATCH; independent Chat 2 signature owed on the record).
 RUN-EXECUTION EVIDENCE = PR #51 comments (run record 6487951982;
-verification 6488030762). **SCORECARD PREPARATION NEXT (packet published,
-PR #51 comment 6488084028):** ONE history-only contrast - Arm S_v2 (derived
-2023-2024 training, 9,714 rows) vs Arm S_v1 (registered 2024H2 training,
-2,334 rows) with the registered ladder machinery held FIXED (same w150
-shrinkage, workload mixture, 24-bucket support), paired count-RPS on the
-identical block_2025H1 eligible cohort (hash f77d7a66..., n=2,509),
-slate-date bootstrap (2000, seed 20261001), Holm m=1; P/S/F ladder
-descriptive only; Arm F = frozen incumbent from the preserved ledger
-(disclosed UNACCEPTED-cold-start status, anchor only); no method change, no
-tuning. Implementation checkpoint (thin scorecard runner, derivation_runner
-receipt conventions, ack gate, synthetic tests through the exact entry
-point) publishes next; scorecard EXECUTION requires its own explicit owner
-authorization. The derivation artifact does NOT validate pre-overlap rows
-externally and establishes no predictive improvement.
+verification 6488030762). **SCORECARD IMPLEMENTED (checkpoint b99a3d6,
+branch research/baseline-history-scorecard-v1, on top of PR #51 head
+8047529; awaiting Chat 2 review):** `history_sensitivity_scorecard.py`
+implements the ONE history-only contrast - Arm S_v2 (accepted derived
+artifact 95ac3638, 2023-2024 training) vs Arm S_v1 (registered
+start_metrics_v2 2024H2 slice) with the registered ladder machinery held
+FIXED (build_arms + build_arms_v2 + paired slate-date bootstrap 2000
+draws seed 20261001 + kc.count_rps + bf-workload-v1 validator, all
+unchanged); identical block_2025H1 eligible cohort enforced by the
+registered sorted-key hash f77d7a66...(n=2,509); own scorecard identity
+baseline_history_sensitivity_scorecard_v1 + contract sha; truthful
+contrast labels (paired_contrast's legacy S_vs_F label disclosed);
+F anchor descriptive only (UNACCEPTED cold-start, never refit/gating);
+runner conventions: ack gate exit 2, write-once, all four input SHA-256s
+verified before decode, full-file decode disclosed, empty/duplicate/
+unequal populations fail loud, receipt chain + failure_record.
+Registered input identities resolved from in-repo records
+(COUNT_REGISTRATION.md, preflight pins): start_metrics_v2 af6814ec...,
+count_agg_eval_v1 afc94ad7..., bf_forecasts c9c2762f..., derived
+95ac3638... 16 synthetic tests green through the exact entry point;
+affected regression 125 passed. Scorecard EXECUTION (real data) still
+requires its own explicit owner authorization - NOT granted. The
+derivation artifact does NOT validate pre-overlap rows externally and
+establishes no predictive improvement.
 
 **Current Chat 2 lane:** owns the consolidated review record for PR #51's
 published checkpoint 60401f6 (builder self-review labeled as such; do not
