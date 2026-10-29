@@ -56,7 +56,7 @@ N_CLASSES = m0.N_CLASSES
 FEATURES = list(m0.FEATURES)
 
 PA_COLUMNS = ["game_date", "game_pk", "pitcher", "batter", "events"]
-ASSESS_COLUMNS = ["game_pk", "side", "pitcher", "slot", "batter",
+ASSESS_COLUMNS = ["game_pk", "side", "pitcher", "at_bat_number", "batter",
                   "class_label"]
 REQ_KEYS = ["game_pk", "side", "pitcher"]
 
@@ -157,6 +157,10 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
         if long.select(*REQ_KEYS, "slot").n_unique() != long.height:
             raise ValueError("duplicate (start, slot) request keys")
         request_cutoffs = long["game_date"].unique().to_list()
+        request_dates = {(int(r["game_pk"]), str(r["side"]),
+                          int(r["pitcher"])): r["game_date"]
+                         for r in long.select(*REQ_KEYS, "game_date")
+                         .unique().iter_rows(named=True)}
 
         # ---- cutoff-correct states (v2) for training AND inference ----
         p_v2, b_v2, lg_v2, state_meta = fv.build_v2_states(
@@ -199,63 +203,136 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
         # ---- fixed-workload count aggregation --------------------------
         _require_columns(bf, REQ_KEYS + [f"pmf37_{j}" for j in range(37)],
                          "BF workload")
-        bf_val, bf_meta = ad.validate_bf37_by_start(
-            bf, long.select(*REQ_KEYS, "game_date").unique()
-            .sort(*REQ_KEYS))
-        bf_lookup = {(int(r["game_pk"]), str(r["side"]),
-                      int(r["pitcher"])): np.asarray(
-            [r[f"pmf37_{j}"] for j in range(37)], dtype=np.float64)
-            for r in bf_val.iter_rows(named=True)}
+        # workload coverage is bucketed per start (missing_bf); the
+        # registered validator then enforces distribution validity on the
+        # COVERED subset only (fail-loud per scored start)
+        bf_starts = set(map(tuple, bf.select(*REQ_KEYS).unique()
+                            .iter_rows()))
 
-        def _start_pmfs(p_k_vec: np.ndarray) -> dict:
-            pmfs = {}
+        def _start_pmfs(p_k_vec: np.ndarray, keys: dict) -> dict:
+            """Build count PMFs only for the requested starts (count-
+            scoring population); a requested start lacking 9 usable
+            slots or BF coverage must have been excluded upstream."""
+            by_start = {}
             for r in long.with_columns(
                     pl.Series("p_k", p_k_vec)).iter_rows(named=True):
                 key = (int(r["game_pk"]), str(r["side"]), int(r["pitcher"]))
-                pmfs.setdefault(key, {})[int(r["slot"])] = r["p_k"]
+                if key not in keys:
+                    continue
+                by_start.setdefault(key, {})[int(r["slot"])] = r["p_k"]
             out = {}
-            for key, slots in pmfs.items():
+            for key in keys:
+                slots = by_start.get(key, {})
                 if len(slots) != 9 or min(slots) != 1 or max(slots) != 9:
                     raise ValueError(
-                        f"start {key} does not carry 9 usable slots "
-                        f"({len(slots)}); count aggregation requires the "
-                        "full key")
+                        f"count-scored start {key} lost slot coverage "
+                        f"({len(slots)}); internal accounting error")
+                if key not in bf_lookup:
+                    raise ValueError(
+                        f"count-scored start {key} lacks workload; "
+                        "internal accounting error")
                 p9 = np.asarray([slots[i] for i in range(1, 10)])
                 out[key] = ad.start_count_pmfs(
                     p9, p9, bf_lookup[key])["pmf_h3_raw"]
             return out
 
-        pmfs_ref0 = _start_pmfs(p_k_ref0)
-        pmfs_ref1 = _start_pmfs(p_k_ref1)
-
         # ---- assessment scoring (outcomes enter ONLY here) -------------
+        # Forecast-slot identity (projected (start, slot, batter)) is kept
+        # separate from ACTUAL PA identity (game_pk, side, pitcher,
+        # at_bat_number, batter). Actual PAs carry repeated encounters and
+        # replacement batters; they are joined to forecasts by the
+        # matchup key (game_pk, side, pitcher, batter) -- one forecast
+        # probability per projected matchup, applied to every actual PA
+        # of that matchup. Realized starter K is derived from ALL actual
+        # completed PAs, independently of projected-lineup coverage.
         _require_columns(assessment, ASSESS_COLUMNS, "assessment outcomes")
-        a_key = long.join(
-            assessment.select(*REQ_KEYS, "slot", "batter", "class_label"),
-            on=REQ_KEYS + ["slot", "batter"], how="inner")
-        if a_key.height != long.height:
-            raise ValueError(
-                f"assessment outcomes cover {a_key.height} of "
-                f"{long.height} request PAs; refusing partial coverage")
-        k_real = (a_key.with_columns(
+        if assessment.height == 0:
+            raise ValueError("empty assessment outcome population: "
+                             "refusing a vacuous baseline")
+        actual = assessment.select(
+            "game_pk", "side", "pitcher", "at_bat_number", "batter",
+            "class_label").with_columns(
             (pl.col("class_label") == K_CLASS).cast(pl.Int64)
-            .alias("is_k")).group_by(*REQ_KEYS).agg(
-            realized_k=pl.col("is_k").sum()))
+            .alias("is_k"))
+        if actual.select("game_pk", "side", "pitcher", "at_bat_number",
+                         "batter").n_unique() != actual.height:
+            raise ValueError("duplicate actual-PA identity rows "
+                             "(game_pk, side, pitcher, at_bat_number, "
+                             "batter)")
+        # realized starter K from ALL valid completed PAs (independent of
+        # projected-lineup coverage: replacement batters count)
+        k_real = actual.group_by(*REQ_KEYS).agg(
+            realized_k=pl.col("is_k").sum(),
+            actual_pas=pl.len())
         realized = {(int(r["game_pk"]), str(r["side"]),
                      int(r["pitcher"])): int(r["realized_k"])
                     for r in k_real.iter_rows(named=True)}
-        y_pa = a_key["class_label"].to_numpy()
+
+        # ---- explicit matchup alignment (never slot-keyed) -------------
+        matchup = ["game_pk", "side", "pitcher", "batter"]
+        fc = long.with_columns(
+            pl.Series("p_k_fc", probs_ref1[:, K_CLASS]),
+            pl.Series("row_ix", np.arange(long.height)))
+        j = actual.join(fc.select("game_pk", "side", "pitcher", "slot",
+                                  "batter", "p_k_fc", "row_ix"),
+                        on=matchup, how="left", validate="m:1")
+        matched = j.filter(pl.col("p_k_fc").is_not_null())
+        n_unmatched_actual = j.height - matched.height
+        fc_keys = set(map(tuple, fc.select(matchup).unique().iter_rows()))
+        actual_keys = set(map(tuple, actual.select(matchup).unique()
+                              .iter_rows()))
+        n_proj_without_actual = len(fc_keys - actual_keys)
+        y_pa = matched["class_label"].to_numpy()
+        ix = matched["row_ix"].to_numpy()
 
         pa_ll_ref0 = float(-np.mean(np.log(np.clip(
-            np.tile(pop, (long.height, 1)), 1e-15, 1.0)[
-                np.arange(long.height), y_pa])))
-        pa_ll_ref1 = float(m0.multiclass_log_loss(y_pa, probs_ref1))
+            np.tile(pop, (long.height, 1))[ix], 1e-15, 1.0)[
+                np.arange(matched.height), y_pa])))
+        pa_ll_ref1 = float(m0.multiclass_log_loss(
+            y_pa, probs_ref1[ix]))
+
+        # ---- count-scoring coverage: explicit buckets, separate from
+        # PA-exclusion accounting (realized K is independent of lineup
+        # coverage: replacement batters count) ---------------------------
+        lin_starts = set(map(tuple, long.select(*REQ_KEYS).unique()
+                             .iter_rows()))
+        bf_starts = set(map(tuple, bf.select(*REQ_KEYS).unique()
+                            .iter_rows()))
+        count_scored, count_excluded = {}, {}
+        for key, k_tot in realized.items():
+            if key not in lin_starts:
+                count_excluded[key] = "no_projected_lineup_request"
+            elif key not in bf_starts:
+                count_excluded[key] = "missing_bf"
+            elif sum(1 for r in long.iter_rows(named=True)
+                     if (int(r["game_pk"]), str(r["side"]),
+                         int(r["pitcher"])) == key) != 9:
+                count_excluded[key] = "slot_coverage_below_9"
+            else:
+                count_scored[key] = k_tot
+        if not count_scored:
+            raise ValueError("empty count-scoring population: refusing a "
+                             "vacuous baseline")
+        covered = pl.DataFrame(
+            [{"game_pk": k[0], "side": k[1], "pitcher": k[2],
+              "game_date": request_dates[k]} for k in count_scored],
+            schema={"game_pk": pl.Int64, "side": pl.Utf8,
+                    "pitcher": pl.Int64, "game_date": pl.Date},
+            orient="row")
+        bf_val, bf_meta = ad.validate_bf37_by_start(
+            bf, covered.sort(*REQ_KEYS))
+        bf_lookup = {(int(r["game_pk"]), str(r["side"]),
+                      int(r["pitcher"])): np.asarray(
+            [r[f"pmf37_{j}"] for j in range(37)], dtype=np.float64)
+            for r in bf_val.iter_rows(named=True)}
+        pmfs_ref0 = _start_pmfs(p_k_ref0, count_scored)
+        pmfs_ref1 = _start_pmfs(p_k_ref1, count_scored)
         count_scores = {}
         for name, pmfs in (("ref0_population", pmfs_ref0),
                            ("ref1_multinomial", pmfs_ref1)):
             count_scores[name] = float(np.mean([
                 kc.count_rps(pmfs[k], realized[k])
-                for k in sorted(realized)]))
+                for k in sorted(count_scored)]))
 
         # ---- K-marginal binary probability scores (separate from the
         # multiclass score: coherence does not prove K quality) ---------
@@ -271,20 +348,18 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
             }
 
         k_scores = {
-            "ref0_population": _binary(np.full(long.height, pop[K_CLASS])),
-            "ref1_multinomial": _binary(probs_ref1[:, K_CLASS]),
+            "ref0_population": _binary(np.full(matched.height,
+                                               pop[K_CLASS])),
+            "ref1_multinomial": _binary(matched["p_k_fc"].to_numpy()),
         }
 
         # ---- paired count-RPS uncertainty (registered slate-date
         # bootstrap on identical scored keys) ----------------------------
-        start_dates = {(int(r["game_pk"]), str(r["side"]),
-                        int(r["pitcher"])): r["game_date"]
-                       for r in long.select(*REQ_KEYS, "game_date")
-                       .unique().iter_rows(named=True)}
+        start_dates = {k: request_dates[k] for k in count_scored}
         rps_ref0 = {k: kc.count_rps(pmfs_ref0[k], realized[k])
-                    for k in realized}
+                    for k in count_scored}
         rps_ref1 = {k: kc.count_rps(pmfs_ref1[k], realized[k])
-                    for k in realized}
+                    for k in count_scored}
         blocks = {k: ad.add_block(pl.DataFrame(
             {"game_date": [d]}))["block"][0] for k, d in start_dates.items()}
         paired_raw = bl.paired_contrast(
@@ -302,16 +377,16 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
 
         # ---- outputs ----------------------------------------------------
         per_start = pl.DataFrame({
-            "game_pk": [k[0] for k in sorted(realized)],
-            "side": [k[1] for k in sorted(realized)],
-            "pitcher": [k[2] for k in sorted(realized)],
-            "realized_k": [realized[k] for k in sorted(realized)],
+            "game_pk": [k[0] for k in sorted(count_scored)],
+            "side": [k[1] for k in sorted(count_scored)],
+            "pitcher": [k[2] for k in sorted(count_scored)],
+            "realized_k": [count_scored[k] for k in sorted(count_scored)],
             "rps_ref0_population": [
-                kc.count_rps(pmfs_ref0[k], realized[k])
-                for k in sorted(realized)],
+                kc.count_rps(pmfs_ref0[k], count_scored[k])
+                for k in sorted(count_scored)],
             "rps_ref1_multinomial": [
-                kc.count_rps(pmfs_ref1[k], realized[k])
-                for k in sorted(realized)],
+                kc.count_rps(pmfs_ref1[k], count_scored[k])
+                for k in sorted(count_scored)],
         })
         per_start_path = out_dir / "multiclass_baseline_per_start_v1.parquet"
         per_start.write_parquet(per_start_path)
@@ -326,7 +401,15 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                 "request_slots": long.height,
                 "lineup_uncovered_slots": n_uncovered,
                 "assessment_pas": assessment.height,
+                "assessment_pas_matched_to_projections": matched.height,
+                "assessment_pas_excluded_no_projected_matchup":
+                    n_unmatched_actual,
+                "projections_without_actual_pa": n_proj_without_actual,
                 "assessment_starts": len(realized),
+                "count_scored_starts": len(count_scored),
+                "count_excluded_starts": {
+                    r: sum(1 for v in count_excluded.values() if v == r)
+                    for r in sorted(set(count_excluded.values()))},
             },
             "model_identity": {"family": "sklearn multinomial logistic "
                                          "(existing m0.fit_multinomial, "

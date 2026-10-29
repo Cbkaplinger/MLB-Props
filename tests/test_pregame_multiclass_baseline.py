@@ -89,16 +89,31 @@ def _lineups():
 
 
 def _assessment(y_k1=None, y_k2=None):
-    """SEPARATE per-PA outcome frame for the target games only."""
+    """SEPARATE per-PA outcome frame, REAL SHAPED: actual PA identity
+    (at_bat_number), a repeated encounter, one projected hitter who never
+    bats, and one replacement batter not in the projection."""
     y1 = y_k1 or [1 if i % 2 == 0 else 0 for i in range(9)]
     y2 = y_k2 or [1 if i % 2 else 0 for i in range(9)]
-    rows = [(900001, "Top", P1, i + 1, B1[i], 0 if y1[i] else 2)
-            for i in range(9)]
-    rows += [(900001, "Bot", P2, i + 1, B2[i], 0 if y2[i] else 3)
-             for i in range(9)]
+    rows = []
+    ab = 0
+    for i, b in enumerate(B1):
+        if b == 800005:
+            continue  # projection without actual PA
+        ab += 1
+        cls = 0 if y1[i] else 2
+        rows.append((900001, "Top", P1, ab, b, cls))
+        if b == 800001:  # repeated encounter: second PA, same matchup
+            ab += 1
+            rows.append((900001, "Top", P1, ab, b, cls))
+    ab += 1
+    rows.append((900001, "Top", P1, ab, 800999, 0))  # replacement batter: K
+    for i, b in enumerate(B2):
+        ab += 1
+        rows.append((900001, "Bot", P2, ab, b, 0 if y2[i] else 3))
     return pl.DataFrame(rows, schema={
         "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
-        "slot": pl.Int64, "batter": pl.Int64, "class_label": pl.Int64},
+        "at_bat_number": pl.Int64, "batter": pl.Int64,
+        "class_label": pl.Int64},
         orient="row")
 
 
@@ -274,10 +289,8 @@ def test_empty_training_population_refused(tmp_path):
                  pl.lit(date(2025, 1, 1)).alias("game_date")))
 
 
-def test_missing_workload_coverage_refused(tmp_path):
-    bf = _bf().head(1)  # covers only ONE of the two starts
-    with pytest.raises(Exception, match="BF_PMF_COVERAGE_MISSING"):
-        _run(tmp_path, out="out_bf", bf=bf)
+# (missing workload coverage is COUNTED per start, not refused:
+#  see test_missing_workload_start_is_counted_not_refused)
 
 
 def test_subprocess_invocation_produces_evidence(tmp_path):
@@ -314,3 +327,74 @@ def test_invalid_ack_no_side_effects(tmp_path):
             tmp_path / "out_ack", train_start="2024-06-01",
             train_end="2024-07-31", execution_ack="WRONG")
     assert not (tmp_path / "out_ack").exists()
+
+
+# ------------------------- real-shaped accounting + permutation proof
+def test_real_shaped_assessment_accounting(tmp_path):
+    """Repeated encounters preserved (matched PAs = 18 projections + 1
+    repeat, minus the never-batted projection); the replacement batter is
+    excluded from PA scoring but COUNTED in realized starter K; the
+    never-batted projection's would-be K is absent."""
+    res, _ = _run(tmp_path, out="out_real")
+    c = res["counts"]
+    assert c["assessment_pas"] == 19
+    assert c["assessment_pas_matched_to_projections"] == 18
+    assert c["assessment_pas_excluded_no_projected_matchup"] == 1
+    assert c["projections_without_actual_pa"] == 1
+    assert c["count_scored_starts"] == 2
+    ps = pl.read_parquet(Path(res["out_dir"])
+                         / "multiclass_baseline_per_start_v1.parquet")
+    top = ps.filter((pl.col("side") == "Top")).row(0, named=True)
+    bot = ps.filter((pl.col("side") == "Bot")).row(0, named=True)
+    # Top realized K: 800001 x2 (both K), 800003, 800007, 800009 and the
+    # replacement 800999 (K) = 6; the never-batted 800005's would-be K is
+    # NOT counted (realized K comes from actual PAs only)
+    assert top["realized_k"] == 6
+    assert bot["realized_k"] == 4
+
+
+def test_row_permutation_preserves_alignment(tmp_path):
+    """Prediction/outcome alignment is key-based: permuting the actual-PA
+    rows cannot change any score, count, or paired interval."""
+    res_a, _ = _run(tmp_path, out="out_ord")
+    shuffled = _assessment().sample(fraction=1.0, shuffle=True, seed=7)
+    res_b, _ = _run(tmp_path, out="out_shuf", assessment=shuffled)
+    r1 = json.loads((Path(res_a["out_dir"])
+                     / "multiclass_baseline_report.json").read_text())
+    r2 = json.loads((Path(res_b["out_dir"])
+                     / "multiclass_baseline_report.json").read_text())
+    assert r1["counts"] == r2["counts"]
+    # float associativity: permuting rows reorders the mean's summation,
+    # so scores may differ in the last ulp - assert to 1e-12
+    for key in ("pa_multiclass_log_loss",):
+        assert r1["results"][key]["ref0_population"] == \
+            pytest.approx(r2["results"][key]["ref0_population"], abs=1e-12)
+        assert r1["results"][key]["ref1_multinomial"] == \
+            pytest.approx(r2["results"][key]["ref1_multinomial"], abs=1e-12)
+    for ref in ("ref0_population", "ref1_multinomial"):
+        a = r1["results"]["k_marginal_binary"][ref]
+        b = r2["results"]["k_marginal_binary"][ref]
+        assert a["log_loss"] == pytest.approx(b["log_loss"], abs=1e-12)
+        assert a["brier"] == pytest.approx(b["brier"], abs=1e-12)
+        assert r1["results"]["mean_count_rps"][ref] == \
+            pytest.approx(r2["results"]["mean_count_rps"][ref], abs=1e-12)
+    assert r1["results"]["paired_count_rps_delta"][
+        "delta_a_minus_b"] == pytest.approx(
+        r2["results"]["paired_count_rps_delta"]["delta_a_minus_b"],
+        abs=1e-12)
+    ps1 = pl.read_parquet(Path(res_a["out_dir"])
+                          / "multiclass_baseline_per_start_v1.parquet")
+    ps2 = pl.read_parquet(Path(res_b["out_dir"])
+                          / "multiclass_baseline_per_start_v1.parquet")
+    assert ps1.sort("game_pk", "side").rows() == \
+        ps2.sort("game_pk", "side").rows()
+
+
+def test_missing_workload_start_is_counted_not_refused(tmp_path):
+    """Count-scoring coverage exclusions are reported per start; PA
+    exclusions are reported separately."""
+    res, _ = _run(tmp_path, out="out_cov", bf=_bf().head(1))
+    c = res["counts"]
+    assert c["count_scored_starts"] == 1
+    assert c["count_excluded_starts"] == {"missing_bf": 1}
+    assert c["assessment_pas_matched_to_projections"] == 18
