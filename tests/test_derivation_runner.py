@@ -279,6 +279,93 @@ def test_runner_excludes_out_of_window_rows_both_sides(tmp_path):
                     ).height == 0
 
 
+# ------------------------------------------- empty/disjoint overlap
+def test_runner_both_overlap_slices_empty_insufficient(tmp_path):
+    """No 2024H2 rows on EITHER side: the raw validate report would be
+    vacuously IDENTICAL (no mismatches possible), so the runner must
+    record INSUFFICIENT_OVERLAP, keep validated false, write evidence,
+    and exit nonzero (CLI 3)."""
+    pa = _pa_frame().filter(pl.col("game_pk") != 920003)
+    reg = _registered_frame().filter(
+        pl.col("game_date") > pl.date(2024, 12, 31))
+    res = _run(tmp_path, pa=pa, reg=reg, out_name="out_empty_both")
+    assert res["overlap_sufficiency"]["sufficient"] is False
+    assert res["overlap_report"]["n_key_intersection"] == 0
+    assert res["verdict"] == "INSUFFICIENT_OVERLAP"
+    assert res["validated"] is False
+    out = tmp_path / "out_empty_both"
+    final = json.loads((out / "receipt_final.json").read_text(
+        encoding="utf-8"))
+    assert final["overlap_verdict"] == "INSUFFICIENT_OVERLAP"
+    assert final["validated"] is False
+    ovl = json.loads((out / "overlap_report.json").read_text(
+        encoding="utf-8"))
+    assert ovl["overlap_sufficiency"]["sufficient"] is False
+    # the raw validate report is preserved verbatim (vacuous IDENTICAL)
+    assert ovl["overlap_report"]["verdict"] == "IDENTICAL"
+    # CLI surfaces insufficiency as nonzero, never success
+    pa_path, reg_path, pa_h, reg_h = _write_inputs(
+        tmp_path, pa=pa, reg=reg)
+    assert dr.main(["--pa-source", pa_path,
+                    "--registered-starts", reg_path,
+                    "--expected-pa-sha256", pa_h,
+                    "--expected-registered-sha256", reg_h,
+                    "--out-dir", str(tmp_path / "out_empty_both_cli"),
+                    "--execution-ack", ACK]) == 3
+
+
+def test_runner_one_overlap_side_empty_insufficient(tmp_path):
+    """One side empty (registered carries no 2024H2 rows) can never
+    validate: the derived population has nothing to compare against."""
+    reg = _registered_frame().filter(
+        pl.col("game_date") > pl.date(2024, 12, 31))
+    res = _run(tmp_path, reg=reg, out_name="out_empty_reg")
+    assert res["overlap_sufficiency"]["registered_nonempty"] is False
+    assert res["overlap_sufficiency"]["derived_nonempty"] is True
+    assert res["verdict"] == "INSUFFICIENT_OVERLAP"
+    assert res["validated"] is False
+
+
+def test_runner_disjoint_overlap_keys_insufficient(tmp_path):
+    """Both slices nonempty but the key sets share nothing: recorded as
+    INSUFFICIENT_OVERLAP with the raw report (only-in-registered keys)
+    preserved verbatim for explanation."""
+    reg = pl.DataFrame(
+        [(929999, "Top", P3, date(2024, 9, 1), 4, 2)],
+        schema=REG_SCHEMA, orient="row")
+    res = _run(tmp_path, reg=reg, out_name="out_disjoint")
+    assert res["overlap_sufficiency"]["derived_nonempty"] is True
+    assert res["overlap_sufficiency"]["registered_nonempty"] is True
+    assert res["overlap_sufficiency"]["n_key_intersection"] == 0
+    assert res["overlap_sufficiency"]["sufficient"] is False
+    assert res["verdict"] == "INSUFFICIENT_OVERLAP"
+    assert res["validated"] is False
+    # the raw report explains the disjointness (never patched)
+    assert res["overlap_report"]["keys_only_in_registered"] == 1
+    assert res["overlap_report"]["keys_only_in_derived"] == 2
+
+
+def test_runner_undateable_rows_refused_not_dropped(tmp_path):
+    """A row with null game_date cannot be assigned to any authorized
+    window: explicit refusal with exact count, never a silent drop."""
+    bad = _pa_frame().with_columns(
+        pl.when((pl.col("game_pk") == 920003)
+                & (pl.col("pitcher") == P3)
+                & (pl.col("at_bat_number") == 1))
+        .then(None).otherwise(pl.col("game_date"))
+        .alias("game_date"))
+    pa_path, reg_path, pa_h, reg_h = _write_inputs(tmp_path, pa=bad)
+    with pytest.raises(so.DerivationError, match="undateable"):
+        dr.run_derivation_overlap(
+            pa_path, reg_path, tmp_path / "out_undateable",
+            expected_pa_sha256=pa_h,
+            expected_registered_sha256=reg_h, execution_ack=ACK)
+    failure = json.loads(
+        (tmp_path / "out_undateable" / "failure_record.json")
+        .read_text(encoding="utf-8"))
+    assert "undateable" in failure["error"]
+
+
 # ------------------------------------------------- 8. guards unchanged
 def test_runner_preserves_derivation_guards(tmp_path):
     """A role anomaly inside the window fails loud through the exact

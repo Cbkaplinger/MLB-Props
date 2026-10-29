@@ -25,23 +25,39 @@ Sequence (run_derivation_overlap, and the CLI main() wrapper):
        always references it.
     3. Verify actual input file SHA-256 identities against the
        caller-declared expected values; refuse on mismatch.
-    4. PA source: read, verify schema (required fields present),
-       select ONLY the required columns, keep ONLY the declared
-       2023-01-01..2024-12-31 training window (out-of-window rows are
-       counted and excluded, never scored, never carried forward).
-    5. Registered artifact: read, verify schema, select keys +
-       outcomes + game_date, keep ONLY the 2024-07-01..2024-12-31
-       (block_2024H2) overlap window on BOTH sides.
+    4. PA source: READ IN FULL (this runner reads the whole input
+       file; it does NOT claim restricted reading). Loading boundary:
+       column-PRESENCE schema checks run on the full frame (field
+       existence is a property of the source, not of rows); rows with
+       null game_date are UNDATEABLE and refuse the run explicitly
+       (counted, never silently dropped); the declared 2023-01-01..
+       2024-12-31 window is then selected and out-of-window rows are
+       COUNTED AND EXCLUDED before any outcome field is validated or
+       derived. Outcome/identity field null and domain validation
+       happens ONLY on the in-window slice (via the registered
+       derivation guards); out-of-window rows are never outcome-
+       validated, never scored, never carried forward.
+    5. Registered artifact: READ IN FULL, same boundary: column-
+       presence schema check on the full frame, undateable game_date
+       rows refuse the run, then ONLY the 2024-07-01..2024-12-31
+       (block_2024H2) rows are field-validated and selected for the
+       overlap join.
     6. derive_start_outcomes on the selected frame (all registered
        guards preserved; no opener rule invented).
     7. validate_against_registered on the two 2024H2 slices.
-    8. Outputs: derived_start_outcomes_v1.parquet (full derived
+    8. OVERLAP-SUFFICIENCY GUARD: both selected overlap populations
+       AND their key intersection must be nonempty. An empty or
+       disjoint overlap is recorded with verdict INSUFFICIENT_OVERLAP
+       (distinct from the raw validate report, which is preserved
+       verbatim), validated stays false, and the CLI exits nonzero.
+       The registered validation function itself is unchanged.
+    9. Outputs: derived_start_outcomes_v1.parquet (full derived
        2023-2024 window), overlap_report.json, receipt_final.json.
-    9. A DISCREPANCIES_REQUIRE_EXPLANATION verdict is recorded and
-       returned verbatim and the CLI exits 3: a discrepancy is NEVER
-       presented as validated success ("validated" is true only for
-       the IDENTICAL verdict).
-   10. Any exception after receipt_initial writes failure_record.json
+   10. A DISCREPANCIES_REQUIRE_EXPLANATION or INSUFFICIENT_OVERLAP
+       verdict is recorded and returned verbatim and the CLI exits 3:
+       neither is EVER presented as validated success ("validated" is
+       true only for the IDENTICAL verdict with sufficient overlap).
+   11. Any exception after receipt_initial writes failure_record.json
        (stage, error, initial-receipt sha) and re-raises: failure
        evidence is preserved, nothing is silently retried or patched.
 
@@ -110,20 +126,43 @@ def _date_filter(frame: "pl.DataFrame", lo: str, hi: str
         & (pl.col("game_date") <= pl.date(*map(int, hi.split("-")))))
 
 
-def _require_columns(frame: "pl.DataFrame", required: list,
-                     source_name: str) -> None:
+def _require_schema(frame: "pl.DataFrame", required: list,
+                    source_name: str) -> None:
+    """Column-presence check only (schema-level, applies to the whole
+    source; this is NOT row-level validation and is not described as
+    restricted reading)."""
     missing = [c for c in required if c not in frame.columns]
     if missing:
         raise so.DerivationError(
             f"{source_name}: missing field(s) {missing} (field/schema "
             "gap); expected columns: {required}".replace("{required}",
                                                          str(required)))
+
+
+def _require_fields(frame: "pl.DataFrame", required: list,
+                    source_name: str) -> None:
+    """Row-level null validation, applied ONLY to the already-selected
+    permitted window (never to the full frame)."""
     for c in required:
         n = frame[c].null_count()
         if n:
             raise so.DerivationError(
                 f"{source_name}: null values in required field "
-                f"'{c}': {n} rows")
+                f"'{c}': {n} rows (within the selected window)")
+
+
+def _require_undateable_accounted(frame: "pl.DataFrame",
+                                  source_name: str) -> int:
+    """Rows with null game_date cannot be assigned to ANY authorized
+    window: they are an explicit refusal (with exact count), never a
+    silent disappearance."""
+    n = frame["game_date"].null_count()
+    if n:
+        raise so.DerivationError(
+            f"{source_name}: {n} rows carry null game_date (undateable "
+            "rows cannot be assigned to an authorized window); "
+            "refusing instead of silently excluding or imputing")
+    return n
 
 
 def run_derivation_overlap(pa_path, registered_path, out_dir, *,
@@ -211,21 +250,29 @@ def run_derivation_overlap(pa_path, registered_path, out_dir, *,
                 f"actual={actual['registered_starts_sha256']} "
                 f"expected={expected_registered_sha256}")
 
-        # ---- PA source: schema, column selection, window narrowing --
+        # ---- PA source: read in full; schema check is column-presence
+        # only (not row validation); undateable rows refuse the run;
+        # field/domain validation is confined to the selected window --
         pa_full = pl.read_parquet(pa_path)
-        _require_columns(pa_full, PA_COLUMNS, "PA source")
+        _require_schema(pa_full, PA_COLUMNS, "PA source")
         n_source_rows = pa_full.height
+        _require_undateable_accounted(pa_full, "PA source")
         pa_sel = pa_full.select(PA_COLUMNS)
         pa_train = _date_filter(pa_sel, TRAIN_START, TRAIN_END)
         n_pa_rows_excluded_out_of_window = n_source_rows - pa_train.height
 
-        # ---- registered artifact: schema, selection, overlap window -
+        # ---- registered artifact: same loading boundary; row-level
+        # field validation runs ONLY on the permitted overlap window --
         reg_full = pl.read_parquet(registered_path)
-        _require_columns(reg_full, REGISTERED_COLUMNS,
-                         "registered start artifact")
+        _require_schema(reg_full, REGISTERED_COLUMNS,
+                        "registered start artifact")
+        n_registered_rows_total = reg_full.height
+        _require_undateable_accounted(reg_full,
+                                      "registered start artifact")
         reg_all = reg_full.select(REGISTERED_COLUMNS)
-        n_registered_rows_total = reg_all.height
         reg_h2 = _date_filter(reg_all, OVERLAP_START, OVERLAP_END)
+        _require_fields(reg_h2, REGISTERED_COLUMNS,
+                        "registered start artifact (overlap window)")
         n_registered_excluded_out_of_window = (
             n_registered_rows_total - reg_h2.height)
 
@@ -236,6 +283,31 @@ def run_derivation_overlap(pa_path, registered_path, out_dir, *,
         # ---- explicit 2024H2 overlap selection on BOTH sides --------
         derived_h2 = _date_filter(derived, OVERLAP_START, OVERLAP_END)
         report = so.validate_against_registered(derived_h2, reg_h2)
+
+        # ---- overlap-sufficiency guard (registered function
+        # unchanged): both populations AND their key intersection must
+        # be nonempty; an empty/disjoint overlap can produce a
+        # vacuous IDENTICAL raw verdict (empty vs empty has no
+        # mismatches), so the runner records the distinct
+        # INSUFFICIENT_OVERLAP verdict and never treats it as
+        # validated success ------------------------------------------
+        overlap_sufficiency = {
+            "derived_nonempty": derived_h2.height > 0,
+            "registered_nonempty": reg_h2.height > 0,
+            "n_key_intersection": report["n_key_intersection"],
+            "sufficient": bool(derived_h2.height > 0
+                               and reg_h2.height > 0
+                               and report["n_key_intersection"] > 0),
+            "note": ("both overlap slices and their key intersection "
+                     "must be nonempty for validated=true; the raw "
+                     "validate report is preserved verbatim alongside "
+                     "the sufficiency accounting"),
+        }
+        if overlap_sufficiency["sufficient"]:
+            verdict = report["verdict"]
+        else:
+            verdict = "INSUFFICIENT_OVERLAP"
+        validated = verdict == "IDENTICAL"
 
         # ---- write outputs (write-once) -----------------------------
         derived_path = out_dir / "derived_start_outcomes_v1.parquet"
@@ -257,6 +329,9 @@ def run_derivation_overlap(pa_path, registered_path, out_dir, *,
             },
             "derivation_meta": derived_res["meta"],
             "overlap_report": report,
+            "overlap_sufficiency": overlap_sufficiency,
+            "overlap_verdict": verdict,
+            "validated": validated,
         }
         overlap_path = out_dir / "overlap_report.json"
         overlap_path.write_text(json.dumps(overlap_payload, indent=1,
@@ -269,13 +344,14 @@ def run_derivation_overlap(pa_path, registered_path, out_dir, *,
             "overlap_report.json": ad.sha256_file(overlap_path),
         }
 
-        # ---- verdict: discrepancy is NEVER validated success --------
-        validated = report["verdict"] == "IDENTICAL"
+        # ---- verdict: discrepancy/insufficiency is NEVER validated
+        # success ----------------------------------------------
         final = dict(initial)
         final["actual_input_identities"] = actual
         final["counts"] = overlap_payload["counts"]
         final["outputs"] = outputs
-        final["overlap_verdict"] = report["verdict"]
+        final["overlap_verdict"] = verdict
+        final["overlap_sufficiency"] = overlap_sufficiency
         final["validated"] = validated
         final["acceptance"] = {"receipt_chain": initial_sha}
         final_path = out_dir / "receipt_final.json"
@@ -294,9 +370,10 @@ def run_derivation_overlap(pa_path, registered_path, out_dir, *,
         raise
 
     return {"out_dir": str(out_dir),
-            "verdict": report["verdict"],
+            "verdict": verdict,
             "validated": validated,
             "overlap_report": report,
+            "overlap_sufficiency": overlap_sufficiency,
             "counts": overlap_payload["counts"],
             "outputs": outputs,
             "receipt_initial_sha256": initial_sha}
@@ -349,6 +426,8 @@ def main(argv=None) -> int:
                       "out_dir": result["out_dir"],
                       "outputs": result["outputs"]},
                      indent=1, sort_keys=True))
+    # exit 3 covers BOTH discrepancy and insufficient-overlap verdicts:
+    # neither is ever presented as validated success
     return 0 if result["validated"] else 3
 
 
