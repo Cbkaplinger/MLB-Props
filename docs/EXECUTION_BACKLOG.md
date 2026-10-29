@@ -300,7 +300,7 @@ Next (2026-10-27): lineup prediction-path reconciliation -
 specification published at
 [`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
 (measurement-reconciliation candidate; **Stage A only active** -
-prediction-path equivalence, no outcomes read; Stage B deferred and NOT
+prediction-path equivalence (Stage A READS historical y as the one permitted strictly-prior input; target-outcome scoring NOT performed); Stage B deferred and NOT
 authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
 authorization; NOT executed). Calibration execution remains gated
 behind PR #48 merge + owner authorization; frozen at `1321e4b`.
@@ -309,7 +309,7 @@ Next (2026-10-27): lineup prediction-path reconciliation -
 specification published at
 [`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
 (measurement-reconciliation candidate; **Stage A only active** -
-prediction-path equivalence, no outcomes read; Stage B deferred and NOT
+prediction-path equivalence (Stage A READS historical y as the one permitted strictly-prior input; target-outcome scoring NOT performed); Stage B deferred and NOT
 authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
 authorization; NOT executed). Calibration execution remains gated
 behind PR #48 merge + owner authorization; frozen at `1321e4b`.
