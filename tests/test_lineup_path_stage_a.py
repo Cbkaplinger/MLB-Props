@@ -611,3 +611,23 @@ def test_stage_a_cli_prohibited_label_refuses(tmp_path, monkeypatch,
     assert rc == 2
     assert "PROHIBITED_REALIZED_LABELS" in capsys.readouterr().err
     assert not (tmp_path / "cli_out").exists()
+
+
+
+# --------------------------------- empty comparison population refused
+def test_stage_a_empty_comparison_population_refused(tmp_path):
+    """A workload artifact covering ZERO dev starts must refuse with the
+    explicit empty_comparison_population gate - never a vacuous
+    prediction_path_equivalent PASS (the pre-repair behavior refused
+    only via an incidental TypeError in the I2 aggregation)."""
+    bf_none = _bf().clear()
+    with pytest.raises(sa.StageAFailure, match="empty_comparison_population"):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), _pa_history(),
+                       bf_none, _models(), tmp_path / "empty_pop")
+    out = tmp_path / "empty_pop"
+    failure = json.loads((out / "failure_record.json").read_text())
+    assert failure["gate"] == "empty_comparison_population"
+    assert failure["detail"]["n_dev_starts"] > 0
+    assert failure["detail"]["n_compared"] == 0
+    assert not (out / "receipt_final.json").exists()
+    assert not (out / "i1_feature_comparison.parquet").exists()
