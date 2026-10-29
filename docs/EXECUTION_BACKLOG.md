@@ -105,6 +105,27 @@ select anything). Receipt chain intact (initial aa770407...); output
 hashes recorded; Chat 2 result verification NEXT; interpretation and
 capability registration after verification. Real scorecard
 estimation/scoring for THIS run: consumed per its scope.
+
+**MULTICLASS E2E BASELINE SLICE (checkpoint 9bdd3b4, pushed):**
+architect decisions ADOPTED and implemented - (1) forecast-cutoff state
+contract v2 (states-v2-forecast-cutoff-v1, forecast_states_v2.py): prior
+state at request cutoff t = aggregate over ALL rows strictly before t;
+legacy as-of-activity construction preserved unchanged; the published
+row-presence defect (6b64d0d) is thereby corrected for the new path as
+an ORDINARY passing test (legacy Stage A xfail retained, documents the
+v1 convention); (2) projected lineups only (oracle manifest mode never
+accepted). Synthetic end-to-end multiclass baseline runner
+(pregame_multiclass_baseline.py): m0 4-class taxonomy -> Ref 0
+training-only population proportions + Ref 1 regularized multinomial
+(fit_multinomial/apply_multinomial) through IDENTICAL cutoff-correct
+attach_prior_features construction -> K marginal (class 0) ->
+start_count_pmfs fixed-workload aggregation -> count-RPS + multiclass
+log loss vs SEPARATE assessment outcomes -> receipts/ack/write-once.
+9 synthetic tests green incl. real subprocess; affected suites 104
+passed + 1 xfailed. NEXT: Chat 2 review of the slice; real-data
+fitting/scoring of the multiclass baseline remains UNAUTHORIZED (its
+own packet/decision). Stage A real run still unexecuted (packet ready,
+identities staged).
 implements the ONE history-only contrast - Arm S_v2 (accepted derived
 artifact 95ac3638, 2023-2024 training) vs Arm S_v1 (registered
 start_metrics_v2 2024H2 slice) with the registered ladder machinery held
