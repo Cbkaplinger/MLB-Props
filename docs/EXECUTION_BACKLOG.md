@@ -75,14 +75,23 @@ chain intact (initial c2a3afdd... == recorded chain); outputs write-once at
 PR #51 (executor-side recomputation: all hashes, linkage, and field
 reconciliation MATCH; independent Chat 2 signature owed on the record).
 RUN-EXECUTION EVIDENCE = PR #51 comments (run record 6487951982;
-verification 6488030762). **SCORECARD IMPLEMENTED + CLI REPAIRED (superseding checkpoint = the
-commit carrying this line; supersedes b99a3d6 as review target;** the
-reviewer's consolidated review cleared the scientific construction and
-found one blocker: the missing `__main__` guard meant the documented
-launch command exited 0 without calling main(); repair = the standard
-two-line guard + two real-subprocess tests proving exit 2 refusal with
-nonexistent inputs (zero side effects) and exit 0 with full evidence
-(report, per-start parquet, receipts, cli route, hash reconciliation).
+verification 6488030762). **SCORECARD IMPLEMENTED + CLI REPAIRED (canonical delivery checkpoint
+c19a01ad0e85cb8e5f102e5f4d0267bb1f20303c, published on GitHub; builder's
+local cadba8c confirmed content-identical on runner+tests and retired
+from the branch;** the reviewer's consolidated review cleared the
+scientific construction and found one blocker: the missing `__main__`
+guard meant the documented launch command exited 0 without calling
+main(); repair = the standard two-line guard + two real-subprocess tests
+proving exit 2 refusal with nonexistent inputs (zero side effects) and
+exit 0 with full evidence (report, per-start parquet, receipts, cli
+route, hash reconciliation). STATE: derivation completed; scorecard
+implemented; CLI repair delivered at the canonical checkpoint; prior
+scientific findings retained; architect statically inspected the narrow
+repair (not an independent review; repair authored in the reviewer's
+session - ownership failure acknowledged); integration = scorecard PR
+with base research/baseline-v2-derivation-runner still to be opened;
+NEXT = execution decision. Real scorecard estimation/scoring: NOT yet
+authorized.
 implements the ONE history-only contrast - Arm S_v2 (accepted derived
 artifact 95ac3638, 2023-2024 training) vs Arm S_v1 (registered
 start_metrics_v2 2024H2 slice) with the registered ladder machinery held
