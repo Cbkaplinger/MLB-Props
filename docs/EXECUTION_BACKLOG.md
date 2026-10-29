@@ -57,26 +57,38 @@ reported zero open PRs post-#50. Builder verification: 132/132 targeted
 tests on the actual merged tree (checkout `integration-verify-50`).
 
 **Current Chat 1 lane (PR #51, `research/baseline-v2-derivation-runner`,
-head `60401f6`):** the historical derivation/overlap execution entry point
+head `6a15219`):** the historical derivation/overlap execution entry point
 (`derivation_runner.py`) around the UNCHANGED registered functions
 `derive_start_outcomes` + `validate_against_registered`. Published chain
-e269019 -> 60401f6: 13 synthetic tests (overlap-sufficiency guard with
-INSUFFICIENT_OVERLAP verdict; undateable-row refusal; windowed field
-validation; full-file-decode loading boundary stated plainly), 145 targeted
-regression green at 60401f6, both CI checks SUCCESS, MERGEABLE. Real-artifact
-schema prerequisites RESOLVED via metadata-only inspection (pa_table: 7/7
-required columns, y Int8 handled by registered sum/cast; start_metrics_v2:
-side/game_date/realized_bf/realized_k present with exact types). Runner
-byte-identity reconciled: git blob 2bf8e06a (committed, LF) == working-tree
-LF sha 29d8d6f6 == fresh-checkout CRLF f06b9d89 (verified exact
-re-materialization; newline materialization only, same content). REMAINING
-OWNER GATES before any real run: (1) access decision on full-file decoding
-(protected outcome columns are decoded into memory by the loader; their
-out-of-window values are not used in derivation/comparison/scoring/fitting/
-tuning; out-of-window rows affect exclusion accounting; undateable rows
-refuse the run) - a code PASS does not grant this; (2) output-destination
-approval (`MLB-Props-Research\baseline-v2\derivation_overlap_v1\` proposed);
-(3) explicit execution authorization. Complete executable packet on PR #51.
+e269019 -> 60401f6 (13 synthetic tests, 145 targeted regression, CI green,
+reviewer trail accepted) + 6a15219 (docs-only backlog reconciliation; runner
+blob unchanged 2bf8e06a). **REAL DERIVATION/OVERLAP RUN EXECUTED ONCE
+2026-10-28 (owner-authorized; full-file decode permitted; destination
+approved):** pa_table (731,347 rows, hash-verified preflight) ->
+**9,714 derived starts** (2023-03-30..2024-09-30; 7,380 pre-overlap
+2023-2024H1 starts newly materialized for reference estimation); 2024H2
+overlap 2,334 vs 2,334, intersection 2,334, **0 BF/K mismatches, 0
+keys-only-either-side, verdict IDENTICAL, validated TRUE, exit 0**; receipt
+chain intact (initial c2a3afdd... == recorded chain); outputs write-once at
+`MLB-Props-Research\baseline-v2\derivation_overlap_v1\` (derived parquet
+95ac3638..., overlap_report 21e74cef...). Verification evidence published on
+PR #51 (executor-side recomputation: all hashes, linkage, and field
+reconciliation MATCH; independent Chat 2 signature owed on the record).
+RUN-EXECUTION EVIDENCE = PR #51 comments (run record 6487951982;
+verification 6488030762). **SCORECARD PREPARATION NEXT (packet published,
+PR #51 comment 6488084028):** ONE history-only contrast - Arm S_v2 (derived
+2023-2024 training, 9,714 rows) vs Arm S_v1 (registered 2024H2 training,
+2,334 rows) with the registered ladder machinery held FIXED (same w150
+shrinkage, workload mixture, 24-bucket support), paired count-RPS on the
+identical block_2025H1 eligible cohort (hash f77d7a66..., n=2,509),
+slate-date bootstrap (2000, seed 20261001), Holm m=1; P/S/F ladder
+descriptive only; Arm F = frozen incumbent from the preserved ledger
+(disclosed UNACCEPTED-cold-start status, anchor only); no method change, no
+tuning. Implementation checkpoint (thin scorecard runner, derivation_runner
+receipt conventions, ack gate, synthetic tests through the exact entry
+point) publishes next; scorecard EXECUTION requires its own explicit owner
+authorization. The derivation artifact does NOT validate pre-overlap rows
+externally and establishes no predictive improvement.
 
 **Current Chat 2 lane:** owns the consolidated review record for PR #51's
 published checkpoint 60401f6 (builder self-review labeled as such; do not
