@@ -81,6 +81,30 @@ confirmation; no scientific code or result records. A stray uncommitted
 backlog edit in the detached main checkout was preserved (diff archived) and
 its content recreated in this entry; the main checkout was restored.
 
+**PAEXT LANE BRIEFING CAPTURED 2026-10-29 (docs-only; NO new claims, NO
+execution, NO experiment/policy authorization):** two coworker briefings
+consolidated into
+`research/offseason_2026/pregame_pa_ext/briefing_pa_model_and_architecture_2026-10-29.md`
+(code inspected at `0cd8175c`). Part A = baseline mechanics explainer: three
+inputs (PA table / reconstructed lineups / BF PMF), the 8-feature w150
+shrinkage + 90d-EW construction, fixed-config softmax multinomial logistic,
+empirical BF workload, and the registered aggregation = **binomial
+conditionals at averaged cycled-slot probabilities mixed over workload --
+explicitly NOT a heterogeneous Poisson-binomial**, correcting earlier
+explanations (including the briefer's own) that blurred that distinction;
+plus TTO/lineup-order notes, proposed feature-family queue, leakage rules,
+and the 3-target scorecard (PA K prob / BF distribution / total K). Part B =
+architecture direction: STAY PA-level, no pitch-by-pitch simulator
+(three-architecture table; PA-level joint simulator as possible later
+challenger); prop pricing via joint PGF with taxonomy caveats (walk class
+includes HBP/interference; in-play-out includes errors/FC); RotoGrinders
+capture path feasible but needs preseason validation + lineup-accuracy
+metrics. The file carries status notes reconciling it with existing evidence
+(Question A exact-aggregator result = dev-only diagnostic, baseline retained;
+lgbm-equal-info v2 closeout: nonlinear challengers RETIRED); the
+debut-pitcher/cold-start owner decisions remain OPEN per
+`docs/reference/reports/backlog_archive_2026-10-21.md`.
+
 
 ## Execution Order
 
@@ -150,6 +174,8 @@ its content recreated in this entry; the main checkout was restored.
 
 **Waiting on user (blocks these):**
 
+- [ ] Scope + approve the repo-* cleanup-skills program (owner request 2026-10-29; see Parking Lot entry) - no deletions without evidence artifact + owner gate + validation + rollback.
+- [ ] Disposition ~30 untracked local files (tests, reports, market_research scripts, `research/offseason_2026/experiments/forward_2025.parquet` + `run_2025_selection.py` + `selection_2025_report.json`) - uncommitted work at risk; commit, archive, or explicitly discard per file.
 - [ ] Confirm 2.5/3.5 over style — **data rec 2026-09-11: freeze current probation** (from the archived CLV + Hosting Plan; carried forward at split)
 - [ ] **Dashboard v1** — parked until backend #113 is green; say go to unpark (from the archived CLV + Hosting Plan; carried forward at split)
 - [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
@@ -182,6 +208,7 @@ its content recreated in this entry; the main checkout was restored.
 
 
 ## Parking Lot (new ideas noticed mid-task — do not act on these until the list above is clear)
+- **Full cleanup-skills program (owner request 2026-10-29) - PENDING SCOPING:** owner asked for every `repo-*` cleanup skill run at window close. Umbrella: `.cursor/skills/repo-garbage-collector/SKILL.md` (routes to docs-canonicalizer / dead-code-auditor / artifact-lifecycle-auditor / ci-coverage-auditor / dependency-hygiene). Executed 2026-10-29 (bounded, read-only): docs-canonicalizer-flavored contradiction pass (ROADMAP Question A delta corrected to -0.0003333; dated status notes added to diagrams 04 + 06); `scripts/check_notebook_artifacts.py` run (1 required artifact MISSING: `artifacts/odds_log/ledger.parquet` - run production refresh before notebook review). NOT executed: dead-code, artifact-lifecycle, ci-coverage, dependency-hygiene audits - each is a multi-session gated program; umbrella prohibition #3 requires evidence artifact + owner gate + validation command + rollback before ANY deletion, and the 2026-10-28 closeout lists repo-wide cleanup on the DO-NOT-RESTART list. Owner must scope and approve batches first.
 - **Cheap agent stack (2026-09-02) — PARTIAL DONE:** ignore-files + agent-context rule shipped. Still parked: Cline/OpenCode + DeepSeek V4 Flash on Mac; kill Cursor Auto/credits; escalate Kimi/GLM; Claude escape hatch. Never route Lenovo work through Chinese APIs. Reopen when user starts Mac harness migrate.
 - **Historical K CLV backfill (2026-09-02) — RESEARCH DONE, pull PARKED:** see `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`. Execute free HF + OddsPapi smoke then optional The Odds API month only when user asks. Do not start paid pull mid-ops week.
 - **Book-quality filter — WONT_DO** (user 2026-09-01): books used for lines only; usually synced.
