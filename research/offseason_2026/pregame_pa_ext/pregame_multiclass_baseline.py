@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pregame_pa_ext import adapter as ad  # noqa: E402
+from pregame_pa_ext import baseline_ladder as bl  # noqa: E402
 from pregame_pa_ext import forecast_states_v2 as fv  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
 import kcount_combiner as kc  # noqa: E402
@@ -256,6 +257,49 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                 kc.count_rps(pmfs[k], realized[k])
                 for k in sorted(realized)]))
 
+        # ---- K-marginal binary probability scores (separate from the
+        # multiclass score: coherence does not prove K quality) ---------
+        y_k = (y_pa == K_CLASS).astype(int)
+        clip = lambda p: np.clip(p, 1e-15, 1.0 - 1e-15)
+
+        def _binary(p_vec):
+            return {
+                "log_loss": float(-np.mean(
+                    y_k * np.log(clip(p_vec))
+                    + (1 - y_k) * np.log(1 - clip(p_vec)))),
+                "brier": float(np.mean((p_vec - y_k) ** 2)),
+            }
+
+        k_scores = {
+            "ref0_population": _binary(np.full(long.height, pop[K_CLASS])),
+            "ref1_multinomial": _binary(probs_ref1[:, K_CLASS]),
+        }
+
+        # ---- paired count-RPS uncertainty (registered slate-date
+        # bootstrap on identical scored keys) ----------------------------
+        start_dates = {(int(r["game_pk"]), str(r["side"]),
+                        int(r["pitcher"])): r["game_date"]
+                       for r in long.select(*REQ_KEYS, "game_date")
+                       .unique().iter_rows(named=True)}
+        rps_ref0 = {k: kc.count_rps(pmfs_ref0[k], realized[k])
+                    for k in realized}
+        rps_ref1 = {k: kc.count_rps(pmfs_ref1[k], realized[k])
+                    for k in realized}
+        blocks = {k: ad.add_block(pl.DataFrame(
+            {"game_date": [d]}))["block"][0] for k, d in start_dates.items()}
+        paired_raw = bl.paired_contrast(
+            rps_ref1, rps_ref0, start_dates, blocks, n_boot=2000,
+            seed=20261001)
+        paired = dict(paired_raw)
+        paired["primary_pair"] = "ref1_multinomial_vs_ref0_population"
+        paired["contrast"] = "RPS(Ref1) - RPS(Ref0) per start"
+        paired["helper_label_note"] = (
+            "paired_contrast() labels its delta 'S_vs_F' by legacy "
+            "convention; here delta_a_minus_b = RPS(Ref1) - RPS(Ref0)")
+        paired["interpretation"] = (
+            "delta < 0: multinomial beats population under the same "
+            "workload; CI overlapping zero is inconclusive")
+
         # ---- outputs ----------------------------------------------------
         per_start = pl.DataFrame({
             "game_pk": [k[0] for k in sorted(realized)],
@@ -297,6 +341,8 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                 "pa_multiclass_log_loss": {"ref0_population": pa_ll_ref0,
                                            "ref1_multinomial": pa_ll_ref1},
                 "mean_count_rps": count_scores,
+                "k_marginal_binary": k_scores,
+                "paired_count_rps_delta": paired,
                 "k_marginal_column": K_CLASS,
             },
             "limitations": [

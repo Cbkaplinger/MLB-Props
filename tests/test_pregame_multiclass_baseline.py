@@ -241,6 +241,15 @@ def test_both_starters_same_game_distinct_keys_and_valid_probs(tmp_path):
     pop = np.asarray(report["results"]["population_class_proportions"])
     assert abs(pop.sum() - 1.0) < 1e-12 and np.all(pop >= 0)
     assert report["results"]["k_marginal_column"] == 0
+    # K-marginal binary scores + paired count-RPS delta are reported
+    km = report["results"]["k_marginal_binary"]
+    for ref in ("ref0_population", "ref1_multinomial"):
+        assert 0.0 <= km[ref]["brier"] <= 1.0
+        assert km[ref]["log_loss"] > 0
+    paired = report["results"]["paired_count_rps_delta"]
+    assert paired["primary_pair"] == "ref1_multinomial_vs_ref0_population"
+    assert paired["n_boot"] == 2000 and paired["seed"] == 20261001
+    assert paired["n_starts"] == 2
 
 
 def test_assessment_outcomes_cannot_change_estimation(tmp_path):
