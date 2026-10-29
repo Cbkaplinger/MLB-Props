@@ -91,9 +91,20 @@ repair (not an independent review; repair authored in the reviewer's
 session - ownership failure acknowledged); ownership failure acknowledged); integration = scorecard PR #52 OPEN
 (https://github.com/Cbkaplinger/MLB-Props/pull/52, base
 research/baseline-v2-derivation-runner, head 2c02e46) with CI GREEN
-(test-and-validate + tracking, run 40893412390);
-NEXT = architect integration + execution decision. Real scorecard
-estimation/scoring: NOT yet authorized.
+(test-and-validate + tracking, run 40893412390).
+**SCORECARD EXECUTED ONCE (owner-authorized, 2026-10-30):** exit 0 at
+canonical checkpoint c19a01a code (delivery head 28c86cb); destination
+MLB-Props-Research\baseline-v2\history_sensitivity_v1; inputs verified
+pre-decode (all four pins + cohort f77d7a66 MATCH); S_v1 2,334 train
+rows, S_v2 9,714, assessment 2,509 (cohort hash match); PRIMARY:
+delta = RPS(S_v2)-RPS(S_v1) = -0.011070, CI95 [-0.020503, -0.001621] -
+ENTIRELY below zero: development evidence favors the LONGER estimation
+history (small effect); NOT a final test; F anchor descriptive only
+(mean 1.3111, UNACCEPTED cold-start limitation unchanged; F does not
+select anything). Receipt chain intact (initial aa770407...); output
+hashes recorded; Chat 2 result verification NEXT; interpretation and
+capability registration after verification. Real scorecard
+estimation/scoring for THIS run: consumed per its scope.
 implements the ONE history-only contrast - Arm S_v2 (accepted derived
 artifact 95ac3638, 2023-2024 training) vs Arm S_v1 (registered
 start_metrics_v2 2024H2 slice) with the registered ladder machinery held
