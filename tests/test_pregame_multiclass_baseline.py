@@ -376,6 +376,44 @@ def test_subprocess_file_identity_mismatch_refuses(tmp_path):
     assert not (tmp_path / "out_sha").exists()
 
 
+from pregame_pa_ext import forecast_states_v2 as fsv  # noqa: E402
+from pregame_pa_ext import pregame_multiclass_baseline as pm  # noqa: E402
+from pregame_pa_ext import statcast_event_bridge as seb  # noqa: E402
+from pregame_pa_ext import adapter as ad  # noqa: E402
+
+
+# ------------------- conflict-path structured-evidence regression test
+def test_conflicting_terminal_events_preserve_structured_evidence(
+        tmp_path):
+    """The bridge's conflict gate must write its structured failure
+    record BEFORE raising (regression: json.dumps fired on an unimported
+    json, so out_dir runs raised NameError and lost the evidence)."""
+    raw = pl.DataFrame({"game_pk": [900001, 900001],
+                        "at_bat_number": [1, 1],
+                        "batter": [800001, 800001],
+                        "events": ["strikeout", "single"]},
+                       schema={"game_pk": pl.Int64,
+                               "at_bat_number": pl.Int64,
+                               "batter": pl.Int64, "events": pl.Utf8},
+                       orient="row")
+    raw_path = tmp_path / "raw_conflict.parquet"
+    raw.write_parquet(raw_path)
+    pa = pl.DataFrame({"game_pk": [900001], "at_bat_number": [1],
+                       "pitcher": [700001], "batter": [800001], "y": [1]},
+                      schema={"game_pk": pl.Int64, "at_bat_number": pl.Int64,
+                              "pitcher": pl.Int64, "batter": pl.Int64,
+                              "y": pl.Int64}, orient="row")
+    with pytest.raises(ValueError, match="conflicting_terminal_events"):
+        seb.attach_terminal_event_labels(pa, [raw_path],
+                                         out_dir=tmp_path / "evd")
+    record = json.loads((tmp_path / "evd" / "failure_record.json")
+                        .read_text(encoding="utf-8"))
+    assert record["gate"] == "conflicting_terminal_events"
+    assert record["n_conflicting_pa_identities"] == 1
+    assert record["examples"][0][2] == 800001
+    assert "first-record" in record["detail"]
+
+
 def test_subprocess_invocation_produces_evidence(tmp_path):
     h = _write(tmp_path)
     script = (Path(__file__).resolve().parents[1] / "research"

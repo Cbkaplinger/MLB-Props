@@ -30,6 +30,7 @@ required (see pregame_multiclass_baseline / prepare_assessment_2025H1).
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import polars as pl
@@ -102,7 +103,9 @@ def attach_terminal_event_labels(pa: pl.DataFrame, raw_files: list,
                              "correct the source or obtain an explicit "
                              "owner decision")}
         if out_dir is not None:
-            (Path(out_dir) / "failure_record.json").write_text(
+            evd = Path(out_dir)
+            evd.mkdir(parents=True, exist_ok=True)
+            (evd / "failure_record.json").write_text(
                 json.dumps(detail, indent=1, sort_keys=True, default=str),
                 encoding="utf-8")
         raise ValueError(f"conflicting_terminal_events: {examples}")
