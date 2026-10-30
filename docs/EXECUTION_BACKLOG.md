@@ -106,7 +106,17 @@ hashes recorded; Chat 2 result verification NEXT; interpretation and
 capability registration after verification. Real scorecard
 estimation/scoring for THIS run: consumed per its scope.
 
-**MULTICLASS E2E BASELINE SLICE (checkpoint 9bdd3b4, pushed):**
+**MULTICLASS E2E BASELINE SLICE (checkpoint 9bdd3b4, pushed;**
+**STAGE-1 PREPARATION ATTEMPTED 2026-10-30 under explicit owner
+authorization: GUARD REFUSAL - the registered pa_table.parquet carries
+NO events column (actual schema: at_bat_number, batter, game_date,
+game_pk, inning_topbot, p_throws, pitcher, pitcher_role, season, stand,
+y); the multiclass label contract requires events (m0 real-data path
+reads them from repo Savant-Data); preparation evidence preserved at
+pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs\
+(failure_record.json; NO assessment parquet written); label-source
+disposition = owner/architect decision (registered m0 real-data path vs
+M0 dataset manifest lineage); NO retry under this authorization):**
 architect decisions ADOPTED and implemented - (1) forecast-cutoff state
 contract v2 (states-v2-forecast-cutoff-v1, forecast_states_v2.py): prior
 state at request cutoff t = aggregate over ALL rows strictly before t;
