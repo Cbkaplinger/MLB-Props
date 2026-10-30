@@ -138,6 +138,23 @@ evidence; active scope = assessment preparation then population-vs-
 multinomial comparison, NOT a model tournament (PR #52 open at `0cd8175c` at
 capture time). Next empirical milestone: real Ref0-versus-Ref1 scores.
 
+**WINDOW CLOSEOUT 2026-10-29 (docs-only session; 5 commits to local main, ALL
+UNPUSHED at close - owner runs `git push origin main`):** commits 0bc2e24
+(briefing Parts A+B captured + ROADMAP Question A delta corrected to
+-0.0003333 + diagram 04/06 status notes), 9f9a718 (briefing Part C + Chat 2
+async protocol), d7c7452 (five repo-* specialist bounded read-only passes +
+10 broken-link repairs), and the final closeout commit (diagram 08 Question A
+stale-node correction + NEXT.md PR #52/async reconciliation). Consistency
+sweep complete: no tracked doc still claims (a) the registered research
+aggregation is Poisson-binomial (registered baseline = binomial conditionals
+at averaged cycled-slot probs), (b) Question A unevaluated, or (c) the stale
+-0.000169 Question A figure (PROJECT_STATE's -0.000169 correctly remains: it
+labels the separate M0 v2 diagnostic). OPEN owner decisions carried in
+Waiting-on-user: pingouin declaration (reliability.py), CI slice for the 15
+research-lane test files, ~30 untracked local files disposition, cleanup
+deeper gated phases. Known operational gap: `artifacts/odds_log/ledger.parquet`
+MISSING (run production refresh).
+
 
 ## Execution Order
 

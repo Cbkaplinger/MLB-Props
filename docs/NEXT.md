@@ -2,6 +2,14 @@
 
 Owner: architect. Updated 2026-10-28. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
+> Reconciled 2026-10-29: PR #52 (paext assessment preparation, `0cd8175c`) is
+> now open in addition to the four PRs listed below; its active scope is
+> assessment preparation then the population-vs-multinomial comparison, not a
+> model tournament. Chat 2 operates ASYNC per the owner's protocol in
+> `research/offseason_2026/pregame_pa_ext/briefing_pa_model_and_architecture_2026-10-29.md`
+> (Part C): parked while Chat 1 builds, one review at each published SHA, then
+> parked again. Scientific milestone below is unchanged.
+
 ## Scientific milestone
 
 Complete prediction-path verification and produce a valid historical baseline benchmark using existing machinery. Do not reopen distribution families, TTO, calibration, execution strategies or general architecture.
