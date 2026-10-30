@@ -42,8 +42,55 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ## Session Snapshot — 2026-10-28 (baseline lane checkpoint 786b9fd)
 
+**CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
+NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
+(1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
+48 untracked (preserved, listed in Waiting-on-user). PRs #46/#48/#49/#50 all
+MERGED 2026-10-28 evening - the 2026-10-28 closeout's UNMERGED list is stale;
+ROLES_REV docs are on main (pointer above repaired). Open PRs: #51/#52
+(baseline stack, PRESERVE) + #53. (2) WORKTREES (19): clean+synced: wtsc
+(PR #52 lane - NOTE: lives under %TEMP%\opencode\wtsc, fragile location,
+owner should consider relocating), baseline-lane, docs-consolidation
+(PR #53), docs-lane, integration-verify-50 (PR #51), maintenance-dep-declarations
+(PR #46 branch). DIRTY - PRESERVED, no touch: distribution-spec (2 dirty
+backlog+spec edits + 16 untracked D0/TBF research files - agent lane,
+uncommitted research content), main-active (AGENTS.md edit + 5 untracked
+drafts - Chat 1 legacy), paext-v2 (1 dirty test file), repo-review-paext-registration
+(3 `_*.py` scratch). Nine detached review-* worktrees at pinned SHAs =
+PRESERVED HISTORICAL; retirement owner-gated; closing this window does not
+require deleting any of them. (3) **PR #53 DISPOSITION: KEEP FOR REVIEW**
+(mergeable CLEAN vs main; merge-base 15fe7bf = pre-today). Unique content on
+4/4 files: DECISIONS consolidation 15,931->5,837 bytes (main still carries 5
+stale "quote below" pointers - the PR fixes a real defect); README authority
+map (+15); repo_canonical_map retirement table (+14); ROADMAP idea-record
+format (+29/-5). One claimed fix is MOOT: the "bounded repairs from another
+worktree" role paragraph is already absent at its merge-base, so main never
+needed that repair. Nothing merged or closed. (4) BRANCH CLASSIFICATION
+(inventory, not deletion approval): PRESERVE ACTIVE - research/
+baseline-v2-derivation-runner, research/baseline-history-scorecard-v1.
+OWNER-APPROVED-RETIREMENT CANDIDATES (work fully merged, evidence checked:
+theoddsapi script landed via PR #44, BOM fix present on main, PRs #46/#49/#50
+merged): docs/lineup-path-reconciliation-spec, chat3/doc-simplify-20261023
+(remote still exists), chat3/verify-and-consolidate, chat3/lighten-20261023b
+(ahead 2, content verified on main), chat3/doc-collapse-20261023 + chat3/
+verify-script-20261023 (local-only, origin gone), research/baseline-benchmark-v1
+(worktree clean; PR #50 merged), research/paext-v2-count-agg-eval (PR #29
+merged). NOT RETIRED / OTHER-LANE OWNERSHIP: research/calibration-exec-gate-v1
+(PR #48 merged BUT worktree paext-v2 is DIRTY - retire branch only after the
+dirty file is dispositioned by its lane); research/count-pmf-calibration-v1
+(integration owned by Chat 1 per CHAT 3 PARKED entry); architect/
+roadmap-20261021 (owner-instruction branch); research/pregame-pa-ext-v1
+(ahead 5, superseded by v2 - owner question); chat2/review-tooling (Chat 2);
+research/paired-uncertainty-v1/v2 + preserve/legacy-pending-20261005
+(explicitly preserved); 9 pr*-review merge-slot branches (historical review
+records). No local-only commit was found on any branch whose content is
+absent from main except the flagged ahead-branches above (all verified
+integrated or owner-questioned). (5) Chat 3 lane is CLOSED. Chat 1 continues
+the Stage-1 preparation command under its own authorization; Chat 2 stays
+parked until preparation evidence exists.
+
 **Critical path:** `docs/NEXT.md` (single source of the current action;
-ROLES_REV 2026-10-28-r1 on PR #46 at `1e8c59c`).
+ROLES_REV 2026-10-28-r1, MERGED to main via PR #46 2026-10-28).
 **This backlog is the concise active entry point.** Historical Session
 Snapshot bullets (2026-08 through 2026-10), the CLV + Hosting Plan, the
 Strategy Plan, and the SSAC27 Track are preserved verbatim in
