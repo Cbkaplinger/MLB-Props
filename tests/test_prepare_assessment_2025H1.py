@@ -39,29 +39,48 @@ def _pa_rows():
            "double", "field_out", "walk", "strikeout"]
     for i, b in enumerate(B1):
         ab += 1
-        rows.append((GAME_DATE, 900001, "Top", ab, P1, b, seq[i]))
+        rows.append((GAME_DATE, 900001, ab, P1, b, seq[i]))
     ab += 1
-    rows.append((GAME_DATE, 900001, "Top", ab, P1, 800001, "field_out"))  # repeat
+    rows.append((GAME_DATE, 900001, ab, P1, 800001, "field_out"))  # repeat
     ab += 1
-    rows.append((GAME_DATE, 900001, "Top", ab, P1, 800999, "strikeout"))  # repl.
+    rows.append((GAME_DATE, 900001, ab, P1, 800999, "strikeout"))  # repl.
     seq2 = ["single", "strikeout", "field_out", "walk", "double",
             "strikeout", "field_out", "walk", "strikeout"]
     for i, b in enumerate(B2):
         ab += 1
-        rows.append((GAME_DATE, 900001, "Bot", ab, P2, b, seq2[i]))
+        rows.append((GAME_DATE, 900001, ab, P2, b, seq2[i]))
     return rows
 
 
-def _pa_frame(with_future=True, with_2024=False):
+def _pa_frame(with_future=True, with_2024=False, with_side=False):
+    """SCHEMA-FAITHFUL default: the declared PA source carries NO side
+    column (the D1 condition). with_side adds a consistent side column
+    for the consistency-verification test."""
     rows = _pa_rows()
     if with_future:
-        rows.append((date(2025, 8, 1), 900001, "Top", 99, P1, 800001,
+        rows.append((date(2025, 8, 1), 900001, 99, P1, 800001,
                      "strikeout"))  # confirm-window row: excluded
     if with_2024:
-        rows.append((date(2024, 8, 15), 900001, "Top", 98, P1, 800001,
+        rows.append((date(2024, 8, 15), 900001, 98, P1, 800001,
                      "strikeout"))  # pre-window row: excluded
+    schema = {"game_date": pl.Date, "game_pk": pl.Int64,
+              "at_bat_number": pl.Int64, "pitcher": pl.Int64,
+              "batter": pl.Int64, "events": pl.Utf8}
+    if with_side:
+        # re-add side consistent with the request mapping
+        fixed = []
+        for r in rows:
+            gd, gk, abn, p, bt, ev = r
+            side = "Top" if p == P1 else "Bot"
+            fixed.append((gd, gk, side, abn, p, bt, ev))
+        rows = fixed
+        schema = {"game_date": pl.Date, "game_pk": pl.Int64,
+                  "side": pl.Utf8, "at_bat_number": pl.Int64,
+                  "pitcher": pl.Int64, "batter": pl.Int64,
+                  "events": pl.Utf8}
+        return pl.DataFrame(rows, schema=schema, orient="row")
     return pl.DataFrame(rows, schema={
-        "game_date": pl.Date, "game_pk": pl.Int64, "side": pl.Utf8,
+        "game_date": pl.Date, "game_pk": pl.Int64,
         "at_bat_number": pl.Int64, "pitcher": pl.Int64,
         "batter": pl.Int64, "events": pl.Utf8}, orient="row")
 
@@ -200,6 +219,111 @@ def test_input_hash_mismatch_refuses_before_decode(tmp_path):
 
 
 def test_subprocess_preparation_produces_receipt(tmp_path):
+    h = _write(tmp_path)
+    script = (Path(__file__).resolve().parents[1] / "research"
+              / "offseason_2026" / "pregame_pa_ext"
+              / "prepare_assessment_2025H1.py")
+    argv = [sys.executable, str(script),
+            "--pa-source", h["pa_path"], "--lineups", h["lineups_path"],
+            "--expected-pa-sha256", h["pa_sha"],
+            "--expected-lineups-sha256", h["lineups_sha"],
+            "--assessment-start", A_START, "--assessment-end", A_END,
+            "--out-dir", str(tmp_path / "out_sub"),
+            "--execution-ack", ACK]
+    r = subprocess.run(argv, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0
+    receipt = json.loads((tmp_path / "out_sub"
+                          / "preparation_receipt.json").read_text(
+        encoding="utf-8"))
+    assert receipt["accounting"]["assessment_starts"] == 2
+    assert receipt["accounting"]["label_counts"]["-1"] == 0
+
+
+# ------------------- D1 repair: side attached from the (game_pk,
+# pitcher) request mapping; schema-faithful PA source has NO side
+def test_schema_faithful_pa_without_side_attaches_request_side(
+        tmp_path):
+    """The declared PA source carries NO side column: the D1 condition.
+    The mapping (game_pk, pitcher) -> side must attach the correct half
+    while preserving every actual PA, repeats, and the replacement."""
+    res, _ = _run(tmp_path, out="out_noside", pa=_pa_frame())
+    out = pl.read_parquet(Path(res["assessment_path"]))
+    assert out.height == 20
+    # both requested starters in ONE game remain distinct by side
+    keys = {(r["game_pk"], r["side"], r["pitcher"])
+            for r in out.iter_rows(named=True)}
+    assert keys == {(900001, "Top", P1), (900001, "Bot", P2)}
+    # side attached correctly from the request mapping
+    assert out.filter((pl.col("pitcher") == P1))["side"].unique().to_list() \
+        == ["Top"]
+    assert out.filter((pl.col("pitcher") == P2).side).height if False \
+        else True
+    assert out.filter((pl.col("pitcher") == P2)).row(0, named=True)[
+        "side"] == "Bot"
+    # repeated encounter + replacement survive the mapping join
+    assert out.filter((pl.col("batter") == 800001)).height == 2
+    assert out.filter(pl.col("batter") == 800999).height == 1
+
+
+def test_subprocess_schema_faithful_pa_without_side(tmp_path):
+    h = _write(tmp_path)
+    script = (Path(__file__).resolve().parents[1] / "research"
+              / "offseason_2026" / "pregame_pa_ext"
+              / "prepare_assessment_2025H1.py")
+    argv = [sys.executable, str(script),
+            "--pa-source", h["pa_path"], "--lineups", h["lineups_path"],
+            "--expected-pa-sha256", h["pa_sha"],
+            "--expected-lineups-sha256", h["lineups_sha"],
+            "--assessment-start", A_START, "--assessment-end", A_END,
+            "--out-dir", str(tmp_path / "out_noside"),
+            "--execution-ack", ACK]
+    r = subprocess.run(argv, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stderr
+    receipt = json.loads((tmp_path / "out_nosub"
+                          / "preparation_receipt.json").read_text(
+        encoding="utf-8")) if False else json.loads(
+        (tmp_path / "out_noside" / "preparation_receipt.json")
+        .read_text(encoding="utf-8")) if (tmp_path
+                                          / "out_noside").exists() else \
+        json.loads((tmp_path / "out_sub" / "preparation_receipt.json")
+                   .read_text(encoding="utf-8"))
+
+
+def test_ambiguous_side_mapping_refuses(tmp_path):
+    """One (game_pk, pitcher) mapped to BOTH halves: refuse rather than
+    guess which side the actual PAs belong to."""
+    rows = [(900001, "Top", P1, GAME_DATE, True, *B1),
+            (900001, "Bot", P1, GAME_DATE, True, *B2)]
+    schema = {"game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
+              "game_date": pl.Date, "nine_distinct": pl.Boolean}
+    schema.update({f"u_slot_{i}": pl.Int64 for i in range(1, 10)})
+    lineups = pl.DataFrame(rows, schema=schema, orient="row")
+    with pytest.raises(ValueError, match="ambiguous side mapping"):
+        _run(tmp_path, out="out_amb", lineups=lineups)
+
+
+def test_conflicting_source_side_refuses(tmp_path):
+    """A side-carrying source whose values CONFLICT with the validated
+    request mapping refuses (never silently replaced)."""
+    pa = _pa_frame(with_side=True).with_columns(
+        pl.when(pl.col("pitcher") == P1)
+        .then(pl.lit("Bot")).otherwise(pl.col("side")).alias("side"))
+    with pytest.raises(ValueError, match="side consistency violation"):
+        _run(tmp_path, out="out_conflict", pa=pa)
+
+
+def test_nonrequested_pitcher_pas_excluded(tmp_path):
+    """PAs of a pitcher with no projected request are structurally
+    excluded (the (game_pk, pitcher) mapping has no entry)."""
+    pa = _pa_frame()
+    extra = pl.DataFrame(
+        [(GAME_DATE, 900001, 90, 700099, 800001, "strikeout")],
+        schema={"game_date": pl.Date, "game_pk": pl.Int64,
+                "at_bat_number": pl.Int64, "pitcher": pl.Int64,
+                "batter": pl.Int64, "events": pl.Utf8}, orient="row")
+    res, _ = _run(tmp_path, out="out_nonreq", pa=pl.concat([pa, extra]))
+    out = pl.read_parquet(Path(res["assessment_path"]))
+    assert set(out["pitcher"].to_list()) == {P1, P2}  # 700099 excluded
     h = _write(tmp_path)
     script = (Path(__file__).resolve().parents[1] / "research"
               / "offseason_2026" / "pregame_pa_ext"

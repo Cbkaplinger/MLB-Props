@@ -105,11 +105,39 @@ def prepare_assessment(pa: pl.DataFrame, lineups: pl.DataFrame,
                 "assessment window; refusing")
         req_keys = long_dev.select(*REQ_KEYS).unique()
 
+        # ---- side mapping: (game_pk, pitcher) -> side, uniqueness-
+        # validated (one pitcher cannot map to both halves of a game);
+        # many-to-one onto the actual PAs -------------------------------
+        side_map = (long_dev.group_by("game_pk", "pitcher")
+                    .agg(n_sides=pl.col("side").n_unique(),
+                         side=pl.col("side").first()))
+        ambiguous = side_map.filter(pl.col("n_sides") > 1)
+        if ambiguous.height:
+            raise ValueError(
+                f"ambiguous side mapping: {ambiguous.height} (game_pk, "
+                f"pitcher) pairs map to multiple sides; examples: "
+                f"{ambiguous.select('game_pk', 'pitcher').head(5).rows()}")
+
         # ---- actual PAs: preserve EVERY completed PA of requested
         # starters (no projected-batter or slot filter) ------------------
+        # The declared PA source may carry NO side column: the side is
+        # attached from the validated (game_pk, pitcher) mapping via a
+        # many-to-one join; nonrequested pitchers are excluded
+        # structurally through the requested pitcher key.
         _require_columns(pa, ["game_date", "game_pk", "pitcher", "batter",
                              "events"], "PA source")
-        sub = pa.join(req_keys, on=REQ_KEYS, how="semi")
+        sub = pa.join(side_map.select("game_pk", "pitcher", "side"),
+                      on=["game_pk", "pitcher"], how="inner")
+        if "side" in pa.columns:
+            conflict = sub.filter(pl.col("side") != pl.col("side_right"))
+            if conflict.height:
+                examples = conflict.select("game_pk", "pitcher", "side",
+                                           "side_right").head(5).rows()
+                raise ValueError(
+                    f"side consistency violation: {conflict.height} PA "
+                    f"rows carry a side conflicting with the request "
+                    f"mapping; examples: {examples}")
+            sub = sub.drop("side_right")
         sub = sub.filter((pl.col("game_date") >= lo)
                          & (pl.col("game_date") <= hi))
         if sub.height == 0:
