@@ -40,35 +40,66 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Session Snapshot — 2026-10-28 (baseline lane checkpoint 786b9fd)
+## Session Snapshot — 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
 
 **Critical path:** `docs/NEXT.md` (single source of the current action;
-ROLES_REV 2026-10-28-r1 on PR #46 at `1e8c59c`).
+ROLES_REV 2026-10-28-r1 merged to main via PR #46 at `1ef5cad`).
 **This backlog is the concise active entry point.** Historical Session
 Snapshot bullets (2026-08 through 2026-10), the CLV + Hosting Plan, the
 Strategy Plan, and the SSAC27 Track are preserved verbatim in
 [`docs/reference/reports/backlog_archive_2026-10-21.md`](reference/reports/backlog_archive_2026-10-21.md).
 
-**Current Chat 1 lane (PR #50, `research/baseline-benchmark-v1`):** superseding
-checkpoint `786b9fd` published (delta `776fbdf -> 786b9fd`). All three
-architect source-level findings fixed with regression tests: derived starts
-retain `game_date` (inconsistent dates fail loud); overlap validation asserts
-one row per key on both sides before any join (no silent `.unique()`);
-missing FIELDS vs null fields (missing source coverage) are distinct failure
-classes; new identity + domain guards (both-halves anomaly, y in {0,1},
-side/role domains, at_bat_number >= 1). End-to-end synthetic integration
-`derive_start_outcomes -> start_outcomes -> build_arms_v2 -> keyed PMFs`
-passes. Evidence: `pytest tests/test_starter_outcomes.py
-tests/test_baseline_ladder.py -q` => 35 passed. Real-source derivation,
-overlap validation against the real 2024H2 artifact, and scoring remain
-authorization-gated. Stage A unchanged at `ca00e4d` (PR #49).
+**INTEGRATION MILESTONE COMPLETE 2026-10-28:** PR #46 (documentation,
+ROLES_REV 2026-10-28-r1), PR #48 (calibration execution gate), #49 (Stage A
+prediction-path runner), #50 (historical starter-outcome derivation +
+baseline helpers) all merged with history-preserving merge commits; GitHub
+reported zero open PRs post-#50. Builder verification: 132/132 targeted
+tests on the actual merged tree (checkout `integration-verify-50`).
 
-**Current Chat 3 lane:** startup-policy reconciliation + duplicate-guidance
-reduction on PR #46, not blocked by baseline review.
+**Current Chat 1 lane (PR #51, `research/baseline-v2-derivation-runner`,
+head `6a15219`):** the historical derivation/overlap execution entry point
+(`derivation_runner.py`) around the UNCHANGED registered functions
+`derive_start_outcomes` + `validate_against_registered`. Published chain
+e269019 -> 60401f6 (13 synthetic tests, 145 targeted regression, CI green,
+reviewer trail accepted) + 6a15219 (docs-only backlog reconciliation; runner
+blob unchanged 2bf8e06a). **REAL DERIVATION/OVERLAP RUN EXECUTED ONCE
+2026-10-28 (owner-authorized; full-file decode permitted; destination
+approved):** pa_table (731,347 rows, hash-verified preflight) ->
+**9,714 derived starts** (2023-03-30..2024-09-30; 7,380 pre-overlap
+2023-2024H1 starts newly materialized for reference estimation); 2024H2
+overlap 2,334 vs 2,334, intersection 2,334, **0 BF/K mismatches, 0
+keys-only-either-side, verdict IDENTICAL, validated TRUE, exit 0**; receipt
+chain intact (initial c2a3afdd... == recorded chain); outputs write-once at
+`MLB-Props-Research\baseline-v2\derivation_overlap_v1\` (derived parquet
+95ac3638..., overlap_report 21e74cef...). Verification evidence published on
+PR #51 (executor-side recomputation: all hashes, linkage, and field
+reconciliation MATCH; independent Chat 2 signature owed on the record).
+RUN-EXECUTION EVIDENCE = PR #51 comments (run record 6487951982;
+verification 6488030762). **SCORECARD PREPARATION NEXT (packet published,
+PR #51 comment 6488084028):** ONE history-only contrast - Arm S_v2 (derived
+2023-2024 training, 9,714 rows) vs Arm S_v1 (registered 2024H2 training,
+2,334 rows) with the registered ladder machinery held FIXED (same w150
+shrinkage, workload mixture, 24-bucket support), paired count-RPS on the
+identical block_2025H1 eligible cohort (hash f77d7a66..., n=2,509),
+slate-date bootstrap (2000, seed 20261001), Holm m=1; P/S/F ladder
+descriptive only; Arm F = frozen incumbent from the preserved ledger
+(disclosed UNACCEPTED-cold-start status, anchor only); no method change, no
+tuning. Implementation checkpoint (thin scorecard runner, derivation_runner
+receipt conventions, ack gate, synthetic tests through the exact entry
+point) publishes next; scorecard EXECUTION requires its own explicit owner
+authorization. The derivation artifact does NOT validate pre-overlap rows
+externally and establishes no predictive improvement.
 
-**Current Chat 2 lane:** reviews the `786b9fd` derivation/adapter checkpoint
-(supersedes the `776fbdf` target per the updated PR #50 handoff); Stage A
-review target stays `ca00e4d` (PR #49).
+**Current Chat 2 lane:** owns the consolidated review record for PR #51's
+published checkpoint 60401f6 (builder self-review labeled as such; do not
+repeat cleared tests; review only a substantive loader delta if one becomes
+necessary).
+
+**Current Chat 3 lane:** parked (docs lane not blocked by baseline review).
+
+**Stale-content note:** the older lane bullets below this block (PR #50
+checkpoint 786b9fd, Chat 2/3 lanes) predate the #46/#48/#49/#50 integration
+and are retained as history; this block is the live state.
 
 **CHAT 3 PARKED 2026-10-27 (architect directive):** count-PMF calibration v1
 reviewed READY locally at receipt `1381e72` / computational `e34213a`
