@@ -590,3 +590,276 @@ The instinct is right: game-level averages are too coarse for the intended
 matchup model, but simulating every pitch is not the necessary next step.
 PA-level targets with well-supported pitch-derived features are the practical
 middle ground.
+
+---
+
+# Part C — Chat 2 async protocol + modeling-change discipline
+
+*(Third coworker briefing, captured 2026-10-29.)*
+
+Keep Chat 2, but use it **asynchronously**: parked while Chat 1 builds, active
+at a published checkpoint, then parked again. Independent review has caught
+real scoring and identity defects; the problem has been repeated stale
+handoffs and reviewing work before it was published — not the existence of a
+reviewer.
+
+For the modeling questions: keep `StandardScaler` and the current logistic
+recipe unchanged until the baseline is measured. Transformations, smoothing,
+monotonic constraints, and alternative models are useful experiments, but none
+is automatically an improvement.
+
+GitHub status at capture time: PR #52 is still open at `0cd8175c`. The active
+scope remains assessment preparation followed by the population-versus-
+multinomial comparison — not a model tournament.
+[PR #52](https://github.com/Cbkaplinger/MLB-Props/pull/52)
+
+## C1. How Chat 2 should operate
+
+Use this division:
+
+| Chat 1 | Chat 2 |
+|---|---|
+| Implements one agreed task | Does not edit builder files |
+| Publishes a complete SHA and evidence | Fetches and reviews that exact SHA |
+| Responds to consolidated findings | Distinguishes blockers from follow-ups |
+| Executes only authorized procedures | Verifies resulting evidence independently |
+
+For the present task, Chat 2 should review the corrected preparation script
+once it is published. It should not poll, review mid-edit working trees, or
+reopen unchanged findings.
+
+Afterward, park it until the assessment artifact or real baseline result
+exists. That preserves independence without making every development step a
+two-agent meeting.
+
+## C2. Is `StandardScaler` best?
+
+No universal best scaler exists. `StandardScaler` is a reasonable baseline: it
+subtracts the training mean and divides by the training standard deviation. It
+is sensitive to outliers.
+[scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html)
+
+Scaling matters here because regularization penalizes coefficients; feature
+units influence how those penalties operate. It does not make a variable more
+informative, and logistic regression does not require normally distributed
+inputs.
+
+Possible later comparisons:
+
+| Choice | Why test it? | Caution |
+|---|---|---|
+| Standard scaling | Simple reference | Large outliers affect scale |
+| Robust scaling | Reduce sensitivity to extreme feature values | Does not remove the outliers |
+| Log transform, then scaling | Compress highly skewed support counts | Must handle zero and preserve meaning |
+| Power transform | Learn a skew-reducing transformation | Additional fitted preprocessing |
+| Quantile transform | Flexible distribution reshaping | Can saturate extreme values and distort distances |
+
+Scikit-learn documents these trade-offs directly.
+[scikit-learn](https://scikit-learn.org/dev/auto_examples/preprocessing/plot_all_scaling.html)
+
+The first transformation candidate would be `log1p(n_prior_pitcher)` and
+`log1p(n_prior_batter)`, not replacing every feature's scale. "Ten more
+observations" plausibly matters differently at support 10 versus 10,000. That
+is a hypothesis to test, not a current implementation order.
+
+All fitted transformations must learn their parameters from training data
+only.
+
+## C3. How to shape features sensibly
+
+Choose transformations because they express a relationship — not because a
+long list is available.
+
+| Transformation | Potential baseball use | What it can lose or distort |
+|---|---|---|
+| `log1p(x)` | PA counts, pitch counts, support | Changes interpretation of increments |
+| Logit of a smoothed rate | Probability effects expressed in log-odds | Requires protection near 0 and 1 |
+| Recent minus long-run value | Velocity or K-rate change | Noisy when recent support is small |
+| Change per elapsed time | Trend in velocity or usage | Requires strictly backward-looking estimates |
+| Absolute deviation | Magnitude of a change | Removes direction |
+| Splines | Smooth nonlinear effects without a tree model | Adds flexibility that needs validation |
+| Interaction terms | Handedness x arsenal; batter weakness x pitch mix | Sparse combinations can overfit |
+
+For example, a 2 mph increase and a 2 mph decrease should not automatically
+become the same `abs(change)` feature. Retain the signed change unless a
+mechanism specifically concerns magnitude.
+
+Do not use centered rolling windows, future observations, or a trend
+calculated across the eventual full season.
+
+## C4. Should gradient boosting be monotonic?
+
+Separate two concepts.
+
+### Distribution coherence: required
+
+Regardless of estimator:
+
+- Probabilities must be valid.
+- A PMF must sum to one.
+- CDFs must be nondecreasing.
+- Higher K thresholds cannot have higher exceedance probabilities.
+
+These are mathematical requirements.
+
+### Feature-response monotonicity: optional
+
+A constraint such as "higher pitcher K tendency cannot lower predicted K
+probability, holding other inputs fixed" is a modeling assumption.
+
+LightGBM supports increasing, decreasing, or unconstrained feature
+relationships. Its documentation also warns that simpler constraint methods
+can overconstrain predictions.
+[lightgbm.readthedocs](https://lightgbm.readthedocs.io/en/latest/Parameters.html)
+
+Do not impose blanket constraints:
+
+- Historical support is not monotonically related to skill.
+- Rest can have nonlinear effects.
+- Velocity does not universally imply the same K effect across arsenals.
+- Handedness categories do not have a natural numeric order.
+
+For a binary K model, selected rate-feature constraints could be a reasonable
+challenger. For multinomial probabilities, constraining individual class
+scores does not automatically establish monotonicity of the final strikeout
+probability after normalization. Verify the installed library's support and
+test the actual output behavior.
+
+Compare constrained versus unconstrained models on the same data. Do not
+declare constraints correct merely because their narrative sounds intuitive.
+
+## C5. Other smoothing methods
+
+Several different kinds of "smoothing" already exist. Keep their purposes
+distinct:
+
+| Method | Purpose | Candidate improvement |
+|---|---|---|
+| League-prior shrinkage | Stabilize sparse player rates | Estimate shrinkage strength on earlier development data |
+| Exponential decay | Emphasize recent history | Compare a small, predeclared set of half-lives |
+| Hierarchical pooling | Share information across related players/splits | Separate pitcher, batter, handedness and league effects |
+| Smoothed workload histogram | Stabilize BF-category probabilities | Blend player and league distributions gradually |
+| State-space model | Track changing latent skill | More complex; justify after simpler references |
+| Output calibration | Correct residual forecast probabilities | Separate from smoothing historical inputs |
+
+For workload, a useful future hypothesis is continuous pooling:
+
+    P(N=n) = w * P_pitcher(N=n) + (1-w) * P_league(N=n)
+
+where w increases with reliable historical support. That avoids an abrupt
+transition from league to pitcher history at a fixed count threshold.
+
+It must be compared against the existing empirical forecast — not assumed
+better.
+
+## C6. Will logistic regression be adjusted?
+
+Yes, after obtaining the fixed recipe's real score.
+
+Use this progression:
+
+1. Current fixed logistic reference.
+2. One justified representation change, such as log support.
+3. A bounded regularization search.
+4. A nonlinear challenger on the same feature set.
+5. Selected new feature families.
+
+For tuning, use earlier chronological validation periods; assess the chosen
+configuration on a later period. The same data cannot serve both
+hyperparameter selection and an unbiased assessment of that selection. Nested
+evaluation separates those functions.
+[scikit-learn](https://scikit-learn.org/stable/auto_examples/model_selection/plot_nested_cross_validation_iris.html)
+
+Do not change scaler, features, regularization, training history, and
+workload simultaneously.
+
+## C7. Training-loss charts
+
+Yes — but the chart must come from real recorded evaluations.
+
+### LightGBM
+
+Record training and chronological-validation metrics at every boosting
+iteration with `record_evaluation`. LightGBM explicitly supports that history
+collection. Early stopping uses validation improvement and therefore belongs
+inside model selection, not on the final assessment period.
+[lightgbm.readthedocs](https://lightgbm.readthedocs.io/en/latest/pythonapi/lightgbm.record_evaluation.html)
+
+### Current logistic regression
+
+The present fitting interface does not provide an equivalent ready-made
+per-iteration validation curve. For a future instrumented run, genuine
+optimization history can be recorded using an appropriate supported fitting
+route.
+
+Do not:
+
+- Fabricate a historical curve for an existing fit.
+- Treat separate fits with increasing `max_iter` as one uninterrupted
+  training trajectory.
+- Change the solver solely to make an attractive chart without labeling the
+  change.
+
+For the first baseline, more useful figures are:
+
+- Reliability plots.
+- Out-of-time loss by month.
+- Loss versus historical support.
+- Workload predicted versus observed distributions.
+- Count-CDF/threshold calibration.
+- Paired per-start score differences.
+
+A training curve diagnoses fitting behavior; it does not establish
+forecasting value.
+
+## C8. A small comparison plan — not "every model"
+
+After the current result, use a limited ladder:
+
+| Candidate | Purpose |
+|---|---|
+| Population rate | Minimum control |
+| Binary logistic | Direct K-versus-non-K learned reference |
+| Existing multinomial logistic | Test broader PA-outcome modeling |
+| Logistic with one justified nonlinear representation | Test feature shape |
+| Fixed-configuration LightGBM | Test nonlinear interactions |
+| Bounded tuned winner | Test whether tuning adds reliable value |
+
+Use the same eligible observations and forecast-time information. Keep KNN
+and neural networks deferred unless simpler results suggest a specific reason.
+
+Model comparisons should include performance, calibration, coverage, runtime,
+and implementation complexity — not just the best headline score.
+
+> Status note added 2026-10-29: the fixed-configuration LightGBM rung of this
+> ladder was already run under the equal-information contract (lgbm-equal-info
+> v2 closeout, 2026-10-16: NO DETECTABLE DEVELOPMENT ADVANTAGE; challengers
+> RETIRED pending a new registered reason). Re-entering that rung requires a
+> new registered reason and a new pre-registered challenger.
+
+## C9. How to improve each lane
+
+| Lane | First useful improvements | Keep fixed during its experiment |
+|---|---|---|
+| PA K probability | Valid longer history; rate/support representation; handedness; pitch-derived contact/arsenal features | Workload and aggregation |
+| BF distribution | Pooled control; continuous shrinkage; recency; pregame workload restrictions and role | PA model and aggregation |
+| Total K distribution | Registered binomial approximation versus heterogeneous PA aggregation; opportunity/TTO modeling; later removal coupling | PA/workload inputs wherever possible |
+
+For total K, preserve an important question: did a component improve its own
+metric but worsen count-RPS? That is why every component experiment also needs
+downstream evaluation.
+
+## C9a. Immediate direction
+
+Do not implement the ideas above yet.
+
+- Chat 1: finish the corrected preparation script and its synthetic checks.
+- Chat 2: review that published script once, then park pending authorized
+  preparation evidence.
+- Both: keep the current model recipe frozen.
+- Next empirical milestone: real Ref0-versus-Ref1 scores.
+- After that: choose one next experiment from the observed weakness.
+
+Chat 2 is needed as an independent checkpoint, not as a second builder. And a
+measured baseline is needed before turning a reasonable list of modeling ideas
+into a large, expensive search.

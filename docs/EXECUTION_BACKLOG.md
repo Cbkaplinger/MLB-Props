@@ -105,6 +105,39 @@ lgbm-equal-info v2 closeout: nonlinear challengers RETIRED); the
 debut-pitcher/cold-start owner decisions remain OPEN per
 `docs/reference/reports/backlog_archive_2026-10-21.md`.
 
+**BRIEFING PART C + CHAT 2 ASYNC PROTOCOL (captured 2026-10-29, same file,
+Part C appended):** Chat 2 is KEPT but operates ASYNCHRONOUSLY - parked while
+Chat 1 builds, active once at each PUBLISHED checkpoint (fetch + review that
+exact SHA, blockers vs follow-ups), then parked again; no polling, no
+mid-edit working-tree review, no reopening unchanged findings; Chat 2 never
+edits builder files. Chat 1 implements one agreed task, publishes complete
+SHA + evidence, responds to consolidated findings, executes only authorized
+procedures. Modeling-change discipline (recipe FROZEN until real
+Ref0-vs-Ref1 scores): keep StandardScaler + current logistic unchanged;
+later single-change experiments in order (fixed logistic ref -> one
+representation change, first candidate log1p(n_prior_pitcher/batter) ->
+bounded regularization search -> nonlinear challenger on same features ->
+new feature families), tuned on earlier chronological periods and assessed on
+a later one (nested evaluation; never change scaler+features+regularization
++history+workload simultaneously). Distribution coherence (valid probs, PMF
+sums to 1, nondecreasing CDF) is REQUIRED for any estimator; feature-response
+monotonic constraints are OPTIONAL challengers, never blanket (support/rest/
+velocity/handedness are not monotone; class-score constraints do not
+guarantee monotone final K prob after softmax). Smoothing lanes kept distinct
+(shrinkage strength estimable on dev; continuous workload pooling
+P=w*P_pitcher+(1-w)*P_league is a hypothesis to compare, not assume).
+Training-loss charts only from real recorded evaluations (LightGBM
+record_evaluation; no fabricated curves for the logistic). Comparison ladder
+after baseline: population rate / binary logistic / existing multinomial /
+one-representation logistic / fixed-config LightGBM (RETIRED lane - reentry
+needs a new registered reason per lgbm-equal-info v2 closeout) / bounded
+tuned winner; KNN + neural nets deferred. IMMEDIATE (owner direction): Chat 1
+finishes the corrected preparation script + synthetic checks; Chat 2 reviews
+the published script ONCE then parks pending authorized preparation
+evidence; active scope = assessment preparation then population-vs-
+multinomial comparison, NOT a model tournament (PR #52 open at `0cd8175c` at
+capture time). Next empirical milestone: real Ref0-versus-Ref1 scores.
+
 
 ## Execution Order
 
