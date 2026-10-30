@@ -69,6 +69,9 @@ def _pa_rows():
 
 
 def _pa_frame(extra=None):
+    """ENRICHED frame (events + y): the tests' source of truth. The
+    consumed PA parquet drops events (actual declared schema); labels
+    arrive via the explicit raw-file bridge."""
     rows = _pa_rows()
     if extra:
         rows = rows + extra
@@ -77,6 +80,46 @@ def _pa_frame(extra=None):
         "at_bat_number": pl.Int64, "pitcher": pl.Int64,
         "batter": pl.Int64, "events": pl.Utf8, "y": pl.Int64},
         orient="row")
+
+
+def _write_raw(tmp_path: Path, pa: pl.DataFrame, name="raw_events.parquet"):
+    """Terminal-event rows for every PA in the events-bearing pa frame
+    (multi-pitch rows precede the terminal row for the first PA)."""
+    rows = []
+    first = True
+    for r in pa.iter_rows(named=True):
+        key = (r["game_pk"], r["at_bat_number"], r["batter"])
+        if first:  # ordinary pitch rows before the terminal row
+            rows.append({"game_pk": key[0], "at_bat_number": key[1],
+                         "batter": key[2], "events": None})
+            rows.append({"game_pk": key[0], "at_bat_number": key[1],
+                         "batter": key[2], "events": None})
+            first = False
+        rows.append({"game_pk": key[0], "at_bat_number": key[1],
+                     "batter": key[2], "events": r["events"]})
+    schema = {"game_pk": pl.Int64, "at_bat_number": pl.Int64,
+              "batter": pl.Int64, "events": pl.Utf8}
+    return pl.DataFrame(rows, schema=schema, orient="row")
+
+
+def _write_raw(tmp_path: Path, pa: pl.DataFrame, name="raw_events.parquet"):
+    """Terminal-event rows for every PA in the events-bearing pa frame
+    (multi-pitch rows precede each terminal row for the first PA)."""
+    rows = []
+    first = True
+    for r in pa.iter_rows(named=True):
+        key = (r["game_pk"], r["at_bat_number"], r["batter"])
+        if first:  # simulate ordinary pitch rows before the terminal row
+            rows.append({"game_pk": key[0], "at_bat_number": key[1],
+                         "batter": key[2], "events": None})
+            rows.append({"game_pk": key[0], "at_bat_number": key[1],
+                         "batter": key[2], "events": None})
+            first = False
+        rows.append({"game_pk": key[0], "at_bat_number": key[1],
+                     "batter": key[2], "events": r["events"]})
+    schema = {"game_pk": pl.Int64, "at_bat_number": pl.Int64,
+              "batter": pl.Int64, "events": pl.Utf8}
+    return pl.DataFrame(rows, schema=schema, orient="row")
 
 
 def _lineups():
@@ -131,8 +174,18 @@ def _bf():
     return pl.DataFrame(rows, schema=schema)
 
 
+def _sha(path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
 def _write(tmp_path, pa=None, lineups=None, assessment=None, bf=None):
-    frames = {"pa": pa if pa is not None else _pa_frame(),
+    """pa must be events-bearing; the consumed PA parquet drops events
+    (the actual declared schema), while the raw file carries the
+    terminal events for the label bridge."""
+    pa = pa if pa is not None else _pa_frame()
+    raw = _write_raw(tmp_path, pa)
+    pa_consumed = pa.drop("events")
+    frames = {"pa": pa_consumed,
               "lineups": lineups if lineups is not None else _lineups(),
               "assessment": assessment if assessment is not None
               else _assessment(),
@@ -142,7 +195,11 @@ def _write(tmp_path, pa=None, lineups=None, assessment=None, bf=None):
         p = tmp_path / f"{name}.parquet"
         frame.write_parquet(p)
         h[f"{name}_path"] = str(p)
-        h[f"{name}_sha"] = hashlib.sha256(p.read_bytes()).hexdigest()
+        h[f"{name}_sha"] = _sha(p)
+    rp = tmp_path / "raw_events.parquet"
+    raw.write_parquet(rp)
+    h["raw_events_path"] = str(rp)
+    h["raw_events_sha"] = _sha(rp)
     return h
 
 
@@ -156,6 +213,7 @@ def _run(tmp_path, out="out", pa=None, lineups=None, assessment=None,
         bf if bf is not None else _bf(), tmp_path / out,
         train_start="2024-06-01", train_end="2024-07-31",
         execution_ack=ack,
+        raw_events=[h["raw_events_path"]],
         expected_cohort_hash=cohort_hash)
     return res, h
 
@@ -231,7 +289,12 @@ def test_eligible_history_change_moves_state(tmp_path):
     pa_mod = _pa_frame().with_columns(
         pl.when((pl.col("game_date") == TRAIN_D2)
                 & (pl.col("pitcher") == P1) & (pl.col("batter") == B2[0]))
-        .then(pl.lit("walk")).otherwise(pl.col("events")).alias("events"))
+        .then(pl.lit("walk")).otherwise(pl.col("events")).alias("events")
+    ).with_columns(
+        # the label bridge requires y consistency: a walk is not a K
+        pl.when((pl.col("game_date") == TRAIN_D2)
+                & (pl.col("pitcher") == P1) & (pl.col("batter") == B2[0]))
+        .then(pl.lit(0)).otherwise(pl.col("y")).alias("y"))
     res_a, _ = _run(tmp_path, out="out_a")
     res_b, _ = _run(tmp_path, out="out_b", pa=pa_mod)
     r1 = json.loads((Path(res_a["out_dir"])
@@ -302,7 +365,7 @@ def test_subprocess_file_identity_mismatch_refuses(tmp_path):
     argv = [sys.executable, str(script),
             "--pa-source", h["pa_path"], "--lineups", h["lineups_path"],
             "--assessment", h["assessment_path"], "--bf-source",
-            h["bf_path"],
+            h["bf_path"], "--raw-events", h["raw_events_path"],
             "--expected-pa-sha256", "0" * 64,
             "--train-start", "2024-06-01", "--train-end", "2024-07-31",
             "--out-dir", str(tmp_path / "out_sha"),
@@ -321,7 +384,8 @@ def test_subprocess_invocation_produces_evidence(tmp_path):
     argv = [sys.executable, str(script),
             "--pa-source", h["pa_path"], "--lineups", h["lineups_path"],
             "--assessment", h["assessment_path"], "--bf-source",
-            h["bf_path"], "--train-start", "2024-06-01",
+            h["bf_path"], "--raw-events", h["raw_events_path"],
+            "--train-start", "2024-06-01",
             "--train-end", "2024-07-31",
             "--out-dir", str(tmp_path / "out_sub"),
             "--execution-ack", ACK]

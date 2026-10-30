@@ -46,6 +46,7 @@ from pregame_pa_ext import adapter as ad  # noqa: E402
 from pregame_pa_ext import baseline_ladder as bl  # noqa: E402
 from pregame_pa_ext import forecast_states_v2 as fv  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
+from pregame_pa_ext import statcast_event_bridge as seb  # noqa: E402
 import kcount_combiner as kc  # noqa: E402
 
 EXECUTION_ACK_TOKEN = "EXECUTE-PREGAME-MULTICLASS-BASELINE-V1"
@@ -76,11 +77,15 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                                     out_dir, *,
                                     train_start: str, train_end: str,
                                     execution_ack: str,
+                                    raw_events: list | None = None,
                                     expected_cohort_hash: str | None = None,
                                     ack_route: str = "direct-call") -> dict:
     """Execute the synthetic-capable end-to-end multiclass baseline.
 
-    pa: completed-PA source (game_date, game_pk, pitcher, batter, events).
+    pa: completed-PA source (game_date, game_pk, at_bat_number, pitcher,
+        batter, y -- the ACTUAL declared schema, no events column).
+    raw_events: explicit list of raw Statcast parquet paths for the
+        validated terminal-event label bridge (required).
     lineups: projected-lineup requests (wide: game_pk, side, pitcher,
         game_date, nine_distinct, u_slot_1..9) -- the declared actionable
         request source; oracle realized-lineup mode is not accepted here.
@@ -130,12 +135,32 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
     initial_sha = ad.sha256_file(initial_path)
 
     try:
-        # ---- labels + split (assessment outcomes never enter here) ----
+        # ---- labels: validated terminal-event bridge over the ACTUAL
+        # schema (no events column; y present). Two roles stay separate:
+        # historical y-based support uses the FULL PA population;
+        # multiclass training uses the validated labeled subset. -------
         _require_columns(pa, ["game_date", "game_pk", "at_bat_number",
-                              "pitcher", "batter", "events"],
+                              "pitcher", "batter", "y"],
                          "PA source")
-        labeled = m0.build_multiclass_labels(pa)
-        train = labeled.filter(
+        if raw_events is None or not raw_events:
+            raise ValueError(
+                "explicit raw Statcast event files are required for the "
+                "label bridge; refusing a directory scan")
+        pa_labeled, label_acc = seb.attach_terminal_event_labels(
+            pa, raw_events, out_dir=out_dir)
+        # y-consistency: class_label==strikeout must agree with binary y
+        mismatch = pa_labeled.filter(
+            pl.col("class_label").is_not_null()
+            & ((pl.col("class_label") == K_CLASS) != (pl.col("y") == 1)))
+        if mismatch.height:
+            raise ValueError(
+                f"label integrity failure: {mismatch.height} PA rows "
+                "have class_label==strikeout inconsistent with the "
+                "binary y indicator; refusing conflicting outcome "
+                "sources")
+        # history population = EVERY pa row (y-based states never lose
+        # observations through the label join)
+        train = pa_labeled.filter(
             (pl.col("game_date") >= pl.date(*map(int,
                                               train_start.split("-"))))
             & (pl.col("game_date") <= pl.date(*map(int,
@@ -164,8 +189,9 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                          .unique().iter_rows(named=True)}
 
         # ---- cutoff-correct states (v2) for training AND inference ----
+        # states consume the FULL y-based history population
         p_v2, b_v2, lg_v2, state_meta = fv.build_v2_states(
-            labeled, train_cutoffs + request_cutoffs)
+            pa, train_cutoffs + request_cutoffs)
         # class_label rides through the attach so rows stay aligned with
         # their features (attach sorts internally; never zip positionally)
         feat_train = ad.attach_prior_features(
@@ -449,7 +475,7 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
             "state_meta": state_meta,
             "taxonomy": {"names": CLASS_NAMES, "k_class": K_CLASS},
             "counts": {
-                "pa_source_rows": labeled.height,
+                "pa_source_rows": pa_labeled.height,
                 "train_rows": train.height,
                 "request_slots": long.height,
                 "lineup_uncovered_slots": n_uncovered,
@@ -536,6 +562,9 @@ def main(argv=None) -> int:
     p.add_argument("--train-end", required=True)
     p.add_argument("--out-dir", required=True)
     p.add_argument("--execution-ack", required=True)
+    p.add_argument("--raw-events", required=True,
+                   help="comma-separated explicit raw Statcast parquet "
+                        "paths for the terminal-event label bridge")
     p.add_argument("--expected-pa-sha256", default=None)
     p.add_argument("--expected-lineups-sha256", default=None)
     p.add_argument("--expected-assessment-sha256", default=None)
@@ -573,6 +602,7 @@ def main(argv=None) -> int:
         pa, lineups, assessment, bf, args.out_dir,
         train_start=args.train_start, train_end=args.train_end,
         execution_ack=args.execution_ack,
+        raw_events=[s for s in args.raw_events.split(",") if s],
         expected_cohort_hash=args.expected_cohort_hash,
         ack_route="cli")
     print(json.dumps({"baseline_identity": res["baseline_identity"],

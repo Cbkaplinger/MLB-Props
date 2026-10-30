@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pregame_pa_ext import adapter as ad  # noqa: E402
 from pregame_pa_ext import m0_multiclass as m0  # noqa: E402
+from pregame_pa_ext import statcast_event_bridge as seb  # noqa: E402
 
 PREPARATION_ID = "pregame_multiclass_baseline_v1_assessment_prep"
 EXECUTION_ACK_TOKEN = "PREPARE-ASSESSMENT-2025H1-V1"
@@ -69,8 +70,14 @@ def prepare_assessment(pa: pl.DataFrame, lineups: pl.DataFrame,
                        out_dir, *, assessment_start: str,
                        assessment_end: str,
                        execution_ack: str,
+                       raw_events: list | None = None,
                        ack_route: str = "direct-call") -> dict:
-    """Derive the 2025H1 actual-PA assessment frame per the contract."""
+    """Derive the 2025H1 actual-PA assessment frame per the contract.
+
+    raw_events: explicit list of raw Statcast parquet paths. REQUIRED
+        when the PA source carries no `events` column (the real-schema
+        condition); labels are attached by the validated terminal-event
+        bridge. Never a directory scan."""
     if execution_ack != EXECUTION_ACK_TOKEN:
         raise ValueError(
             "preparation acknowledgement missing or invalid: refusing "
@@ -83,6 +90,9 @@ def prepare_assessment(pa: pl.DataFrame, lineups: pl.DataFrame,
 
     code_identity = {
         "preparation_script_sha256": _sha_file(Path(__file__)),
+        "statcast_event_bridge_sha256": _sha_file(
+            Path(seb.__file__)),
+        "statcast_event_bridge_resolved_path": str(Path(seb.__file__)),
         "m0_multiclass_resolved_path": str(Path(m0.__file__)),
         "m0_multiclass_sha256": _sha_file(Path(m0.__file__)),
         "adapter_resolved_path": str(Path(ad.__file__)),
@@ -120,12 +130,14 @@ def prepare_assessment(pa: pl.DataFrame, lineups: pl.DataFrame,
 
         # ---- actual PAs: preserve EVERY completed PA of requested
         # starters (no projected-batter or slot filter) ------------------
-        # The declared PA source may carry NO side column: the side is
-        # attached from the validated (game_pk, pitcher) mapping via a
-        # many-to-one join; nonrequested pitchers are excluded
+        # The declared PA source carries NO events column and may carry
+        # NO side column: the side is attached from the validated
+        # (game_pk, pitcher) mapping via a many-to-one join; labels are
+        # attached from the EXPLICIT raw Statcast files by the validated
+        # terminal-event bridge; nonrequested pitchers are excluded
         # structurally through the requested pitcher key.
         _require_columns(pa, ["game_date", "game_pk", "pitcher", "batter",
-                             "events"], "PA source")
+                             "y"], "PA source")
         sub = pa.join(side_map.select("game_pk", "pitcher", "side"),
                       on=["game_pk", "pitcher"], how="inner")
         if "side" in pa.columns:
@@ -144,10 +156,29 @@ def prepare_assessment(pa: pl.DataFrame, lineups: pl.DataFrame,
             raise ValueError(
                 "no completed PAs for the requested starters within the "
                 "declared assessment window; refusing")
-        out = sub.with_columns(
-            m0.map_statcast_events(pl.col("events")).alias("class_label")
-        ).select("game_pk", "side", "pitcher", "at_bat_number", "batter",
-                 "class_label")
+
+        # ---- terminal-event label attachment (explicit files) ----------
+        # Historical y stays the authoritative K indicator; the bridge
+        # adds the four-class label, and class-0 vs y consistency is
+        # verified wherever both exist.
+        sub, label_acc = seb.attach_terminal_event_labels(
+            sub, raw_events, require_complete=True, out_dir=out_dir)
+        mismatch = sub.filter(
+            ((pl.col("class_label") == m0.K_CLASS)
+             != (pl.col("y") == 1)))
+        if mismatch.height:
+            examples = mismatch.select(*REQ_KEYS, "at_bat_number", "batter",
+                                       "y", "class_label").head(5).rows()
+            fail(out_dir, initial_sha=None, gate="y_label_inconsistent",
+                 detail={
+                     "n_mismatched": int(mismatch.height),
+                     "examples": examples,
+                     "detail": ("class_label==strikeout must agree with "
+                                "the PA table's binary y wherever both "
+                                "exist; refusing rather than scoring "
+                                "conflicting outcome sources")})
+        out = sub.select("game_pk", "side", "pitcher", "at_bat_number",
+                         "batter", "class_label")
 
         # ---- invalid-label refusal BEFORE any assessment output --------
         invalid = out.filter(
@@ -203,6 +234,7 @@ def prepare_assessment(pa: pl.DataFrame, lineups: pl.DataFrame,
                     out.filter(pl.col("class_label") == label).height)
                 for label in [-1, 0, 1, 2, 3]},
             "lineup_uncovered_slots": int(n_uncovered),
+            "label_bridge": label_acc,
         }
         receipt = {
             "preparation_id": PREPARATION_ID,
@@ -266,11 +298,25 @@ def main(argv=None) -> int:
     p.add_argument("--out-dir", required=True,
                    help="fresh write-once preparation directory")
     p.add_argument("--execution-ack", required=True)
+    p.add_argument("--raw-events", required=True,
+                   help="comma-separated explicit raw Statcast parquet "
+                        "paths (the only event source; no directory "
+                        "scan)")
+    p.add_argument("--expected-raw-events-sha256", required=True,
+                   help="comma-separated SHA-256s matching --raw-events "
+                        "order; verified before decoding")
     args = p.parse_args(argv)
     if args.execution_ack != EXECUTION_ACK_TOKEN:
         print("PREPARATION REFUSED: invalid acknowledgement; no input "
               "read, nothing created.", file=sys.stderr)
         return 2
+    raw_events = [s for s in args.raw_events.split(",") if s]
+    raw_shas = [s for s in args.expected_raw_events_sha256.split(",")
+                if s]
+    if len(raw_events) != len(raw_shas):
+        print("PREPARATION REFUSED: raw-events list and expected sha "
+              "list length mismatch.", file=sys.stderr)
+        return 1
     for name, path, exp in (("PA source", args.pa_source,
                              args.expected_pa_sha256),
                             ("projected lineups", args.lineups,
@@ -281,12 +327,20 @@ def main(argv=None) -> int:
                   f"actual={actual} expected={exp}; refusing before "
                   "decoding.", file=sys.stderr)
             return 1
+    for path, exp in zip(raw_events, raw_shas):
+        actual = _sha_file(Path(path))
+        if actual != exp:
+            print(f"INPUT IDENTITY MISMATCH for raw event file {path}: "
+                  f"actual={actual} expected={exp}; refusing before "
+                  "decoding.", file=sys.stderr)
+            return 1
     pa = pl.read_parquet(args.pa_source)
     lineups = pl.read_parquet(args.lineups)
     res = prepare_assessment(pa, lineups, args.out_dir,
                              assessment_start=args.assessment_start,
                              assessment_end=args.assessment_end,
                              execution_ack=args.execution_ack,
+                             raw_events=raw_events,
                              ack_route="cli")
     print(json.dumps(res, indent=1, sort_keys=True, default=str))
     return 0
