@@ -72,6 +72,59 @@ CLI-enforced event-level identity. Ack route: `cli`.
   failed dirs are preserved unchanged as evidence.
 - Invalid ack / mismatched pins refuse before any decode or creation.
 
+## Projected-lineup artifact: exact generator
+
+Artifact: `projected_lineups_variant_v2.parquet`
+(sha `b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b`, 7,194 starts).
+
+- Generator script: `C:\Users\ckaplinger\MLB-Props-Research\pregame-state-v1\scripts\build_projected_lineups_variant_v2.py`
+  sha256 `dba328627cbdd3aa2b94b1b64ecac1e8a7a5b0e808324c5870094ce055bf6c9d`
+  (research workspace script, not a repo commit; preregistered under
+  `scripts/preregistration_variant_v2.json`, PREREGISTRATION_2026
+  frozen 2026-10-13; build evidence `report_v2.json` +
+  `reports/coverage_summary_variant_v2.txt`).
+- Request population: the 7,194 registered bf-workload-v1 starts
+  (`bf_forecasts.parquet`, `2024-07-01 <= game_date <= 2025-12-31`).
+- Slot pools: per opposing-team appearance lists from raw Statcast
+  (2023/2024/2025 `statcast_{season}_regular.parquet`), built from the
+  SAME prior seven team-games as the v1 mode-slot build (mean 7.0 prior
+  games; gate G4 reproduces the v1 parquet's b_slot_i/cnt_slot_i
+  EXACTLY for all 7,194 starts).
+- Selection + ordering rule: unique-batter bijection. 1) enumerate all
+  (slot, batter) pairs with support > 0; 2) sort (support DESC,
+  batter MLBAM id ASC, slot ASC); 3) walk in order, assign iff both
+  slot and batter unassigned.
+- Missing-slot handling: cold-start fallback fills still-unassigned
+  slots in ASCENDING slot order with the unassigned pool batter of
+  highest TOTAL prior usage (tiebreak smaller MLBAM id). A pool with
+  <9 distinct batters leaves slots null and the start is EXCLUDED
+  downstream (reason `insufficient_distinct_prior_batters`). In the
+  pinned artifact: 7,194/7,194 nine-distinct (0 excluded); 52 starts
+  used exactly 1 fallback slot; duplicated ids never written.
+- Same-date/future exclusion evidence: pools use prior team-games with
+  `game_date < start_date` (strictly prior; `build_projected_lineups_variant_v2.py`
+  line ~161), so same-date and future appearances cannot enter.
+
+## Training window and fit settings (copied from the accepted baseline receipt)
+
+Source: `pregame_multiclass_baseline_v1\receipt_initial.json` /
+`receipt_final.json` `config` (identical in both). NOT owner-settable
+for this isolated comparison — the workload run copies them verbatim:
+
+- `train_window`: **2024-05-01 .. 2024-12-31** (accepted run:
+  `train_rows` 148,369).
+- Feature construction: `adapter.attach_prior_features` over
+  `forecast_states_v2` cutoff states; identical constructor for
+  training and inference.
+- Fit: regularized multinomial logistic (`m0_multiclass.fit_multinomial`,
+  sha `5afe972b…` — unchanged since the accepted run):
+  `LogisticRegression(C=1.0, max_iter=1000, solver="lbfgs")` over
+  `StandardScaler`-scaled features.
+- Class order / taxonomy: 4 classes, K = class 0 = "strikeout"
+  (`["strikeout", "walk_hbp_interference", "in_play_out", "hit"]`).
+- State contract: `forecast_cutoff_states_v1` (v2 implementation).
+- Lineup source: projected lineups (actionable; never oracle).
+
 ## Execution command (owner-approval-gated)
 
 ```text
@@ -88,10 +141,10 @@ python research/offseason_2026/pregame_pa_ext/workload_comparison.py \
   --expected-lineups-sha256 b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b \
   --expected-assessment-sha256 464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa \
   --expected-bf-sha256 c9c2762fb2c1c239e5645c49fa92eda50bd652d26e54755ac8bf0c28fa968679 \
-  --train-start 2024-01-01 --train-end 2024-12-31 \
+  --train-start 2024-05-01 --train-end 2024-12-31 \
   --out-dir C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\workload_personalization_w0v1 \
   --execution-ack EXECUTE-WORKLOAD-PERSONALIZATION-V1
 ```
 
-Training window is owner-settable before launch; everything else in the
-command is pinned above.
+Training window and fit settings are copied verbatim from the accepted
+baseline receipt; no element of the command is owner-settable.
