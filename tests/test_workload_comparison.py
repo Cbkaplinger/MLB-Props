@@ -4,11 +4,17 @@ entry point with hand-checkable fixtures.
 
 Requirement → implementation → test-evidence closure table:
   W0 excludes pre-2023, same-date, future, reliever       → test 3
+  Pinned-reference W1 reconstruction gate (pass + altered fail) → tests 12a, 12b
+  Missing reconstruction reference refuses                → test 12c
+  Full keyed PA class-probability vector saved            → test 13
+  W1/W0 BF37 + observed BF/error columns + 4 BF diagnostics → test 14
+  W0 start-to-date mapping saved and validated            → test 15
+  Receipt records consumed identities and cohort identity → test 16
+  CLI requires cohort/hash/reference pins (no silent unrestricted run) → tests 7, 8, 17
   CLI enforces input hashes and registered cohort         → tests 7, 8
   Changed/missing cohort key fails with structured reason → test 9
   Every declared artifact exists in output-hash manifest  → test 10
   Model reload reproduces saved class probabilities       → test 11
-  W1 reconstruction passes; altered reference fails       → test 12
 """
 from __future__ import annotations
 
@@ -143,17 +149,72 @@ def _write(tmp_path, pa=None, lineups=None, assessment=None, bf=None):
     return h
 
 
+def _wrong_reference():
+    rows = [(900001, "Top", P1, 0.5), (900001, "Bot", P2, 0.5)]
+    return pl.DataFrame(rows, schema={
+        "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
+        "rps_ref1_multinomial": pl.Float64}, orient="row")
+
+
+def _cohort_hash_of(cohort: pl.DataFrame) -> str:
+    return hashlib.sha256("\n".join(sorted(
+        "%d|%s|%d" % (int(r["game_pk"]), str(r["side"]),
+                      int(r["pitcher"]))
+        for r in cohort.iter_rows(named=True)))
+        .encode("utf-8")).hexdigest()
+
+
+def _cohort_hash_of(cohort: pl.DataFrame) -> str:
+    return hashlib.sha256("\n".join(sorted(
+        "%d|%s|%d" % (int(r["game_pk"]), str(r["side"]),
+                      int(r["pitcher"]))
+        for r in cohort.iter_rows(named=True)))
+        .encode("utf-8")).hexdigest()
+
+
+def _harvest_reference(out_dir) -> pl.DataFrame:
+    """Harvest the per-start W1 RPS evidence from a completed (or
+    gate-refused) run as a reconstruction reference."""
+    ps = pl.read_parquet(Path(out_dir)
+                         / "workload_per_start_v1.parquet")
+    return ps.select(
+        "game_pk", "side", "pitcher",
+        pl.col("rps_w1_pitcher").alias("rps_ref1_multinomial"))
+
+
 def _run(tmp_path, out="out", pa=None, lineups=None, assessment=None,
-         bf=None, ack=ACK, cohort_keys=None, expected_cohort_hash=None):
+         bf=None, ack=ACK, cohort_keys=None, expected_cohort_hash=None,
+         reconstruction_reference=None, reference_sha256=None,
+         input_identities=None):
     h = _write(tmp_path, pa, lineups, assessment, bf)
     pa_frame = pa if pa is not None else _pa_frame()
+    if reconstruction_reference is None and ack == ACK:
+        # bootstrap: run once with a deliberately wrong pin in a scratch
+        # dir; the gate refuses but per-start evidence is preserved, so
+        # the true per-start W1 RPS is harvested as the reference
+        boot_out = tmp_path / f"_boot_{out}"
+        with pytest.raises(ValueError, match="reconstruction gate FAILED"):
+            wc.run_workload_comparison(
+                pa_frame,
+                lineups if lineups is not None else _lineups(),
+                assessment if assessment is not None else _assessment(),
+                bf if bf is not None else _bf_frame(), boot_out,
+                train_start="2024-06-01", train_end="2024-12-31",
+                execution_ack=ack, raw_events=[h["raw_path"]],
+                cohort_keys=cohort_keys,
+                expected_cohort_hash=expected_cohort_hash,
+                reconstruction_reference=_wrong_reference())
+        reconstruction_reference = _harvest_reference(boot_out)
     return wc.run_workload_comparison(
         pa_frame, lineups if lineups is not None else _lineups(),
         assessment if assessment is not None else _assessment(),
         bf if bf is not None else _bf_frame(), tmp_path / out,
         train_start="2024-06-01", train_end="2024-12-31",
         execution_ack=ack, raw_events=[h["raw_path"]],
-        cohort_keys=cohort_keys, expected_cohort_hash=expected_cohort_hash)
+        cohort_keys=cohort_keys, expected_cohort_hash=expected_cohort_hash,
+        reconstruction_reference=reconstruction_reference,
+        reconstruction_reference_sha256=reference_sha256,
+        input_identities=input_identities)
 
 
 # ------------------------------------------------- 1. e2e + all artifacts
@@ -173,6 +234,7 @@ def test_workload_e2e_all_artifacts_exist_in_manifest(tmp_path):
         "keyed_pa_probabilities.parquet",
         "model_artifact.json",
         "k_pmf_per_start_v1.parquet",
+        "bf37_by_start_v1.parquet",
         "bf37_pooled_by_date_v1.parquet",
     ]
     for f in expected_files:
@@ -288,11 +350,7 @@ def test_write_once(tmp_path):
 def test_cohort_restriction_applied(tmp_path):
     cohort = _lineups().select("game_pk", "side", "pitcher").unique()
     cohort_keys = cohort
-    cohort_h = hashlib.sha256("\n".join(
-        sorted("%d|%s|%d" % (int(r["game_pk"]), str(r["side"]),
-                             int(r["pitcher"]))
-               for r in cohort.iter_rows(named=True)))
-        .encode("utf-8")).hexdigest()
+    cohort_h = _cohort_hash_of(cohort)
     res = _run(tmp_path, out="out_cohort", cohort_keys=cohort_keys,
                expected_cohort_hash=cohort_h)
     assert res["primary_contrast"]["n_starts"] == 2
@@ -327,16 +385,30 @@ def test_duplicate_cohort_keys_refuse(tmp_path):
 
 # ------------------------------------------------- 9. subprocess CLI
 def test_subprocess_cli_success(tmp_path):
-    """The real subprocess CLI produces valid evidence with cohort and
-    file-hash enforcement."""
+    """The real subprocess CLI produces valid evidence with REQUIRED
+    cohort, file-hash, and reconstruction-reference pins."""
     h = _write(tmp_path)
+    # harvest a genuine reconstruction reference via an in-process run
+    ref_res = _run(tmp_path, out="out_ref")
+    ref_path = tmp_path / "reconstruction_reference.parquet"
+    _harvest_reference(ref_res["out_dir"]).write_parquet(ref_path)
     script = (Path(__file__).resolve().parents[1] / "research"
               / "offseason_2026" / "pregame_pa_ext"
               / "workload_comparison.py")
+    cohort = _lineups().select("game_pk", "side", "pitcher").unique()
+    ck = tmp_path / "cohort_keys.parquet"
+    cohort.write_parquet(ck)
     argv = [sys.executable, str(script),
             "--pa-source", h["pa_path"], "--lineups", h["lineups_path"],
             "--assessment", h["assessment_path"], "--bf-source",
             h["bf_path"], "--raw-events", h["raw_path"],
+            "--cohort-keys", str(ck),
+            "--expected-cohort-hash", _cohort_hash_of(cohort),
+            "--reconstruction-reference", str(ref_path),
+            "--expected-pa-sha256", h["pa_sha"],
+            "--expected-lineups-sha256", h["lineups_sha"],
+            "--expected-assessment-sha256", h["assessment_sha"],
+            "--expected-bf-sha256", h["bf_sha"],
             "--train-start", "2024-06-01", "--train-end", "2024-12-31",
             "--out-dir", str(tmp_path / "out_sub"),
             "--execution-ack", ACK]
@@ -347,6 +419,13 @@ def test_subprocess_cli_success(tmp_path):
         encoding="utf-8"))
     assert receipt["execution_acknowledgement"]["route"] == "cli"
     assert receipt["acceptance"]["status"] == "COMPLETED"
+    # receipt records the consumed identities and the cohort identity
+    assert receipt["consumed_input_identities"]["pa_source"] == h["pa_sha"]
+    assert receipt["consumed_input_identities"][
+        "reconstruction_reference"] == _sha(ref_path)
+    assert receipt["cohort_identity"]["restriction_applied"] is True
+    assert receipt["cohort_identity"]["hash_match"] is True
+    assert receipt["reconstruction"]["verified"] is True
     initial_sha = hashlib.sha256(
         (out / "receipt_initial.json").read_bytes()).hexdigest()
     assert receipt["acceptance"]["receipt_chain"] == initial_sha
@@ -376,3 +455,190 @@ def test_subprocess_cohort_hash_enforced(tmp_path):
     r = subprocess.run(argv, capture_output=True, text=True, timeout=300)
     assert r.returncode != 0
     assert "cohort" in r.stderr.lower() or "mismatch" in r.stderr.lower()
+
+
+# ------------------------------- 12. pinned-reference reconstruction gate
+def test_reconstruction_gate_passes_against_harvested_reference(tmp_path):
+    """W1 per-start RPS reproduces the pinned reference within 1e-12;
+    the receipt records the verified identity."""
+    ref_res = _run(tmp_path, out="out_boot12a")
+    ref = _harvest_reference(ref_res["out_dir"])
+    res = _run(tmp_path, out="out_pass12a",
+               reconstruction_reference=ref,
+               reference_sha256="a" * 64)
+    recon = res["reconstruction"]
+    assert recon["verified"] is True
+    assert recon["n_keys"] == 2
+    assert recon["max_abs_rps_diff"] <= 1e-12
+    assert recon["tolerance"] == 1e-12
+    assert recon["reference_sha256"] == "a" * 64
+    report = json.loads((Path(res["out_dir"])
+                         / "workload_comparison_report.json").read_text())
+    assert report["reconstruction"]["verified"] is True
+
+
+def test_reconstruction_gate_altered_reference_refuses(tmp_path):
+    """A deliberately altered reference (1e-9 perturbation > 1e-12
+    tolerance) refuses with a structured diagnostic."""
+    boot = _run(tmp_path, out="out_boot12b")
+    ref = _harvest_reference(boot["out_dir"])
+    altered = ref.with_columns(
+        pl.when(pl.arange(0, pl.len()) == 0)
+        .then(pl.col("rps_ref1_multinomial") + 1e-9)
+        .otherwise(pl.col("rps_ref1_multinomial"))
+        .alias("rps_ref1_multinomial"))
+    h = _write(tmp_path)
+    with pytest.raises(ValueError, match="reconstruction gate FAILED"):
+        wc.run_workload_comparison(
+            _pa_frame(), _lineups(), _assessment(), _bf_frame(),
+            tmp_path / "out_altered",
+            train_start="2024-06-01", train_end="2024-12-31",
+            execution_ack=ACK, raw_events=[h["raw_path"]],
+            reconstruction_reference=altered)
+    # per-start evidence is preserved for diagnosis
+    assert (tmp_path / "out_altered"
+            / "workload_per_start_v1.parquet").exists()
+
+
+def test_missing_reconstruction_reference_refuses(tmp_path):
+    h = _write(tmp_path)
+    with pytest.raises(ValueError, match="reconstruction reference required"):
+        wc.run_workload_comparison(
+            _pa_frame(), _lineups(), _assessment(), _bf_frame(),
+            tmp_path / "out_norecon",
+            train_start="2024-06-01", train_end="2024-12-31",
+            execution_ack=ACK, raw_events=[h["raw_path"]])
+
+
+def test_reconstruction_gate_key_mismatch_refuses(tmp_path):
+    """A reference whose keys differ from the scored starts refuses."""
+    boot = _run(tmp_path, out="out_boot12d")
+    ref = _harvest_reference(boot["out_dir"])
+    ref = ref.head(1)  # drop one scored key
+    h = _write(tmp_path)
+    with pytest.raises(ValueError, match="keys differ from scored"):
+        wc.run_workload_comparison(
+            _pa_frame(), _lineups(), _assessment(), _bf_frame(),
+            tmp_path / "out_keys",
+            train_start="2024-06-01", train_end="2024-12-31",
+            execution_ack=ACK, raw_events=[h["raw_path"]],
+            reconstruction_reference=ref)
+
+
+# ------------------------------------ 13. full keyed PA class probabilities
+def test_keyed_pa_table_has_full_class_vector(tmp_path):
+    res = _run(tmp_path, out="out_prob")
+    kt = pl.read_parquet(Path(res["out_dir"])
+                         / "keyed_pa_probabilities.parquet")
+    pcols = sorted(c for c in kt.columns if c.startswith("p_class_"))
+    assert len(pcols) >= 2, "full class-probability vector not saved"
+    sums = kt.select([pl.col(c) for c in pcols]).sum_horizontal()
+    for s in sums.to_list():
+        assert s == pytest.approx(1.0, abs=1e-9)
+    k_col = f"p_class_{wc.K_CLASS}"
+    assert k_col in kt.columns
+    np.testing.assert_allclose(
+        kt["p_k"].to_numpy(), kt[k_col].to_numpy(), atol=1e-15)
+
+
+# ------------------------------------ 14. BF evidence + four BF diagnostics
+def test_bf_evidence_and_four_diagnostics(tmp_path):
+    res = _run(tmp_path, out="out_bf")
+    out = Path(res["out_dir"])
+    ps = pl.read_parquet(out / "workload_per_start_v1.parquet")
+    # observed BF: 9 PAs per scored start in the PA fixture
+    assert ps["realized_bf"].to_list() == [9, 9]
+    for col in ("bf_rps_w0", "bf_rps_w1", "bf_point_mae_w0",
+                "bf_point_mae_w1", "bf_mean_err_w0", "bf_mean_err_w1"):
+        assert col in ps.columns
+        assert ps[col].null_count() == 0
+    # W1 BF is a point mass at 5 -> mean error = 5 - 9 = -4
+    np.testing.assert_allclose(ps["bf_mean_err_w1"].to_numpy(), -4.0,
+                               atol=1e-12)
+    # per-start BF37 for BOTH arms in one keyed file
+    bf37 = pl.read_parquet(out / "bf37_by_start_v1.parquet")
+    assert bf37.height == 2
+    for arm in ("w0", "w1"):
+        vec = np.asarray([bf37[f"pmf37_{arm}_{j}"][0]
+                          for j in range(37)])
+        assert vec.sum() == pytest.approx(1.0, abs=1e-12)
+    # report carries the four registered diagnostics for both arms
+    report = json.loads((out / "workload_comparison_report.json")
+                        .read_text(encoding="utf-8"))
+    diag = report["bf_diagnostics"]
+    for arm in ("w0_pooled", "w1_registered"):
+        for key in ("bf_distribution_rps_mean", "point_mae_mean",
+                    "mean_bf_error", "coverage_50", "coverage_90",
+                    "n_scored"):
+            assert key in diag[arm]
+        assert diag[arm]["n_scored"] == 2
+    # per-start BF distribution RPS column matches the report mean
+    assert diag["w1_registered"]["bf_distribution_rps_mean"] == \
+        pytest.approx(ps["bf_rps_w1"].mean(), abs=1e-12)
+
+
+# ------------------------------------ 15. W0 start-to-date mapping
+def test_pooled_by_date_covers_all_scored_start_dates(tmp_path):
+    res = _run(tmp_path, out="out_dates")
+    out = Path(res["out_dir"])
+    ps = pl.read_parquet(out / "workload_per_start_v1.parquet")
+    pooled = pl.read_parquet(out / "bf37_pooled_by_date_v1.parquet")
+    start_dates = {str(d) for d in ps["game_date"].to_list()}
+    assert {str(d) for d in pooled["cutoff_date"].unique().to_list()} \
+        == start_dates
+    # per-start W0 BF37 equals the pooled vector at that start's date
+    row = pooled.filter(pl.col("cutoff_date") == str(GAME_DATE)) \
+                .sort("bf_category")
+    for i, psrow in enumerate(ps.iter_rows(named=True)):
+        vec = np.asarray([bf37 for bf37 in pooled.filter(
+            pl.col("cutoff_date") == str(psrow["game_date"]))
+            .sort("bf_category")["bf37_w0_pooled"].to_list()])
+        assert vec.sum() == pytest.approx(1.0, abs=1e-12)
+
+
+# ------------------------------------ 16. receipt identity recording
+def test_receipt_records_input_and_cohort_identity(tmp_path):
+    cohort = _lineups().select("game_pk", "side", "pitcher").unique()
+    cohort_h = _cohort_hash_of(cohort)
+    res = _run(tmp_path, out="out_ident", cohort_keys=cohort,
+               expected_cohort_hash=cohort_h,
+               input_identities={"pa_source": "PIN-PA",
+                                 "bf_source": "PIN-BF"})
+    receipt = json.loads((Path(res["out_dir"]) / "receipt_final.json")
+                         .read_text(encoding="utf-8"))
+    assert receipt["consumed_input_identities"]["pa_source"] == "PIN-PA"
+    assert receipt["consumed_input_identities"]["bf_source"] == "PIN-BF"
+    ci = receipt["cohort_identity"]
+    assert ci["restriction_applied"] is True
+    assert ci["n_keys"] == 2
+    assert ci["hash_match"] is True
+    assert ci["computed_hash"] == cohort_h
+
+
+def test_receipt_records_cohort_identity_without_restriction(tmp_path):
+    res = _run(tmp_path, out="out_nocohort")
+    receipt = json.loads((Path(res["out_dir"]) / "receipt_final.json")
+                         .read_text(encoding="utf-8"))
+    assert receipt["cohort_identity"]["restriction_applied"] is False
+
+
+# ------------------------------------ 17. CLI required pins
+def test_cli_missing_required_pins_refuses(tmp_path):
+    """Omitting cohort / hash / reference pins cannot silently produce
+    an unrestricted experiment: argparse refuses before any work."""
+    h = _write(tmp_path)
+    script = (Path(__file__).resolve().parents[1] / "research"
+              / "offseason_2026" / "pregame_pa_ext"
+              / "workload_comparison.py")
+    argv = [sys.executable, str(script),
+            "--pa-source", h["pa_path"], "--lineups", h["lineups_path"],
+            "--assessment", h["assessment_path"], "--bf-source",
+            h["bf_path"], "--raw-events", h["raw_path"],
+            "--train-start", "2024-06-01", "--train-end", "2024-12-31",
+            "--out-dir", str(tmp_path / "out_nopins"),
+            "--execution-ack", ACK]
+    r = subprocess.run(argv, capture_output=True, text=True, timeout=300)
+    assert r.returncode != 0
+    assert not (tmp_path / "out_nopins").exists()
+    combined = (r.stderr + r.stdout).lower()
+    assert "required" in combined
