@@ -9,10 +9,12 @@ validate_bf37_by_start, bf_pmf_from_37), statcast_event_bridge
 bootstrap), kc.count_rps. Adds NO statistical machinery.
 
 Primary contrast: delta = RPS(W1) - RPS(W0) per start on identical
-assessment keys. W0 uses pooled empirical BF37 (add-one smoothing,
-registered tail); W1 uses registered bf-workload-v1 pitcher-specific
-PMFs. Both arms share the same keyed PA probabilities, assessment
-cohort, and aggregation. The ONLY difference is BF personalization.
+assessment keys. W0 computes a per-cutoff pooled empirical BF37 from
+ALL first-pitcher-of-record starter outings strictly before each
+forecast cutoff (expanding, 2023-01-01 onward, opener-inclusive).
+W1 uses the registered bf-workload-v1 pitcher-specific PMFs unchanged.
+Both arms share the same keyed PA probabilities (from the multinomial
+model), the same assessment cohort, and the same count aggregation.
 """
 from __future__ import annotations
 
@@ -39,7 +41,6 @@ EXECUTION_ACK_TOKEN = "EXECUTE-WORKLOAD-PERSONALIZATION-V1"
 EXPERIMENT_ID = "workload_personalization_w0v1"
 K_CLASS = m0.K_CLASS
 FEATURES = list(m0.FEATURES)
-EVAL_BLOCK = "block_2025H1"
 REQ_KEYS = ["game_pk", "side", "pitcher"]
 ASSESS_COLUMNS = ["game_pk", "side", "pitcher", "at_bat_number", "batter",
                   "class_label"]
@@ -51,18 +52,39 @@ def _sha_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _pooled_bf37(pa_rows: pl.DataFrame) -> np.ndarray:
-    """Pooled empirical BF37 from starter-outing totals derived from
-    PA-level rows, add-one smoothing, registered tail convention.
+def _cohort_hash(keys: list) -> str:
+    lines = sorted("%d|%s|%d" % k for k in keys)
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
-    Derives one observation per (game_pk, pitcher) outing by
-    counting PAs per start, then builds the BF37 histogram from
-    outing-level BF totals. Grouping by (game_pk, pitcher) avoids
-    requiring a side column in the PA source; the (game_pk, pitcher)
-    pair uniquely identifies a starter outing."""
-    outings = pa_rows.group_by("game_pk", "pitcher").agg(
-        realized_bf=pl.len()
-    )
+
+def _require_columns(frame, required, name):
+    missing = [c for c in required if c not in frame.columns]
+    if missing:
+        raise ValueError(f"{name}: missing column(s) {missing}")
+
+
+def _pooled_bf37_at(pa: pl.DataFrame, cutoff) -> np.ndarray:
+    """Pooled BF37 from first-pitcher-of-record outings strictly before
+    the cutoff. Add-one smoothing. Registered tail convention.
+
+    Derives one observation per (game_pk, inning_topbot) game-half by
+    finding the first pitcher of record (minimum at_bat_number in that
+    half), then counting ALL PAs by that pitcher in that half as the
+    outing BF. This matches the registered bf-workload-v1 construction
+    (opener-inclusive, no starter filter)."""
+    pre = pa.filter(pl.col("game_date") < cutoff)
+    if pre.height == 0:
+        return np.full(37, 1.0 / 37.0)
+    # first pitcher per (game_pk, inning_topbot): min at_bat_number
+    first = (pre.sort("at_bat_number")
+             .group_by("game_pk", "inning_topbot", maintain_order=True)
+             .first()
+             .select("game_pk", "inning_topbot", "pitcher"))
+    # count ALL PAs by that pitcher in that game-half = outing BF
+    outings = (pre.join(first, on=["game_pk", "inning_topbot", "pitcher"],
+                        how="semi")
+               .group_by("game_pk", "inning_topbot", "pitcher")
+               .agg(realized_bf=pl.len()))
     v = outings["realized_bf"].to_numpy()
     counts = np.zeros(37)
     for b in v:
@@ -78,6 +100,8 @@ def run_workload_comparison(
         train_start: str, train_end: str,
         execution_ack: str,
         raw_events: list | None = None,
+        cohort_keys: pl.DataFrame | None = None,
+        expected_cohort_hash: str | None = None,
         ack_route: str = "direct-call") -> dict:
     """Execute the workload personalization comparison."""
     if execution_ack != EXECUTION_ACK_TOKEN:
@@ -118,13 +142,14 @@ def run_workload_comparison(
     try:
         # ---- labels: bridge over the ACTUAL schema -------------------
         _require_columns(pa, ["game_date", "game_pk", "at_bat_number",
-                              "pitcher", "batter", "y"], "PA source")
+                              "inning_topbot", "pitcher", "batter", "y"],
+                         "PA source")
         if not raw_events:
             raise ValueError("raw_events required")
         pa_labeled, label_acc = seb.attach_terminal_event_labels(
             pa, raw_events, out_dir=out_dir)
 
-        # ---- training split -----------------------------------------
+        # ---- training split (labeled subset, frozen coefficients) ----
         train = pa_labeled.filter(
             (pl.col("game_date") >= pl.date(
                 *map(int, train_start.split("-"))))
@@ -142,7 +167,40 @@ def run_workload_comparison(
             raise ValueError("empty projection request population")
         request_cutoffs = long["game_date"].unique().to_list()
 
+        # ---- cohort restriction BEFORE feature construction ----------
+        n_requests_before = long.height
+        if cohort_keys is not None:
+            cohort_unique = cohort_keys.select(*REQ_KEYS).unique()
+            if cohort_unique.height != cohort_keys.height:
+                raise ValueError(
+                    "duplicate (game_pk, side, pitcher) keys in the "
+                    "cohort-key input")
+            null_mask = pl.any_horizontal(
+                [pl.col(c).is_null() for c in REQ_KEYS])
+            if cohort_keys.filter(null_mask).height > 0:
+                raise ValueError("null cohort keys present")
+            cohort_hash_val = _cohort_hash(
+                [tuple(r) for r in cohort_unique.iter_rows(named=True)])
+            if expected_cohort_hash is not None and \
+                    cohort_hash_val != expected_cohort_hash:
+                raise ValueError(
+                    f"cohort identity mismatch: actual={cohort_hash} "
+                    f"expected={expected_cohort_hash}")
+            long = long.join(cohort_unique, on=REQ_KEYS, how="semi")
+            if long.height == 0:
+                raise ValueError(
+                    "empty request population after cohort restriction")
+            assessment = assessment.join(
+                cohort_unique, on=REQ_KEYS, how="semi")
+        n_requests_after = long.height
+        request_cutoffs = long["game_date"].unique().to_list()
+        request_dates = {(int(r["game_pk"]), str(r["side"]),
+                          int(r["pitcher"])): r["game_date"]
+                         for r in long.select(*REQ_KEYS, "game_date")
+                         .unique().iter_rows(named=True)}
+
         # ---- states + features (v2 cutoff, full y-based population) --
+        # states consume the FULL y-based history population
         p_v2, b_v2, lg_v2, _ = fv.build_v2_states(
             pa, train_cutoffs + request_cutoffs)
         feat_train = ad.attach_prior_features(
@@ -164,15 +222,17 @@ def run_workload_comparison(
         # ---- multinomial fit (shared PA model) ----------------------
         model = m0.fit_multinomial(feat_train)
         probs = m0.apply_multinomial(feat_req, model)
-        forecast_table = feat_req.with_columns(
+        # keyed PA probability table (serialized output)
+        forecast_table = feat_req.select(
+            "game_pk", "side", "pitcher", "slot", "batter",
+        ).with_columns(
             pl.Series("p_k", probs[:, K_CLASS]),
-        ).select("game_pk", "side", "pitcher", "slot", "batter", "p_k")
-
-        # ---- W0: pooled BF37 ----------------------------------------
-        pooled_bf37 = _pooled_bf37(train)
+        )
+        keyed_path = out_dir / "keyed_pa_probabilities.parquet"
+        forecast_table.write_parquet(keyed_path)
 
         # ---- W1: registered BF workload ------------------------------
-        bf_val, _ = ad.validate_bf37_by_start(
+        bf_val, bf_meta = ad.validate_bf37_by_start(
             bf_w1, long.select(*REQ_KEYS, "game_date").unique()
             .sort(*REQ_KEYS))
         bf_w1_lookup = {}
@@ -183,7 +243,7 @@ def run_workload_comparison(
                           int(r["pitcher"]))] = np.asarray(
                 [r[f"pmf37_{j}"] for j in range(37)], dtype=np.float64)
 
-        # ---- assessment cohort ---------------------------------------
+        # ---- assessment outcomes (enter ONLY here) -------------------
         _require_columns(assessment, ASSESS_COLUMNS, "assessment outcomes")
         if assessment.height == 0:
             raise ValueError("empty assessment outcome population")
@@ -200,12 +260,8 @@ def run_workload_comparison(
         realized = {(int(r["game_pk"]), str(r["side"]),
                      int(r["pitcher"])): int(r["realized_k"])
                     for r in k_real_df.iter_rows(named=True)}
-        # dates from validated request keys (not assessment rows)
-        dates = {}
-        for r in long.select(*REQ_KEYS, "game_date").unique() \
-                .sort(*REQ_KEYS).iter_rows(named=True):
-            dates[(int(r["game_pk"]), str(r["side"]),
-                   int(r["pitcher"]))] = r["game_date"]
+        # dates from validated request keys (lineups), not assessment
+        dates = request_dates
 
         # ---- build W0 and W1 count PMFs ------------------------------
         fc_by_start = {}
@@ -223,13 +279,14 @@ def run_workload_comparison(
                     f"({len(slots)}); count aggregation requires the "
                     "full key")
             p9 = np.asarray([slots[i] for i in range(1, 10)])
-            # W1: pitcher-specific workload (BF37 passed directly;
-            # start_count_pmfs internally converts to extended)
+            # W1: pitcher-specific workload
             pmf_w1[key] = ad.start_count_pmfs(
                 p9, p9, bf_w1_lookup[key])["pmf_h3_raw"]
-            # W0: pooled workload (same p9, pooled BF37)
+            # W0: pooled league workload per this start's cutoff
+            cutoff_date = dates[key]
+            pooled = _pooled_bf37_at(pa, cutoff_date)
             pmf_w0[key] = ad.start_count_pmfs(
-                p9, p9, pooled_bf37)["pmf_h3_raw"]
+                p9, p9, pooled)["pmf_h3_raw"]
 
         # ---- scores ---------------------------------------------------
         rps_w0 = {k: kc.count_rps(pmf_w0[k], realized[k])
@@ -258,6 +315,15 @@ def run_workload_comparison(
         })
         per_start_path = out_dir / "workload_per_start_v1.parquet"
         per_start.write_parquet(per_start_path)
+
+        # save keyed PA probabilities
+        keyed_path = out_dir / "keyed_pa_probabilities.parquet"
+        forecast_table.write_parquet(keyed_path)
+
+        # save model artifact
+        model_path = out_dir / "model_artifact.json"
+        model_path.write_text(json.dumps(model, indent=1, sort_keys=True,
+                                         default=str), encoding="utf-8")
 
         report = {
             "experiment_identity": EXPERIMENT_ID,
@@ -301,16 +367,6 @@ def run_workload_comparison(
             "mean_rps_w1": report["mean_rps_w1"],
             "outputs": outputs,
             "receipt_initial_sha256": initial_sha}
-
-
-def _require_columns(frame, required, name):
-    missing = [c for c in required if c not in frame.columns]
-    if missing:
-        raise ValueError(f"{name}: missing column(s) {missing}")
-
-
-def _sha_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def main(argv=None) -> int:
