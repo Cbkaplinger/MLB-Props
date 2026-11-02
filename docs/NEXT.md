@@ -1,27 +1,24 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-10-28. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
+Owner: architect. Updated 2026-10-31. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
 ## Scientific milestone
 
-Complete prediction-path verification and produce a valid historical baseline benchmark using existing machinery. Do not reopen distribution families, TTO, calibration, execution strategies or general architecture.
+~~Complete prediction-path verification and produce a valid historical baseline benchmark~~ — **COMPLETED**: the Ref0-vs-Ref1 multiclass baseline comparison was executed, independently verified, and accepted with limitations.
 
-PR #49: reviewed Stage A code at ca00e4d; real-artifact run remains subject to its explicit authorization. Correct current summaries to distinguish raw dev ledger starts (4,866) from eligible scoring starts (4,823) and 43 excluded starts. Preserve computational identity; no outcome scoring in Stage A.
+## Current next task
 
-PR #50: existing baseline helpers are reusable. The Jul-Dec-2024 estimation restriction reflects a limited start-outcome artifact, not optimal history. Preserve v1 in history; implement a versioned historical starter-outcome derivation and proposed 2023-2024 training benchmark. Verify source coverage, starter/opener definition, K/BF definitions, duplicates and existing-artifact overlap. Implement and synthetic-test now; real-source derivation/validation and scoring need their applicable authorization. Do not silently refit the frozen incumbent or call unequal-history packages isolated effects.
+**Workload personalization experiment** (W0 pooled league BF vs W1 pitcher-specific BF-workload-v1). The experiment card is at `docs/adr/PROPOSED-workload-personalization-experiment.md` (revised at `460dd353`). Implementation requires one authorized run with the shared PA model inference, prediction serialization, and both BF variant vectors. No execution authorization yet.
 
-Chat 1 builds this bounded slice on the existing baseline lane; Stage A's review target stays unchanged. Chat 2 reviews the new derivation/adapter checkpoint, input boundaries, independent fixtures and overlap plan. Reuse known aggregators, scorer and date-cluster comparison; no new harness.
+## Prior completed milestones in this lane
 
-## Independent cleanup lane
-
-Chat 3 continues on PR #46, not blocked by baseline review. First close the existing startup-policy reconciliation using these architect-owned role replacements. Next reduce duplicate operational guidance in claimed paths: one current authority, links instead of copied rules, correct misleading current claims, exact archive/delete candidates when justified. Preserve scientific source evidence. Send backlog corrections to Chat 1. No global cleanup claims.
-
-Architect owns pending integration decisions for the existing reviewed PRs, including PR #48; delegation is recorded on the relevant PR. There are four open PRs at inspection: #46, #48, #49, #50. No new PR until integration reduces that count. No unsafe history rewriting to simplify stacked PRs.
+- **Historical starter-outcome derivation**: 9,714 starts derived from the expanded 2023–2024 PA source; overlap with the registered 2024H2 artifact confirmed (2,334/2,334 keys, zero discrepancies).
+- **History-sensitivity scorecard**: the learned simple-pitcher reference beats the 2024H2-only population-rate control (Δ −0.0111 count-RPS, CI entirely below zero); accepted with limitations.
+- **Ref0-vs-Ref1 multiclass baseline**: the regularized multinomial model's K marginal produces significantly better count forecasts than population proportions (Δ −0.0864 count-RPS, CI entirely below zero); accepted with limitations by Chat 2.
+- **Stage-A prediction-path reconciliation**: implementation reviewed, real-artifact execution still authorization-gated.
 
 ## Completion and next phase
 
-Outputs: one Stage A receipt bundle after authorization, one validated historical-outcome artifact after authorization, one baseline scorecard after authorized scoring. A failed gate localizes a repair; a negative forecast result closes a hypothesis.
-
-Then: isolate one workload or PA improvement -> freeze selected features -> bounded time-ordered tuning -> locked evaluation -> optional calibration -> separately authorized confirmation/operations. Differentiate coefficient training, feature history and evaluation exposure. Protected partitions and old registrations remain unchanged.
+After the workload result: isolate one PA improvement → freeze selected features → bounded time-ordered tuning → locked evaluation → optional calibration → separately authorized confirmation/operations. Protected partitions and old registrations remain unchanged.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
