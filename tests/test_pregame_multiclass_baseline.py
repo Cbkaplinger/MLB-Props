@@ -645,3 +645,108 @@ def test_scored_cohort_identity_enforced(tmp_path):
     assert report["scored_cohort_sha256"] == correct
     with pytest.raises(ValueError, match="scored cohort identity mismatch"):
         _run(tmp_path, out="out_cohort_bad", cohort_hash="0" * 64)
+
+
+# ------------------- cohort restriction (registered eligible cohort)
+def _cohort_keys_frame():
+    return _lineups().select("game_pk", "side", "pitcher").unique()
+
+
+def test_cohort_restriction_both_refs_same_population(tmp_path):
+    cohort = _cohort_keys_frame()
+    cohort_h = hashlib.sha256("\n".join(
+        sorted("%d|%s|%d" % (r["game_pk"], r["side"], r["pitcher"])
+               for r in cohort.iter_rows(named=True)))
+        .encode("utf-8")).hexdigest()
+    h = _write(tmp_path)
+    res = pm.run_pregame_multiclass_baseline(
+        pl.read_parquet(h["pa_path"]),
+        pl.read_parquet(h["lineups_path"]),
+        pl.read_parquet(h["assessment_path"]),
+        pl.read_parquet(h["bf_path"]), tmp_path / "out_cohort",
+        train_start="2024-06-01", train_end="2024-07-31",
+        execution_ack=ACK, raw_events=[h["raw_events_path"]],
+        cohort_keys=cohort, expected_cohort_hash=cohort_h)
+    report = json.loads(
+        (Path(res["out_dir"]) / "multiclass_baseline_report.json")
+        .read_text(encoding="utf-8"))
+    assert report["counts"]["cohort_restriction"]["applied"] is True
+    assert report["counts"]["cohort_restriction"]["requests_excluded"] == 0
+    assert res["counts"]["assessment_starts"] == 2
+    assert res["counts"]["count_scored_starts"] == 2
+    ps = pl.read_parquet(Path(res["out_dir"])
+                         / "multiclass_baseline_per_start_v1.parquet")
+    assert ps.height == 2
+
+
+def test_cohort_restriction_excludes_extra_starts(tmp_path):
+    cohort = _cohort_keys_frame().head(1)
+    cohort_h = hashlib.sha256("\n".join(
+        sorted("%d|%s|%d" % (r["game_pk"], r["side"], r["pitcher"])
+               for r in cohort.iter_rows(named=True)))
+        .encode("utf-8")).hexdigest()
+    h = _write(tmp_path)
+    res = pm.run_pregame_multiclass_baseline(
+        pl.read_parquet(h["pa_path"]),
+        pl.read_parquet(h["lineups_path"]),
+        pl.read_parquet(h["assessment_path"]),
+        pl.read_parquet(h["bf_path"]), tmp_path / "out_cohort_1",
+        train_start="2024-06-01", train_end="2024-07-31",
+        execution_ack=ACK, raw_events=[h["raw_events_path"]],
+        cohort_keys=cohort, expected_cohort_hash=cohort_h)
+    assert res["counts"]["assessment_starts"] == 1
+    assert res["counts"]["cohort_restriction"]["requests_excluded"] == 9
+    assert res["counts"]["cohort_restriction"]["requests_after"] == 9
+    ps = pl.read_parquet(Path(res["out_dir"])
+                         / "multiclass_baseline_per_start_v1.parquet")
+    assert ps["pitcher"].to_list() == [P1]
+
+
+def test_cohort_hash_mismatch_refuses(tmp_path):
+    cohort = _cohort_keys_frame()
+    h = _write(tmp_path)
+    with pytest.raises(ValueError, match="cohort identity mismatch"):
+        pm.run_pregame_multiclass_baseline(
+            pl.read_parquet(h["pa_path"]),
+            pl.read_parquet(h["lineups_path"]),
+            pl.read_parquet(h["assessment_path"]),
+            pl.read_parquet(h["bf_path"]), tmp_path / "out_bad",
+            train_start="2024-06-01", train_end="2024-07-31",
+            execution_ack=ACK, raw_events=[h["raw_events_path"]],
+            cohort_keys=cohort, expected_cohort_hash="0" * 64)
+
+
+def test_duplicate_cohort_keys_refuse(tmp_path):
+    cohort = pl.concat([_cohort_keys_frame(), _cohort_keys_frame().head(1)])
+    h = _write(tmp_path)
+    with pytest.raises(ValueError, match="duplicate.*cohort"):
+        pm.run_pregame_multiclass_baseline(
+            pl.read_parquet(h["pa_path"]),
+            pl.read_parquet(h["lineups_path"]),
+            pl.read_parquet(h["assessment_path"]),
+            pl.read_parquet(h["bf_path"]), tmp_path / "out_dup",
+            train_start="2024-06-01", train_end="2024-07-31",
+            execution_ack=ACK, raw_events=[h["raw_events_path"]],
+            cohort_keys=cohort)
+
+
+def test_null_cohort_keys_refuse(tmp_path):
+    cohort = _cohort_keys_frame().with_columns(
+        pl.when(pl.col("pitcher") == P1).then(None)
+        .otherwise(pl.col("pitcher")).alias("pitcher"))
+    h = _write(tmp_path)
+    with pytest.raises(ValueError, match="null cohort keys"):
+        pm.run_pregame_multiclass_baseline(
+            pl.read_parquet(h["pa_path"]),
+            pl.read_parquet(h["lineups_path"]),
+            pl.read_parquet(h["assessment_path"]),
+            pl.read_parquet(h["bf_path"]), tmp_path / "out_null",
+            train_start="2024-06-01", train_end="2024-07-31",
+            execution_ack=ACK, raw_events=[h["raw_events_path"]],
+            cohort_keys=cohort)
+
+
+def test_no_cohort_keys_uses_full_population(tmp_path):
+    res, _ = _run(tmp_path, out="out_nocohort")
+    assert res["counts"]["cohort_restriction"]["applied"] is False
+    assert res["counts"]["assessment_starts"] == 2

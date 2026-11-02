@@ -78,6 +78,7 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                                     train_start: str, train_end: str,
                                     execution_ack: str,
                                     raw_events: list | None = None,
+                                    cohort_keys: pl.DataFrame | None = None,
                                     expected_cohort_hash: str | None = None,
                                     ack_route: str = "direct-call") -> dict:
     """Execute the synthetic-capable end-to-end multiclass baseline.
@@ -187,6 +188,53 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                           int(r["pitcher"])): r["game_date"]
                          for r in long.select(*REQ_KEYS, "game_date")
                          .unique().iter_rows(named=True)}
+
+        # ---- cohort restriction (registered eligible cohort) -----------
+        # Restrict lineup requests to the declared eligible-key population
+        # BEFORE feature construction, and restrict assessment scoring to
+        # the same keys. Excluded starts are reported, never silently
+        # absorbed.
+        n_requests_before_cohort = long.height
+        if cohort_keys is not None:
+            cohort_unique = cohort_keys.select(*REQ_KEYS).unique()
+            if cohort_unique.height != cohort_keys.height:
+                raise ValueError(
+                    "duplicate (game_pk, side, pitcher) keys in the "
+                    "cohort-key input; refusing silent deduplication")
+            null_mask = pl.any_horizontal(
+                [pl.col(c).is_null() for c in REQ_KEYS])
+            if cohort_keys.filter(null_mask).height > 0:
+                raise ValueError(
+                    "null cohort keys present; refusing null identity "
+                    "in the declared eligible population")
+            # hash enforcement
+            cohort_hash = hashlib.sha256("\n".join(
+                sorted("%d|%s|%d" % (int(r["game_pk"]), str(r["side"]),
+                                     int(r["pitcher"]))
+                       for r in cohort_unique.iter_rows(named=True)))
+                .encode("utf-8")).hexdigest()
+            if expected_cohort_hash is not None and \
+                    cohort_hash != expected_cohort_hash:
+                raise ValueError(
+                    f"cohort identity mismatch: actual={cohort_hash} "
+                    f"expected={expected_cohort_hash}")
+            # restrict requests and assessment to the cohort keys
+            n_request_excluded = long.join(
+                cohort_unique, on=REQ_KEYS, how="anti").height
+            long = long.join(cohort_unique, on=REQ_KEYS, how="semi")
+            n_assess_excluded = assessment.join(
+                cohort_unique, on=REQ_KEYS, how="anti").height
+            assessment = assessment.join(
+                cohort_unique, on=REQ_KEYS, how="semi")
+        else:
+            cohort_hash = None
+            n_request_excluded = 0
+            n_assess_excluded = 0
+            cohort_unique = None
+        if long.height == 0:
+            raise ValueError(
+                "empty request population after cohort restriction: "
+                "refusing a vacuous baseline")
 
         # ---- cutoff-correct states (v2) for training AND inference ----
         # states consume the FULL y-based history population
@@ -479,6 +527,13 @@ def run_pregame_multiclass_baseline(pa: pl.DataFrame, lineups: pl.DataFrame,
                 "train_rows": train.height,
                 "request_slots": long.height,
                 "lineup_uncovered_slots": n_uncovered,
+                "cohort_restriction": {
+                    "applied": cohort_keys is not None,
+                    "requests_before": n_requests_before_cohort,
+                    "requests_after": long.height,
+                    "requests_excluded": n_request_excluded,
+                    "assessment_pas_excluded": n_assess_excluded,
+                },
                 "assessment_pas": assessment.height,
                 "assessment_pas_matched_to_projections": matched.height,
                 "assessment_pas_excluded_no_projected_matchup":
@@ -572,6 +627,9 @@ def main(argv=None) -> int:
     p.add_argument("--expected-cohort-hash", default=None,
                    help="registered sorted-start-key SHA-256 of the "
                         "declared eligible assessment cohort")
+    p.add_argument("--cohort-keys", default=None,
+                   help="parquet file with (game_pk, side, pitcher) "
+                        "columns defining the eligible assessment cohort")
     args = p.parse_args(argv)
     if args.execution_ack != EXECUTION_ACK_TOKEN:
         print("EXECUTION REFUSED: invalid acknowledgement; no input "
@@ -598,11 +656,14 @@ def main(argv=None) -> int:
     lineups = pl.read_parquet(args.lineups)
     assessment = pl.read_parquet(args.assessment)
     bf = pl.read_parquet(args.bf_source)
+    cohort_keys = (pl.read_parquet(args.cohort_keys)
+                   if args.cohort_keys else None)
     res = run_pregame_multiclass_baseline(
         pa, lineups, assessment, bf, args.out_dir,
         train_start=args.train_start, train_end=args.train_end,
         execution_ack=args.execution_ack,
         raw_events=[s for s in args.raw_events.split(",") if s],
+        cohort_keys=cohort_keys,
         expected_cohort_hash=args.expected_cohort_hash,
         ack_route="cli")
     print(json.dumps({"baseline_identity": res["baseline_identity"],
