@@ -107,16 +107,18 @@ capability registration after verification. Real scorecard
 estimation/scoring for THIS run: consumed per its scope.
 
 **MULTICLASS E2E BASELINE SLICE (checkpoint 9bdd3b4, pushed;**
-**STAGE-1 PREPARATION ATTEMPTED 2026-10-30 under explicit owner
-authorization: GUARD REFUSAL - the registered pa_table.parquet carries
-NO events column (actual schema: at_bat_number, batter, game_date,
-game_pk, inning_topbot, p_throws, pitcher, pitcher_role, season, stand,
-y); the multiclass label contract requires events (m0 real-data path
-reads them from repo Savant-Data); preparation evidence preserved at
-pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs\
-(failure_record.json; NO assessment parquet written); label-source
-disposition = owner/architect decision (registered m0 real-data path vs
-M0 dataset manifest lineage); NO retry under this authorization):**
+**STAGE-1 PREPARATION EXECUTED (owner-authorized, 2026-10-30): exit 0,
+56,046 assessment PAs across 2,532 starts; zero unknown/missing labels,
+zero duplicates, zero missing/unrequested starts; 56,046/56,046
+identities matched to raw terminal events (both raw files hash-verified
+pre-decode); assessment sha 464fe1922c4a...; destination
+pregame_multiclass_baseline_v1_inputs_v2 (receipt + parquet, no
+failure_record); failed inputs_v1 preserved unchanged; Chat 2 artifact
+verification NEXT. Prior attempt: GUARD REFUSAL - pa_table lacks events
+column (label-integration repair subsequently implemented at f1eda215);
+that failed attempt's evidence preserved at pregame-pa-ext-v2\diagnostics\
+pregame_multiclass_baseline_v1_inputs\ (failure_record.json only; label-
+source disposition resolved by architect: m0 raw-file bridge).**
 architect decisions ADOPTED and implemented - (1) forecast-cutoff state
 contract v2 (states-v2-forecast-cutoff-v1, forecast_states_v2.py): prior
 state at request cutoff t = aggregate over ALL rows strictly before t;
