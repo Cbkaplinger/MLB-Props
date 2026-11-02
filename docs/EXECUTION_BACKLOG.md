@@ -107,18 +107,26 @@ capability registration after verification. Real scorecard
 estimation/scoring for THIS run: consumed per its scope.
 
 **MULTICLASS E2E BASELINE SLICE (checkpoint 9bdd3b4, pushed;**
-**STAGE-1 PREPARATION EXECUTED (owner-authorized, 2026-10-30): exit 0,
-56,046 assessment PAs across 2,532 starts; zero unknown/missing labels,
-zero duplicates, zero missing/unrequested starts; 56,046/56,046
-identities matched to raw terminal events (both raw files hash-verified
-pre-decode); assessment sha 464fe1922c4a...; destination
-pregame_multiclass_baseline_v1_inputs_v2 (receipt + parquet, no
-failure_record); failed inputs_v1 preserved unchanged; Chat 2 artifact
-verification NEXT. Prior attempt: GUARD REFUSAL - pa_table lacks events
 column (label-integration repair subsequently implemented at f1eda215);
 that failed attempt's evidence preserved at pregame-pa-ext-v2\diagnostics\
 pregame_multiclass_baseline_v1_inputs\ (failure_record.json only; label-
 source disposition resolved by architect: m0 raw-file bridge).**
+**STAGE-2 BASELINE EXECUTED (owner-authorized, 2026-10-30): exit 0.
+Cohort restriction to registered 2,509-start eligible population applied
+(--cohort-keys from count_agg_eval_v1 block_2025H1 slice, hash
+f77d7a66... verified). 148,369 training rows; 2,509 scored starts;
+55,579 assessment PAs (43,565 matched to projections, 12,014 excluded
+no-projected-matchup, 467 excluded by cohort restriction). PRIMARY
+RESULT: RPS(Ref1 multinomial) - RPS(Ref0 population) = -0.086351,
+CI95 [-0.104141, -0.067529] — ENTIRELY below zero: the regularized
+multinomial logistic model's K marginal produces significantly better
+count forecasts than population proportions under identical workload,
+aggregation, and assessment starts. K-marginal log loss: Ref0 0.5171,
+Ref1 0.5057. K-marginal Brier: Ref0 0.1672, Ref1 0.1635. Multiclass
+log loss: Ref0 1.2379, Ref1 1.2246. Development evidence only; not a
+production or betting claim. Receipt chain intact; cohort hash matches
+f77d7a66...; output hashes verified; failed inputs_v1 preserved
+unchanged; Chat 2 independent result verification NEXT.**
 architect decisions ADOPTED and implemented - (1) forecast-cutoff state
 contract v2 (states-v2-forecast-cutoff-v1, forecast_states_v2.py): prior
 state at request cutoff t = aggregate over ALL rows strictly before t;
