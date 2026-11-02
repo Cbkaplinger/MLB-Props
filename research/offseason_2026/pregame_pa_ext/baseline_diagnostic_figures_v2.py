@@ -192,12 +192,11 @@ conc_table.write_csv(V2_DIR / "backing_concentration_summary.csv")
 # 4. coverage panels separated by grain
 fig, (ax_pa, ax_slot, ax_start) = plt.subplots(
     1, 3, figsize=(14, 4))
-# PA grain
-pa_labels = ["PA source\nrows", "Training\nrows", "Request\nslots",
-             "Assessment\nPAs", "Matched to\nprojections"]
+# PA grain (PA-level counts only; no slot counts)
+pa_labels = ["PA source\nrows", "Training\nrows",
+             "Assessment\nPAs (prepared)", "Matched to\nprojections"]
 pa_vals = [report["counts"]["pa_source_rows"],
            report["counts"]["train_rows"],
-           report["counts"]["request_slots"],
            report["counts"]["assessment_pas"],
            report["counts"]["assessment_pas_matched_to_projections"]]
 bars = ax_pa.barh(pa_labels, pa_vals, color=BLUE, edgecolor="white")
@@ -207,7 +206,7 @@ for bar, val in zip(bars, pa_vals):
     ax_pa.text(bar.get_width() * 1.02, bar.get_y() + bar.get_height() / 2,
                f"{val:,}", va="center", fontsize=8)
 ax_pa.invert_yaxis()
-# slot grain
+# slot grain (slot-level counts only)
 slot_labels = ["Request\nslots", "Lineup\nuncovered", "Cohort\nrestricted",
                "Matched to\nprojections"]
 slot_vals = [report["counts"]["request_slots"],
@@ -221,10 +220,11 @@ for bar, val in zip(bars, slot_vals):
     ax_slot.text(bar.get_width() * 1.02, bar.get_y() + bar.get_height() / 2,
                  f"{val:,}", va="center", fontsize=8)
 ax_slot.invert_yaxis()
-# start grain
-start_labels = ["Registered\neligible", "Assessment\nstarts",
-                "Count-scored\nstarts"]
+# start grain (distinguishes 2532 prepared from 2509 registered/scored)
+start_labels = ["Registered\neligible", "Prepared starts\n(within cohort\nunion)",
+                "Registered +\ncohort-restricted\n(scored)", "Count-scored\nstarts"]
 start_vals = [2509, report["counts"]["assessment_starts"],
+              report["counts"]["cohort_restriction"]["requests_after"] // 9,
               report["counts"]["count_scored_starts"]]
 bars = ax_start.barh(start_labels, start_vals, color=BLUE, edgecolor="white")
 ax_start.set_xlabel("Start count")
@@ -239,7 +239,9 @@ fig.savefig(V2_DIR / "coverage_by_grain.png", dpi=150)
 plt.close(fig)
 manifest_fig_4 = {"pa_vals": pa_vals, "slot_vals": slot_vals,
                   "start_vals": start_vals,
-                  "note": "three separate grain panels, not a single bar chart"}
+                  "note": ("three separate grain panels; PA panel excludes "
+                           "slot counts; start panel distinguishes 2532 "
+                           "prepared from 2509 registered/scored")}
 
 # 5. RPS difference by realized K
 fig, ax = plt.subplots(figsize=(8, 4))
@@ -279,8 +281,9 @@ bars2 = ax.bar(x + width / 2, assess_props, width,
 ax.set_xticks(x)
 ax.set_xticklabels(class_names, fontsize=9)
 ax.set_ylabel("Proportion of PAs")
-ax.set_title("PA class proportions (assessment population = 56,046 PAs; "
-             "NOT the 2,509-start scoring cohort)")
+ax.set_title("PA class proportions (assessment population = 56,046 PAs "
+             "for requested starters; NOT the 2,509-start scoring cohort "
+             "or the 43,565 matched-PA scoring subset)")
 for bar in list(bars1) + list(bars2):
     h = bar.get_height()
     ax.text(bar.get_x() + bar.get_width() / 2, h + 0.005,
@@ -295,7 +298,11 @@ manifest_fig_6 = {"population": "56,046 assessment PAs (all completed PAs "
                           "cohort; the class plot describes the assessment "
                           "PA population, not the scored starts",
                   "training_props": pop_props,
-                  "assessment_props": assess_props}
+                  "assessment_props": assess_props,
+                  "note": "aggregate class proportions are similar between "
+                          "training and assessment; similar frequencies do "
+                          "not establish absence of other distribution "
+                          "shifts"}
 
 # ---- write manifest + backing tables ----
 class_table = pl.DataFrame({
