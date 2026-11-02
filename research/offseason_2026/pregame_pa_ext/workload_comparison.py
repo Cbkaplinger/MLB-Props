@@ -51,15 +51,23 @@ def _sha_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _pooled_bf37(train_rows: pl.DataFrame) -> np.ndarray:
-    """Pooled empirical BF37 from training-window realized BF, add-one
-    smoothing, registered tail convention. Same smoothing/support as
-    the existing workload machinery."""
-    v = train_rows["realized_bf"].to_numpy()
+def _pooled_bf37(pa_rows: pl.DataFrame) -> np.ndarray:
+    """Pooled empirical BF37 from starter-outing totals derived from
+    PA-level rows, add-one smoothing, registered tail convention.
+
+    Derives one observation per (game_pk, pitcher) outing by
+    counting PAs per start, then builds the BF37 histogram from
+    outing-level BF totals. Grouping by (game_pk, pitcher) avoids
+    requiring a side column in the PA source; the (game_pk, pitcher)
+    pair uniquely identifies a starter outing."""
+    outings = pa_rows.group_by("game_pk", "pitcher").agg(
+        realized_bf=pl.len()
+    )
+    v = outings["realized_bf"].to_numpy()
     counts = np.zeros(37)
     for b in v:
-        bf[min(int(b), 37) - 1] += 1.0
-    return (bf + 1.0) / (bf.sum() + 37.0)
+        counts[min(int(b), 37) - 1] += 1.0
+    return (counts + 1.0) / (counts.sum() + 37.0)
 
 
 def run_workload_comparison(
@@ -192,8 +200,9 @@ def run_workload_comparison(
         realized = {(int(r["game_pk"]), str(r["side"]),
                      int(r["pitcher"])): int(r["realized_k"])
                     for r in k_real_df.iter_rows(named=True)}
+        # dates from validated request keys (not assessment rows)
         dates = {}
-        for r in actual.select(*REQ_KEYS, "game_date").unique() \
+        for r in long.select(*REQ_KEYS, "game_date").unique() \
                 .sort(*REQ_KEYS).iter_rows(named=True):
             dates[(int(r["game_pk"]), str(r["side"]),
                    int(r["pitcher"]))] = r["game_date"]
@@ -214,10 +223,13 @@ def run_workload_comparison(
                     f"({len(slots)}); count aggregation requires the "
                     "full key")
             p9 = np.asarray([slots[i] for i in range(1, 10)])
+            # W1: pitcher-specific workload (BF37 passed directly;
+            # start_count_pmfs internally converts to extended)
             pmf_w1[key] = ad.start_count_pmfs(
-                p9, p9, ad.bf_pmf_from_37(bf_w1_lookup[key]))["pmf_h3_raw"]
+                p9, p9, bf_w1_lookup[key])["pmf_h3_raw"]
+            # W0: pooled workload (same p9, pooled BF37)
             pmf_w0[key] = ad.start_count_pmfs(
-                p9, p9, ad.bf_pmf_from_37(pooled_bf37))["pmf_h3_raw"]
+                p9, p9, pooled_bf37)["pmf_h3_raw"]
 
         # ---- scores ---------------------------------------------------
         rps_w0 = {k: kc.count_rps(pmf_w0[k], realized[k])
@@ -225,8 +237,14 @@ def run_workload_comparison(
         rps_w1 = {k: kc.count_rps(pmf_w1[k], realized[k])
                   for k in sorted(realized)}
         blocks = {k: "block_2025H1" for k in realized}
-        paired = bl.paired_contrast(rps_w1, rps_w0, dates, blocks,
-                                    n_boot=2000, seed=20261001)
+        paired_raw = bl.paired_contrast(rps_w1, rps_w0, dates, blocks,
+                                        n_boot=2000, seed=20261001)
+        paired = dict(paired_raw)
+        paired["primary_pair"] = "W1_pitcher_specific_vs_W0_pooled_league"
+        paired["contrast"] = "RPS(W1) - RPS(W0) per start"
+        paired["helper_label_note"] = (
+            "paired_contrast() labels its delta 'S_vs_F' by legacy "
+            "convention; here delta_a_minus_b = RPS(W1) - RPS(W0)")
 
         # ---- outputs ---------------------------------------------------
         per_start = pl.DataFrame({
