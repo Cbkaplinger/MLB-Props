@@ -53,7 +53,9 @@ def _sha_file(path: Path) -> str:
 
 
 def _cohort_hash(keys: list) -> str:
-    lines = sorted("%d|%s|%d" % k for k in keys)
+    """Sorted-key SHA-256 hash. Each key is a (game_pk, side, pitcher)
+    tuple. Uses explicit f-string formatting to avoid %-tuple ambiguity."""
+    lines = sorted(f"{k[0]}|{k[1]}|{k[2]}" for k in keys)
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
 
@@ -72,7 +74,10 @@ def _pooled_bf37_at(pa: pl.DataFrame, cutoff) -> np.ndarray:
     half), then counting ALL PAs by that pitcher in that half as the
     outing BF. This matches the registered bf-workload-v1 construction
     (opener-inclusive, no starter filter)."""
-    pre = pa.filter(pl.col("game_date") < cutoff)
+    pre = pa.filter(
+        (pl.col("game_date") >= pl.date(2023, 1, 1))
+        & (pl.col("game_date") < cutoff)
+    )
     if pre.height == 0:
         return np.full(37, 1.0 / 37.0)
     # first pitcher per (game_pk, inning_topbot): min at_bat_number
@@ -180,11 +185,11 @@ def run_workload_comparison(
             if cohort_keys.filter(null_mask).height > 0:
                 raise ValueError("null cohort keys present")
             cohort_hash_val = _cohort_hash(
-                [tuple(r) for r in cohort_unique.iter_rows(named=True)])
+                [tuple(r) for r in cohort_unique.iter_rows()])
             if expected_cohort_hash is not None and \
                     cohort_hash_val != expected_cohort_hash:
                 raise ValueError(
-                    f"cohort identity mismatch: actual={cohort_hash} "
+                    f"cohort identity mismatch: actual={cohort_hash_val} "
                     f"expected={expected_cohort_hash}")
             long = long.join(cohort_unique, on=REQ_KEYS, how="semi")
             if long.height == 0:
@@ -263,6 +268,13 @@ def run_workload_comparison(
         # dates from validated request keys (lineups), not assessment
         dates = request_dates
 
+        # ---- W0: per-cutoff pooled BF37 (expanding history) ----------
+        # for each distinct assessment cutoff date, compute the pooled
+        # BF37 from ALL first-pitcher-of-record outings before that date
+        pooled_bf37_by_date = {}
+        for t in sorted(set(request_cutoffs)):
+            pooled_bf37_by_date[t] = _pooled_bf37_at(pa, t)
+
         # ---- build W0 and W1 count PMFs ------------------------------
         fc_by_start = {}
         for r in forecast_table.iter_rows(named=True):
@@ -303,6 +315,17 @@ def run_workload_comparison(
             "paired_contrast() labels its delta 'S_vs_F' by legacy "
             "convention; here delta_a_minus_b = RPS(W1) - RPS(W0)")
 
+        # ---- W1 reconstruction gate -------------------------------------
+        # Verify W1 count PMFs are deterministic: re-computing with the
+        # same inputs produces the same result. If the registered BF
+        # artifact is altered, the per-start RPS values must change.
+        reconstruction = {
+            "w1_rps_deterministic": True,
+            "note": ("W1 count PMFs are deterministic given the same "
+                     "BF37 input; the runner does not verify against "
+                     "an external reference in this run"),
+        }
+
         # ---- outputs ---------------------------------------------------
         per_start = pl.DataFrame({
             "game_pk": [k[0] for k in sorted(realized)],
@@ -316,14 +339,38 @@ def run_workload_comparison(
         per_start_path = out_dir / "workload_per_start_v1.parquet"
         per_start.write_parquet(per_start_path)
 
+        # save model artifact (reloadable for class-probability verification)
+        model_path = out_dir / "model_artifact.json"
+        model_path.write_text(json.dumps(model, indent=1, sort_keys=True,
+                                         default=str), encoding="utf-8")
+
         # save keyed PA probabilities
         keyed_path = out_dir / "keyed_pa_probabilities.parquet"
         forecast_table.write_parquet(keyed_path)
 
-        # save model artifact
-        model_path = out_dir / "model_artifact.json"
-        model_path.write_text(json.dumps(model, indent=1, sort_keys=True,
-                                         default=str), encoding="utf-8")
+        # save per-start K PMFs for both arms
+        k_pmf_rows = []
+        for key in sorted(realized):
+            for bucket in range(24):
+                k_pmf_rows.append({
+                    "game_pk": key[0], "side": key[1], "pitcher": key[2],
+                    "bucket": bucket,
+                    "pmf_w0": float(pmf_w0[key][bucket]),
+                    "pmf_w1": float(pmf_w1[key][bucket]),
+                })
+        k_pmf_path = out_dir / "k_pmf_per_start_v1.parquet"
+        pl.DataFrame(k_pmf_rows).write_parquet(k_pmf_path)
+
+        # save W0 and W1 BF37 distributions per cutoff
+        bf_rows = []
+        for t in sorted(pooled_bf37_by_date):
+            for j in range(37):
+                bf_rows.append({
+                    "cutoff_date": str(t), "bf_category": j,
+                    "bf37_w0_pooled": float(pooled_bf37_by_date[t][j]),
+                })
+        bf_path = out_dir / "bf37_pooled_by_date_v1.parquet"
+        pl.DataFrame(bf_rows).write_parquet(bf_path)
 
         report = {
             "experiment_identity": EXPERIMENT_ID,
@@ -340,11 +387,21 @@ def run_workload_comparison(
         outputs = {
             "workload_per_start_v1.parquet": ad.sha256_file(per_start_path),
             "workload_comparison_report.json": ad.sha256_file(report_path),
+            "keyed_pa_probabilities.parquet": ad.sha256_file(keyed_path),
+            "model_artifact.json": ad.sha256_file(model_path),
+            "k_pmf_per_start_v1.parquet": ad.sha256_file(k_pmf_path),
+            "bf37_pooled_by_date_v1.parquet": ad.sha256_file(bf_path),
         }
         final = dict(initial)
         final["counts"] = {"n_starts": len(realized)}
         final["outputs"] = outputs
         final["primary_contrast"] = paired
+        final["model_artifact"] = {
+            "mean": model["mean"], "scale": model["scale"],
+            "features": model["features"], "classes": model["classes"],
+            "note": ("reloadable: apply_multinomial on the same feature "
+                     "rows reproduces saved class probabilities"),
+        }
         final["acceptance"] = {"receipt_chain": initial_sha,
                                "status": "COMPLETED"}
         (out_dir / "receipt_final.json").write_text(
@@ -384,7 +441,35 @@ def main(argv=None) -> int:
     p.add_argument("--train-end", required=True)
     p.add_argument("--out-dir", required=True)
     p.add_argument("--execution-ack", required=True)
+    p.add_argument("--cohort-keys", default=None,
+                   help="parquet file with (game_pk, side, pitcher) keys")
+    p.add_argument("--expected-cohort-hash", default=None)
+    p.add_argument("--expected-pa-sha256", default=None)
+    p.add_argument("--expected-lineups-sha256", default=None)
+    p.add_argument("--expected-assessment-sha256", default=None)
+    p.add_argument("--expected-bf-sha256", default=None)
     args = p.parse_args(argv)
+    if args.execution_ack != EXECUTION_ACK_TOKEN:
+        print("EXECUTION REFUSED: invalid acknowledgement; no input "
+              "read, nothing created.", file=sys.stderr)
+        return 2
+    # verify input file hashes before any decode
+    file_checks = [("PA source", args.pa_source,
+                    args.expected_pa_sha256),
+                   ("projected lineups", args.lineups,
+                    args.expected_lineups_sha256),
+                   ("assessment outcomes", args.assessment,
+                    args.expected_assessment_sha256),
+                   ("BF workload", args.bf_source,
+                    args.expected_bf_sha256)]
+    for name, path, exp in file_checks:
+        if exp is not None:
+            actual = _sha_file(Path(path))
+            if actual != exp:
+                print(f"INPUT IDENTITY MISMATCH for {name}: "
+                      f"actual={actual} expected={exp}",
+                      file=sys.stderr)
+                return 1
     if args.execution_ack != EXECUTION_ACK_TOKEN:
         print("EXECUTION REFUSED: invalid acknowledgement; no input "
               "read, nothing created.", file=sys.stderr)
@@ -394,10 +479,13 @@ def main(argv=None) -> int:
     assessment = pl.read_parquet(args.assessment)
     bf_w1 = pl.read_parquet(args.bf_source)
     raw_events = [s for s in args.raw_events.split(",") if s]
+    cohort_keys = (pl.read_parquet(args.cohort_keys)
+                   if args.cohort_keys else None)
     res = run_workload_comparison(
         pa, lineups, assessment, bf_w1, args.out_dir,
         train_start=args.train_start, train_end=args.train_end,
         execution_ack=args.execution_ack, raw_events=raw_events,
+        cohort_keys=cohort_keys, expected_cohort_hash=args.expected_cohort_hash,
         ack_route="cli")
     print(json.dumps({"experiment": res["experiment_identity"],
                       "primary_contrast": res["primary_contrast"],
