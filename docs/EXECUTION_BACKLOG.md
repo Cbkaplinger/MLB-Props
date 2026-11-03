@@ -42,6 +42,53 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ## Session Snapshot — 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
 
+**CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
+NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
+(1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
+48 untracked (preserved, listed in Waiting-on-user). PRs #46/#48/#49/#50 all
+MERGED 2026-10-28 evening - the 2026-10-28 closeout's UNMERGED list is stale;
+ROLES_REV docs are on main (pointer above repaired). Open PRs: #51/#52
+(baseline stack, PRESERVE) + #53. (2) WORKTREES (19): clean+synced: wtsc
+(PR #52 lane - NOTE: lives under %TEMP%\opencode\wtsc, fragile location,
+owner should consider relocating), baseline-lane, docs-consolidation
+(PR #53), docs-lane, integration-verify-50 (PR #51), maintenance-dep-declarations
+(PR #46 branch). DIRTY - PRESERVED, no touch: distribution-spec (2 dirty
+backlog+spec edits + 16 untracked D0/TBF research files - agent lane,
+uncommitted research content), main-active (AGENTS.md edit + 5 untracked
+drafts - Chat 1 legacy), paext-v2 (1 dirty test file), repo-review-paext-registration
+(3 `_*.py` scratch). Nine detached review-* worktrees at pinned SHAs =
+PRESERVED HISTORICAL; retirement owner-gated; closing this window does not
+require deleting any of them. (3) **PR #53 DISPOSITION: KEEP FOR REVIEW**
+(mergeable CLEAN vs main; merge-base 15fe7bf = pre-today). Unique content on
+4/4 files: DECISIONS consolidation 15,931->5,837 bytes (main still carries 5
+stale "quote below" pointers - the PR fixes a real defect); README authority
+map (+15); repo_canonical_map retirement table (+14); ROADMAP idea-record
+format (+29/-5). One claimed fix is MOOT: the "bounded repairs from another
+worktree" role paragraph is already absent at its merge-base, so main never
+needed that repair. Nothing merged or closed. (4) BRANCH CLASSIFICATION
+(inventory, not deletion approval): PRESERVE ACTIVE - research/
+baseline-v2-derivation-runner, research/baseline-history-scorecard-v1.
+OWNER-APPROVED-RETIREMENT CANDIDATES (work fully merged, evidence checked:
+theoddsapi script landed via PR #44, BOM fix present on main, PRs #46/#49/#50
+merged): docs/lineup-path-reconciliation-spec, chat3/doc-simplify-20261023
+(remote still exists), chat3/verify-and-consolidate, chat3/lighten-20261023b
+(ahead 2, content verified on main), chat3/doc-collapse-20261023 + chat3/
+verify-script-20261023 (local-only, origin gone), research/baseline-benchmark-v1
+(worktree clean; PR #50 merged), research/paext-v2-count-agg-eval (PR #29
+merged). NOT RETIRED / OTHER-LANE OWNERSHIP: research/calibration-exec-gate-v1
+(PR #48 merged BUT worktree paext-v2 is DIRTY - retire branch only after the
+dirty file is dispositioned by its lane); research/count-pmf-calibration-v1
+(integration owned by Chat 1 per CHAT 3 PARKED entry); architect/
+roadmap-20261021 (owner-instruction branch); research/pregame-pa-ext-v1
+(ahead 5, superseded by v2 - owner question); chat2/review-tooling (Chat 2);
+research/paired-uncertainty-v1/v2 + preserve/legacy-pending-20261005
+(explicitly preserved); 9 pr*-review merge-slot branches (historical review
+records). No local-only commit was found on any branch whose content is
+absent from main except the flagged ahead-branches above (all verified
+integrated or owner-questioned). (5) Chat 3 lane is CLOSED. Chat 1 continues
+the Stage-1 preparation command under its own authorization; Chat 2 stays
+parked until preparation evidence exists.
+
 **CLOSEOUT 2026-11-03 (Chat 1 builder; docs + one test-determinism repair; NO run,
 NO new science; this block is the live state and supersedes the stale PR #52
 head/CI pointers earlier in this snapshot):**
@@ -67,20 +114,22 @@ hashes reconcile; verified present 2026-11-03).
 (3) **PR stack prepared for integration (three open PRs; merge is
 architect-delegated, not builder-authorized; the scientific verdict does NOT
 authorize merge or any production/policy/model change):** #51
-`research/baseline-v2-derivation-runner` -> main (8047529, CI green) -> #52
-`research/baseline-history-scorecard-v1` (stacked, base = #51 branch) -> #53
-`docs/consolidation-slice-1` -> main (ad5871a, CI green). CI repair on #52:
+`research/baseline-v2-derivation-runner` -> main (reconciled head `2757015`,
+origin/main merged in 2026-11-03 to clear the CONFLICTING flag; CI green
+before the docs-only merge) -> #52 `research/baseline-history-scorecard-v1`
+(stacked, base = #51 branch) -> #53 `docs/consolidation-slice-1` -> main
+(ad5871a, CI green). CI repair on #52:
 `tests/test_pregame_multiclass_baseline.py::test_cohort_restriction_excludes_extra_starts`
 selected the cohort row via `unique().head(1)`, whose row order is not
 deterministic (CI got P2 where local runs got P1); replaced with an explicit
 `filter(pl.col("pitcher") == P1)` - test-only determinism fix, no registered
-semantics. Integration order: #51, then #52, then #53. Main's
-backlog/NEXT carry newer 2026-10-29/30 closeout entries (Chat 3 lane) than this
-branch's base; reconcile at merge - keep both, this block is the live workload
-state.
-(4) **Chat 2 handoff (async protocol):** review this published closeout SHA
-(delta from `ca87ba1`: NEXT rewrite, backlog closeout block, roles-README
-approval-rule amendment, one test-determinism fix), then park again. No
+semantics. Integration order: #51, then #52, then #53. This file and
+`docs/NEXT.md` now carry BOTH sides' entries reconciled (Chat 3's 2026-10-29
+closeout above + this block).
+(4) **Chat 2 handoff (async protocol):** review the superseding checkpoint
+SHA once published (delta from `ca87ba1`: NEXT rewrite, backlog closeout
+block, roles-README approval-rule amendment, one test-determinism fix, plus
+the 2026-11-03 origin/main reconciliation merges), then park again. No
 polling, no reopening unchanged findings.
 (5) **Approval/handoff rule amended into the canonical roles document**
 (`docs/roles/README.md`; no new policy file): an approval request names exactly
@@ -90,14 +139,16 @@ approval is recorded once and not re-asked for unchanged scope.
 assigns its single question.
 (7) **APPROVAL RECORDED 2026-11-03 (owner, per the amended roles rule):**
 delegated integration merge of the existing PR stack APPROVED - action: merge
-PR #51 (head 8047529), then PR #52 (head 72cf9a3), then PR #53 (head ad5871a),
-in that order, each after current-head review and required CI checks, executed
-by Chat 2 on architect delegation; packet: none (docs + one test-determinism
-fix); data scope: none (no data reads, no production/policy/model/ledger
-changes); destination: main. Do not re-ask while this scope is unchanged.
+PR #51 (head at approval `8047529`; reconciled to `2757015` 2026-11-03, same
+scope), then PR #52 (head at approval `72cf9a3`; superseding checkpoint names
+the reconciled head), then PR #53 (head ad5871a), in that order, each after
+current-head review and required CI checks, executed by Chat 2 on architect
+delegation; packet: none (docs + one test-determinism fix); data scope: none
+(no data reads, no production/policy/model/ledger changes); destination: main.
+Do not re-ask while this scope is unchanged.
 
 **Critical path:** `docs/NEXT.md` (single source of the current action;
-ROLES_REV 2026-10-28-r1 merged to main via PR #46 at `1ef5cad`).
+ROLES_REV 2026-10-28-r1, MERGED to main via PR #46 2026-10-28).
 **This backlog is the concise active entry point.** Historical Session
 Snapshot bullets (2026-08 through 2026-10), the CLV + Hosting Plan, the
 Strategy Plan, and the SSAC27 Track are preserved verbatim in
@@ -244,6 +295,80 @@ confirmation; no scientific code or result records. A stray uncommitted
 backlog edit in the detached main checkout was preserved (diff archived) and
 its content recreated in this entry; the main checkout was restored.
 
+**PAEXT LANE BRIEFING CAPTURED 2026-10-29 (docs-only; NO new claims, NO
+execution, NO experiment/policy authorization):** two coworker briefings
+consolidated into
+`research/offseason_2026/pregame_pa_ext/briefing_pa_model_and_architecture_2026-10-29.md`
+(code inspected at `0cd8175c`). Part A = baseline mechanics explainer: three
+inputs (PA table / reconstructed lineups / BF PMF), the 8-feature w150
+shrinkage + 90d-EW construction, fixed-config softmax multinomial logistic,
+empirical BF workload, and the registered aggregation = **binomial
+conditionals at averaged cycled-slot probabilities mixed over workload --
+explicitly NOT a heterogeneous Poisson-binomial**, correcting earlier
+explanations (including the briefer's own) that blurred that distinction;
+plus TTO/lineup-order notes, proposed feature-family queue, leakage rules,
+and the 3-target scorecard (PA K prob / BF distribution / total K). Part B =
+architecture direction: STAY PA-level, no pitch-by-pitch simulator
+(three-architecture table; PA-level joint simulator as possible later
+challenger); prop pricing via joint PGF with taxonomy caveats (walk class
+includes HBP/interference; in-play-out includes errors/FC); RotoGrinders
+capture path feasible but needs preseason validation + lineup-accuracy
+metrics. The file carries status notes reconciling it with existing evidence
+(Question A exact-aggregator result = dev-only diagnostic, baseline retained;
+lgbm-equal-info v2 closeout: nonlinear challengers RETIRED); the
+debut-pitcher/cold-start owner decisions remain OPEN per
+`docs/reference/reports/backlog_archive_2026-10-21.md`.
+
+**BRIEFING PART C + CHAT 2 ASYNC PROTOCOL (captured 2026-10-29, same file,
+Part C appended):** Chat 2 is KEPT but operates ASYNCHRONOUSLY - parked while
+Chat 1 builds, active once at each PUBLISHED checkpoint (fetch + review that
+exact SHA, blockers vs follow-ups), then parked again; no polling, no
+mid-edit working-tree review, no reopening unchanged findings; Chat 2 never
+edits builder files. Chat 1 implements one agreed task, publishes complete
+SHA + evidence, responds to consolidated findings, executes only authorized
+procedures. Modeling-change discipline (recipe FROZEN until real
+Ref0-vs-Ref1 scores): keep StandardScaler + current logistic unchanged;
+later single-change experiments in order (fixed logistic ref -> one
+representation change, first candidate log1p(n_prior_pitcher/batter) ->
+bounded regularization search -> nonlinear challenger on same features ->
+new feature families), tuned on earlier chronological periods and assessed on
+a later one (nested evaluation; never change scaler+features+regularization
++history+workload simultaneously). Distribution coherence (valid probs, PMF
+sums to 1, nondecreasing CDF) is REQUIRED for any estimator; feature-response
+monotonic constraints are OPTIONAL challengers, never blanket (support/rest/
+velocity/handedness are not monotone; class-score constraints do not
+guarantee monotone final K prob after softmax). Smoothing lanes kept distinct
+(shrinkage strength estimable on dev; continuous workload pooling
+P=w*P_pitcher+(1-w)*P_league is a hypothesis to compare, not assume).
+Training-loss charts only from real recorded evaluations (LightGBM
+record_evaluation; no fabricated curves for the logistic). Comparison ladder
+after baseline: population rate / binary logistic / existing multinomial /
+one-representation logistic / fixed-config LightGBM (RETIRED lane - reentry
+needs a new registered reason per lgbm-equal-info v2 closeout) / bounded
+tuned winner; KNN + neural nets deferred. IMMEDIATE (owner direction): Chat 1
+finishes the corrected preparation script + synthetic checks; Chat 2 reviews
+the published script ONCE then parks pending authorized preparation
+evidence; active scope = assessment preparation then population-vs-
+multinomial comparison, NOT a model tournament (PR #52 open at `0cd8175c` at
+capture time). Next empirical milestone: real Ref0-versus-Ref1 scores.
+
+**WINDOW CLOSEOUT 2026-10-29 (docs-only session; 5 commits to local main, ALL
+UNPUSHED at close - owner runs `git push origin main`):** commits 0bc2e24
+(briefing Parts A+B captured + ROADMAP Question A delta corrected to
+-0.0003333 + diagram 04/06 status notes), 9f9a718 (briefing Part C + Chat 2
+async protocol), d7c7452 (five repo-* specialist bounded read-only passes +
+10 broken-link repairs), and the final closeout commit (diagram 08 Question A
+stale-node correction + NEXT.md PR #52/async reconciliation). Consistency
+sweep complete: no tracked doc still claims (a) the registered research
+aggregation is Poisson-binomial (registered baseline = binomial conditionals
+at averaged cycled-slot probs), (b) Question A unevaluated, or (c) the stale
+-0.000169 Question A figure (PROJECT_STATE's -0.000169 correctly remains: it
+labels the separate M0 v2 diagnostic). OPEN owner decisions carried in
+Waiting-on-user: pingouin declaration (reliability.py), CI slice for the 15
+research-lane test files, ~30 untracked local files disposition, cleanup
+deeper gated phases. Known operational gap: `artifacts/odds_log/ledger.parquet`
+MISSING (run production refresh).
+
 
 ## Execution Order
 
@@ -313,6 +438,8 @@ its content recreated in this entry; the main checkout was restored.
 
 **Waiting on user (blocks these):**
 
+- [ ] Cleanup-skills bounded pass DONE (see Parking Lot 2026-10-29 entry): two owner decisions open - (a) `pingouin` undeclared import (`src/Python/reliability.py`): declare or remove; (b) approve a CI slice adding strict-failure pytest steps for the 15 research-lane test files outside `testpaths`.
+- [ ] Disposition ~30 untracked local files (tests, reports, market_research scripts, `research/offseason_2026/experiments/forward_2025.parquet` + `run_2025_selection.py` + `selection_2025_report.json`) - uncommitted work at risk; commit, archive, or explicitly discard per file.
 - [ ] Confirm 2.5/3.5 over style — **data rec 2026-09-11: freeze current probation** (from the archived CLV + Hosting Plan; carried forward at split)
 - [ ] **Dashboard v1** — parked until backend #113 is green; say go to unpark (from the archived CLV + Hosting Plan; carried forward at split)
 - [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
@@ -345,6 +472,7 @@ its content recreated in this entry; the main checkout was restored.
 
 
 ## Parking Lot (new ideas noticed mid-task — do not act on these until the list above is clear)
+- **Full cleanup-skills program (owner request 2026-10-29) - BOUNDED PASS COMPLETE 2026-10-29, deletions still owner-gated:** all five specialists' read-only "Explore first" inventories executed + allowed pointer repairs applied; findings consolidated here (no separate report written). (1) **docs-canonicalizer:** 10 broken relative md links found and REPAIRED (reports README full-index: 9 dead rows converted to the established "FILE REMOVED; git history preserves it" plain-text convention per the PR #41 pattern; `docs/archive/CLEANUP_LOG.md` relative path fixed to `../EXECUTION_BACKLOG.md`); register + supersession CSVs exist and current; 6 prereg `*-draft.md` pairs in `research/offseason_2026/` remain per T6 disposition plan (banners executed PR #15; deeper disposition pending, untouched). (2) **dead-code-auditor:** static text scan over `src/Python/` + `production/` found ZERO zero-reference candidates - no deletion candidates surfaced (scan is text-only; skill caveats on dynamic imports/lake runners apply; full evidence-graph audit NOT run). (3) **artifact-lifecycle:** inventory only - 22 tracked notebooks, 79 files under `models/`, 9 paper figures; `check_notebook_artifacts.py` shows 1 required artifact MISSING (`artifacts/odds_log/ledger.parquet` - run production refresh); per-file lifecycle classification deferred. (4) **ci-coverage:** CI collects `testpaths=["tests"]` = 128 files; 15 research-lane test files sit OUTSIDE default collection (bf_lane 2, bf_workload_v1 1, market_eval 4, p1_harness 3, prospective_logging 1, count-eval-v2-spec 4); CI runs only ONE explicitly (`tests/test_pregame_pa_tracking.py`); gap spec = add explicit strict-failure pytest steps for the research harness suites - workflow edit needs an approved slice, NOT done. (5) **dependency-hygiene:** `tests/test_sb_dependency_declarations.py` 4/4 PASS (sage remains a registered deliberate exclusion per its test contract); scanner surfaced one REAL undeclared import: `pingouin` (consumer `src/Python/reliability.py`) - outside the S-B test's src-only declared-set scope; needs owner decision: declare (tier?) or remove consumer. Declared-but-unimported candidates (PIL/cv2/fitz/plotly/pyarrow/yaml/bs4/sklearn etc.) are false positives of the name-normalization scan - not findings. Prohibition #3 unchanged: no deletions without evidence artifact + owner gate + validation + rollback.
 - **Cheap agent stack (2026-09-02) — PARTIAL DONE:** ignore-files + agent-context rule shipped. Still parked: Cline/OpenCode + DeepSeek V4 Flash on Mac; kill Cursor Auto/credits; escalate Kimi/GLM; Claude escape hatch. Never route Lenovo work through Chinese APIs. Reopen when user starts Mac harness migrate.
 - **Historical K CLV backfill (2026-09-02) — RESEARCH DONE, pull PARKED:** see `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`. Execute free HF + OddsPapi smoke then optional The Odds API month only when user asks. Do not start paid pull mid-ops week.
 - **Book-quality filter — WONT_DO** (user 2026-09-01): books used for lines only; usually synced.
