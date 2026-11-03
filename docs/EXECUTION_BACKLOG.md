@@ -88,6 +88,13 @@ ONE action with its action, full SHA, packet, data scope, and destination;
 approval is recorded once and not re-asked for unchanged scope.
 (6) **Next experiment NOT started:** it will not launch until the architect
 assigns its single question.
+(7) **APPROVAL RECORDED 2026-11-03 (owner, per the amended roles rule):**
+delegated integration merge of the existing PR stack APPROVED - action: merge
+PR #51 (head 8047529), then PR #52 (head 72cf9a3), then PR #53 (head ad5871a),
+in that order, each after current-head review and required CI checks, executed
+by Chat 2 on architect delegation; packet: none (docs + one test-determinism
+fix); data scope: none (no data reads, no production/policy/model/ledger
+changes); destination: main. Do not re-ask while this scope is unchanged.
 
 **Critical path:** `docs/NEXT.md` (single source of the current action;
 ROLES_REV 2026-10-28-r1 merged to main via PR #46 at `1ef5cad`).
