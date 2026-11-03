@@ -487,6 +487,7 @@ def test_cli_ack_gate_zero_side_effects(tmp_path):
          "--cohort-keys", str(tmp_path / "nope.parquet"),
          "--expected-cohort-hash", "0" * 64,
          "--reconstruction-reference", str(tmp_path / "nope.parquet"),
+         "--expected-reconstruction-sha256", "0" * 64,
          "--expected-pa-sha256", "0" * 64,
          "--expected-lineups-sha256", "0" * 64,
          "--expected-assessment-sha256", "0" * 64],
@@ -494,6 +495,62 @@ def test_cli_ack_gate_zero_side_effects(tmp_path):
     assert proc.returncode == 2
     assert "EXECUTION REFUSED" in proc.stderr
     assert not (tmp_path / "out_cli_ack").exists()
+
+
+# --------------- 12c. CLI reconstruction-reference identity ENFORCED
+def test_cli_reference_hash_enforced_before_decode(tmp_path):
+    h = _write(tmp_path)
+    ref_path = tmp_path / "ref.parquet"
+    _wrong_reference().write_parquet(ref_path)
+    actual = _sha(ref_path)
+    proc = subprocess.run(
+        [sys.executable, str(RUNNER),
+         "--pa-source", h["pa_path"],
+         "--lineups", h["lineups_path"],
+         "--assessment", h["assessment_path"],
+         "--raw-events", h["raw_path"],
+         "--train-start", "2024-06-01", "--train-end", "2024-12-31",
+         "--out-dir", str(tmp_path / "out_cli_ref"),
+         "--execution-ack", ACK,
+         "--cohort-keys", h["lineups_path"],
+         "--expected-cohort-hash", _cohort_hash_of(
+             _lineups().select("game_pk", "side", "pitcher")),
+         "--reconstruction-reference", str(ref_path),
+         "--expected-reconstruction-sha256", "0" * 64,
+         "--expected-pa-sha256", h["pa_sha"],
+         "--expected-lineups-sha256", h["lineups_sha"],
+         "--expected-assessment-sha256", h["assessment_sha"]],
+        capture_output=True, text=True)
+    assert proc.returncode == 1
+    assert "INPUT IDENTITY MISMATCH for reconstruction reference" \
+        in proc.stderr
+    # refusal precedes any execution side effect
+    assert not (tmp_path / "out_cli_ref").exists()
+
+
+# --------------- 12d. CLI reconstruction pin is REQUIRED (argparse)
+def test_cli_reference_hash_pin_required(tmp_path):
+    h = _write(tmp_path)
+    proc = subprocess.run(
+        [sys.executable, str(RUNNER),
+         "--pa-source", h["pa_path"],
+         "--lineups", h["lineups_path"],
+         "--assessment", h["assessment_path"],
+         "--raw-events", h["raw_path"],
+         "--train-start", "2024-06-01", "--train-end", "2024-12-31",
+         "--out-dir", str(tmp_path / "out_cli_nopin"),
+         "--execution-ack", ACK,
+         "--cohort-keys", h["lineups_path"],
+         "--expected-cohort-hash", _cohort_hash_of(
+             _lineups().select("game_pk", "side", "pitcher")),
+         "--reconstruction-reference",
+         str(tmp_path / "whatever.parquet"),
+         "--expected-pa-sha256", h["pa_sha"],
+         "--expected-lineups-sha256", h["lineups_sha"],
+         "--expected-assessment-sha256", h["assessment_sha"]],
+        capture_output=True, text=True)
+    assert proc.returncode == 2
+    assert "--expected-reconstruction-sha256" in proc.stderr
 
 
 # ------------------------------------------- 13. CLI input hash refusal
@@ -523,6 +580,7 @@ def test_cli_input_hash_mismatch_refuses(tmp_path):
          _cohort_hash_of(_lineups().select(
              "game_pk", "side", "pitcher")),
          "--reconstruction-reference", str(ref_path),
+         "--expected-reconstruction-sha256", _sha(ref_path),
          "--expected-pa-sha256", "0" * 64,
          "--expected-lineups-sha256", h["lineups_sha"],
          "--expected-assessment-sha256", h["assessment_sha"]],
@@ -564,6 +622,7 @@ def test_cli_end_to_end_success(tmp_path):
          "--expected-cohort-hash", _cohort_hash_of(
              _lineups().select("game_pk", "side", "pitcher")),
          "--reconstruction-reference", str(ref_path),
+         "--expected-reconstruction-sha256", _sha(ref_path),
          "--expected-pa-sha256", h["pa_sha"],
          "--expected-lineups-sha256", h["lineups_sha"],
          "--expected-assessment-sha256", h["assessment_sha"]],

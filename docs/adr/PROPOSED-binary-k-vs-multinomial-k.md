@@ -14,10 +14,14 @@ existing multinomial model's K marginal?
 ## Status
 
 DRAFT - implemented and synthetic-tested only; NOT executed on real data.
-One authorized run requires the reviewed packet plus explicit owner
-authorization. Single-change discipline: the ONLY difference between arms is
-the source of the per-PA K probability. No taxonomy reopening, no calibration,
-no feature change, no workload change.
+Execution packet: `research/offseason_2026/pregame_pa_ext/
+execution_packet_binary_k_v1.md` (prepared, all input + reference identity
+pins stated; approval flow = Chat 2 packet review -> explicit owner
+authorization -> single execution). Single-change discipline: the ONLY
+difference between arms is the source of the per-PA K probability. No
+taxonomy reopening, no calibration, no feature change, no workload change.
+The m0/workload_comparison two-class softmax repair is DEFERRED and out of
+scope for this experiment.
 
 ## Control (exact)
 
@@ -83,19 +87,27 @@ metrics join actual PAs on the MATCHUP key (m:1 validated), never on slot.
 
 ## Practical decision rule (pre-declared before scoring)
 
-Three separate conclusions, per the registered conventions:
+Statistical direction and practical magnitude are reported SEPARATELY.
 
-1. **Statistical direction:** CI entirely below zero - binary-K favored;
-   entirely above - multinomial retained; overlapping zero - inconclusive,
-   never treated as equivalence.
-2. **Practical magnitude:** |delta| < 0.005 count-RPS is directionally
-   uninformative regardless of CI direction (same engineering threshold
-   rationale as the workload card; an engineering decision, not a
-   demonstrated minimum detectable effect).
-3. **Promotion:** none automatic. A favorable result registers a candidate
-   K-probability-source change for a FUTURE frozen contract decision;
-   promotion requires its own pre-registered, separately authorized change.
-   The reconstruction gate must pass before any contrast is reported.
+**Statistical direction** (established only under the registered
+resampling procedure):
+
+- CI entirely below zero - binary-K favored.
+- CI entirely above zero - multinomial control retained.
+- CI overlapping zero - inconclusive; never treated as equivalence.
+
+**Practical threshold (declared):** a per-start mean |delta| below the
+declared practical threshold of 0.005 count-RPS does not justify the
+complexity of a second PA model, regardless of statistical direction.
+The threshold is a declared engineering decision, not a demonstrated
+minimum detectable effect.
+
+**Promotion:** none automatic. A result that is both statistically
+directional and above the practical threshold registers a candidate
+K-probability-source change for a FUTURE frozen contract decision;
+promotion requires its own pre-registered, separately authorized
+change. The reconstruction gate must pass before any contrast is
+reported.
 
 ## Artifacts (write-once run directory)
 

@@ -58,7 +58,7 @@ ASSESS_COLUMNS = ["game_pk", "side", "pitcher", "at_bat_number", "batter",
 LINEUP_COLUMNS = REQ_KEYS + ["game_date", "nine_distinct"] + [
     f"u_slot_{i}" for i in range(1, 10)]
 BINARY_LABEL_COL = "is_k"
-ENGINEERING_THRESHOLD = 0.005
+PRACTICAL_THRESHOLD = 0.005
 
 
 def _sha_file(path: Path) -> str:
@@ -232,11 +232,15 @@ def run_binary_k_comparison(
         "primary_contrast": "RPS(binary-K) - RPS(multinomial-K) per start",
         "pooled_workload_source": "workload_comparison._pooled_bf37_at",
         "n_boot": 2000, "seed": 20261001,
-        "engineering_threshold": ENGINEERING_THRESHOLD,
+        "practical_threshold": PRACTICAL_THRESHOLD,
         "interpretation": (
-            "delta < 0: binary-K improves count forecasts; |delta| < "
-            "0.005 is directionally uninformative regardless of CI; "
-            "promotion is never automatic"),
+            "statistical direction reported separately: delta < 0 "
+            "favors binary-K, delta > 0 favors the multinomial "
+            "control, CI overlapping zero is inconclusive; a "
+            "magnitude below the declared practical threshold "
+            "(0.005 count-RPS) does not justify added complexity "
+            "regardless of CI direction; promotion is never "
+            "automatic"),
     }
     initial = {"execution_acknowledgement": {"route": ack_route,
                "token": execution_ack},
@@ -664,6 +668,11 @@ def main(argv=None) -> int:
                    help="REQUIRED pinned accepted-W0 per-start reference "
                         "parquet (workload_per_start_v1.parquet schema, "
                         "column rps_w0_pooled)")
+    p.add_argument("--expected-reconstruction-sha256", required=True,
+                   help="REQUIRED sha256 of the reconstruction-reference "
+                        "file; verified BEFORE any decode and recorded in "
+                        "the receipt - recording alone is not identity "
+                        "enforcement")
     p.add_argument("--expected-pa-sha256", required=True)
     p.add_argument("--expected-lineups-sha256", required=True)
     p.add_argument("--expected-assessment-sha256", required=True)
@@ -677,7 +686,10 @@ def main(argv=None) -> int:
                    ("projected lineups", args.lineups,
                     args.expected_lineups_sha256),
                    ("assessment outcomes", args.assessment,
-                    args.expected_assessment_sha256)]
+                    args.expected_assessment_sha256),
+                   ("reconstruction reference",
+                    args.reconstruction_reference,
+                    args.expected_reconstruction_sha256)]
     for name, path, exp in file_checks:
         actual = _sha_file(Path(path))
         if actual != exp:

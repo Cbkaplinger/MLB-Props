@@ -89,8 +89,11 @@ invariance); same-population checks (identical sorted key list, cohort
 semi-join BEFORE features, duplicate-identity refusal, 9-slot requirement);
 shared aggregation (same function, same pooled BF37, only p9 differs);
 saved-model reload parity; primary endpoint = paired per-start count-RPS
-contrast (bootstrap 2000/20261001); |delta| < 0.005 directionally
-uninformative; statistical direction != promotion (never automatic);
+contrast (bootstrap 2000/20261001); statistical direction reported
+separately (CI below zero favors binary-K, above retains the control,
+overlapping zero inconclusive) from the practical magnitude: a magnitude
+below the declared practical threshold (0.005 count-RPS) does not justify
+added complexity regardless of CI direction; promotion never automatic;
 artifacts = write-once run dir (report, per-start parquet, keyed
 probabilities, both model artifacts, K PMFs, pooled BF37, receipt chain,
 failure record); limitations = development evidence on the registered 2025H1
@@ -109,8 +112,19 @@ NOT authorization. FINDING (nonblocking, recorded for Chat 2):
 4 observed classes so accepted results are unaffected; the new runner applies
 the identical softmax definition explicitly for the 2-class parameterization
 (`_multinomial_pk`) and flags a follow-up repair for the reviewed files
-through review, not silently. Checkpoint published on the stacked PR (base
-`docs/integration-reconciliation-20261103` = PR #56).
+through review, not silently; the two-class repair stays DEFERRED and out
+of scope for this experiment per owner direction. Checkpoint published on
+the stacked PR (base `docs/integration-reconciliation-20261103` = PR #56).
+**PACKET PREPARED 2026-11-03 (owner-directed, before integration):**
+`research/offseason_2026/pregame_pa_ext/execution_packet_binary_k_v1.md` -
+one action, all input identity pins (pa/lineups/assessment/raw events from
+the workload run's consumed identities), cohort pin `f77d7a66...`, and the
+accepted multinomial-plus-W0 reference pin `ae971758...`
+(`workload_per_start_v1.parquet`) ENFORCED via the new REQUIRED
+`--expected-reconstruction-sha256` CLI check verified before any decode
+(recording alone was not identity enforcement; +2 CLI tests, suite 20/20,
+133 targeted still green). Approval flow: Chat 2 packet review -> explicit
+owner authorization -> single execution.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
