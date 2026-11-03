@@ -19,12 +19,12 @@ Limitations: development evidence on the registered 2025H1 cohort - not a fresh 
 - Ref0-vs-Ref1 multiclass baseline: multinomial K marginal beats population proportions (delta -0.0864, CI below zero); accepted with limitations.
 - Stage-A prediction-path reconciliation: implementation reviewed; real-artifact run remains separately authorization-gated.
 
-## Current action: integration, not new science
+## Integration - COMPLETE (2026-11-03)
 
-Prepare and integrate the existing PR stack: **#51** (`research/baseline-v2-derivation-runner` -> main, CI green) then **#52** (this branch, stacked on #51) then **#53** (`docs/consolidation-slice-1` -> main, CI green). Merge only via architect delegation on the PR (Chat 2 executes); the scientific verdicts above do NOT authorize merge or any production/policy/model change. Main's `docs/NEXT.md` (2026-10-28, PR #49/#50 text) is superseded by this file at integration.
+The reviewed stack is on main at **`8399f2c`** (actual merge SHA): #51 (`7764ac1`), #53 (`4f2490c`), and the #52 content via PR #54 (`1a1790c` + `8399f2c`; #52's own merge had landed on its base branch, so PR #54 carried it to main; carrier PR #55 was closed redundant). CI `test-and-validate` + `tracking` PASS on the integrated heads; 97 targeted tests green on the merged tree; open-PR count is zero. Verified present on main: the accepted closeout (below), the roles approval-requests amendment, the cohort-test determinism fix, and the full reviewed baseline-stack code. No production/policy/model change was made or authorized by this integration.
 
 ## Next experiment: not started
 
-The next experiment will not launch until its single question is assigned by the architect. After integration: isolate one PA improvement -> freeze selected features -> bounded time-ordered tuning -> locked evaluation -> optional calibration -> separately authorized confirmation/operations. Protected partitions and old registrations remain unchanged.
+The next experiment will not launch until its single question is assigned by the architect. Next sequence after that assignment: isolate one PA improvement -> freeze selected features -> bounded time-ordered tuning -> locked evaluation -> optional calibration -> separately authorized confirmation/operations. Protected partitions and old registrations remain unchanged.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
