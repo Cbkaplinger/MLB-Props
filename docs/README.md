@@ -24,6 +24,21 @@ and supporting standards live in `docs/reference/`.
 - `archive/`: deprecated or superseded material.
 - `CLEANUP_LOG.md`: historical cleanup log (not instructions).
 
+## Authority map (one home per kind of information)
+
+| Information | Canonical home |
+| --- | --- |
+| Current assignments, approvals, blockers | `EXECUTION_BACKLOG.md` (the one work queue) |
+| Immediate critical path | `NEXT.md` (short pointer; architect-owned) |
+| Research direction and ideas | `ROADMAP.md` (prioritized questions + compact idea register; architect-owned) |
+| Decisions | `DECISIONS.md` (decision, rationale, consequence, evidence, supersession) |
+| Roles and repair rules | `roles/README.md` (ROLES_REV; overrides copied role text anywhere) |
+| Reusable pipeline capabilities | `reference/pipeline_registry.json` |
+| Human navigation | `reference/repo_canonical_map.md` |
+| Registered experiments / results / evidence | existing experiment cards, dated reports, immutable run artifacts |
+
+Do not duplicate one authority's content inside another; link instead.
+
 ## Operating scope (current)
 
 - Production claim lane: pitcher strikeouts only.

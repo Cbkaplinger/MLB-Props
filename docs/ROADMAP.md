@@ -30,11 +30,30 @@ worth a card.
 
 ## Roles
 
-Chat 1 builds and executes. Chat 2 trails one checkpoint behind, may publish bounded repairs to the
-research branch from a separate worktree, and does not approve its own repairs; Chat 1 (or the
-architect) checks the repair delta. Chat 3 runs the finite cleanup list in NEXT.md. The architect owns
-this file and NEXT.md. Execution of a registered card needs a recorded owner directive; it is recorded once
-and then not re-requested.
+Role assignments, permissions, and repair rules are owned by the canonical
+role cards — **[`docs/roles/README.md`](roles/README.md)**
+(ROLES_REV 2026-10-28-r1). This file does not restate them; where any copied
+role text here or elsewhere disagrees with the role cards, the role cards win.
+One standing rule this roadmap keeps: execution of a registered card needs a
+recorded owner directive; it is recorded once and then not re-requested.
+
+## Idea register (record format for extracted ideas)
+
+Ideas consolidated from older documents are recorded here in this exact
+compact form; only `selected` entries move into `docs/EXECUTION_BACKLOG.md`:
+
+```text
+ID
+Question / hypothesis
+Problem it addresses
+Source document + section or commit
+Existing implementation, if any
+Evidence already available
+Smallest decisive experiment
+Required inputs and restrictions
+Status: proposed / deferred / selected / implemented / closed / rejected
+Reopen condition or dependency
+```
 
 ## Plan
 
