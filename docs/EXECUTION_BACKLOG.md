@@ -73,6 +73,45 @@ ledger, or real-data change was made or authorized by this integration.
 assigns its single question; see rewritten `docs/NEXT.md` (current action =
 none pending; integration complete).
 
+**BINARY-K VS MULTINOMIAL-K LANE OPENED 2026-11-03 (owner assigned the single
+question; implementation + synthetic tests ONLY; NO real-data execution):**
+spec card `docs/adr/PROPOSED-binary-k-vs-multinomial-k.md` (ID
+`binary_k_vs_multinomial_v1`) names, before any scoring: control = the
+existing multinomial-plus-W0 arm (registered m0 multinomial recipe + W0 pooled
+BF37 through the registered `start_count_pmfs`), reconstructed exactly and
+gated against the pinned accepted per-start reference (tolerance 1e-12);
+challenger = binary K-vs-non-K logistic (SAME estimator family, hyperparameters,
+8 features, training rows; sigmoid head); binary labels derived ONLY from the
+bridged class_label (`is_k = 1[class_label == 0]`), single-class refusal,
+row counts asserted equal across arms; keyed probability alignment (one keyed
+table from the shared feature rows, no positional transfer, permutation
+invariance); same-population checks (identical sorted key list, cohort
+semi-join BEFORE features, duplicate-identity refusal, 9-slot requirement);
+shared aggregation (same function, same pooled BF37, only p9 differs);
+saved-model reload parity; primary endpoint = paired per-start count-RPS
+contrast (bootstrap 2000/20261001); |delta| < 0.005 directionally
+uninformative; statistical direction != promotion (never automatic);
+artifacts = write-once run dir (report, per-start parquet, keyed
+probabilities, both model artifacts, K PMFs, pooled BF37, receipt chain,
+failure record); limitations = development evidence on the registered 2025H1
+cohort only, binary arm models P(K) only and says nothing about non-K class
+uses, 2026 untouched. Implementation: `research/offseason_2026/pregame_pa_ext/
+binary_k_comparison.py` + `tests/test_binary_k_comparison.py` (18 synthetic
+tests through the actual entry point incl. subprocess CLI; requirement-to-test
+closure table in the test docstring). 133 targeted tests green (binary 18 +
+workload 27 + multiclass 27 + scorecard 18 + derivation 13 + pre-commit
+subset). Ack token `EXECUTE-BINARY-K-VS-MULTINOMIAL-V1` is a technical gate,
+NOT authorization. FINDING (nonblocking, recorded for Chat 2):
+`m0.apply_multinomial`'s manual softmax is undefined for a 2-class model
+(single logit column -> constant 1.0), and the reviewed
+`workload_comparison.py` compensation branch inherits the defect
+(probs[:,0]=1.0 -> degenerate [0,1] expansion); the real registered cohort has
+4 observed classes so accepted results are unaffected; the new runner applies
+the identical softmax definition explicitly for the 2-class parameterization
+(`_multinomial_pk`) and flags a follow-up repair for the reviewed files
+through review, not silently. Checkpoint published on the stacked PR (base
+`docs/integration-reconciliation-20261103` = PR #56).
+
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
 (1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
