@@ -16,6 +16,10 @@ One scientific implementation milestone plus an independent cleanup lane. One wr
 
 Routine scoped coding, synthetic tests and documentation checks do not need repeated permission. Real-data reads, derivations, scoring, protected partitions, production, spending and deletions retain their applicable authorization boundaries. An authorization packet must state exactly what is allowed. A test token is not owner authorization.
 
+## Approval requests
+
+Ask one explicit question naming exactly one action with its full SHA, packet, data scope and destination. Record the approval where the work state lives. Do not ask again while the approved scope is unchanged; a scope change needs a new request.
+
 ## Integration
 
 All changes use owned branch -> PR -> current-head review and required checks -> merge. No direct or force push to main. Chat 2 merges only when the architect delegates on the PR. Target at most three open PRs; existing excess is closed through integration, not by deleting evidence. Dependent PRs name their base and dependency. Coordinate before remote edits to another agent's branch.
