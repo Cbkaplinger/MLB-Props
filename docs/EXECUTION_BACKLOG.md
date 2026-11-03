@@ -89,6 +89,64 @@ integrated or owner-questioned). (5) Chat 3 lane is CLOSED. Chat 1 continues
 the Stage-1 preparation command under its own authorization; Chat 2 stays
 parked until preparation evidence exists.
 
+**CLOSEOUT 2026-11-03 (Chat 1 builder; docs + one test-determinism repair; NO run,
+NO new science; this block is the live state and supersedes the stale PR #52
+head/CI pointers earlier in this snapshot):**
+(1) **Workload personalization experiment COMPLETED / VERIFIED.** Chat 2's
+independent recomputation from the saved artifacts VERIFIED the builder-reported
+record (PR #52 comment `6595706937`): all identities, reconstruction gate
+(max per-start RPS diff 0.0 vs pinned reference `3414d0d2...`, n=2,509, cohort
+`f77d7a66...`), and metrics reconcile. Verdict: **pooled league BF control (W0)
+favored over pitcher-specific workload personalization (W1) on development
+data** - delta = RPS(W1) - RPS(W0) = +0.012406, CI95 [+0.004410, +0.020368],
+entirely above zero; |delta| exceeds the 0.005 engineering threshold. BF
+interpretation retained: negative mean BF error = underprediction (W1 -1.03,
+W0 -0.19); higher interval coverage is NOT automatically better (both arms
+overcover; W1 covers more yet scores worse); interval width is not established
+by coverage alone. Single-update rule satisfied: this block + the rewritten
+shortened `docs/NEXT.md` (stale checkpoint/card pointers replaced) are the ONE
+update. Workload-model assumptions are to be investigated before any
+complexity; no refit, no rerun, no rescue variants.
+(2) **Original run artifacts and receipts preserved, untouched:** write-once
+dir `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\
+workload_personalization_w0v1\` (9 artifacts incl. receipt_initial/receipt_final;
+hashes reconcile; verified present 2026-11-03).
+(3) **PR stack prepared for integration (three open PRs; merge is
+architect-delegated, not builder-authorized; the scientific verdict does NOT
+authorize merge or any production/policy/model change):** #51
+`research/baseline-v2-derivation-runner` -> main (reconciled head `2757015`,
+origin/main merged in 2026-11-03 to clear the CONFLICTING flag; CI green
+before the docs-only merge) -> #52 `research/baseline-history-scorecard-v1`
+(stacked, base = #51 branch) -> #53 `docs/consolidation-slice-1` -> main
+(ad5871a, CI green). CI repair on #52:
+`tests/test_pregame_multiclass_baseline.py::test_cohort_restriction_excludes_extra_starts`
+selected the cohort row via `unique().head(1)`, whose row order is not
+deterministic (CI got P2 where local runs got P1); replaced with an explicit
+`filter(pl.col("pitcher") == P1)` - test-only determinism fix, no registered
+semantics. Integration order: #51, then #52, then #53. This file and
+`docs/NEXT.md` now carry BOTH sides' entries reconciled (Chat 3's 2026-10-29
+closeout above + this block).
+(4) **Chat 2 handoff (async protocol):** review the superseding checkpoint
+SHA once published (delta from `ca87ba1`: NEXT rewrite, backlog closeout
+block, roles-README approval-rule amendment, one test-determinism fix, plus
+the 2026-11-03 origin/main reconciliation merges), then park again. No
+polling, no reopening unchanged findings.
+(5) **Approval/handoff rule amended into the canonical roles document**
+(`docs/roles/README.md`; no new policy file): an approval request names exactly
+ONE action with its action, full SHA, packet, data scope, and destination;
+approval is recorded once and not re-asked for unchanged scope.
+(6) **Next experiment NOT started:** it will not launch until the architect
+assigns its single question.
+(7) **APPROVAL RECORDED 2026-11-03 (owner, per the amended roles rule):**
+delegated integration merge of the existing PR stack APPROVED - action: merge
+PR #51 (head at approval `8047529`; reconciled to `2757015` 2026-11-03, same
+scope), then PR #52 (head at approval `72cf9a3`; superseding checkpoint names
+the reconciled head), then PR #53 (head ad5871a), in that order, each after
+current-head review and required CI checks, executed by Chat 2 on architect
+delegation; packet: none (docs + one test-determinism fix); data scope: none
+(no data reads, no production/policy/model/ledger changes); destination: main.
+Do not re-ask while this scope is unchanged.
+
 **Critical path:** `docs/NEXT.md` (single source of the current action;
 ROLES_REV 2026-10-28-r1, MERGED to main via PR #46 2026-10-28).
 **This backlog is the concise active entry point.** Historical Session
@@ -122,20 +180,98 @@ chain intact (initial c2a3afdd... == recorded chain); outputs write-once at
 PR #51 (executor-side recomputation: all hashes, linkage, and field
 reconciliation MATCH; independent Chat 2 signature owed on the record).
 RUN-EXECUTION EVIDENCE = PR #51 comments (run record 6487951982;
-verification 6488030762). **SCORECARD PREPARATION NEXT (packet published,
-PR #51 comment 6488084028):** ONE history-only contrast - Arm S_v2 (derived
-2023-2024 training, 9,714 rows) vs Arm S_v1 (registered 2024H2 training,
-2,334 rows) with the registered ladder machinery held FIXED (same w150
-shrinkage, workload mixture, 24-bucket support), paired count-RPS on the
-identical block_2025H1 eligible cohort (hash f77d7a66..., n=2,509),
-slate-date bootstrap (2000, seed 20261001), Holm m=1; P/S/F ladder
-descriptive only; Arm F = frozen incumbent from the preserved ledger
-(disclosed UNACCEPTED-cold-start status, anchor only); no method change, no
-tuning. Implementation checkpoint (thin scorecard runner, derivation_runner
-receipt conventions, ack gate, synthetic tests through the exact entry
-point) publishes next; scorecard EXECUTION requires its own explicit owner
-authorization. The derivation artifact does NOT validate pre-overlap rows
-externally and establishes no predictive improvement.
+verification 6488030762). **SCORECARD IMPLEMENTED + CLI REPAIRED (canonical delivery checkpoint
+c19a01ad0e85cb8e5f102e5f4d0267bb1f20303c, published on GitHub; builder's
+local cadba8c confirmed content-identical on runner+tests and retired
+from the branch;** the reviewer's consolidated review cleared the
+scientific construction and found one blocker: the missing `__main__`
+guard meant the documented launch command exited 0 without calling
+main(); repair = the standard two-line guard + two real-subprocess tests
+proving exit 2 refusal with nonexistent inputs (zero side effects) and
+exit 0 with full evidence (report, per-start parquet, receipts, cli
+route, hash reconciliation). STATE: derivation completed; scorecard
+implemented; CLI repair delivered at the canonical checkpoint; prior
+scientific findings retained; architect statically inspected the narrow
+repair (not an independent review; repair authored in the reviewer's
+session - ownership failure acknowledged); ownership failure acknowledged); integration = scorecard PR #52 OPEN
+(https://github.com/Cbkaplinger/MLB-Props/pull/52, base
+research/baseline-v2-derivation-runner, head 2c02e46) with CI GREEN
+(test-and-validate + tracking, run 40893412390).
+**SCORECARD EXECUTED ONCE (owner-authorized, 2026-10-30):** exit 0 at
+canonical checkpoint c19a01a code (delivery head 28c86cb); destination
+MLB-Props-Research\baseline-v2\history_sensitivity_v1; inputs verified
+pre-decode (all four pins + cohort f77d7a66 MATCH); S_v1 2,334 train
+rows, S_v2 9,714, assessment 2,509 (cohort hash match); PRIMARY:
+delta = RPS(S_v2)-RPS(S_v1) = -0.011070, CI95 [-0.020503, -0.001621] -
+ENTIRELY below zero: development evidence favors the LONGER estimation
+history (small effect); NOT a final test; F anchor descriptive only
+(mean 1.3111, UNACCEPTED cold-start limitation unchanged; F does not
+select anything). Receipt chain intact (initial aa770407...); output
+hashes recorded; Chat 2 result verification NEXT; interpretation and
+capability registration after verification. Real scorecard
+estimation/scoring for THIS run: consumed per its scope.
+
+**MULTICLASS E2E BASELINE SLICE (checkpoint 9bdd3b4, pushed;**
+column (label-integration repair subsequently implemented at f1eda215);
+that failed attempt's evidence preserved at pregame-pa-ext-v2\diagnostics\
+pregame_multiclass_baseline_v1_inputs\ (failure_record.json only; label-
+source disposition resolved by architect: m0 raw-file bridge).**
+**STAGE-2 BASELINE EXECUTED (owner-authorized, 2026-10-30): exit 0.
+Cohort restriction to registered 2,509-start eligible population applied
+(--cohort-keys from count_agg_eval_v1 block_2025H1 slice, hash
+f77d7a66... verified). 148,369 training rows; 2,509 scored starts;
+55,579 assessment PAs (43,565 matched to projections, 12,014 excluded
+no-projected-matchup, 467 excluded by cohort restriction). PRIMARY
+RESULT: RPS(Ref1 multinomial) - RPS(Ref0 population) = -0.086351,
+CI95 [-0.104141, -0.067529] — ENTIRELY below zero: the regularized
+multinomial logistic model's K marginal produces significantly better
+count forecasts than population proportions under identical workload,
+aggregation, and assessment starts. K-marginal log loss: Ref0 0.5171,
+Ref1 0.5057. K-marginal Brier: Ref0 0.1672, Ref1 0.1635. Multiclass
+log loss: Ref0 1.2379, Ref1 1.2246. Development evidence only; not a
+production or betting claim. Receipt chain intact; cohort hash matches
+f77d7a66...; output hashes verified; failed inputs_v1 preserved
+unchanged; Chat 2 independent result verification NEXT.**
+architect decisions ADOPTED and implemented - (1) forecast-cutoff state
+contract v2 (states-v2-forecast-cutoff-v1, forecast_states_v2.py): prior
+state at request cutoff t = aggregate over ALL rows strictly before t;
+legacy as-of-activity construction preserved unchanged; the published
+row-presence defect (6b64d0d) is thereby corrected for the new path as
+an ORDINARY passing test (legacy Stage A xfail retained, documents the
+v1 convention); (2) projected lineups only (oracle manifest mode never
+accepted). Synthetic end-to-end multiclass baseline runner
+(pregame_multiclass_baseline.py): m0 4-class taxonomy -> Ref 0
+training-only population proportions + Ref 1 regularized multinomial
+(fit_multinomial/apply_multinomial) through IDENTICAL cutoff-correct
+attach_prior_features construction -> K marginal (class 0) ->
+start_count_pmfs fixed-workload aggregation -> count-RPS + multiclass
+log loss vs SEPARATE assessment outcomes -> receipts/ack/write-once.
+9 synthetic tests green incl. real subprocess; affected suites 104
+passed + 1 xfailed. NEXT: Chat 2 review of the slice; real-data
+fitting/scoring of the multiclass baseline remains UNAUTHORIZED (its
+own packet/decision). Stage A real run still unexecuted (packet ready,
+identities staged).
+implements the ONE history-only contrast - Arm S_v2 (accepted derived
+artifact 95ac3638, 2023-2024 training) vs Arm S_v1 (registered
+start_metrics_v2 2024H2 slice) with the registered ladder machinery held
+FIXED (build_arms + build_arms_v2 + paired slate-date bootstrap 2000
+draws seed 20261001 + kc.count_rps + bf-workload-v1 validator, all
+unchanged); identical block_2025H1 eligible cohort enforced by the
+registered sorted-key hash f77d7a66...(n=2,509); own scorecard identity
+baseline_history_sensitivity_scorecard_v1 + contract sha; truthful
+contrast labels (paired_contrast's legacy S_vs_F label disclosed);
+F anchor descriptive only (UNACCEPTED cold-start, never refit/gating);
+runner conventions: ack gate exit 2, write-once, all four input SHA-256s
+verified before decode, full-file decode disclosed, empty/duplicate/
+unequal populations fail loud, receipt chain + failure_record.
+Registered input identities resolved from in-repo records
+(COUNT_REGISTRATION.md, preflight pins): start_metrics_v2 af6814ec...,
+count_agg_eval_v1 afc94ad7..., bf_forecasts c9c2762f..., derived
+95ac3638... 16 synthetic tests green through the exact entry point;
+affected regression 125 passed. Scorecard EXECUTION (real data) still
+requires its own explicit owner authorization - NOT granted. The
+derivation artifact does NOT validate pre-overlap rows externally and
+establishes no predictive improvement.
 
 **Current Chat 2 lane:** owns the consolidated review record for PR #51's
 published checkpoint 60401f6 (builder self-review labeled as such; do not
@@ -387,7 +523,7 @@ Next (2026-10-27): lineup prediction-path reconciliation -
 specification published at
 [`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
 (measurement-reconciliation candidate; **Stage A only active** -
-prediction-path equivalence, no outcomes read; Stage B deferred and NOT
+prediction-path equivalence (Stage A READS historical y as the one permitted strictly-prior input; target-outcome scoring NOT performed); Stage B deferred and NOT
 authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
 authorization; NOT executed). Calibration execution remains gated
 behind PR #48 merge + owner authorization; frozen at `1321e4b`.
@@ -396,7 +532,7 @@ Next (2026-10-27): lineup prediction-path reconciliation -
 specification published at
 [`docs/reference/reports/lineup_path_reconciliation_spec_2026-10-27.md`](reference/reports/lineup_path_reconciliation_spec_2026-10-27.md)
 (measurement-reconciliation candidate; **Stage A only active** -
-prediction-path equivalence, no outcomes read; Stage B deferred and NOT
+prediction-path equivalence (Stage A READS historical y as the one permitted strictly-prior input; target-outcome scoring NOT performed); Stage B deferred and NOT
 authorized by a Stage A PASS; awaiting Chat 2 spec review then owner
 authorization; NOT executed). Calibration execution remains gated
 behind PR #48 merge + owner authorization; frozen at `1321e4b`.

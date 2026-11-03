@@ -611,3 +611,216 @@ def test_stage_a_cli_prohibited_label_refuses(tmp_path, monkeypatch,
     assert rc == 2
     assert "PROHIBITED_REALIZED_LABELS" in capsys.readouterr().err
     assert not (tmp_path / "cli_out").exists()
+
+
+
+# --------------------------------- empty comparison population refused
+def test_stage_a_empty_comparison_population_refused(tmp_path):
+    """A workload artifact covering ZERO dev starts must refuse with the
+    explicit empty_comparison_population gate - never a vacuous
+    prediction_path_equivalent PASS (the pre-repair behavior refused
+    only via an incidental TypeError in the I2 aggregation)."""
+    bf_none = _bf().clear()
+    with pytest.raises(sa.StageAFailure, match="empty_comparison_population"):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), _pa_history(),
+                       bf_none, _models(), tmp_path / "empty_pop")
+    out = tmp_path / "empty_pop"
+    failure = json.loads((out / "failure_record.json").read_text())
+    assert failure["gate"] == "empty_comparison_population"
+    assert failure["detail"]["n_dev_starts"] > 0
+    assert failure["detail"]["n_compared"] == 0
+    assert not (out / "receipt_final.json").exists()
+    assert not (out / "i1_feature_comparison.parquet").exists()
+
+
+
+# --------------------------- temporal invariants + same-game key identity
+def _remap_second_start_to_same_game(led, lin, bf):
+    """Fold start 900002 (Bot, P2) into game_pk 900001: two starters in
+    ONE game must remain distinct full keys (side, pitcher)."""
+    def remap(frame):
+        return frame.with_columns(
+            pl.when(pl.col("game_pk") == 900002).then(900001)
+            .otherwise(pl.col("game_pk")).alias("game_pk"))
+    return remap(led), remap(lin), remap(bf)
+
+
+def test_stage_a_same_game_two_starters_distinct_keys(tmp_path):
+    led2, lin2, bf2 = _remap_second_start_to_same_game(
+        _ledger_fixture(), _lineups(), _bf())
+    res = sa.run_stage_a(led2, lin2, _pa_history(), bf2, _models(),
+                         tmp_path / "same_game")
+    assert res["status"] == "PASS"
+    assert res["metrics"]["n_compared"] == 2
+    i1 = pl.read_parquet(Path(res["out_dir"])
+                         / "i1_feature_comparison.parquet")
+    keys = {(r["game_pk"], r["side"], r["pitcher"])
+            for r in i1.iter_rows(named=True)}
+    assert keys == {(900001, "Top", P1), (900001, "Bot", P2)}
+
+
+def test_stage_a_future_pa_rows_cannot_change_outputs(tmp_path):
+    """Contamination invariance: PA rows dated STRICTLY AFTER the target
+    game date must not move any route-B output (the backward as-of at
+    the start's game_date cannot reach them)."""
+    res_a = sa.run_stage_a(_ledger_fixture(), _lineups(), _pa_history(),
+                           _bf(), _models(), tmp_path / "clean")
+    contaminated = pl.concat([
+        _pa_history(),
+        pl.DataFrame(
+            [(date(2024, 9, 1), P1, 800001, 1),
+             (date(2024, 9, 1), P2, 800101, 0),
+             (date(2025, 1, 1), P1, 800003, 1)],
+            schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                    "batter": pl.Int64, "y": pl.Int64},
+            orient="row")])
+    res_b = sa.run_stage_a(_ledger_fixture(), _lineups(), contaminated,
+                           _bf(), _models(), tmp_path / "contaminated")
+    assert res_a["status"] == "PASS" and res_b["status"] == "PASS"
+    for name in ("i1_feature_comparison.parquet",
+                 "i2_prob_comparison.parquet",
+                 "i3_pmf_comparison.parquet"):
+        a = pl.read_parquet(Path(res_a["out_dir"]) / name).sort(
+            ["game_pk", "side", "pitcher", "bucket"]
+            if "i3" in name else
+            ["game_pk", "side", "pitcher", "slot"])
+        b = pl.read_parquet(Path(res_b["out_dir"]) / name).sort(
+            ["game_pk", "side", "pitcher", "bucket"]
+            if "i3" in name else
+            ["game_pk", "side", "pitcher", "slot"])
+        assert a.rows() == b.rows(), name
+
+
+def test_stage_a_same_date_pa_y_cannot_enter_state(tmp_path):
+    """Same-date PA rows are excluded from the prior state by the
+    registered shift(1) (declared date-level convention, mirrors
+    pregame-state-v1): their PRESENCE may legitimately create the
+    target-date state row (surfacing strictly-earlier history), but
+    their y VALUES must not enter any state. Two runs identical except
+    for the same-date rows' y must produce byte-identical outputs."""
+    same_date_rows = pl.DataFrame(
+        [(GAME_DATE, P1, 800001, 1), (GAME_DATE, P1, 800002, 1),
+         (GAME_DATE, P2, 800101, 1), (GAME_DATE, P2, 800102, 0)],
+        schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                "batter": pl.Int64, "y": pl.Int64},
+        orient="row")
+    pa_y1 = pl.concat([_pa_history(), same_date_rows])
+    pa_y0 = same_date_rows.with_columns(
+        (pl.lit(1, pl.Int64) - pl.col("y")).alias("y"))
+    pa_y0 = pl.concat([_pa_history(), pa_y0])
+    # Both runs REFUSE: the appended target-date rows create a state row
+    # AT the target date whose shift(1) prior legitimately surfaces the
+    # 07-15 rows, which disagrees with the ledger fixture's hand features
+    # (built for the baseline no-later-state scenario). The INVARIANT is
+    # that flipping the same-date y values changes nothing at all: the
+    # two runs' comparison artifacts must be byte-identical, and the
+    # refusal gate must be the same I1 representation disagreement in
+    # both - never a same-date-outcome effect.
+    with pytest.raises(sa.StageAFailure):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), pa_y1,
+                       _bf(), _models(), tmp_path / "same_y1")
+    with pytest.raises(sa.StageAFailure):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), pa_y0,
+                       _bf(), _models(), tmp_path / "same_y0")
+    f_a = json.loads((tmp_path / "same_y1" / "failure_record.json")
+                     .read_text())
+    f_b = json.loads((tmp_path / "same_y0" / "failure_record.json")
+                     .read_text())
+    assert f_a["gate"] == "I1_feature_mismatch"
+    assert f_b["gate"] == "I1_feature_mismatch"
+    # the I1 refusal fires before i2/i3 are written; the i1 artifact
+    # carries the full route-A vs route-B per-slot feature rows, which is
+    # where a same-date y leak would have to appear
+    assert (tmp_path / "same_y1" / "i2_prob_comparison.parquet").exists() \
+        is False
+    a = pl.read_parquet(tmp_path / "same_y1"
+                        / "i1_feature_comparison.parquet").sort(
+        ["game_pk", "side", "pitcher", "slot"])
+    b = pl.read_parquet(tmp_path / "same_y0"
+                        / "i1_feature_comparison.parquet").sort(
+        ["game_pk", "side", "pitcher", "slot"])
+    assert a.rows() == b.rows()
+
+
+def test_stage_a_mutating_latest_prior_pa_row_changes_forecasts(tmp_path):
+    """Positive control: the latest STRICTLY-PRIOR contributing row is
+    live state. Changing batter 800003's 07-01 row (the prior source for
+    its 07-15 state) must break route-A/route-B equivalence -> the
+    reconciliation refuses with I1_feature_mismatch. If it did NOT
+    refuse, the as-of would not be consuming prior history."""
+    pa2 = _pa_history().with_columns(
+        pl.when((pl.col("game_date") == D1)
+                & (pl.col("pitcher") == P2)
+                & (pl.col("batter") == 800003))
+        .then(0).otherwise(pl.col("y")).alias("y"))
+    with pytest.raises(sa.StageAFailure, match="I1_feature_mismatch"):
+        sa.run_stage_a(_ledger_fixture(), _lineups(), pa2,
+                       _bf(), _models(), tmp_path / "mutated")
+    failure = json.loads((tmp_path / "mutant_record" / "failure_record.json")
+                         .read_text()) if False else json.loads(
+        (tmp_path / "mutated" / "failure_record.json").read_text())
+    assert failure["gate"] == "I1_feature_mismatch"
+
+
+
+# -------------- row-presence invariance: KNOWN temporal discrepancy ----
+# The registered state construction emits a state row only on dates with
+# PA activity, and its prior excludes that date's own rows. The as-of at
+# the forecast date therefore picks the LATEST ACTIVITY-date state row,
+# so the support the forecast can use depends on whether an eventual
+# target-date row exists - exactly the row-presence sensitivity the
+# architect asked us to isolate. Hand math for batter 800003
+# (rows: 07-01 y=1, 07-15 y=1; forecast 2024-08-15):
+#   required support = BOTH strictly-prior rows  -> prior_k=2, prior_n=2
+#   baseline (no target-date row) effective prior -> 1/1 (07-15 PA dropped)
+#   with a target-date row present                -> 2/2 (07-15 row exposed)
+# The direction is UNDERCOUNT (missing most-recent eligible observation),
+# not target-label leakage: the same-date y never enters (shift(1)).
+@pytest.mark.xfail(strict=True, reason=(
+    "row-presence sensitivity: state boundary = last PA-activity date, "
+    "not the forecast cutoff; correction requires a versioned state "
+    "construction (prior aggregated over rows strictly before the "
+    "forecast date), which changes pregame feature semantics and needs "
+    "an explicit versioned decision"))
+def test_stage_a_prior_support_includes_all_eligible_precutoff_rows():
+    st = ad.entity_daily_state(_pa_history(), "batter")
+    eff = (st.filter((pl.col("batter") == 800003)
+                     & (pl.col("game_date") <= GAME_DATE))
+           .sort("game_date").tail(1))
+    # hand math: both pre-cutoff rows are eligible support
+    assert eff["prior_n"][0] == 2
+    assert eff["prior_k"][0] == 2
+
+
+def test_stage_a_row_presence_reproducer_pinned():
+    """Pinned reproducer (NOT xfail): the effective prior state for a
+    fixed forecast request changes when a target-date PA row is present,
+    even though the legitimate pre-cutoff history is identical."""
+    st_base = ad.entity_daily_state(_pa_history(), "batter")
+    eff_base = (st_base.filter((pl.col("batter") == 800003)
+                               & (pl.col("game_date") <= GAME_DATE))
+                .sort("game_date").tail(1))
+    pa_plus = pl.concat([_pa_history(), pl.DataFrame(
+        [(GAME_DATE, P1, 800003, 1)],
+        schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                "batter": pl.Int64, "y": pl.Int64}, orient="row")])
+    st_plus = ad.entity_daily_state(pa_plus, "batter")
+    eff_plus = (st_plus.filter((pl.col("batter") == 800003)
+                               & (pl.col("game_date") <= GAME_DATE))
+                .sort("game_date").tail(1))
+    # identical legitimate pre-cutoff history; different effective support
+    assert eff_base["game_date"][0] == date(2024, 7, 15)
+    assert eff_plus["game_date"][0] == GAME_DATE
+    assert (eff_base["prior_n"][0], eff_base["prior_k"][0]) == (1, 1)
+    assert (eff_plus["prior_n"][0], eff_plus["prior_k"][0]) == (2, 2)
+    # and the same-date row's own y is NOT what moved the state: the
+    # prior aggregate excludes it (shift); the PRESENCE moved the boundary
+    pa_flip = pl.concat([_pa_history(), pl.DataFrame(
+        [(GAME_DATE, P1, 800003, 0)],
+        schema={"game_date": pl.Date, "pitcher": pl.Int64,
+                "batter": pl.Int64, "y": pl.Int64}, orient="row")])
+    st_flip = ad.entity_daily_state(pa_flip, "batter")
+    eff_flip = (st_flip.filter((pl.col("batter") == 800003)
+                               & (pl.col("game_date") <= GAME_DATE))
+                .sort("game_date").tail(1))
+    assert (eff_flip["prior_n"][0], eff_flip["prior_k"][0]) == (2, 2)

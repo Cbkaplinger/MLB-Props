@@ -314,6 +314,18 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
                 "n_dev_starts": n_total,
                 "n_compared": len(compared),
                 "n_excluded": len(excluded)})
+        bucket_counts = {}
+        for v in excluded.values():
+            bucket_counts[v] = bucket_counts.get(v, 0) + 1
+        if not compared:
+            fail("empty_comparison_population", {
+                "n_dev_starts": n_total,
+                "n_compared": 0,
+                "n_excluded": len(excluded),
+                "exclusion_buckets": bucket_counts,
+                "detail": ("no dev start is fully comparable; refusing "
+                           "rather than recording a vacuous "
+                           "prediction_path_equivalent PASS")})
 
         # ---- I1: keyed per-slot feature + batter comparison (exact) ----
         a = route_a.join(pl.DataFrame(compared, schema={
@@ -421,9 +433,6 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
             schema={"game_pk": pl.Int64, "side": pl.Utf8,
                     "pitcher": pl.Int64, "reason": pl.Utf8})
         exclusions_frame.write_parquet(out_dir / "exclusions.parquet")
-        bucket_counts = {}
-        for v in excluded.values():
-            bucket_counts[v] = bucket_counts.get(v, 0) + 1
         metrics = {
             "n_dev_starts": n_total,
             "n_compared": len(compared),
