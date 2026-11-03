@@ -42,6 +42,43 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ## Session Snapshot — 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
 
+**INTEGRATION COMPLETE 2026-11-03 (Chat 1 builder reconciliation; docs-only;
+single post-integration update; supersedes the integration-order items in the
+2026-11-03 closeout below):**
+(1) **main = `8399f2c`** (actual integrated SHA; verified locally). Sequence:
+#51 merged `7764ac1` (from reconciled head `2757015`), #53 merged `4f2490c`,
+then the #52 content reached main via **PR #54** (`1a1790c` merged origin/main
+into the `77131b3` head; `8399f2c` merged to main) because #52's own merge
+commit `c8638f4` had landed on its base branch instead of main - the gap was
+found by builder verification, announced on PR #52, and repaired same-day;
+carrier PR #55 was opened and then closed REDUNDANT after #54 landed. GitHub
+open-PR count: zero.
+(2) **Integration checks:** CI test-and-validate + tracking PASS on the
+integrated heads (runs 2026-11-03: `2757015`, `77131b3`, and #55's
+`c8638f4` carrier); verified on the merged main tree locally: `77131b3` is an
+ancestor of main; workload/scorecard/multiclass code + suites present
+(`workload_comparison.py`, `test_workload_comparison.py`, etc.); roles
+README approval-requests section present; backlog closeout + approval blocks
+present; rewritten NEXT present; cohort-test determinism fix at
+`tests/test_pregame_multiclass_baseline.py:683`; **97 targeted tests green**
+(multiclass 27 + workload 10 + derivation 13 + pre-commit subset).
+(3) **Content now canonical on main:** the accepted workload closeout
+(COMPLETED / VERIFIED; pooled league BF control W0 favored on development
+data; delta +0.012406, CI95 [+0.004410, +0.020368]; BF interpretation
+retained), the roles approval-requests rule, and the reviewed baseline-stack
+deliverables. Original run artifacts and receipts remain preserved write-once
+outside the repo (path in the closeout below). No production, policy, model,
+ledger, or real-data change was made or authorized by this integration.
+(4) **Next experiment NOT started:** it will not launch until the architect
+assigns its single question; see rewritten `docs/NEXT.md` (current action =
+none pending; integration complete).
+(5) **Communication amendment 2026-11-03 (owner directive, short form in the
+canonical roles doc - new 'PR communication' section, no separate policy
+file):** the PR description is the current dashboard; link evidence, do not
+paste tables; no status-only comments; batch corrections into the next
+checkpoint; one integration summary per merge; ~150-word routine handoffs;
+historical evidence preserved. Applied going forward; no cleanup project.
+
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
 (1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
