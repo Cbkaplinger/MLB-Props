@@ -72,6 +72,12 @@ ledger, or real-data change was made or authorized by this integration.
 (4) **Next experiment NOT started:** it will not launch until the architect
 assigns its single question; see rewritten `docs/NEXT.md` (current action =
 none pending; integration complete).
+(5) **Communication amendment 2026-11-03 (owner directive, short form in the
+canonical roles doc - new 'PR communication' section, no separate policy
+file):** the PR description is the current dashboard; link evidence, do not
+paste tables; no status-only comments; batch corrections into the next
+checkpoint; one integration summary per merge; ~150-word routine handoffs;
+historical evidence preserved. Applied going forward; no cleanup project.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**

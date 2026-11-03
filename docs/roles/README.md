@@ -24,6 +24,10 @@ Ask one explicit question naming exactly one action with its full SHA, packet, d
 
 All changes use owned branch -> PR -> current-head review and required checks -> merge. No direct or force push to main. Chat 2 merges only when the architect delegates on the PR. Target at most three open PRs; existing excess is closed through integration, not by deleting evidence. Dependent PRs name their base and dependency. Coordinate before remote edits to another agent's branch.
 
+## PR communication
+
+The PR description is the current dashboard: keep it current and concise; link the card, test evidence and checkpoint instead of pasting their tables. Evidence lives in committed files, CI and artifact receipts. No status-only comments or unchanged-status reports; batch minor corrections into the next coherent checkpoint. One consolidated review response per gate; a merge gets one integration summary, not one message per merge or check. Explicit owner decisions: one concise question with exact scope and packet link. Routine handoffs target 150 words or fewer; longer write-ups are justified only by defects needing explanation. Never delete historical evidence to tidy a thread.
+
 ## Correcting and reducing documentation
 
 Correct wrong numbers and references in current summaries; state the source and scope of the correction. Preserve underlying historical artifacts and original result receipts. Never silently replace a failed run or relabel inspected data as untouched. Git history preserves document revisions; active instructions do not need endless append-only corrections. Consolidate duplicates, use short pointers, and remove obsolete authority from startup paths. Moves/deletions require exact scope, consumer/reference checks and applicable approval.
