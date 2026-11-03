@@ -1,25 +1,25 @@
-# Repository cleanup log
+﻿# Repository cleanup log
 
-> **Not an instruction file.** Historical cleanup checkpoints only. For what to do next, use [`docs/EXECUTION_BACKLOG.md`](EXECUTION_BACKLOG.md).
+> **Not an instruction file.** Historical cleanup checkpoints only. For what to do next, use [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md).
 >
 > Metric lane note: this log preserves historical checkpoints and may include
 > legacy freeze values. Use `docs/reference/governance_metric_stack.md` for
 > current winners and active deployment champions.
 
-## Repo-quality passthrough — 2026-09-11
+## Repo-quality passthrough â€” 2026-09-11
 
 Low-risk hygiene only (no production deletes).
 
 - Ignored `tmp_nb_figs/` (769 KB session PNG dump from notebook extract; regenerable).
 - Removed the local `tmp_nb_figs/` files after ignore coverage.
-- Retargeted SOP competing “next build” line to the backlog (`go step 3`).
+- Retargeted SOP competing â€œnext buildâ€ line to the backlog (`go step 3`).
 - Canonical map gained OpenCode handoff + golden-metrics pointers.
 - Hold ledger: `docs/reference/reports/repo_quality_hold_inventory_2026-09-11.md`.
 - Left protected: `src/Python/`, `production/ops|odds|projections|notebooks`, untracked research/ops scripts from pack #113, local `artifacts/**`.
 
 ---
 
-## Repo-quality passthrough — 2026-09-01
+## Repo-quality passthrough â€” 2026-09-01
 
 Low-risk hygiene + doc consistency pass (no production deletes).
 
@@ -31,7 +31,7 @@ Low-risk hygiene + doc consistency pass (no production deletes).
 
 ---
 
-## Docs folder families — 2026-07-28 (late afternoon)
+## Docs folder families â€” 2026-07-28 (late afternoon)
 
 Grouped documentation into clear folder families and renamed the strikeout
 research runners directory. No metrics or code logic changed; paths and
@@ -39,13 +39,13 @@ cross-references were updated.
 
 ### Moves
 
-- Closed research write-ups → `docs/research/` (`PAPER_NOTES.md`,
+- Closed research write-ups â†’ `docs/research/` (`PAPER_NOTES.md`,
   `statistical_audit_and_sequencing_report.md`, `step*`, `tbf_*`,
   `count_layer_findings.md`, `phase*`)
-- Living reference docs → `docs/reference/` (`model-card.md`, `dev-notes.md`,
+- Living reference docs â†’ `docs/reference/` (`model-card.md`, `dev-notes.md`,
   `lineup_train_serve.md`, `live_assembly_plan.md`, `post_freeze_holdout.md`)
-- `diagrams/` → `docs/diagrams/`
-- `models/Strikeout-Model/Strikeout-EDA/` → `models/Strikeout-Model/research/`
+- `diagrams/` â†’ `docs/diagrams/`
+- `models/Strikeout-Model/Strikeout-EDA/` â†’ `models/Strikeout-Model/research/`
 - `docs/README.md` rewritten as the documentation family index
 - Root `README.md` gained a repository-layout table
 
@@ -65,17 +65,17 @@ are intact. A follow-up audit removed only redundant/generated files from
 `data/` and `artifacts/`; current data, research evidence, and the frozen model
 remain intact.
 
-## Root hygiene — 2026-07-28 (afternoon)
+## Root hygiene â€” 2026-07-28 (afternoon)
 
 No `misc/` folder. Root keeps only entry points and project metadata;
 helpers and long-form notes moved into existing homes.
 
 ### Moves
 
-- `PAPER_NOTES.md` → `docs/research/PAPER_NOTES.md`
-- `CLEANUP_LOG.md` → `docs/CLEANUP_LOG.md` (this file)
-- `export_notebook.py` → `scripts/export_notebook.py`
-- `export-notebook.ps1` → `scripts/export-notebook.ps1`
+- `PAPER_NOTES.md` â†’ `docs/research/PAPER_NOTES.md`
+- `CLEANUP_LOG.md` â†’ `docs/CLEANUP_LOG.md` (this file)
+- `export_notebook.py` â†’ `scripts/export_notebook.py`
+- `export-notebook.ps1` â†’ `scripts/export-notebook.ps1`
   (script now resolves repo root as parent of `scripts/`)
 
 ### Left at repository root (intentional)
@@ -89,7 +89,7 @@ helpers and long-form notes moved into existing homes.
   `docs/archive/leaky-baseline-2026-07-23/README.md`, and
   `models/Strikeout-Model/results/README.md` point at the new paths.
 
-## Conservative consolidation sweep — 2026-07-28
+## Conservative consolidation sweep â€” 2026-07-28
 
 Read-only audit first; then executed only approved bucket-2 and bucket-4
 removals. Watch-list items (feature-importance PNG, `feature-understanding.ipynb`,
@@ -99,56 +99,56 @@ were **left in place**. No changes to `src/Python` or
 
 ### Folded into documentation, then removed
 
-- `artifacts/feature_research/step1_registries/SUMMARY.md` — transient runner
+- `artifacts/feature_research/step1_registries/SUMMARY.md` â€” transient runner
   summary; conclusions already in `docs/research/historical-step-findings-summary.md`
   (and Step 10 freeze size update). Added an artifact-consolidation note there.
-- `artifacts/feature_research/step4_physics_windows/SUMMARY.md` — duplicated
+- `artifacts/feature_research/step4_physics_windows/SUMMARY.md` â€” duplicated
   the `mean_P3_P5` verdict now in `docs/research/historical-step-findings-summary.md`.
-- `artifacts/feature_research/step5_binomial/SUMMARY.md` — pointer-only wrapper;
+- `artifacts/feature_research/step5_binomial/SUMMARY.md` â€” pointer-only wrapper;
   note added to `docs/research/historical-step-findings-summary.md`.
-- `artifacts/feature_research/step5_beta_binomial/SUMMARY.md` — redundant with
+- `artifacts/feature_research/step5_beta_binomial/SUMMARY.md` â€” redundant with
   `docs/research/historical-step-findings-summary.md`.
-- `artifacts/feature_research/step5_pa_weight/SUMMARY.md` — duplicated protocol
+- `artifacts/feature_research/step5_pa_weight/SUMMARY.md` â€” duplicated protocol
   and metrics already in `docs/research/historical-step-findings-summary.md`.
 
 ### Documentation sync (no unique findings lost)
 
-- `artifacts/README.md` — refreshed to current freeze language (180-feature
+- `artifacts/README.md` â€” refreshed to current freeze language (180-feature
   Step 10 LightGBM, frozen TBF Ridge, Phase 11 / Phase D / live ops paths).
-- `docs/reference/dev-notes.md` — noted that generated `SUMMARY.md` wrappers are retired.
+- `docs/reference/dev-notes.md` â€” noted that generated `SUMMARY.md` wrappers are retired.
 
 ### Deleted outright (mechanical / byte-identical)
 
 - All project `__pycache__/` bytecode and `.pytest_cache/` (outside `.venv`).
 - `artifacts/feature_research/step9_metric_windows/production_185_frozen.csv`
-  — byte-identical to `production_185.csv` (SHA-256
+  â€” byte-identical to `production_185.csv` (SHA-256
   `6bce58680a477907a81890e5a29891a685fd5d91fca56e289c1c3582ea30b8d0`).
-- `artifacts/models/tbf_pa_lightgbm_workload_20260727_205600.txt` —
-  byte-identical to `…_205509.txt` (SHA-256
+- `artifacts/models/tbf_pa_lightgbm_workload_20260727_205600.txt` â€”
+  byte-identical to `â€¦_205509.txt` (SHA-256
   `78492a5b47269e19dc12a6da3a3e468117a5004d699f763ba14b6f46cfc31552`).
-- `artifacts/models/tbf_pa_lightgbm_workload_context_20260727_205556.txt` —
-  byte-identical to `…_205505.txt` (SHA-256
+- `artifacts/models/tbf_pa_lightgbm_workload_context_20260727_205556.txt` â€”
+  byte-identical to `â€¦_205505.txt` (SHA-256
   `8e7e79832447f5bcd38875be4fb357f2e148a3c771f36830c89d4aba1808cedd`).
 
 Companion JSON sidecars for the near-duplicate TBF LightGBM runs were **not**
 deleted (hashes differed).
 
-## Documentation sync — 2026-07-27 (evening)
+## Documentation sync â€” 2026-07-27 (evening)
 
 Brought active docs in line with frozen k-rate (185), frozen TBF spine, and
 count-layer v1. No code or artifact deletion.
 
-Updated: `README.md`, `PAPER_NOTES.md` §12–13, `docs/reference/model-card.md`,
-`docs/reference/dev-notes.md`, `docs/research/statistical_audit_and_sequencing_report.md` Part 2–3,
+Updated: `README.md`, `PAPER_NOTES.md` Â§12â€“13, `docs/reference/model-card.md`,
+`docs/reference/dev-notes.md`, `docs/research/statistical_audit_and_sequencing_report.md` Part 2â€“3,
 `docs/research/step5_*` / `step7` / `tbf_*` / `count_layer` next-steps,
-`models/Strikeout-Model/README.md`, and `docs/diagrams/00`–`04` + `docs/diagrams/README.md`.
+`models/Strikeout-Model/README.md`, and `docs/diagrams/00`â€“`04` + `docs/diagrams/README.md`.
 
 Remaining product gaps called out consistently: **Phase 11 model quality**
 (tune / walk-forward / calibrate), Phase D opener, pristine post-freeze eval;
 live assembly is deferred until Phase 11.
 pristine post-freeze holdout, optional market/Kelly.
 
-## Conservative consolidation sweep — 2026-07-27
+## Conservative consolidation sweep â€” 2026-07-27
 
 Read-only audit first; then a conservative fold-then-remove pass. No pipeline
 redesign. Watch-list items (feature-research dual checkpoints, pitch_type
@@ -158,15 +158,15 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
 
 ### Folded into documentation, then removed
 
-- `rules/use-polars.mdc` — stale always-apply Polars rule still pointing at
+- `rules/use-polars.mdc` â€” stale always-apply Polars rule still pointing at
   retired `src/mlb_props/`. Guidance migrated to
   `.cursor/rules/use-polars.mdc` with corrected `src/Python/` paths; empty
   `rules/` directory removed.
-- `src/Notebooks/pipeline/training.pdf` — regenerable PDF export of
+- `src/Notebooks/pipeline/training.pdf` â€” regenerable PDF export of
   `training.ipynb` with no unique content beyond the notebook. Noted in
   `docs/reference/dev-notes.md`; recreate via `export-notebook.ps1` /
   `export_notebook.py` if needed.
-- `models/Strikeout-Model/Saved-models/Model-Weights/optuna_v9.db` — leftover
+- `models/Strikeout-Model/Saved-models/Model-Weights/optuna_v9.db` â€” leftover
   Optuna study DB from the pre-purge tuning era (SHA-256
   `EF5C22773235804F43B53D291073C371DC215F0677DA47F1A1425C2990775CD4`).
   Optuna workflow was already retired in the 2026-07-23 cleanup; Step 5 and
@@ -175,8 +175,8 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
 
 ### Documentation sync (no file deletion)
 
-- `PAPER_NOTES.md` §12 item 5 marked done with links to
-  `docs/research/step5_*_findings.md`; §13 clarified that projected-TBF count-layer
+- `PAPER_NOTES.md` Â§12 item 5 marked done with links to
+  `docs/research/step5_*_findings.md`; Â§13 clarified that projected-TBF count-layer
   beta-binomial remains future work distinct from the closed Step 5
   rate-likelihood diagnostic.
 
@@ -185,7 +185,7 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
 - `.pycache/`, `.pytest_cache/`, empty `src/mlb_props.egg-info/`, and project
   `__pycache__/` directories outside `.venv`.
 
-## Follow-up refresh — 2026-07-24
+## Follow-up refresh â€” 2026-07-24
 
 - Rebuilt Levels 2-3 after adding research-only batter Z-Swing%, Swing%,
   Z-Contact%, and BB% histories.
@@ -206,10 +206,10 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
 - Preserved all raw Savant seasons, postseason files, legacy unique source
   datasets, the unreproducible baseline snapshot, fold-level research results,
   stabilization uncertainty output, and the historical 227-feature model.
-- Verification after the refresh: `python -m pytest` — **129 passed**; edited
+- Verification after the refresh: `python -m pytest` â€” **129 passed**; edited
   Python files have no IDE lint errors.
 
-## Hitter expansion follow-up — 2026-07-24
+## Hitter expansion follow-up â€” 2026-07-24
 
 - Rebuilt Levels 1-3 with denominator-paired batter expected stats, contact
   quality, batted-ball outcomes, and P5/P10/P20 histories.
@@ -223,77 +223,77 @@ near-dupes, `Model-Graphs/lgb_feature_importance.png`,
   MAE in both, so no feature was promoted.
 - Enriched the preserved batter-by-pitch-type research parquet to 37 columns
   without joining its unreliable run-value signals into production.
-- Verification: `python -m pytest` — **132 passed**; edited Python files have no
+- Verification: `python -m pytest` â€” **132 passed**; edited Python files have no
   IDE lint errors.
 
 ## Files deleted
 
-- `RosterScraper/RosterScraper.py` — orphaned 40-man-roster scraper; it was not
+- `RosterScraper/RosterScraper.py` â€” orphaned 40-man-roster scraper; it was not
   imported, tested, documented, or suitable for the still-planned announced
   lineup workflow.
-- `models/Strikeout-Model/sample_3pct.csv` — unreferenced model-development
+- `models/Strikeout-Model/sample_3pct.csv` â€” unreferenced model-development
   sample with no pipeline, notebook, test, or documentation consumer.
 - `models/Strikeout-Model/Saved-models/Test-Predictions/test_predictions_v6_lgb.csv`
-  — byte-for-byte duplicate of the invalid pre-pipeline v6 prediction export;
+  â€” byte-for-byte duplicate of the invalid pre-pipeline v6 prediction export;
   one provenance copy was archived.
-- `src/mlb_props.egg-info/PKG-INFO` — generated editable-install metadata,
+- `src/mlb_props.egg-info/PKG-INFO` â€” generated editable-install metadata,
   superseded by `pyproject.toml`.
-- `src/mlb_props.egg-info/SOURCES.txt` — generated editable-install file list.
-- `src/mlb_props.egg-info/dependency_links.txt` — generated editable-install
+- `src/mlb_props.egg-info/SOURCES.txt` â€” generated editable-install file list.
+- `src/mlb_props.egg-info/dependency_links.txt` â€” generated editable-install
   metadata.
-- `src/mlb_props.egg-info/requires.txt` — stale generated dependency metadata;
+- `src/mlb_props.egg-info/requires.txt` â€” stale generated dependency metadata;
   the cleaned dependency list is in `pyproject.toml`.
-- `src/mlb_props.egg-info/top_level.txt` — generated editable-install metadata.
-- `artifacts/models/lightgbm_krate_20260723_194325.json` — metadata for a
+- `src/mlb_props.egg-info/top_level.txt` â€” generated editable-install metadata.
+- `artifacts/models/lightgbm_krate_20260723_194325.json` â€” metadata for a
   superseded 221-feature run.
-- `artifacts/models/lightgbm_krate_20260723_194325.txt` — superseded
+- `artifacts/models/lightgbm_krate_20260723_194325.txt` â€” superseded
   221-feature model.
-- `artifacts/models/lightgbm_krate_20260723_200557.json` — intermediate
+- `artifacts/models/lightgbm_krate_20260723_200557.json` â€” intermediate
   227-feature run with worse held-out performance than the frozen model.
-- `artifacts/models/lightgbm_krate_20260723_200557.txt` — corresponding
+- `artifacts/models/lightgbm_krate_20260723_200557.txt` â€” corresponding
   intermediate model.
-- `artifacts/models/lightgbm_krate_20260723_201418.json` — intermediate
+- `artifacts/models/lightgbm_krate_20260723_201418.json` â€” intermediate
   227-feature run with worse held-out performance than the frozen model.
-- `artifacts/models/lightgbm_krate_20260723_201418.txt` — corresponding
+- `artifacts/models/lightgbm_krate_20260723_201418.txt` â€” corresponding
   intermediate model.
-- `artifacts/level3-audit/mean.json` — byte-identical duplicate of the archived
+- `artifacts/level3-audit/mean.json` â€” byte-identical duplicate of the archived
   invalid overlapping-split Mean result.
-- `artifacts/level3-audit/ridge.json` — byte-identical duplicate of the
+- `artifacts/level3-audit/ridge.json` â€” byte-identical duplicate of the
   archived invalid overlapping-split Ridge result.
-- `artifacts/level3-audit/lightgbm_final.txt` — console log for the superseded
+- `artifacts/level3-audit/lightgbm_final.txt` â€” console log for the superseded
   `194325` model, with no unique findings.
-- `artifacts/notebook-exports/games.pdf` — unreferenced, reproducible notebook
+- `artifacts/notebook-exports/games.pdf` â€” unreferenced, reproducible notebook
   export.
 - `data/processed/_baseline_2026-07-23/code/Python/pipeline/__pycache__/games.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/pipeline/__pycache__/rolling.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/pipeline/__pycache__/training.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/pipeline/__pycache__/__init__.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/ballpark.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/batter_features.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/batter_rolling.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/config.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/features.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/identity.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/pitcher_features.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/pitcher_rolling.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/reliability.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/statcast.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 - `data/processed/_baseline_2026-07-23/code/Python/__pycache__/__init__.cpython-311.pyc`
-  — generated bytecode inside the source snapshot.
+  â€” generated bytecode inside the source snapshot.
 
 Empty directories removed after their contents were cleaned:
 `artifacts/optuna/`, `artifacts/predictions/`, `artifacts/shap/`,
@@ -359,7 +359,7 @@ they were superseded, and what replaced them.
   both included 2025-07-06). It is now explicitly archived as invalid process
   history. All active docs use the corrected split: train through 2025-04-14,
   validation 2025-04-15 through 2025-07-05, test from 2025-07-06.
-- **Baseline metrics:** Active docs now consistently report test RMSE / R² of
+- **Baseline metrics:** Active docs now consistently report test RMSE / RÂ² of
   0.1076 / -0.0001 (Mean), 0.1003 / 0.1313 (Ridge), and 0.0994 / 0.1459
   (LightGBM).
 - **Feature counts:** The frozen production-evidence baseline is identified as
@@ -443,115 +443,115 @@ summarized.
 
 ```text
 MLB-Props/
-├── .cursorindexingignore
-├── .env.example
-├── .gitignore
-├── CLEANUP_LOG.md
-├── PAPER_NOTES.md
-├── README.md
-├── activate.ps1
-├── export-notebook.ps1
-├── export_notebook.py
-├── pyproject.toml
-├── data/
-│   ├── README.md
-│   ├── Savant-data/
-│   │   ├── regular/                   [season parquet sources]
-│   │   └── postseason/                [season parquet sources]
-│   ├── dimensions/                    [local generated dimension]
-│   ├── processed/                     [local Level 1-3 outputs]
-│   ├── Pitcher-Starts-2023-2025-data/ [legacy source data preserved]
-│   └── DailyPitcherModelTrainingData.csv
-├── models/
-│   └── Strikeout-Model/
-│       ├── README.md
-│       ├── train.py
-│       ├── train.ipynb
-│       ├── Strikeout-EDA/
-│       │   ├── README.md
-│       │   ├── strikeout-eda.ipynb
-│       │   ├── stabilization.ipynb
-│       │   ├── run_stabilization.py
-│       │   ├── run_pitch_type_stabilization.py
-│       │   ├── feature_ablation.py
-│       │   └── window_ablation.py
-│       ├── Model-Graphs/               [ignored generated output]
-│       ├── Saved-models/               [ignored generated output]
-│       └── results/
-│           ├── README.md
-│           └── Test-Predictions/       [ignored generated output]
-├── artifacts/
-│   ├── feature_research/
-│   ├── level3-audit/
-│   ├── models/
-│   └── stabilization/
-├── docs/
-│   ├── dev-notes.md
-│   ├── model-card.md
-│   └── archive/
-│       ├── leaky-baseline-2026-07-23/
-│       │   ├── README.md
-│       │   ├── GIT_STATE.txt
-│       │   ├── mean.json
-│       │   └── ridge.json
-│       └── pre-pipeline-v6/
-│           ├── README.md
-│           ├── shap_table_v6_lgb.csv
-│           └── test_predictions_v6_lgb.csv
-├── rules/
-│   └── use-polars.mdc
-├── src/
-│   ├── Python/
-│   │   ├── __init__.py
-│   │   ├── ballpark.py
-│   │   ├── batter_features.py
-│   │   ├── batter_rolling.py
-│   │   ├── config.py
-│   │   ├── daily_lineups.py
-│   │   ├── features.py
-│   │   ├── identity.py
-│   │   ├── pitcher_features.py
-│   │   ├── pitcher_rolling.py
-│   │   ├── reliability.py
-│   │   ├── statcast.py
-│   │   └── pipeline/
-│   │       ├── __init__.py
-│   │       ├── games.py
-│   │       ├── rolling.py
-│   │       └── training.py
-│   └── Notebooks/
-│       ├── ballpark.ipynb
-│       ├── batter-features.ipynb
-│       ├── batter_rolling.ipynb
-│       ├── features.ipynb
-│       ├── pitcher-features.ipynb
-│       ├── pitcher-rolling.ipynb
-│       ├── statcast.ipynb
-│       └── pipeline/
-│           ├── games.ipynb
-│           ├── rolling.ipynb
-│           ├── training.ipynb
-│           └── training.pdf
-├── tests/
-│   ├── test_ballpark.py
-│   ├── test_batter_features.py
-│   ├── test_batter_rolling.py
-│   ├── test_daily_lineups.py
-│   ├── test_feature_safety.py
-│   ├── test_identity.py
-│   ├── test_pipeline.py
-│   ├── test_pitcher_features.py
-│   ├── test_pitcher_rolling.py
-│   ├── test_reliability.py
-│   ├── test_stabilization.py
-│   ├── test_statcast.py
-│   └── test_train.py
-├── .pycache/                           [ignored local cache]
-├── .pytest_cache/                      [ignored local cache]
-└── .venv/                              [ignored local environment]
+â”œâ”€â”€ .cursorindexingignore
+â”œâ”€â”€ .env.example
+â”œâ”€â”€ .gitignore
+â”œâ”€â”€ CLEANUP_LOG.md
+â”œâ”€â”€ PAPER_NOTES.md
+â”œâ”€â”€ README.md
+â”œâ”€â”€ activate.ps1
+â”œâ”€â”€ export-notebook.ps1
+â”œâ”€â”€ export_notebook.py
+â”œâ”€â”€ pyproject.toml
+â”œâ”€â”€ data/
+â”‚   â”œâ”€â”€ README.md
+â”‚   â”œâ”€â”€ Savant-data/
+â”‚   â”‚   â”œâ”€â”€ regular/                   [season parquet sources]
+â”‚   â”‚   â””â”€â”€ postseason/                [season parquet sources]
+â”‚   â”œâ”€â”€ dimensions/                    [local generated dimension]
+â”‚   â”œâ”€â”€ processed/                     [local Level 1-3 outputs]
+â”‚   â”œâ”€â”€ Pitcher-Starts-2023-2025-data/ [legacy source data preserved]
+â”‚   â””â”€â”€ DailyPitcherModelTrainingData.csv
+â”œâ”€â”€ models/
+â”‚   â””â”€â”€ Strikeout-Model/
+â”‚       â”œâ”€â”€ README.md
+â”‚       â”œâ”€â”€ train.py
+â”‚       â”œâ”€â”€ train.ipynb
+â”‚       â”œâ”€â”€ Strikeout-EDA/
+â”‚       â”‚   â”œâ”€â”€ README.md
+â”‚       â”‚   â”œâ”€â”€ strikeout-eda.ipynb
+â”‚       â”‚   â”œâ”€â”€ stabilization.ipynb
+â”‚       â”‚   â”œâ”€â”€ run_stabilization.py
+â”‚       â”‚   â”œâ”€â”€ run_pitch_type_stabilization.py
+â”‚       â”‚   â”œâ”€â”€ feature_ablation.py
+â”‚       â”‚   â””â”€â”€ window_ablation.py
+â”‚       â”œâ”€â”€ Model-Graphs/               [ignored generated output]
+â”‚       â”œâ”€â”€ Saved-models/               [ignored generated output]
+â”‚       â””â”€â”€ results/
+â”‚           â”œâ”€â”€ README.md
+â”‚           â””â”€â”€ Test-Predictions/       [ignored generated output]
+â”œâ”€â”€ artifacts/
+â”‚   â”œâ”€â”€ feature_research/
+â”‚   â”œâ”€â”€ level3-audit/
+â”‚   â”œâ”€â”€ models/
+â”‚   â””â”€â”€ stabilization/
+â”œâ”€â”€ docs/
+â”‚   â”œâ”€â”€ dev-notes.md
+â”‚   â”œâ”€â”€ model-card.md
+â”‚   â””â”€â”€ archive/
+â”‚       â”œâ”€â”€ leaky-baseline-2026-07-23/
+â”‚       â”‚   â”œâ”€â”€ README.md
+â”‚       â”‚   â”œâ”€â”€ GIT_STATE.txt
+â”‚       â”‚   â”œâ”€â”€ mean.json
+â”‚       â”‚   â””â”€â”€ ridge.json
+â”‚       â””â”€â”€ pre-pipeline-v6/
+â”‚           â”œâ”€â”€ README.md
+â”‚           â”œâ”€â”€ shap_table_v6_lgb.csv
+â”‚           â””â”€â”€ test_predictions_v6_lgb.csv
+â”œâ”€â”€ rules/
+â”‚   â””â”€â”€ use-polars.mdc
+â”œâ”€â”€ src/
+â”‚   â”œâ”€â”€ Python/
+â”‚   â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”‚   â”œâ”€â”€ ballpark.py
+â”‚   â”‚   â”œâ”€â”€ batter_features.py
+â”‚   â”‚   â”œâ”€â”€ batter_rolling.py
+â”‚   â”‚   â”œâ”€â”€ config.py
+â”‚   â”‚   â”œâ”€â”€ daily_lineups.py
+â”‚   â”‚   â”œâ”€â”€ features.py
+â”‚   â”‚   â”œâ”€â”€ identity.py
+â”‚   â”‚   â”œâ”€â”€ pitcher_features.py
+â”‚   â”‚   â”œâ”€â”€ pitcher_rolling.py
+â”‚   â”‚   â”œâ”€â”€ reliability.py
+â”‚   â”‚   â”œâ”€â”€ statcast.py
+â”‚   â”‚   â””â”€â”€ pipeline/
+â”‚   â”‚       â”œâ”€â”€ __init__.py
+â”‚   â”‚       â”œâ”€â”€ games.py
+â”‚   â”‚       â”œâ”€â”€ rolling.py
+â”‚   â”‚       â””â”€â”€ training.py
+â”‚   â””â”€â”€ Notebooks/
+â”‚       â”œâ”€â”€ ballpark.ipynb
+â”‚       â”œâ”€â”€ batter-features.ipynb
+â”‚       â”œâ”€â”€ batter_rolling.ipynb
+â”‚       â”œâ”€â”€ features.ipynb
+â”‚       â”œâ”€â”€ pitcher-features.ipynb
+â”‚       â”œâ”€â”€ pitcher-rolling.ipynb
+â”‚       â”œâ”€â”€ statcast.ipynb
+â”‚       â””â”€â”€ pipeline/
+â”‚           â”œâ”€â”€ games.ipynb
+â”‚           â”œâ”€â”€ rolling.ipynb
+â”‚           â”œâ”€â”€ training.ipynb
+â”‚           â””â”€â”€ training.pdf
+â”œâ”€â”€ tests/
+â”‚   â”œâ”€â”€ test_ballpark.py
+â”‚   â”œâ”€â”€ test_batter_features.py
+â”‚   â”œâ”€â”€ test_batter_rolling.py
+â”‚   â”œâ”€â”€ test_daily_lineups.py
+â”‚   â”œâ”€â”€ test_feature_safety.py
+â”‚   â”œâ”€â”€ test_identity.py
+â”‚   â”œâ”€â”€ test_pipeline.py
+â”‚   â”œâ”€â”€ test_pitcher_features.py
+â”‚   â”œâ”€â”€ test_pitcher_rolling.py
+â”‚   â”œâ”€â”€ test_reliability.py
+â”‚   â”œâ”€â”€ test_stabilization.py
+â”‚   â”œâ”€â”€ test_statcast.py
+â”‚   â””â”€â”€ test_train.py
+â”œâ”€â”€ .pycache/                           [ignored local cache]
+â”œâ”€â”€ .pytest_cache/                      [ignored local cache]
+â””â”€â”€ .venv/                              [ignored local environment]
 ```
 
-## Documentation sync — 2026-07-31
+## Documentation sync â€” 2026-07-31
 
 Brought living docs in line with shipped live ops + paper-trading / CLV
 (SharpAPI DK/FD, tip-window closes, morning board). No code changes in this

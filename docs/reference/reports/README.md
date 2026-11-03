@@ -52,18 +52,18 @@ Statuses: dated evidence = point-in-time record; PROPOSAL = awaiting owner; LIVE
 | [`evidence_maturity_register_2026-10-16.md`](evidence_maturity_register_2026-10-16.md) | 2026-10-16 | Evidence maturity and citation-gate register ? 2026-10-16 (Chat 3, report-first) | dated evidence |
 | [`forward_diary_archive_2026-09-14.md`](forward_diary_archive_2026-09-14.md) | 2026-09-14 | Forward diary archive ? 2026-09-14 | dated evidence |
 | [`freeze_playbook_2026-09-11.md`](freeze_playbook_2026-09-11.md) | 2026-09-11 | Freeze playbook ? 2026-09-11 (reproducibility contract) | dated evidence |
-| [`granular_open_calibration_2026-09-01.md`](granular_open_calibration_2026-09-01.md) | 2026-09-01 | Granular open calibration challenger | dated evidence |
-| [`historical_clv_odds_apis_2026-09-02.md`](historical_clv_odds_apis_2026-09-02.md) | 2026-09-02 | Historical K-line / CLV odds APIs ? research note (2026-09-02) | dated evidence - FILE REMOVED (PR #41, 23-file cleanup); git history preserves it |
+| `granular_open_calibration_2026-09-01.md` | 2026-09-01 | Granular open calibration challenger | dated evidence - FILE REMOVED; git history preserves it |
+| `historical_clv_odds_apis_2026-09-02.md` | 2026-09-02 | Historical K-line / CLV odds APIs ? research note (2026-09-02) | dated evidence - FILE REMOVED (PR #41, 23-file cleanup); git history preserves it |
 | [`hygiene_automation_design_2026-10-16.md`](hygiene_automation_design_2026-10-16.md) | 2026-10-16 | Repository hygiene automation design ? 2026-10-16 (Chat 3, DESIGN ONLY) | dated evidence |
 | [`juiced_replay_ledger_2026-09-11.md`](juiced_replay_ledger_2026-09-11.md) | 2026-09-11 | Juiced frozen-model replay ledger ? 2026-09-11 | dated evidence |
-| [`known_issues_overnight_p2_2026-10-13.md`](known_issues_overnight_p2_2026-10-13.md) | 2026-10-13 | KNOWN ISSUES ? overnight-p2 (recorded 2026-10-13) | DATED ISSUE RECORD - verify currency before citing |
+| `known_issues_overnight_p2_2026-10-13.md` | 2026-10-13 | KNOWN ISSUES ? overnight-p2 (recorded 2026-10-13) | DATED ISSUE RECORD - verify currency before citing - FILE REMOVED; git history preserves it |
 | [`language_runtime_decision_memo_2026-10-16.md`](language_runtime_decision_memo_2026-10-16.md) | 2026-10-16 | Language/runtime decision memo ? 2026-10-16 (Chat 3) | dated evidence |
-| [`maintenance_inventory_2026-10-15.md`](maintenance_inventory_2026-10-15.md) | 2026-10-15 | Repository maintenance inventory ? 2026-10-15 (Chat 3) | PARTIALLY SUPERSEDED - by pass2/pass3 + the 2026-10-16 corpus; one link repaired in #26 |
-| [`maintenance_pass2_preservation_inventory_2026-10-15.md`](maintenance_pass2_preservation_inventory_2026-10-15.md) | 2026-10-15 | Maintenance pass 2 ? preservation, unpublished-commit classification, worktree sync, evalu | dated evidence |
-| [`maintenance_pass3_deviation_checklist_2026-10-15.md`](maintenance_pass3_deviation_checklist_2026-10-15.md) | 2026-10-15 | Maintenance pass 3 ? deviation record, snapshot recoverability, integration checklist (202 | dated evidence |
+| `maintenance_inventory_2026-10-15.md` | 2026-10-15 | Repository maintenance inventory ? 2026-10-15 (Chat 3) | PARTIALLY SUPERSEDED - by pass2/pass3 + the 2026-10-16 corpus; one link repaired in #26 - FILE REMOVED; git history preserves it |
+| `maintenance_pass2_preservation_inventory_2026-10-15.md` | 2026-10-15 | Maintenance pass 2 ? preservation, unpublished-commit classification, worktree sync, evalu | dated evidence - FILE REMOVED; git history preserves it |
+| `maintenance_pass3_deviation_checklist_2026-10-15.md` | 2026-10-15 | Maintenance pass 3 ? deviation record, snapshot recoverability, integration checklist (202 | dated evidence - FILE REMOVED; git history preserves it |
 | [`maintenance_slice_specs_2026-10-16.md`](maintenance_slice_specs_2026-10-16.md) | 2026-10-16 | Maintenance slice specifications ? 2026-10-16 (Chat 3, prepared for execution AFTER the co | dated evidence |
 | [`metrics_evaluation_architecture_2026-10-16.md`](metrics_evaluation_architecture_2026-10-16.md) | 2026-10-16 | Metrics-and-evaluation architecture map ? 2026-10-16 (Chat 3, report-first) | dated evidence |
-| [`model_comparison_pack/2026-08-21.md`](model_comparison_pack/2026-08-21.md) | 2026-08-21 | Model Comparison Pack ? 2026-08-21 | dated evidence |
+| `model_comparison_pack/2026-08-21.md` | 2026-08-21 | Model Comparison Pack ? 2026-08-21 | dated evidence - FILE REMOVED; git history preserves it (sibling CSV remains) |
 | [`notebook_artifact_census_2026-10-16.md`](notebook_artifact_census_2026-10-16.md) | 2026-10-16 | Notebook and artifact census ? 2026-10-16 (Chat 3, report-first) | dated evidence |
 | [`notebook_deep_review_2026-10-16.md`](notebook_deep_review_2026-10-16.md) | 2026-10-16 | Notebook deep review ? 2026-10-16 (Chat 3, report-first) | dated evidence |
 | [`o3_settlement_contract_proposal_2026-10-19.md`](o3_settlement_contract_proposal_2026-10-19.md) | 2026-10-19 | O-3 settlement/grading exit-code & summary contract ? proposal (2026-10-19, Chat 3) | PROPOSAL - characterized by tests (PR #14 lineage) |
@@ -82,8 +82,8 @@ Statuses: dated evidence = point-in-time record; PROPOSAL = awaiting owner; LIVE
 | [`repo_cleanup_backlog_2026-10-16.md`](repo_cleanup_backlog_2026-10-16.md) | 2026-10-16 | Repository cleanup backlog ? 2026-10-16 (Chat 3, report-first) | dated evidence |
 | [`repo_quality_baseline_2026-10-16.md`](repo_quality_baseline_2026-10-16.md) | 2026-10-16 | Repository Quality Baseline ? 2026-10-16 (Chat 3, report-first) | dated evidence |
 | [`repo_quality_index_2026-10-16.md`](repo_quality_index_2026-10-16.md) | 2026-10-16 | Repository source-of-truth index ? 2026-10-16 (Chat 3, report-first) | dated evidence |
-| [`repo_quality_passthrough/2026-08-18.md`](repo_quality_passthrough/2026-08-18.md) | 2026-08-18 | Repository Quality Passthrough Report (2026-08-18) | ARCHIVE CANDIDATE - oldest passthrough, superseded by the 08-21 pass |
-| [`repo_quality_passthrough/2026-08-21.md`](repo_quality_passthrough/2026-08-21.md) | 2026-08-21 | Repo Quality Passthrough Report ? 2026-08-21 | ARCHIVE CANDIDATE - superseded by later quality passes |
+| `repo_quality_passthrough/2026-08-18.md` | 2026-08-18 | Repository Quality Passthrough Report (2026-08-18) | ARCHIVE CANDIDATE - oldest passthrough, superseded by the 08-21 pass - FILE REMOVED; git history preserves it |
+| `repo_quality_passthrough/2026-08-21.md` | 2026-08-21 | Repo Quality Passthrough Report ? 2026-08-21 | ARCHIVE CANDIDATE - superseded by later quality passes - FILE REMOVED; git history preserves it |
 | [`sb_dependency_declaration_choices_2026-10-19.md`](sb_dependency_declaration_choices_2026-10-19.md) | 2026-10-19 | S-B dependency declaration choices ? 2026-10-19 (Chat 3, patch presented for owner approva | EXECUTED - merged via PR #17 (tiers approved) |
 | [`security_config_audit_2026-10-16.md`](security_config_audit_2026-10-16.md) | 2026-10-16 | Secrets / security / configuration audit ? 2026-10-16 (Chat 3, READ-ONLY) | dated evidence |
 | [`shared_utility_consolidation_plan_2026-10-16.md`](shared_utility_consolidation_plan_2026-10-16.md) | 2026-10-16 | Shared-utility consolidation plan ? 2026-10-16 (Chat 3, PLAN ONLY ? no code consolidated) | dated evidence |

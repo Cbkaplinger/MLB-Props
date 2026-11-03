@@ -197,6 +197,12 @@ flowchart TB
 
 Notes:
 
+- Status 2026-10-29: the Poisson-binomial AGG node below was evaluated once
+  as Question A (dev-only diagnostic, count-RPS delta -0.0003333, baseline
+  retained; receipt `research/offseason_2026/pregame_pa_ext/results_count_agg_eval_v1/RESULT_RECORD.md`).
+  The registered baseline aggregation is binomial conditionals at averaged
+  cycled-slot probabilities, NOT a heterogeneous Poisson-binomial -- see
+  `research/offseason_2026/pregame_pa_ext/briefing_pa_model_and_architecture_2026-10-29.md`.
 - Training vs pregame inference stay separate; every PROPOSED node needs an
   explicit training contract (target, population, cutoff) before comparison.
 - PA classifier + Poisson-binomial limits: assumes PA flips independent given

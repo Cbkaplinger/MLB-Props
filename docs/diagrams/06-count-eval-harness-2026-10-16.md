@@ -5,6 +5,15 @@ registered future lanes. Companion narrative:
 [`docs/reference/current_state_2026-10-16.md`](../reference/current_state_2026-10-16.md).
 ASCII preserved verbatim from the owner 2026-10-16; this is a status map, not the work queue.
 
+> Status 2026-10-29: the count/aggregation lane below ("I3b p-bar vs ordered
+> Poisson-binomial") has since been executed ONCE as Question A (2026-10-21,
+> owner-authorized, dev-only diagnostic: count-RPS delta -0.0003333,
+> challenger better, baseline NOT replaced; receipt
+> `research/offseason_2026/pregame_pa_ext/results_count_agg_eval_v1/RESULT_RECORD.md`).
+> The registered baseline aggregation remains binomial conditionals at
+> averaged cycled-slot probabilities -- see
+> `research/offseason_2026/pregame_pa_ext/briefing_pa_model_and_architecture_2026-10-29.md`.
+
 ```text
 +---------------------------------------------------------------------+
 |                        DATA LAYER (frozen, hashed)                   |
