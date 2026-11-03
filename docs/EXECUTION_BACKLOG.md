@@ -42,6 +42,53 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ## Session Snapshot — 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
 
+**CLOSEOUT 2026-11-03 (Chat 1 builder; docs + one test-determinism repair; NO run,
+NO new science; this block is the live state and supersedes the stale PR #52
+head/CI pointers earlier in this snapshot):**
+(1) **Workload personalization experiment COMPLETED / VERIFIED.** Chat 2's
+independent recomputation from the saved artifacts VERIFIED the builder-reported
+record (PR #52 comment `6595706937`): all identities, reconstruction gate
+(max per-start RPS diff 0.0 vs pinned reference `3414d0d2...`, n=2,509, cohort
+`f77d7a66...`), and metrics reconcile. Verdict: **pooled league BF control (W0)
+favored over pitcher-specific workload personalization (W1) on development
+data** - delta = RPS(W1) - RPS(W0) = +0.012406, CI95 [+0.004410, +0.020368],
+entirely above zero; |delta| exceeds the 0.005 engineering threshold. BF
+interpretation retained: negative mean BF error = underprediction (W1 -1.03,
+W0 -0.19); higher interval coverage is NOT automatically better (both arms
+overcover; W1 covers more yet scores worse); interval width is not established
+by coverage alone. Single-update rule satisfied: this block + the rewritten
+shortened `docs/NEXT.md` (stale checkpoint/card pointers replaced) are the ONE
+update. Workload-model assumptions are to be investigated before any
+complexity; no refit, no rerun, no rescue variants.
+(2) **Original run artifacts and receipts preserved, untouched:** write-once
+dir `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\
+workload_personalization_w0v1\` (9 artifacts incl. receipt_initial/receipt_final;
+hashes reconcile; verified present 2026-11-03).
+(3) **PR stack prepared for integration (three open PRs; merge is
+architect-delegated, not builder-authorized; the scientific verdict does NOT
+authorize merge or any production/policy/model change):** #51
+`research/baseline-v2-derivation-runner` -> main (8047529, CI green) -> #52
+`research/baseline-history-scorecard-v1` (stacked, base = #51 branch) -> #53
+`docs/consolidation-slice-1` -> main (ad5871a, CI green). CI repair on #52:
+`tests/test_pregame_multiclass_baseline.py::test_cohort_restriction_excludes_extra_starts`
+selected the cohort row via `unique().head(1)`, whose row order is not
+deterministic (CI got P2 where local runs got P1); replaced with an explicit
+`filter(pl.col("pitcher") == P1)` - test-only determinism fix, no registered
+semantics. Integration order: #51, then #52, then #53. Main's
+backlog/NEXT carry newer 2026-10-29/30 closeout entries (Chat 3 lane) than this
+branch's base; reconcile at merge - keep both, this block is the live workload
+state.
+(4) **Chat 2 handoff (async protocol):** review this published closeout SHA
+(delta from `ca87ba1`: NEXT rewrite, backlog closeout block, roles-README
+approval-rule amendment, one test-determinism fix), then park again. No
+polling, no reopening unchanged findings.
+(5) **Approval/handoff rule amended into the canonical roles document**
+(`docs/roles/README.md`; no new policy file): an approval request names exactly
+ONE action with its action, full SHA, packet, data scope, and destination;
+approval is recorded once and not re-asked for unchanged scope.
+(6) **Next experiment NOT started:** it will not launch until the architect
+assigns its single question.
+
 **Critical path:** `docs/NEXT.md` (single source of the current action;
 ROLES_REV 2026-10-28-r1 merged to main via PR #46 at `1ef5cad`).
 **This backlog is the concise active entry point.** Historical Session

@@ -680,7 +680,7 @@ def test_cohort_restriction_both_refs_same_population(tmp_path):
 
 
 def test_cohort_restriction_excludes_extra_starts(tmp_path):
-    cohort = _cohort_keys_frame().head(1)
+    cohort = _cohort_keys_frame().filter(pl.col("pitcher") == P1)
     cohort_h = hashlib.sha256("\n".join(
         sorted("%d|%s|%d" % (r["game_pk"], r["side"], r["pitcher"])
                for r in cohort.iter_rows(named=True)))
