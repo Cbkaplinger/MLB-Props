@@ -201,11 +201,38 @@ secondary; promotion never automatic. Implementation:
 `tests/test_lgbm_multiclass_comparison.py` (19 tests incl. fold
 boundaries/refusals, tuning accounting + selection-rule recomputation,
 assessment-isolation, reload parity incl. serialized booster, all gates;
-closure table in the test docstring). 19 lgbm + 24 platoon = 43 targeted
-green. Command-to-CLI checked (15/15). Ack token is a technical gate, NOT
-authorization; the executable is frozen during review. No feature
-expansion, no SHAP, no calibration, no rescue variants, no
-double-play simulation.
+requirement-to-test closure table in the test docstring). 19 lgbm + 24
+platoon = 43 targeted green. Command-to-CLI checked (15/15). Ack token is
+a technical gate, NOT authorization; the executable is frozen during
+review. No feature expansion, no SHAP, no calibration, no rescue
+variants, no double-play simulation.
+
+**LGBM EXECUTION AUTHORIZATION RECORDED 2026-11-04 (owner, scoped):
+ONE run of the exact LightGBM packet command** - executable `31b721a`
+(module bytes; final packet at docs checkpoint `d7e81db`, packet file sha
+`b687d783...`), scope = the declared 12 tuning fits + one final LightGBM
+fit + one control fit. No further approval needed for that scope; no
+expanded grid, additional features, calibration, or retry. FOUR
+LIMITATIONS stay visible in interpretation (owner-codified): (1)
+development evidence - the 2025H1 cohort has informed architectural
+decisions and is NOT a fresh final test; a win creates a candidate, not a
+production promotion; (2) the comparison is "bounded-selected LightGBM
+versus fixed multinomial", NOT a universal verdict about model families;
+(3) the PA evaluation is conditional on matched projected matchups (K-count
+scoring over complete starter outcomes is a downstream check, not full
+PA-level coverage); (4) the K guard is a POINT-ESTIMATE acceptance guard,
+not statistical noninferiority - interval reported as context. Chat 2's
+post-run decision table (pre-declared by owner): meaningful improvement +
+guard passes -> retain LightGBM as a candidate development model; no
+meaningful improvement -> retain the simpler multinomial; improvement but
+guard fails -> do NOT adopt the combined pipeline, record the tradeoff;
+execution/evidence failure -> preserve evidence and stop, no silent
+retry. Post-candidate steps (owner): freeze the selected recipe +
+predeclare a time-ordered robustness evaluation within existing access
+(protected partitions do NOT open because this run finishes); next feature
+work targets a concrete information gap (e.g., player-specific platoon
+skill or pitch-arsenal information), calibration follows model selection
+on disjoint chronological data.
 
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
