@@ -162,6 +162,37 @@ existing process (CI pass both jobs on the head, CLEAN; merge via architect
 delegation on the PR). Original run artifacts and receipts preserved
 untouched.
 
+**PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
+implementation + synthetic tests ONLY; NO real-data execution):** card
+`docs/adr/PROPOSED-platoon-information-multiclass.md` +
+packet `research/offseason_2026/pregame_pa_ext/execution_packet_platoon_v1.md`.
+Source verification (identity + handedness columns only, no outcome reads):
+pa_table natively carries `stand`/`p_throws` (731,347 rows, zero nulls,
+domains {L,R}); `p_throws` perfectly stable per pitcher (1,512 pitchers,
+0 multi-valued) -> pregame-known; 113 of 1,052 batters switch; 51
+batter-x-throw pairings mixed -> forecast stand is NOT pregame-observable
+for switch hitters, so the declared rule = modal strictly-prior stand
+CONDITIONAL on the pitcher's hand (tie -> lexicographically smallest), then
+overall modal, then unknown -> global fallback. Declared feature family
+(platoon-features-v1): 4 columns = shrunk (stand, p_throws) class rates,
+alpha 40, strictly-prior population (same-date/future cannot enter; no
+target outcomes), unseen split/unknown hand -> exactly the global prior.
+Control = existing 8-feature multinomial-plus-W0 pipeline (reconstruction
+gate vs pinned `ae971758...`, tol 1e-12, ENFORCED pre-decode); challenger =
+12-feature fit, same estimator family/hyperparameters. Endpoints
+pre-declared: primary = per-PA multiclass log loss (identical matched-PA
+population, per-start paired bootstrap 2000/20261001); practical threshold
+0.0005 nats; K-count non-degradation margin 0.002 count-RPS; classwise +
+K metrics = declared secondary; promotion never automatic. Implementation:
+`platoon_features.py` + `platoon_comparison.py` +
+`tests/test_platoon_comparison.py` (20 synthetic tests incl. same-date/
+future label-exclusion, sparse-split shrinkage direction, switch-hitter
+stand rules, keyed alignment, reload parity, all gates; requirement-to-test
+closure table in the test docstring). 135 targeted tests green. Command-
+to-CLI checked (15/15 flags). Refusals/stop conditions exhaustive
+(matched-PA class outside fitted set refuses). Ack token is a technical
+gate, NOT authorization; the executable is frozen during review.
+
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
 (1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
