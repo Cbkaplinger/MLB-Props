@@ -257,8 +257,16 @@ packet/runner bytes verified, fresh destination confirmed absent, failed
 destination confirmed unchanged.
 
 **LGBM RUN EXECUTED ONCE 2026-11-04 (revised scope approved; exact packet
-revision 3 command, exit 0) - BUILDER-REPORTED, PENDING CHAT 2
-INDEPENDENT VERIFICATION:** pre-execution verification passed (runner/
+revision 3 command, exit 0) - CLOSED 2026-11-04: CHAT 2 ARTIFACT VERDICT =
+COMPLETED / VERIFIED (supplied via owner); record closed once; BOTH attempt
+directories and all original evidence preserved untouched. RESULT
+INTERPRETATION (corrected per owner): (a) statistical direction
+INCONCLUSIVE; (b) the point improvement is BELOW the declared practical
+threshold; (c) the interval still permits a practically useful
+improvement - NO equivalence claim and NO claim that LightGBM cannot help
+generally; (d) the K point-estimate guard FAILED. Decision per the
+pre-declared table: RETAIN multinomial-plus-platoon; NO LightGBM
+adoption;** pre-execution verification passed (runner/
 packet bytes, input pins, cohort, reference, fresh destination
 `lgbm_multiclass_v1_attempt2` absent; failed destination preserved).
 Destination write-once (9 files; output hashes reconcile against
@@ -281,10 +289,12 @@ direction INCONCLUSIVE (CI overlaps zero) and |delta| BELOW the declared
 0.0005-nat practical threshold. **K-COUNT NON-DEGRADATION GUARD FAILED:
 point estimate +0.0020884 > the 0.002 margin** (CI as context; the guard
 is a point-estimate acceptance criterion, NOT a noninferiority claim).
-**Decision per the pre-declared table: retain the simpler
-multinomial-plus-platoon model; DO NOT adopt the combined LightGBM
-pipeline; the tradeoff is recorded** (small inconclusive log-loss gain
-vs K-count degradation just beyond the margin). The four interpretation
+**Decision per the pre-declared table: RETAIN multinomial-plus-platoon;
+NO LightGBM adoption; the tradeoff is recorded** (small inconclusive
+log-loss gain vs K-count degradation just beyond the margin; the
+interval still permits a practically useful improvement, so this is NOT
+an equivalence finding and NOT a claim that LightGBM cannot help
+generally). The four interpretation
 limitations carry over (development evidence; bounded-selected-vs-fixed
 framing; matched-matchup PA coverage; point-estimate guard). No rescue
 variants, no grid enlargement, no production/policy/live-model change;
