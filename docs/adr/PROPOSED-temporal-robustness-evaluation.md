@@ -6,11 +6,17 @@
 
 ## Status
 
-SPECIFICATION ONLY - no execution, no real-data run, no new learner,
-feature family, framework, or model run. Execution requires this
-specification's review plus explicit owner approval. Data-date feasibility
-is ESTABLISHED below (before any fold declaration; game_date column only,
-no outcome inspection).
+SPECIFICATION RESOLVED (2026-11-04) - the review items are incorporated
+below and the executable checkpoint implements them: explicit period
+definitions with identical-arm populations; fold/period feasibility before
+fitting; label-coverage and complete-outcome checks; saved class
+probabilities, PMFs, scores, and receipts; synthetic tests for chronology
+and period accounting; R3 and 2026 structurally inaccessible to this
+evaluation path. Implementation uses the current harness
+(`temporal_robustness_evaluation.py`); exact R1/R2 packet published
+separately. No tuning, no new features, no calibration, no additional
+learner. No real-data execution without the reviewed packet + explicit
+owner approval.
 
 ## Retained-candidate manifest (what is being evaluated)
 
@@ -122,3 +128,45 @@ pre-registered separately.
 - No tuning, no feature changes, no new learner, no calibration, no SHAP,
   no taxonomy change; the recipe is frozen at the manifest identities.
 - 2026 untouched (no-2026-tuning rule).
+
+## Resolved review items (2026-11-04 specification checkpoint)
+
+1. **Explicit period definitions + identical-arm populations (code
+   constants):** the two periods are hardcoded runner constants (R1 fit
+   `2023-03-30..2024-06-30`, score `2024-07-01..2024-09-30`; R2 fit
+   `2023-03-30..2024-12-31`, score `2025-01-01..2025-06-30`). Within each
+   period, BOTH arms are fit on the SAME fit rows and scored on the SAME
+   matched-PA population (asserted); no arm sees extra rows.
+2. **Fold/period feasibility BEFORE fitting:** per period - observed
+   date-cluster counts in fit and score windows, nonempty populations,
+   strict chronology (max fit date < min score date), and score-class
+   compatibility (every scored class present in the fit population) are
+   verified before any model fit; violations refuse.
+3. **Label coverage + complete outcomes:** every scored PA carries a
+   valid class label (unknown/out-of-set labels refuse with counts);
+   every scored start has at least one actual PA (complete realized-K);
+   matched/unmatched and missing-coverage buckets are reported per
+   period, never silently absorbed.
+4. **Saved artifacts:** per-period keyed class-probability tables (both
+   arms), K PMFs, per-start scores, and the receipt chain - write-once.
+5. **Chronology + period-accounting synthetic tests:** fit strictly
+   precedes score in every period; per-period populations are disjoint
+   (flipping R2 labels leaves R1 results unchanged and vice versa);
+   period row/date counts asserted.
+6. **R3/2026 structural inaccessibility:** the score windows end
+   2025-06-30 (hard constants); the runner refuses any scored date on or
+   after 2025-07-01 and any date in 2026; rows beyond the score windows
+   are never read into a scoring path (excluded with disclosed counts).
+7. **Machinery-identity anchor:** the registered 8-feature
+   multinomial-plus-W0 recipe, refit on the declared `2024-05-01..
+   2024-12-31` window and scored on the registered 2025H1 cohort, MUST
+   reproduce the accepted per-start reference (`ae971758...`,
+   `rps_w0_pooled`) within 1e-12 - run BEFORE the period contrasts and
+   gating the whole evaluation. (No other reconstruction gate applies:
+   the R1/R2 refit windows differ from any accepted fit window, so exact
+   reference reproduction is only defined for the anchor.)
+8. **Source declarations:** R1 scored actual PAs derive from the labeled
+   PA source (the bridge labels the same pinned parquet); R2 scored
+   actual PAs come from the pinned registered 2025H1 assessment artifact.
+   Projected-lineups coverage verified for both score windows (88 and 98
+   observed date clusters, date-column inspection only).
