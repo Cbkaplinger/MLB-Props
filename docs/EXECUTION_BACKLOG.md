@@ -209,10 +209,8 @@ variants, no double-play simulation.
 
 **LGBM EXECUTION AUTHORIZATION RECORDED 2026-11-04 (owner, scoped):
 ONE run of the exact LightGBM packet command** - executable `31b721a`
-(module bytes; final packet at docs checkpoint `d7e81db`, packet file sha
-`b687d783...`), scope = the declared 12 tuning fits + one final LightGBM
-fit + one control fit. No further approval needed for that scope; no
-expanded grid, additional features, calibration, or retry. FOUR
+(module bytes; packet at docs checkpoint `d7e81db`), scope = the declared
+12 tuning fits + one final LightGBM fit + one control fit. FOUR
 LIMITATIONS stay visible in interpretation (owner-codified): (1)
 development evidence - the 2025H1 cohort has informed architectural
 decisions and is NOT a fresh final test; a win creates a candidate, not a
@@ -236,26 +234,32 @@ on disjoint chronological data.
 
 **LGBM RUN ATTEMPTED ONCE 2026-11-04 - EXECUTION FAILURE, EVIDENCE
 PRESERVED, STOPPED (no retry, no adjustment):** pre-execution checks all
-passed (11/11 module hashes, 7/7 file pins, cohort content hash, packet
-sha `b687d783...`, destination absent), then the exact packet command
-refused at the declared guard: **chronological fold B
-(fit ..2024-10-31 -> validate 2024-11-01..2024-12-31) has an EMPTY
-validation split** - the registered pa_table contains NO offseason PAs
-(seasonal gap through Oct-Dec), so the pre-declared fold calendar is
-infeasible on real data. Failure evidence preserved write-once at
+passed, then the exact packet command refused at the declared guard:
+chronological fold B (fit ..2024-10-31 -> validate 2024-11-01..2024-12-31)
+had an EMPTY validation split - the registered pa_table contains NO
+offseason PAs, so the pre-declared calendar-month fold calendar was
+infeasible on real data (a SPECIFICATION defect in the frozen packet, not
+a code defect - the guard did exactly its job). Failure evidence
+preserved write-once at
 `MLB-Props-Research\pregame-pa-ext-v2\diagnostics\lgbm_multiclass_v1\`
-(`failure_record.json` with stage+error+initial-receipt sha;
-`receipt_initial.json` immutable, never completed; the pre-tuning
-split-rate artifact; NO run outputs). Root cause: the fold calendar was
-pre-declared against calendar months without checking PA-row
-availability in the registered source - a SPECIFICATION defect in the
-frozen packet, not a code defect (the guard did exactly its job). Per
-the owner's decision table: execution failure -> evidence preserved,
-stopped, NO silent retry, no tolerance change, no substitution. REPAIR
-PATH (requires a new checkpoint + approval, not self-granted): re-declare
-the fold calendar against actual in-window PA dates (e.g., date-cluster
-folds mirroring the registered slate-date convention) and re-pin the
-packet; the failed attempt's evidence remains preserved.
+(`failure_record.json`; immutable `receipt_initial.json`; the pre-tuning
+split-rate artifact; NO run outputs); the failed destination remains
+unchanged. Stopped per the decision table - no silent retry, no tolerance
+change, no substitution.
+
+**REVISED-SCOPE APPROVAL RECORDED 2026-11-04 (owner, per the roles rule):
+ONE execution of packet revision 3** (sha `80fe287a...`) at repaired
+executable checkpoint `34c4caf` (runner `de5a4560...`), fresh destination
+`lgbm_multiclass_v1_attempt2`, same inputs/pins/cohort/reference; Chat 2
+review of the repaired checkpoint pending but the owner's revised-scope
+approval is explicit. Pre-execution verification for the attempt:
+packet/runner bytes verified, fresh destination confirmed absent, failed
+destination confirmed unchanged. REPAIR SUMMARY: the fold calendar is
+replaced by a deterministic expanding split over observed in-window
+game-date clusters (one-third/two-thirds positions; outcome-blind; dates
+kept together; feasibility verified before expensive work; resolved dates
++ counts published in the report/receipt); the failed attempt's evidence
+remains preserved.
 
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
