@@ -130,15 +130,29 @@ accepted multinomial-plus-W0 reference pin `ae971758...`
 `--expected-reconstruction-sha256` CLI check verified before any decode
 (recording alone was not identity enforcement; +2 CLI tests, suite 20/20,
 133 targeted still green). Approval flow: Chat 2 packet review -> explicit
-**APPROVAL RECORDED 2026-11-03 (owner: "I approve") + Chat 2 identity
-reconciliation delivered per owner - against packet revision 2
-(`execution_packet_binary_k_v1.md`, file sha `af5e84dd...`) at code
-checkpoint `49f19ac`:** pre-execution verification completed - 8/8 module
-hashes, 7/7 file pins (pa/lineups/assessment/reference + 2 procedural
-raw-event files), cohort content hash `f77d7a66` recomputed 2,509 keys,
-destination absent. Single execution of the exact packet command follows;
-on any guard failure: preserve evidence and stop - no retry, no adjusted
-tolerance, no silent substitution.
+**BINARY-K VS MULTINOMIAL RUN EXECUTED ONCE 2026-11-03 (owner-approved
+against packet revision 2 `af5e84dd...` at code checkpoint `49f19ac`; exact
+packet command, exit 0):** destination write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\binary_k_vs_multinomial_v1\`
+(9 files; output hashes reconcile against receipt_final; receipt chain
+intact; receipt_initial hash-verified unchanged). Guards: 4 file-byte pins
+verified pre-decode; cohort `f77d7a66` MATCH (64,746 -> 22,581 requests);
+reconstruction gate PASSED EXACTLY (control arm reproduced the accepted
+multinomial-plus-W0 per-start RPS, max abs diff **0.0**, n=2,509). RESULT
+(2,509 starts; 148,369 train rows, 33,541 positive): mean count-RPS control
+**1.2952473** (= accepted W0 1.29525) vs binary-K **1.2953442**; delta =
+RPS(binary) - RPS(control) = **+0.0000969, CI95 [-0.0000828, +0.0002673]**.
+Pre-declared rule, direction and magnitude reported SEPARATELY: statistical
+direction INCONCLUSIVE (CI overlaps zero); practical magnitude **far below
+the declared practical threshold (0.005)** regardless of CI direction ->
+the dedicated binary objective does not improve K-count forecasts enough to
+justify the added complexity; the multinomial-K control is retained.
+Descriptive per-PA (43,565 matched PAs): log loss control 0.505684 vs
+binary 0.505703; Brier 0.163504 vs 0.163510 - consistent with the count
+result. Valid negative/inconclusive result: NOT a bug to rescue; no rerun,
+no rescue variants, no promotion (none was automatic). Development evidence
+only; no production/policy/model change; outputs preserved untouched.
+Evidence handoff delivered to Chat 2 on PR #57.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
