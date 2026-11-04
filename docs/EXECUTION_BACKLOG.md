@@ -130,8 +130,9 @@ accepted multinomial-plus-W0 reference pin `ae971758...`
 `--expected-reconstruction-sha256` CLI check verified before any decode
 (recording alone was not identity enforcement; +2 CLI tests, suite 20/20,
 133 targeted still green). Approval flow: Chat 2 packet review -> explicit
-**BINARY-K VS MULTINOMIAL RUN EXECUTED ONCE 2026-11-03 - BUILDER-REPORTED,
-PENDING CHAT 2 INDEPENDENT VERIFICATION (owner-approved
+**BINARY-K VS MULTINOMIAL RUN EXECUTED ONCE 2026-11-03 - CLOSED 2026-11-04:
+CHAT 2 ARTIFACT VERDICT = VERIFIED (supplied via owner; builder-reported
+record confirmed) (owner-approved
 against packet revision 2 `af5e84dd...` at code checkpoint `49f19ac`; exact
 packet command, exit 0):** destination write-once at
 `MLB-Props-Research\pregame-pa-ext-v2\diagnostics\binary_k_vs_multinomial_v1\`
@@ -154,10 +155,12 @@ result. Valid negative/inconclusive result: NOT a bug to rescue; no rerun,
 no rescue variants, no promotion (none was automatic). Development evidence
 only; no production/policy/model change; outputs preserved untouched.
 Evidence handoff delivered to Chat 2 on PR #57 (run artifacts untouched;
-no variants, no second experiment). After Chat 2 verification: close this
-record ONCE (BUILDER-REPORTED -> verified/unverified with Chat 2's
-disposition) and prepare the reviewed PR for integration under the existing
-process; no close before that verification.
+no variants, no second experiment). CLOSEOUT 2026-11-04: Chat 2's artifact
+verdict = VERIFIED; record closed once; the multinomial control is kept;
+no binary variants or reruns. PR #57 prepared for integration through the
+existing process (CI pass both jobs on the head, CLEAN; merge via architect
+delegation on the PR). Original run artifacts and receipts preserved
+untouched.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
