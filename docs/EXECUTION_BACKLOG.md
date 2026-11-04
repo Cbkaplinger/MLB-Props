@@ -234,6 +234,29 @@ work targets a concrete information gap (e.g., player-specific platoon
 skill or pitch-arsenal information), calibration follows model selection
 on disjoint chronological data.
 
+**LGBM RUN ATTEMPTED ONCE 2026-11-04 - EXECUTION FAILURE, EVIDENCE
+PRESERVED, STOPPED (no retry, no adjustment):** pre-execution checks all
+passed (11/11 module hashes, 7/7 file pins, cohort content hash, packet
+sha `b687d783...`, destination absent), then the exact packet command
+refused at the declared guard: **chronological fold B
+(fit ..2024-10-31 -> validate 2024-11-01..2024-12-31) has an EMPTY
+validation split** - the registered pa_table contains NO offseason PAs
+(seasonal gap through Oct-Dec), so the pre-declared fold calendar is
+infeasible on real data. Failure evidence preserved write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\lgbm_multiclass_v1\`
+(`failure_record.json` with stage+error+initial-receipt sha;
+`receipt_initial.json` immutable, never completed; the pre-tuning
+split-rate artifact; NO run outputs). Root cause: the fold calendar was
+pre-declared against calendar months without checking PA-row
+availability in the registered source - a SPECIFICATION defect in the
+frozen packet, not a code defect (the guard did exactly its job). Per
+the owner's decision table: execution failure -> evidence preserved,
+stopped, NO silent retry, no tolerance change, no substitution. REPAIR
+PATH (requires a new checkpoint + approval, not self-granted): re-declare
+the fold calendar against actual in-window PA dates (e.g., date-cluster
+folds mirroring the registered slate-date convention) and re-pin the
+packet; the failed attempt's evidence remains preserved.
+
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
 `docs/adr/PROPOSED-platoon-information-multiclass.md` +
