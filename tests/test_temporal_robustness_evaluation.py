@@ -231,6 +231,8 @@ def test_e2e_both_periods_manifest_and_receipts(tmp_path):
     expected = ["temporal_robustness_report.json",
                 "temporal_per_start_R1.parquet",
                 "temporal_per_start_R2.parquet",
+                "k_pmf_per_start_R1.parquet",
+                "k_pmf_per_start_R2.parquet",
                 "keyed_pa_probabilities_R1.parquet",
                 "keyed_pa_probabilities_R2.parquet",
                 "anchor_per_start.parquet",

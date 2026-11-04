@@ -669,6 +669,19 @@ def run_temporal_robustness(
             ps_path = out_dir / f"temporal_per_start_{pid}.parquet"
             per_start.write_parquet(ps_path)
             per_start_frames[pid] = ps_path
+            k_pmf_rows = []
+            for key in scored_keys:
+                for bucket in range(24):
+                    k_pmf_rows.append({
+                        "game_pk": key[0], "side": key[1],
+                        "pitcher": key[2], "bucket": bucket,
+                        "pmf_control": float(pmf_ctrl[key][bucket]),
+                        "pmf_platoon": float(pmf_cand[key][bucket]),
+                    })
+            k_pmf_path = out_dir / f"k_pmf_per_start_{pid}.parquet"
+            pl.DataFrame(k_pmf_rows).write_parquet(k_pmf_path)
+            per_start_frames[pid + "_kpmf"] = k_pmf_path
+            k_pmf_rows = k_pmf_rows  # noqa: F841 (per-period artifact)
             periods_out.append({
                 "id": pid,
                 "n_starts": len(scored_keys),
@@ -708,8 +721,12 @@ def run_temporal_robustness(
                    "anchor_per_start.parquet":
                    ad.sha256_file(anchor_ps_path)}
         for pid, path in per_start_frames.items():
-            outputs[f"temporal_per_start_{pid}.parquet"] = \
-                ad.sha256_file(path)
+            if pid.endswith("_kpmf"):
+                outputs[f"k_pmf_per_start_{pid[:-5]}.parquet"] = \
+                    ad.sha256_file(path)
+            else:
+                outputs[f"temporal_per_start_{pid}.parquet"] = \
+                    ad.sha256_file(path)
         for p in Path(out_dir).glob("keyed_pa_probabilities_*.parquet"):
             outputs[p.name] = ad.sha256_file(p)
         final = dict(initial)

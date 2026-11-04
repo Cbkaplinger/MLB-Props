@@ -16,7 +16,7 @@ SHA-256 identities at that checkpoint:
 
 | Module | SHA-256 |
 |---|---|
-| temporal_robustness_evaluation.py (runner) | `523685d9002ffecb61d9e6a0db93cf9d1eaf70eece160882d7a1dfb142947a6a` |
+| temporal_robustness_evaluation.py (runner, final) | `a2c673e028f221f0a9647502bcc1a6f95076da99e0821435029e615fc6838057` |
 | platoon_comparison.py (candidate fit + softmax, imported) | `8136e1a81f03ff188666a1eb5e7bd184fc41bfdb92a678d7c36b4dc904c2237f` |
 | platoon_features.py (platoon-features-v1) | `ccc56ecac9aed45026c32bb5ce9faa69f07fdfcc2eefd831b8e7607ca46e7122` |
 | binary_k_comparison.py (helpers, imported) | `3ad1ccedce6eb6122a017b38b455cdc88d7e0320a0d56dba0d7d0a8b2aefe7ad` |
@@ -97,7 +97,7 @@ observed date clusters; date-column inspection only, no outcome reads).
 
 ## Destination
 
-`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1` - fresh write-once directory. Evidence saved: `receipt_initial.json` (immutable), `receipt_final.json`, `temporal_robustness_report.json` (per-period results + feasibility + anchor reconstruction), `temporal_per_start_R1.parquet` / `temporal_per_start_R2.parquet`, `keyed_pa_probabilities_R1.parquet` / `keyed_pa_probabilities_R2.parquet` (both arms' full class-probability vectors), `anchor_per_start.parquet` (written BEFORE the anchor gate), `failure_record.json` on any exception (then re-raise).
+`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1` - fresh write-once directory. Evidence saved: `receipt_initial.json` (immutable), `receipt_final.json`, `temporal_robustness_report.json` (per-period results + feasibility + anchor reconstruction), `temporal_per_start_R1.parquet` / `temporal_per_start_R2.parquet`, `k_pmf_per_start_R1.parquet` / `k_pmf_per_start_R2.parquet` (both arms, 24 buckets), `keyed_pa_probabilities_R1.parquet` / `keyed_pa_probabilities_R2.parquet` (both arms' full class-probability vectors), `anchor_per_start.parquet` (written BEFORE the anchor gate), `failure_record.json` on any exception (then re-raise).
 
 ## Command (single line, copy-paste ready; execution only after approval)
 
