@@ -306,6 +306,35 @@ kept together; feasibility verified before expensive work; resolved dates
 + counts published in the report/receipt); the failed attempt's evidence
 remains preserved.
 
+**INTEGRATION COMPLETE 2026-11-04 (#57/#58/#59 -> main; existing process;
+actual destination verified):** all three merged - #57 (binary-K lane
+closeout), #58 (platoon lane: repaired checkpoint, verified run, closeout),
+#59 (LGBM lane: repaired fold calendar, verified attempt 2, closeout) at
+21:12:48Z; main at b32fd0c (merge of #59; #56 reconciliation included
+earlier). Bases and destinations verified before each parent merge;
+children retargeted/merged per the recorded procedure by Chat 2/architect.
+No carrier duplication, no direct-main pushes. Integration did not block
+the next specification (below).
+
+**TEMPORAL-ROBUSTNESS SPECIFICATION PUBLISHED 2026-11-04 (owner-assigned
+milestone; SPECIFICATION ONLY - no execution, no run):** card
+docs/adr/PROPOSED-temporal-robustness-evaluation.md = retained-candidate
+manifest (12-feature multinomial-plus-platoon: recipe, cutoff/label rules,
+pooled workload, lineup assumptions, aggregation, verified artifacts, code
+identities) + temporal-evaluation specification: R1 fit
+2023-03-30..2024-06-30 (277 verified date clusters) -> score
+2024-07-01..09-30 (88; EXPOSED); R2 fit ..2024-12-31 (365) -> score
+2025-01-01..06-30 (98; EXPOSED); R3 fit ..2025-06-30 (463) -> score
+2025-07-01..09-28 (86; UNEXPOSED confirm partition - requires a specific
+new owner authorization, NOT requested). Data-date feasibility
+established BEFORE fold declaration (game_date column only, no outcome
+reads; offseason gaps verified - the LGBM failure root). Prior exposure
+disclosed per period; metrics/weighting/calibration allocation/acceptance
+criteria pre-declared; promotion never automatic. The verified LGBM ledger
+row was added to the experiment impact ledger (from its VERIFIED record;
+nothing recomputed). No new learner, feature family, framework, or model
+run.
+
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
 `docs/adr/PROPOSED-platoon-information-multiclass.md` +
