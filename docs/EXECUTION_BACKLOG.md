@@ -175,6 +175,38 @@ work (review repairs, execution prep) goes to the platoon branch/PR so
 History preserved: no direct-main pushes, no duplicate carriers, no
 destructive edits, no branch rewrites.
 
+**LGBM MULTICLASS LANE OPENED 2026-11-04 (owner-assigned milestone;
+implementation + synthetic tests ONLY; NO real-data execution):** card
+`docs/adr/PROPOSED-lgbm-multiclass-challenger.md` + packet
+`execution_packet_lgbm_multiclass_v1.md` on the NEW stacked branch
+`research/lgbm-multiclass-v1` (PR stacked on the platoon branch; separation
+rule maintained). Registered reentry reason: the lgbm-equal-info v2
+closeout is NOT reopened - new owner-assigned design vs the NEW
+multinomial-plus-platoon control. Control = the 12-feature
+multinomial-plus-platoon pipeline (reconstruction gate vs the platoon
+run's challenger arm `c7428375...`, tol 1e-12, ENFORCED pre-decode);
+challenger = LightGBM multiclass on the IDENTICAL 12 columns (equal
+information); tuning budget pre-declared: 6 configs (num_leaves
+{7,15,31} x min_data_in_leaf {50,200}) x 2 chronological folds INSIDE the
+training window (fit ..08-31 -> val ..10-31; fit ..10-31 -> val ..12-31)
+= 12 fits, selection = lowest mean validation log loss with declared
+tie-breaks, ALL fold results reported; the registered assessment cohort
+NEVER touches tuning/selection (discriminating test: flipping assessment
+labels leaves the fold table identical). Endpoints pre-declared: primary
+= per-PA multiclass log loss (per-start-mean weighting, paired bootstrap
+2000/20261001); practical threshold 0.0005 nats; K-count POINT-ESTIMATE
+acceptance guard 0.002 (NOT a noninferiority claim); classwise/K
+secondary; promotion never automatic. Implementation:
+`lgbm_multiclass_comparison.py` +
+`tests/test_lgbm_multiclass_comparison.py` (19 tests incl. fold
+boundaries/refusals, tuning accounting + selection-rule recomputation,
+assessment-isolation, reload parity incl. serialized booster, all gates;
+closure table in the test docstring). 19 lgbm + 24 platoon = 43 targeted
+green. Command-to-CLI checked (15/15). Ack token is a technical gate, NOT
+authorization; the executable is frozen during review. No feature
+expansion, no SHAP, no calibration, no rescue variants, no
+double-play simulation.
+
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
 `docs/adr/PROPOSED-platoon-information-multiclass.md` +
