@@ -206,6 +206,22 @@ to-CLI checked (15/15 flags). Refusals/stop conditions exhaustive
 (matched-PA class outside fitted set refuses). Ack token is a technical
 gate, NOT authorization; the executable is frozen during review.
 
+**PLATOON EXECUTION AUTHORIZATION RECORDED 2026-11-04 (owner, explicit):
+ONE run of the exact packet command** - packet `execution_packet_platoon_v1.md`
+revision 2 (file sha `1a5543bc7f946e2b854d0f7b8e0f2a2be001002b8de5921917c965ee44f0467f`)
+at frozen executable checkpoint `37ce4d2` (runner `8136e1a8...`, feature
+family `ccc56eca...`; module bytes unchanged). **EXECUTION GATE STILL
+CLOSED:** the packet also requires Chat 2's confirmation of the published
+checkpoint and packet, which has NOT yet been recorded on PR #58. Once Chat
+2 confirms: builder verifies execution bytes, input pins, procedural
+raw-event hashes, cohort identity, reconstruction reference, and absent
+destination; then executes the exact packet command ONCE; preserves all
+outputs and receipts; STOPS on any failure with no adjustment or
+unapproved retry; and hands the run evidence directly to Chat 2. This
+approval will not be asked for again. No merge prerequisite, no new
+feature work, no SHAP, calibration, taxonomy expansion, or unrelated
+ticket work.
+
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
 (1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
