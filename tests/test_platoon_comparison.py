@@ -123,6 +123,10 @@ def _assessment():
              0 if i % 2 == 0 else 2) for i in range(9)]
     rows += [(900001, "Bot", P2, 600 + i, B2[i],
               0 if i % 2 else 1) for i in range(9)]
+    # one repeated encounter (allowed): start Top gets 10 matched PAs,
+    # Bot 9 -> per-start-mean weighting is DISCRIMINABLE from pooled
+    # per-PA weighting
+    rows.append((900001, "Top", P1, 510, B1[0], 0))
     return pl.DataFrame(rows, schema={
         "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
         "at_bat_number": pl.Int64, "batter": pl.Int64,
@@ -253,8 +257,69 @@ def test_e2e_all_artifacts_in_manifest(tmp_path):
         (Path(res["out_dir"]) / "platoon_comparison_report.json")
         .read_text(encoding="utf-8"))
     assert report["n_starts"] == 2
-    assert report["n_matched_pas"] == 18
+    assert report["n_matched_pas"] == 19
     assert "classwise" in report and "non_degradation" in report["k_count"]
+
+
+# ------------- 1b. primary contrast uses PER-START-MEAN weighting
+def test_primary_contrast_weighting_is_per_start_mean(tmp_path):
+    res = _run(tmp_path)
+    paired = res["primary_contrast"]
+    ps = pl.read_parquet(Path(res["out_dir"])
+                         / "platoon_per_start_v1.parquet")
+    per_start_diffs = (ps["logloss_platoon"]
+                       - ps["logloss_multinomial_control"]).to_numpy()
+    # the bootstrap point estimate is the mean of PER-START diffs
+    assert abs(paired["delta_a_minus_b"]
+               - float(np.mean(per_start_diffs))) < 1e-12
+    # DISCRIMINATING: with unequal matched-PA counts (10 vs 9) the
+    # per-start-mean weighting differs from a pooled per-PA delta
+    report = json.loads(
+        (Path(res["out_dir"]) / "platoon_comparison_report.json")
+        .read_text(encoding="utf-8"))
+    assert abs(paired["delta_a_minus_b"]
+               - (report["mean_multiclass_logloss_platoon"]
+                  - report["mean_multiclass_logloss_control"])) > 1e-12
+    # K-count acceptance guard is a POINT-ESTIMATE property of the
+    # report (within_margin), independent of the CI
+    nd = report["k_count"]["non_degradation"]
+    assert nd["within_margin"] == (
+        nd["point_estimate"] <= nd["margin"])
+
+
+# ------------------------------------------- 1c. switch-hitter tie rule
+def test_switch_hitter_tie_resolves_lexicographically():
+    """DISCRIMINATING regression for the declared tie behavior: equal
+    strictly-prior L/R counts vs the pitcher's hand -> the
+    lexicographically smallest stand ('L'); an overall tie with no
+    conditional history -> also 'L'. Under an unspecified tie order
+    this test is not stably green."""
+    rows = []
+    base = date(2024, 3, 1)
+    # batter 800601 vs RHP 700004: exactly one L row and one R row ->
+    # conditional modal stand is a TIE -> lexicographically smallest ('L')
+    rows.append(_row(base, 60, "Top", 140, 700004, 800601, 0, "L", "R"))
+    rows.append(_row(base, 60, "Top", 141, 700004, 800601, 0, "R", "R"))
+    pa = pl.DataFrame(rows, schema=PA_SCHEMA, orient="row").with_columns(
+        pl.lit(0, dtype=pl.Int64).alias("class_label"))
+    # second pitcher: unknown to the batter (no conditional history)
+    req = pl.DataFrame({
+        "batter": [800601, 800601],
+        "pitcher": [700004, 700005],
+        "cutoff": [date(2024, 4, 1), date(2024, 4, 1)],
+    }, schema={"batter": pl.Int64, "pitcher": pl.Int64,
+               "cutoff": pl.Date})
+    out = pf.forecast_matchup_hands(pa, req)
+    r1 = out.filter(pl.col("pitcher") == 700004).row(0, named=True)
+    # vs RHP: exactly one L and one R prior row -> tie -> 'L'
+    assert r1["f_hand"] == "R"
+    assert r1["f_stand"] == "L"
+    # no conditional history (pitcher unknown to the batter): overall
+    # modal stand, itself a 1L/1R tie -> 'L'; pitcher 700005 has no
+    # strictly-prior rows -> hand unknown
+    r2 = out.filter(pl.col("pitcher") == 700005).row(0, named=True)
+    assert r2["f_hand"] is None
+    assert r2["f_stand"] == "L"
 
 
 # ------------------------------------------------- 2. keyed alignment

@@ -44,6 +44,7 @@ production change.
 | Platoon features | none | 4 columns: shrunk (stand, p_throws) -> class-rate estimates (below) | - (the ONLY difference) |
 | Estimator | `m0.fit_multinomial` (registered recipe: StandardScaler + LogisticRegression C=1.0 lbfgs max_iter=1000; K marginal via softmax; 2-class parameterization handled by the identical-softmax helper) | Same estimator family and hyperparameters, fit on 12 columns (8 + 4) | Same family |
 | Training rows | Labeled frame, window `2024-05-01..2024-12-31`, `class_label >= 0` | Identical frame | Yes |
+| Training loss / weighting | L2-regularized multinomial cross-entropy (C=1.0 -> penalty 1/(2C)); every training PA EQUALLY weighted (no sample or class weights); the scaler changes scale, not weighting | Same | Yes |
 | Pooled workload | W0 pooled BF37 per cutoff (imported construction from the reviewed workload runner) | Same | Yes |
 | Aggregation | `ad.start_count_pmfs(p9, p9, bf37)["pmf_h3_raw"]` (24 buckets) | Same | Yes |
 | Cohort | Registered 2,509-start block_2025H1 eligible cohort (`f77d7a66...`), REQUIRED at CLI, restricted BEFORE feature construction | Same | Yes |
@@ -113,10 +114,13 @@ no same-date row, no future row contributes to any feature.
   direction.
 - **K-count non-degradation criterion:** mean per-start count-RPS of the
   challenger must not exceed the control's by more than the declared margin
-  of **0.002 count-RPS** (point estimate). A challenger that improves (or
-  is neutral within) this margin AND achieves a practically meaningful
-  primary improvement registers a candidate feature-family addition for a
-  FUTURE frozen contract decision; promotion is never automatic.
+  of **0.002 count-RPS** (point estimate). This is a POINT-ESTIMATE
+  ACCEPTANCE GUARD, deliberately NOT a statistical noninferiority claim:
+  no TOST/equivalence test is run and the CI is reported as context, not
+  as the decision. A challenger that is neutral within this margin AND
+  achieves a practically meaningful primary improvement registers a
+  candidate feature-family addition for a FUTURE frozen contract decision;
+  promotion is never automatic.
 - **Secondary evidence (declared, not decisive):** classwise log loss and
   Brier per class, mean K-count RPS per arm, K PMFs per start, per-split
   cell counts.
