@@ -77,10 +77,6 @@ COUNT_RPS_NONDEG_MARGIN = 0.002
 LGBM_SEED = 20261001
 LGBM_GRID = [{"num_leaves": nl, "min_data_in_leaf": md}
              for nl in (7, 15, 31) for md in (50, 200)]
-CHRONO_FOLDS = [
-    {"fit_end": "2024-08-31", "val_end": "2024-10-31"},
-    {"fit_end": "2024-10-31", "val_end": "2024-12-31"},
-]
 
 
 def _sha_file(path: Path) -> str:
@@ -135,37 +131,6 @@ def apply_lgbm(features: pl.DataFrame, model: dict) -> np.ndarray:
     return probs
 
 
-def build_chrono_folds(feat_train: pl.DataFrame) -> list:
-    """The two declared chronological folds from the training frame.
-    Fit rows strictly precede validation rows by date; both are inside
-    the declared training window by construction (the caller already
-    restricted it). Guard: nonempty fit and validation, and the
-    validation class set must be contained in the fit class set (a
-    fold whose fit lacks a validation class refuses - the log loss
-    would be undefined)."""
-    folds = []
-    for fold in CHRONO_FOLDS:
-        fit_end = pl.date(*map(int, fold["fit_end"].split("-")))
-        val_end = pl.date(*map(int, fold["val_end"].split("-")))
-        fit_rows = feat_train.filter(pl.col("game_date") <= fit_end)
-        val_rows = feat_train.filter(
-            (pl.col("game_date") > fit_end)
-            & (pl.col("game_date") <= val_end))
-        if fit_rows.height == 0 or val_rows.height == 0:
-            raise ValueError(
-                f"chronological fold {fold} has an empty fit or "
-                "validation split")
-        fit_classes = set(fit_rows["class_label"].unique().to_list())
-        val_classes = set(val_rows["class_label"].unique().to_list())
-        if not val_classes.issubset(fit_classes):
-            raise ValueError(
-                f"chronological fold {fold}: validation classes "
-                f"{sorted(val_classes - fit_classes)} are absent from "
-                "the fit population; refusing an undefined log loss")
-        folds.append({"fold": fold, "fit": fit_rows, "val": val_rows})
-    return folds
-
-
 def _log_loss_multiclass(probs: np.ndarray, classes: list,
                          y: np.ndarray) -> float:
     idx = {c: j for j, c in enumerate(classes)}
@@ -191,26 +156,94 @@ def _classwise_multiclass(probs: np.ndarray, classes: list,
     return out
 
 
-def run_tuning(feat_train: pl.DataFrame, class_names_count: int) -> dict:
+def resolve_folds(train: pl.DataFrame) -> dict:
+    """Deterministic expanding split over OBSERVED in-window game-date
+    clusters (replaces the infeasible calendar-month folds).
+
+    Rule (declared, outcome-blind): sort the distinct game dates present
+    in the declared training window; split that ordered list at the
+    fixed one-third / two-thirds positions into three contiguous date
+    blocks; all rows from a date stay together. Folds: fit = block1 ->
+    validate = block2; fit = block1+block2 -> validate = block3. No
+    losses or assessment outcomes are consulted.
+
+    Feasibility guards, verified BEFORE any model fitting or expensive
+    feature work: at least 3 distinct date clusters (else the two-fold
+    expanding split is undefined); both folds nonempty; STRICT
+    chronological separation (max fit date < min val date); class
+    compatibility (every validation class present in the fold's fit
+    population). Raises on any violation."""
+    dates = sorted(train["game_date"].unique().to_list())
+    n = len(dates)
+    if n < 3:
+        raise ValueError(
+            f"only {n} distinct in-window game dates; the two-fold "
+            "expanding split needs at least 3 date clusters")
+    i1, i2 = n // 3, (2 * n) // 3
+    b1, b2, b3 = dates[:i1], dates[i1:i2], dates[i2:]
+    folds = [{"fit_dates": b1, "val_dates": b2},
+             {"fit_dates": b1 + b2, "val_dates": b3}]
+    for fi, fold in enumerate(folds, start=1):
+        fit_rows = train.filter(pl.col("game_date").is_in(fold["fit_dates"]))
+        val_rows = train.filter(pl.col("game_date").is_in(fold["val_dates"]))
+        if fit_rows.height == 0 or val_rows.height == 0:
+            raise ValueError(f"resolved fold {fi} has an empty fit or "
+                             "validation split")
+        if max(fold["fit_dates"]) >= min(fold["val_dates"]):
+            raise ValueError(
+                f"resolved fold {fi} is not strictly chronological")
+        fc = set(fit_rows["class_label"].unique().to_list())
+        vc = set(val_rows["class_label"].unique().to_list())
+        if not vc.issubset(fc):
+            raise ValueError(
+                f"resolved fold {fi}: validation classes "
+                f"{sorted(vc - fc)} are absent from the fit population; "
+                "refusing an undefined log loss")
+        fold["fit_rows"] = fit_rows
+        fold["val_rows"] = val_rows
+        fold["n_fit_rows"] = int(fit_rows.height)
+        fold["n_val_rows"] = int(val_rows.height)
+    return {
+        "rule": ("deterministic expanding split over observed in-window "
+                 "game-date clusters: sorted distinct dates split at the "
+                 "fixed one-third/two-thirds positions; outcome-blind; "
+                 "all rows from a date kept together"),
+        "block1_dates": b1, "block2_dates": b2, "block3_dates": b3,
+        "folds": folds,
+    }
+
+
+def run_tuning(feat_train: pl.DataFrame, resolved: dict) -> dict:
     """The pre-declared small tuning budget: 6 configurations x 2
-    chronological folds; selection by lowest mean validation multiclass
-    log loss (ties: fewer num_leaves -> larger min_data_in_leaf -> grid
-    order). Returns the full fold table + selection. NO assessment data
-    is reachable from here."""
-    folds = build_chrono_folds(feat_train)
+    chronological folds (from the RESOLVED date-cluster split);
+    selection by lowest mean validation multiclass log loss (ties: fewer
+    num_leaves -> larger min_data_in_leaf -> grid order). Returns the
+    full fold table + selection. NO assessment data is reachable from
+    here."""
     fold_rows = []
     means = {}
     for gi, cfg in enumerate(LGBM_GRID):
         losses = []
-        for fi, fold in enumerate(folds):
-            model = fit_lgbm(fold["fit"], cfg)
-            probs = apply_lgbm(fold["val"], model)
-            y = fold["val"]["class_label"].to_numpy().astype(int)
+        for fi, fold in enumerate(resolved["folds"]):
+            fit_frame = feat_train.filter(
+                pl.col("game_date").is_in(fold["fit_dates"]))
+            val_frame = feat_train.filter(
+                pl.col("game_date").is_in(fold["val_dates"]))
+            if fit_frame.height == 0 or val_frame.height == 0:
+                raise ValueError(
+                    f"fold {fi} is empty after feature construction; "
+                    "the resolved dates do not cover the feature frame")
+            model = fit_lgbm(fit_frame, cfg)
+            probs = apply_lgbm(val_frame, model)
+            y = val_frame["class_label"].to_numpy().astype(int)
             ll = _log_loss_multiclass(probs, model["classes"], y)
             losses.append(float(ll))
             fold_rows.append({
-                "fold_index": fi, "fit_end": fold["fold"]["fit_end"],
-                "val_end": fold["fold"]["val_end"],
+                "fold_index": fi,
+                "fit_dates": [str(d) for d in fold["fit_dates"]],
+                "val_dates": [str(d) for d in fold["val_dates"]],
+                "n_fit_rows": fold["n_fit_rows"],
+                "n_val_rows": fold["n_val_rows"],
                 "num_leaves": cfg["num_leaves"],
                 "min_data_in_leaf": cfg["min_data_in_leaf"],
                 "val_log_loss": float(ll),
@@ -224,6 +257,16 @@ def run_tuning(feat_train: pl.DataFrame, class_names_count: int) -> dict:
     return {"fold_table": fold_rows, "selected_grid_order": selected,
             "selected_config": LGBM_GRID[selected],
             "selected_mean_val_log_loss": means[selected],
+            "resolved": {k: [str(d) for d in resolved[k]]
+                         for k in ("block1_dates", "block2_dates",
+                                   "block3_dates")},
+            "fold_row_counts": [
+                {"fold_index": fi,
+                 "n_fit_rows": fold["n_fit_rows"],
+                 "n_val_rows": fold["n_val_rows"],
+                 "n_fit_dates": len(fold["fit_dates"]),
+                 "n_val_dates": len(fold["val_dates"])}
+                for fi, fold in enumerate(resolved["folds"], start=1)],
             "selection_rule": ("lowest mean validation multiclass log "
                                "loss; ties: fewer num_leaves -> larger "
                                "min_data_in_leaf -> grid order"),
@@ -270,7 +313,14 @@ def run_lgbm_comparison(
                          "multinomial_plus_platoon_control"],
         "primary_contrast": "per-PA multiclass log loss (per-start "
                             "means, paired): challenger - control",
-        "tuning_budget": {"grid": LGBM_GRID, "folds": CHRONO_FOLDS,
+        "tuning_budget": {"grid": LGBM_GRID,
+                          "fold_rule": ("deterministic expanding split "
+                                        "over observed in-window "
+                                        "game-date clusters (one-third/"
+                                        "two-thirds positions; "
+                                        "outcome-blind; dates kept "
+                                        "together); exact resolved "
+                                        "dates published in the report"),
                           "selection": ("lowest mean validation "
                                         "multiclass log loss; ties: "
                                         "fewer num_leaves -> larger "
@@ -317,6 +367,13 @@ def run_lgbm_comparison(
         if train.height == 0:
             raise ValueError("empty training population")
         train_cutoffs = train["game_date"].unique().to_list()
+
+        # ---- fold feasibility BEFORE expensive feature/tuning work ---
+        # deterministic expanding split over observed in-window
+        # game-date clusters; verified nonempty, strictly chronological,
+        # class-compatible (raises before any feature construction or
+        # model fitting)
+        resolved = resolve_folds(train)
 
         # ---- requests through projected_long ------------------------
         _require_columns(lineups, LINEUP_COLUMNS, "projected lineups")
@@ -415,7 +472,7 @@ def run_lgbm_comparison(
             feat_req, rates, n_classes=len(m0.CLASS_NAMES))
 
         # ---- tuning (chronological, inside the training window) ------
-        tuning = run_tuning(feat_train, len(m0.CLASS_NAMES))
+        tuning = run_tuning(feat_train, resolved)
 
         # ---- both final fits on the SAME rows ------------------------
         model_ctrl = pc.fit_challenger(feat_train)

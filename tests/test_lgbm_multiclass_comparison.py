@@ -331,33 +331,97 @@ def test_tuning_budget_and_selection_rule(tmp_path):
         report["tuning"]["selected_config"]
 
 
-# ------------------------- 5a/b. chronological fold boundaries
-def test_chrono_folds_boundaries_and_refusals(tmp_path):
+# -------- 5a. offseason-gap regression (the failed run's discriminator)
+def test_offseason_gap_resolves_over_observed_clusters():
+    """DISCRIMINATING regression: an in-season-only date population
+    (May..September, nothing afterward) must resolve into two expanding
+    folds over OBSERVED date clusters. The original calendar-month folds
+    (Aug/Oct/Dec boundaries) refused exactly this population - the
+    authorized run's failure."""
     from datetime import date as d
+    dates = [d(2024, 5, 1), d(2024, 6, 1), d(2024, 7, 1), d(2024, 8, 1),
+             d(2024, 9, 1)]
+    # classes arranged so the deterministic thirds are class-compatible:
+    # b1 (5/1) carries both classes; later blocks stay within them
     frame = pl.DataFrame({
-        "game_date": [d(2024, 7, 1), d(2024, 7, 15), d(2024, 9, 10),
-                      d(2024, 12, 1)],
-        "class_label": [0, 2, 2, 0],
-        "num": [0, 0, 0, 0],
+        "game_date": [dates[0], dates[0], dates[1], dates[2], dates[3],
+                      dates[4]],
+        "class_label": [0, 2, 0, 2, 0, 2],
+    }, schema={"game_date": pl.Date, "class_label": pl.Int64})
+    resolved = lc.resolve_folds(frame)
+    b1, b2, b3 = (resolved["block1_dates"], resolved["block2_dates"],
+                  resolved["block3_dates"])
+    # deterministic one-third/two-thirds split of 5 dates: 1 / 2 / 2
+    assert b1 == [d(2024, 5, 1)]
+    assert b2 == [d(2024, 6, 1), d(2024, 7, 1)]
+    assert b3 == [d(2024, 8, 1), d(2024, 9, 1)]
+    f1, f2 = resolved["folds"]
+    f1, f2 = resolved["folds"]
+    # strict chronological separation; expanding fit; dates kept together
+    assert max(f1["fit_dates"]) < min(f1["val_dates"])
+    assert max(f1["val_dates"]) < min(f2["val_dates"])
+    assert max(f2["fit_dates"]) < min(f2["val_dates"])
+    assert f1["n_fit_rows"] > 0 and f1["n_val_rows"] > 0
+    assert f2["n_fit_rows"] > 0 and f2["n_val_rows"] > 0
+
+
+# --------------- 5b. mid-window gap keeps dates together; guards fire
+def test_fold_feasibility_guards():
+    from datetime import date as d
+    # mid-window gap: block boundaries fall between clusters; all rows
+    # from a date stay together; strict chronological separation
+    frame = pl.DataFrame({
+        "game_date": [d(2024, 5, 1), d(2024, 5, 2), d(2024, 7, 1),
+                      d(2024, 7, 2), d(2024, 9, 1), d(2024, 9, 2)],
+        "class_label": [0, 2, 0, 2, 0, 2],
+        "num": [0, 0, 0, 0, 0, 0],
     }, schema={"game_date": pl.Date, "class_label": pl.Int64,
                "num": pl.Int64})
-    # pad the columns fit_lgbm needs
-    for c in lc.CHALLENGE_FEATURES:
-        frame = frame.with_columns(pl.lit(0.0, dtype=pl.Float64)
-                                   .alias(c))
-    folds = lc.build_chrono_folds(frame)
-    a, b = folds
-    assert a["fold"]["fit_end"] == "2024-08-31"
-    assert a["fit"]["game_date"].max() <= d(2024, 8, 31)
-    assert a["val"]["game_date"].min() > d(2024, 8, 31)
-    assert a["val"]["game_date"].max() <= d(2024, 10, 31)
-    assert b["fit"]["game_date"].max() <= d(2024, 10, 31)
-    assert b["val"]["game_date"].min() > d(2024, 10, 31)
-    assert b["val"]["game_date"].max() <= d(2024, 12, 31)
-    # empty validation split refuses
-    early_only = frame.filter(pl.col("game_date") <= d(2024, 7, 1))
-    with pytest.raises(ValueError, match="empty fit or validation"):
-        lc.build_chrono_folds(early_only)
+    resolved = lc.resolve_folds(frame)
+    b1, b2, b3 = (resolved["block1_dates"], resolved["block2_dates"],
+                  resolved["block3_dates"])
+    assert b1 == [d(2024, 5, 1), d(2024, 5, 2)]
+    assert b2 == [d(2024, 7, 1), d(2024, 7, 2)]
+    assert b3 == [d(2024, 9, 1), d(2024, 9, 2)]
+    assert max(b1) < min(b2) and max(b2) < min(b3)
+    # class compatibility: a validation class absent from the fold's
+    # fit population refuses
+    frame3 = pl.DataFrame({
+        "game_date": [d(2024, 5, 1), d(2024, 7, 1), d(2024, 9, 1)],
+        "class_label": [0, 2, 3],
+    }, schema={"game_date": pl.Date, "class_label": pl.Int64})
+    with pytest.raises(ValueError, match="validation classes"):
+        lc.resolve_folds(frame3)
+    # too few date clusters -> the split is undefined
+    two = pl.DataFrame({"game_date": [d(2024, 5, 1), d(2024, 7, 1)],
+                        "class_label": [0, 2]}, schema={
+        "game_date": pl.Date, "class_label": pl.Int64})
+    with pytest.raises(ValueError, match="at least 3 date clusters"):
+        lc.resolve_folds(two)
+
+
+# --------- 5c. feasibility refusal precedes expensive work (runner)
+def test_runner_refuses_before_feature_work_on_infeasible_dates(tmp_path):
+    """A training window with fewer than 3 distinct in-window game dates
+    refuses at fold resolution - BEFORE state/feature construction and
+    BEFORE any model fitting. Evidence (failure_record + immutable
+    receipt_initial) is preserved."""
+    h = _write(tmp_path)
+    # strip the fixture down to two distinct in-window training dates
+    rows = [r for r in _pa_rows() if r[0] not in (TRAIN_D1, TRAIN_D3,
+                                                  TRAIN_D4)]
+    pa_two = pl.DataFrame(rows, schema=PA_SCHEMA, orient="row")
+    h2 = _write(tmp_path, pa=pa_two)
+    with pytest.raises(ValueError, match="distinct in-window game dates"):
+        lc.run_lgbm_comparison(
+            pa_two, _lineups(), _assessment(), tmp_path / "out_early",
+            train_start="2024-05-01", train_end="2024-12-31",
+            execution_ack=ACK, raw_events=[h2["raw_path"]],
+            reconstruction_reference=_wrong_reference())
+    fr = json.loads((tmp_path / "out_early" / "failure_record.json")
+                    .read_text(encoding="utf-8"))
+    assert "distinct in-window game dates" in fr["error"]
+    assert (tmp_path / "out_early" / "receipt_initial.json").exists()
 
 
 # ---------------------- 6. assessment labels never touch the tuning

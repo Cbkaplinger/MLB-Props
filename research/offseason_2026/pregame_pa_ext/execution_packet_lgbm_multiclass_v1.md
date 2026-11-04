@@ -1,4 +1,4 @@
-# Execution packet: lgbm_multiclass_v1
+# Execution packet: lgbm_multiclass_v1 (revision 3 - repaired fold calendar, fresh attempt destination)
 
 STATUS: AUTHORIZATION-READY, NOT AUTHORIZED. Every factual claim below was
 checked against the code at the frozen checkpoint (2026-11-04). Approval
@@ -43,10 +43,12 @@ during review is a new checkpoint, not this packet.
    (fixed multinomial control untouched); grid = `num_leaves`
    {7, 15, 31} x `min_data_in_leaf` {50, 200} (6 configurations, fixed
    `learning_rate = 0.05`, `n_estimators = 200`, `seed/deterministic`
-   pinned, single-threaded); TWO chronological folds INSIDE the declared
-   training window (fit `2024-05-01..2024-08-31` -> validate
-   `2024-09-01..2024-10-31`; fit `..2024-10-31` -> validate
-   `2024-11-01..2024-12-31`) = **12 tuning fits**; selection = lowest mean
+   pinned, single-threaded); TWO chronological folds RESOLVED from the
+   OBSERVED in-window game-date clusters (deterministic one-third/
+   two-thirds expanding split over the sorted distinct training-window
+   dates; feasibility verified BEFORE any fitting; exact resolved dates
+   and train/validation counts published in the report and receipt) =
+   **12 tuning fits**; selection = lowest mean
    validation multiclass log loss, ties -> fewer `num_leaves` -> larger
    `min_data_in_leaf` -> grid order. ALL 12 fold results are recorded.
    The registered assessment cohort NEVER enters tuning or selection.
@@ -89,7 +91,7 @@ the configuration is frozen.
 
 ## Destination
 
-`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\lgbm_multiclass_v1` - fresh write-once directory; the runner checks destination non-existence at entry. Evidence saved: `receipt_initial.json` (immutable), `receipt_final.json`, `lgbm_comparison_report.json` (incl. the full tuning fold table + selection), `lgbm_per_start_v1.parquet`, `keyed_pa_probabilities.parquet` (both arms), `model_artifacts.json` (both models; LightGBM booster serialized to text, reloadable), `k_pmf_per_start_v1.parquet`, `bf37_pooled_by_date_v1.parquet`, `platoon_split_rates_v1.parquet`, `failure_record.json` on any exception (then re-raise).
+`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\lgbm_multiclass_v1_attempt2` - FRESH attempt destination (the failed attempt's destination `lgbm_multiclass_v1` is PRESERVED UNCHANGED with its failure evidence); the runner checks destination non-existence at entry. Evidence saved: `receipt_initial.json` (immutable), `receipt_final.json`, `lgbm_comparison_report.json` (incl. the RESOLVED fold dates + counts and the full tuning fold table + selection), `lgbm_per_start_v1.parquet`, `keyed_pa_probabilities.parquet` (both arms), `model_artifacts.json` (both models; LightGBM booster serialized to text, reloadable), `k_pmf_per_start_v1.parquet`, `bf37_pooled_by_date_v1.parquet`, `platoon_split_rates_v1.parquet`, `failure_record.json` on any exception (then re-raise).
 
 ## Identity pins and enforcement mechanisms
 
@@ -109,7 +111,7 @@ cohort content hash was recomputed from the 2,509 keys and matches.
 ## Command (single line, copy-paste ready; execution only after approval)
 
 ```
-python research/offseason_2026/pregame_pa_ext/lgbm_multiclass_comparison.py --pa-source "C:\Users\ckaplinger\MLB-Props-Research\overnight-p2\data\pa_table.parquet" --lineups "C:\Users\ckaplinger\MLB-Props-Research\pregame-state-v1\data\projected_lineups_variant_v2.parquet" --assessment "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\assessment_2025H1_v1.parquet" --raw-events "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2024\statcast_2024_regular.parquet,C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2025\statcast_2025_regular.parquet" --train-start 2024-05-01 --train-end 2024-12-31 --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\lgbm_multiclass_v1" --execution-ack EXECUTE-LGBM-MULTICLASS-V1 --cohort-keys "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\eligible_cohort_keys_2025H1.parquet" --expected-cohort-hash f77d7a66639ee94a9157244b357487d5f462c6cb0bd4909bbffb44b924db41b7 --reconstruction-reference "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\platoon_information_v1\platoon_per_start_v1.parquet" --expected-reconstruction-sha256 c74283753c4fb6f156351c5c310c6ef0ede99b79aacfc7e261cc21f7d7216017 --expected-pa-sha256 1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff --expected-lineups-sha256 b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b --expected-assessment-sha256 464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa
+python research/offseason_2026/pregame_pa_ext/lgbm_multiclass_comparison.py --pa-source "C:\Users\ckaplinger\MLB-Props-Research\overnight-p2\data\pa_table.parquet" --lineups "C:\Users\ckaplinger\MLB-Props-Research\pregame-state-v1\data\projected_lineups_variant_v2.parquet" --assessment "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\assessment_2025H1_v1.parquet" --raw-events "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2024\statcast_2024_regular.parquet,C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2025\statcast_2025_regular.parquet" --train-start 2024-05-01 --train-end 2024-12-31 --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\lgbm_multiclass_v1_attempt2" --execution-ack EXECUTE-LGBM-MULTICLASS-V1 --cohort-keys "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\eligible_cohort_keys_2025H1.parquet" --expected-cohort-hash f77d7a66639ee94a9157244b357487d5f462c6cb0bd4909bbffb44b924db41b7 --reconstruction-reference "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\platoon_information_v1\platoon_per_start_v1.parquet" --expected-reconstruction-sha256 c74283753c4fb6f156351c5c310c6ef0ede99b79aacfc7e261cc21f7d7216017 --expected-pa-sha256 1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff --expected-lineups-sha256 b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b --expected-assessment-sha256 464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa
 ```
 
 All 15 flags verified against the CLI argparse (`--help`, 2026-11-04);

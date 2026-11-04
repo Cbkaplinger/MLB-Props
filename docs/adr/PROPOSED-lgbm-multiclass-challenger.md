@@ -48,11 +48,24 @@ re-argued.
   (no early stopping), `objective = multiclass`, `seed = 20261001`,
   `deterministic = true`, `force_row_wise = true`, single-threaded.
 - **Chronological validation (2 folds, inside the declared training
-  window, NEVER on the registered assessment cohort):**
-  - Fold A: fit on rows `2024-05-01..2024-08-31` -> validate on
-    `2024-09-01..2024-10-31`.
-  - Fold B: fit on rows `2024-05-01..2024-10-31` -> validate on
-    `2024-11-01..2024-12-31`.
+  window, NEVER on the registered assessment cohort).** The original
+  calendar-month folds (Aug/Oct/Dec boundaries) were INFEASIBLE on real
+  data (the authorized 2026-11-04 run refused: the registered pa_table
+  contains no offseason PAs, so the Nov-Dec validation split was empty;
+  failure evidence preserved). REPLACED by a deterministic, outcome-blind
+  expanding split over OBSERVED in-window game-date clusters:
+  - Sort the distinct game dates present in the declared training
+    window; split the ordered list at the fixed one-third/two-thirds
+    positions into three contiguous date blocks (all rows from a date
+    stay together).
+  - Fold A: fit on block 1 -> validate on block 2. Fold B: fit on
+    blocks 1+2 -> validate on block 3.
+  - Feasibility verified BEFORE any model fitting or expensive feature
+    work: >= 3 distinct date clusters, both folds nonempty, strict
+    chronological separation, and every validation class present in the
+    fold's fit population (refuses otherwise).
+  - The EXACT resolved dates and train/validation row counts are
+    published in the run report and receipt.
 - Selection: lowest MEAN validation multiclass log loss across the two
   folds; tie -> fewer `num_leaves`; tie -> larger `min_data_in_leaf`; tie
   -> grid order. ALL 6 x 2 = 12 fold results are recorded in the report
