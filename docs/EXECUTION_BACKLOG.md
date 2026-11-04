@@ -130,7 +130,15 @@ accepted multinomial-plus-W0 reference pin `ae971758...`
 `--expected-reconstruction-sha256` CLI check verified before any decode
 (recording alone was not identity enforcement; +2 CLI tests, suite 20/20,
 133 targeted still green). Approval flow: Chat 2 packet review -> explicit
-owner authorization -> single execution.
+**APPROVAL RECORDED 2026-11-03 (owner: "I approve") + Chat 2 identity
+reconciliation delivered per owner - against packet revision 2
+(`execution_packet_binary_k_v1.md`, file sha `af5e84dd...`) at code
+checkpoint `49f19ac`:** pre-execution verification completed - 8/8 module
+hashes, 7/7 file pins (pa/lineups/assessment/reference + 2 procedural
+raw-event files), cohort content hash `f77d7a66` recomputed 2,509 keys,
+destination absent. Single execution of the exact packet command follows;
+on any guard failure: preserve evidence and stop - no retry, no adjusted
+tolerance, no silent substitution.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
