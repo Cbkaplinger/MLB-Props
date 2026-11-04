@@ -175,6 +175,137 @@ work (review repairs, execution prep) goes to the platoon branch/PR so
 History preserved: no direct-main pushes, no duplicate carriers, no
 destructive edits, no branch rewrites.
 
+**LGBM MULTICLASS LANE OPENED 2026-11-04 (owner-assigned milestone;
+implementation + synthetic tests ONLY; NO real-data execution):** card
+`docs/adr/PROPOSED-lgbm-multiclass-challenger.md` + packet
+`execution_packet_lgbm_multiclass_v1.md` on the NEW stacked branch
+`research/lgbm-multiclass-v1` (PR stacked on the platoon branch; separation
+rule maintained). Registered reentry reason: the lgbm-equal-info v2
+closeout is NOT reopened - new owner-assigned design vs the NEW
+multinomial-plus-platoon control. Control = the 12-feature
+multinomial-plus-platoon pipeline (reconstruction gate vs the platoon
+run's challenger arm `c7428375...`, tol 1e-12, ENFORCED pre-decode);
+challenger = LightGBM multiclass on the IDENTICAL 12 columns (equal
+information); tuning budget pre-declared: 6 configs (num_leaves
+{7,15,31} x min_data_in_leaf {50,200}) x 2 chronological folds INSIDE the
+training window (fit ..08-31 -> val ..10-31; fit ..10-31 -> val ..12-31)
+= 12 fits, selection = lowest mean validation log loss with declared
+tie-breaks, ALL fold results reported; the registered assessment cohort
+NEVER touches tuning/selection (discriminating test: flipping assessment
+labels leaves the fold table identical). Endpoints pre-declared: primary
+= per-PA multiclass log loss (per-start-mean weighting, paired bootstrap
+2000/20261001); practical threshold 0.0005 nats; K-count POINT-ESTIMATE
+acceptance guard 0.002 (NOT a noninferiority claim); classwise/K
+secondary; promotion never automatic. Implementation:
+`lgbm_multiclass_comparison.py` +
+`tests/test_lgbm_multiclass_comparison.py` (19 tests incl. fold
+boundaries/refusals, tuning accounting + selection-rule recomputation,
+assessment-isolation, reload parity incl. serialized booster, all gates;
+requirement-to-test closure table in the test docstring). 19 lgbm + 24
+platoon = 43 targeted green. Command-to-CLI checked (15/15). Ack token is
+a technical gate, NOT authorization; the executable is frozen during
+review. No feature expansion, no SHAP, no calibration, no rescue
+variants, no double-play simulation.
+
+**LGBM EXECUTION AUTHORIZATION RECORDED 2026-11-04 (owner, scoped):
+ONE run of the exact LightGBM packet command** - executable `31b721a`
+(module bytes; packet at docs checkpoint `d7e81db`), scope = the declared
+12 tuning fits + one final LightGBM fit + one control fit. FOUR
+LIMITATIONS stay visible in interpretation (owner-codified): (1)
+development evidence - the 2025H1 cohort has informed architectural
+decisions and is NOT a fresh final test; a win creates a candidate, not a
+production promotion; (2) the comparison is "bounded-selected LightGBM
+versus fixed multinomial", NOT a universal verdict about model families;
+(3) the PA evaluation is conditional on matched projected matchups (K-count
+scoring over complete starter outcomes is a downstream check, not full
+PA-level coverage); (4) the K guard is a POINT-ESTIMATE acceptance guard,
+not statistical noninferiority - interval reported as context. Chat 2's
+post-run decision table (pre-declared by owner): meaningful improvement +
+guard passes -> retain LightGBM as a candidate development model; no
+meaningful improvement -> retain the simpler multinomial; improvement but
+guard fails -> do NOT adopt the combined pipeline, record the tradeoff;
+execution/evidence failure -> preserve evidence and stop, no silent
+retry. Post-candidate steps (owner): freeze the selected recipe +
+predeclare a time-ordered robustness evaluation within existing access
+(protected partitions do NOT open because this run finishes); next feature
+work targets a concrete information gap (e.g., player-specific platoon
+skill or pitch-arsenal information), calibration follows model selection
+on disjoint chronological data.
+
+**LGBM RUN ATTEMPTED ONCE 2026-11-04 - EXECUTION FAILURE, EVIDENCE
+PRESERVED, STOPPED (no retry, no adjustment):** pre-execution checks all
+passed, then the exact packet command refused at the declared guard:
+chronological fold B (fit ..2024-10-31 -> validate 2024-11-01..2024-12-31)
+had an EMPTY validation split - the registered pa_table contains NO
+offseason PAs, so the pre-declared calendar-month fold calendar was
+infeasible on real data (a SPECIFICATION defect in the frozen packet, not
+a code defect - the guard did exactly its job). Failure evidence
+preserved write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\lgbm_multiclass_v1\`
+(`failure_record.json`; immutable `receipt_initial.json`; the pre-tuning
+split-rate artifact; NO run outputs); the failed destination remains
+unchanged. Stopped per the decision table - no silent retry, no tolerance
+change, no substitution.
+
+**REVISED-SCOPE APPROVAL RECORDED 2026-11-04 (owner, per the roles rule):
+ONE execution of packet revision 3** (sha `80fe287a...`) at repaired
+executable checkpoint `34c4caf` (runner `de5a4560...`), fresh destination
+`lgbm_multiclass_v1_attempt2`, same inputs/pins/cohort/reference; Chat 2
+review of the repaired checkpoint pending but the owner's revised-scope
+approval is explicit. Pre-execution verification for the attempt:
+packet/runner bytes verified, fresh destination confirmed absent, failed
+destination confirmed unchanged.
+
+**LGBM RUN EXECUTED ONCE 2026-11-04 (revised scope approved; exact packet
+revision 3 command, exit 0) - CLOSED 2026-11-04: CHAT 2 ARTIFACT VERDICT =
+COMPLETED / VERIFIED (supplied via owner); record closed once; BOTH attempt
+directories and all original evidence preserved untouched. RESULT
+INTERPRETATION (corrected per owner): (a) statistical direction
+INCONCLUSIVE; (b) the point improvement is BELOW the declared practical
+threshold; (c) the interval still permits a practically useful
+improvement - NO equivalence claim and NO claim that LightGBM cannot help
+generally; (d) the K point-estimate guard FAILED. Decision per the
+pre-declared table: RETAIN multinomial-plus-platoon; NO LightGBM
+adoption;** pre-execution verification passed (runner/
+packet bytes, input pins, cohort, reference, fresh destination
+`lgbm_multiclass_v1_attempt2` absent; failed destination preserved).
+Destination write-once (9 files; output hashes reconcile against
+receipt_final; receipt chain intact; receipt_initial verified immutable).
+Guards: 4 file-byte pins pre-decode; cohort `f77d7a66` MATCH (64,746 ->
+22,581 requests); reconstruction gate PASSED EXACTLY (the
+multinomial-plus-platoon control reproduced the platoon run's challenger
+arm per-start RPS, max abs diff **0.0**, n=2,509; control mean count-RPS
+1.2952882 = the platoon run's challenger 1.2952882). **Resolved folds
+published (rule: deterministic one-third/two-thirds expanding split over
+49 observed in-window date clusters): fold 1 = fit 2024-05-01..2024-06-18
+(48,393 rows) -> validate 2024-06-19..2024-08-11 (50,920 rows); fold 2 =
+fit ..2024-08-11 (99,313 rows) -> validate 2024-08-12..2024-09-30 (49,056
+rows). Tuning: exactly 12 fits; selected config = num_leaves 7,
+min_data_in_leaf 200 (all fold results in the report/receipt).** PRIMARY
+(per-PA multiclass log loss, per-start means, paired bootstrap
+2000/20261001): control 1.2238507 vs bounded-selected LightGBM
+1.2237087; delta = **-0.0002498, CI95 [-0.0009056, +0.0003974]** -
+direction INCONCLUSIVE (CI overlaps zero) and |delta| BELOW the declared
+0.0005-nat practical threshold. **K-COUNT NON-DEGRADATION GUARD FAILED:
+point estimate +0.0020884 > the 0.002 margin** (CI as context; the guard
+is a point-estimate acceptance criterion, NOT a noninferiority claim).
+**Decision per the pre-declared table: RETAIN multinomial-plus-platoon;
+NO LightGBM adoption; the tradeoff is recorded** (small inconclusive
+log-loss gain vs K-count degradation just beyond the margin; the
+interval still permits a practically useful improvement, so this is NOT
+an equivalence finding and NOT a claim that LightGBM cannot help
+generally). The four interpretation
+limitations carry over (development evidence; bounded-selected-vs-fixed
+framing; matched-matchup PA coverage; point-estimate guard). No rescue
+variants, no grid enlargement, no production/policy/live-model change;
+outputs preserved write-once untouched; evidence handoff delivered to
+Chat 2 on PR #59. REPAIR SUMMARY: the fold calendar is
+replaced by a deterministic expanding split over observed in-window
+game-date clusters (one-third/two-thirds positions; outcome-blind; dates
+kept together; feasibility verified before expensive work; resolved dates
++ counts published in the report/receipt); the failed attempt's evidence
+remains preserved.
+
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
 `docs/adr/PROPOSED-platoon-information-multiclass.md` +

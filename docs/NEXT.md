@@ -27,8 +27,10 @@ The reviewed stack is on main at **`8399f2c`** (actual merge SHA): #51 (`7764ac1
 
 Binary-K vs multinomial-K: CLOSED 2026-11-04 - Chat 2 artifact verdict VERIFIED; control retained (delta +0.0000969, CI overlapping zero, far below the 0.005 practical threshold); artifacts preserved; PR #57 ready for integration through the existing process (merge via architect delegation).
 
-## Next experiment: platoon-information value - CLOSED (VERIFIED); LGBM slice specified below
+## Next experiment: LGBM multiclass challenger - CLOSED (COMPLETED/VERIFIED); integration prepared
 
-platoon_information_v1: CLOSED 2026-11-04 - Chat 2 artifact verdict INDEPENDENTLY VERIFIED; record closed once; artifacts preserved; the point-estimate-only K-count guard limitation retained. Outcome: the platoon family registers a CANDIDATE feature-family addition for a future frozen-contract decision; the 12-feature multinomial-plus-platoon pipeline is the lane's development control; promotion never automatic. Integration: #58 -> #57 -> main through the existing process (architect-delegated; CI pass, CLEAN); not blocking the next specification.
+lgbm_multiclass_v1: CLOSED 2026-11-04 - Chat 2 artifact verdict COMPLETED/VERIFIED; record closed once; both attempt directories + all evidence preserved. Interpretation (corrected per owner): direction inconclusive; point improvement below the 0.0005-nat practical threshold; the interval still permits a practically useful improvement (no equivalence claim, no "LightGBM cannot help" claim); K point-estimate guard failed. **Decision: retain multinomial-plus-platoon; no LightGBM adoption.** Per the owner's post-candidate plan: temporal robustness and any next information-gap feature experiment (player-specific platoon skill, pitch-arsenal) remain separate gated milestones; calibration follows model selection on disjoint chronological data.
+
+Integration: the stack #57 (binary lane, base main) -> #58 (platoon, base #57's branch) -> #59 (LGBM, base #58's branch) -> main. Before each merge: verify the actual base and intended destination; after each parent merge: retarget the child to main and check its diff. No carrier-PR duplication, no direct-main pushes. Bases verified 2026-11-04 (#57 base main CLEAN; #58 base #57-branch CLEAN; #59 base #58-branch, CI completing); merges are architect-delegated on the PRs (Chat 2 executes).
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.

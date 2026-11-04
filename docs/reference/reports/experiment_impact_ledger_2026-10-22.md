@@ -211,3 +211,17 @@ self-contained, directly corrects a retracted ranking) — then re-verify
 M0's EP1 pairing on the same single path. Original settings preserved;
 no tuning during repair. Nothing reruns until the defect isolation
 passes.
+
+## Equal-information lane results (compiled 2026-11-04 from VERIFIED records only; nothing recomputed)
+
+| experiment | control vs challenger (per-start count-RPS unless noted) | declared outcome | status / evidence |
+|---|---|---|---|
+| workload_personalization_w0v1 | pooled W0 1.29525 vs pitcher-specific 1.30765; delta = +0.012406, CI95 [+0.004410, +0.020368] | pooled control favored (above 0.005 threshold) | VERIFIED (Chat 2, PR #52 comment 6595706937); artifacts: diagnostics\workload_personalization_w0v1 |
+| binary_k_vs_multinomial_v1 | control 1.2952473 vs binary-K 1.2953442; delta = +0.0000969, CI95 [-0.0000828, +0.0002673] | direction inconclusive (CI overlaps zero); far below the 0.005 threshold -> control retained | VERIFIED (Chat 2, supplied via owner); artifacts: diagnostics\binary_k_vs_multinomial_v1 |
+| platoon_information_v1 | control 1.2952473 vs platoon 1.2952882 count-RPS (K guard +0.0000409, within 0.002 margin, point estimate); primary per-PA multiclass log loss control 1.2245976 vs platoon 1.2238507; per-start-mean delta = -0.0008712, CI95 [-0.0012622, -0.0005038] | challenger favored statistically AND above the 0.0005-nat practical threshold; K point-estimate guard satisfied -> platoon family REGISTERS A CANDIDATE for a future frozen-contract decision; promotion never automatic | VERIFIED (Chat 2, supplied via owner); artifacts: diagnostics\platoon_information_v1 |
+
+Notes: all three are development evidence on the registered 2,509-start
+block_2025H1 cohort (cohort hash f77d7a66...); none is a production or
+betting claim. The lgbm_multiclass_v1 comparison (bounded-selected
+LightGBM vs fixed multinomial) is specified and frozen, awaiting review +
+approval; its row will be added only from its own verified record.
