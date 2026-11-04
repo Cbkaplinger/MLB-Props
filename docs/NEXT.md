@@ -23,8 +23,12 @@ Limitations: development evidence on the registered 2025H1 cohort - not a fresh 
 
 The reviewed stack is on main at **`8399f2c`** (actual merge SHA): #51 (`7764ac1`), #53 (`4f2490c`), and the #52 content via PR #54 (`1a1790c` + `8399f2c`; #52's own merge had landed on its base branch, so PR #54 carried it to main; carrier PR #55 was closed redundant). CI `test-and-validate` + `tracking` PASS on the integrated heads; 97 targeted tests green on the merged tree; open-PR count is zero. Verified present on main: the accepted closeout (below), the roles approval-requests amendment, the cohort-test determinism fix, and the full reviewed baseline-stack code. No production/policy/model change was made or authorized by this integration.
 
-## Next experiment: not started
+## Next experiment: platoon-information value (assigned, checkpoint below)
 
-The next experiment will not launch until its single question is assigned by the architect. Next sequence after that assignment: isolate one PA improvement -> freeze selected features -> bounded time-ordered tuning -> locked evaluation -> optional calibration -> separately authorized confirmation/operations. Protected partitions and old registrations remain unchanged.
+Binary-K vs multinomial-K: CLOSED 2026-11-04 - Chat 2 artifact verdict VERIFIED; control retained (delta +0.0000969, CI overlapping zero, far below the 0.005 practical threshold); artifacts preserved; PR #57 ready for integration through the existing process (merge via architect delegation).
+
+## Next experiment: platoon-information value - CLOSED (VERIFIED); LGBM slice specified below
+
+platoon_information_v1: CLOSED 2026-11-04 - Chat 2 artifact verdict INDEPENDENTLY VERIFIED; record closed once; artifacts preserved; the point-estimate-only K-count guard limitation retained. Outcome: the platoon family registers a CANDIDATE feature-family addition for a future frozen-contract decision; the 12-feature multinomial-plus-platoon pipeline is the lane's development control; promotion never automatic. Integration: #58 -> #57 -> main through the existing process (architect-delegated; CI pass, CLEAN); not blocking the next specification.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.

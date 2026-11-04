@@ -79,6 +79,189 @@ paste tables; no status-only comments; batch corrections into the next
 checkpoint; one integration summary per merge; ~150-word routine handoffs;
 historical evidence preserved. Applied going forward; no cleanup project.
 
+**BINARY-K VS MULTINOMIAL-K LANE OPENED 2026-11-03 (owner assigned the single
+question; implementation + synthetic tests ONLY; NO real-data execution):**
+spec card `docs/adr/PROPOSED-binary-k-vs-multinomial-k.md` (ID
+`binary_k_vs_multinomial_v1`) names, before any scoring: control = the
+existing multinomial-plus-W0 arm (registered m0 multinomial recipe + W0 pooled
+BF37 through the registered `start_count_pmfs`), reconstructed exactly and
+gated against the pinned accepted per-start reference (tolerance 1e-12);
+challenger = binary K-vs-non-K logistic (SAME estimator family, hyperparameters,
+8 features, training rows; sigmoid head); binary labels derived ONLY from the
+bridged class_label (`is_k = 1[class_label == 0]`), single-class refusal,
+row counts asserted equal across arms; keyed probability alignment (one keyed
+table from the shared feature rows, no positional transfer, permutation
+invariance); same-population checks (identical sorted key list, cohort
+semi-join BEFORE features, duplicate-identity refusal, 9-slot requirement);
+shared aggregation (same function, same pooled BF37, only p9 differs);
+saved-model reload parity; primary endpoint = paired per-start count-RPS
+contrast (bootstrap 2000/20261001); statistical direction reported
+separately (CI below zero favors binary-K, above retains the control,
+overlapping zero inconclusive) from the practical magnitude: a magnitude
+below the declared practical threshold (0.005 count-RPS) does not justify
+added complexity regardless of CI direction; promotion never automatic;
+artifacts = write-once run dir (report, per-start parquet, keyed
+probabilities, both model artifacts, K PMFs, pooled BF37, receipt chain,
+failure record); limitations = development evidence on the registered 2025H1
+cohort only, binary arm models P(K) only and says nothing about non-K class
+uses, 2026 untouched. Implementation: `research/offseason_2026/pregame_pa_ext/
+binary_k_comparison.py` + `tests/test_binary_k_comparison.py` (18 synthetic
+tests through the actual entry point incl. subprocess CLI; requirement-to-test
+closure table in the test docstring). 133 targeted tests green (binary 18 +
+workload 27 + multiclass 27 + scorecard 18 + derivation 13 + pre-commit
+subset). Ack token `EXECUTE-BINARY-K-VS-MULTINOMIAL-V1` is a technical gate,
+NOT authorization. FINDING (nonblocking, recorded for Chat 2):
+`m0.apply_multinomial`'s manual softmax is undefined for a 2-class model
+(single logit column -> constant 1.0), and the reviewed
+`workload_comparison.py` compensation branch inherits the defect
+(probs[:,0]=1.0 -> degenerate [0,1] expansion); the real registered cohort has
+4 observed classes so accepted results are unaffected; the new runner applies
+the identical softmax definition explicitly for the 2-class parameterization
+(`_multinomial_pk`) and flags a follow-up repair for the reviewed files
+through review, not silently; the two-class repair stays DEFERRED and out
+of scope for this experiment per owner direction. Checkpoint published on
+the stacked PR (base `docs/integration-reconciliation-20261103` = PR #56).
+**PACKET PREPARED 2026-11-03 (owner-directed, before integration):**
+`research/offseason_2026/pregame_pa_ext/execution_packet_binary_k_v1.md` -
+one action, all input identity pins (pa/lineups/assessment/raw events from
+the workload run's consumed identities), cohort pin `f77d7a66...`, and the
+accepted multinomial-plus-W0 reference pin `ae971758...`
+(`workload_per_start_v1.parquet`) ENFORCED via the new REQUIRED
+`--expected-reconstruction-sha256` CLI check verified before any decode
+(recording alone was not identity enforcement; +2 CLI tests, suite 20/20,
+133 targeted still green). Approval flow: Chat 2 packet review -> explicit
+**BINARY-K VS MULTINOMIAL RUN EXECUTED ONCE 2026-11-03 - CLOSED 2026-11-04:
+CHAT 2 ARTIFACT VERDICT = VERIFIED (supplied via owner; builder-reported
+record confirmed) (owner-approved
+against packet revision 2 `af5e84dd...` at code checkpoint `49f19ac`; exact
+packet command, exit 0):** destination write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\binary_k_vs_multinomial_v1\`
+(9 files; output hashes reconcile against receipt_final; receipt chain
+intact; receipt_initial hash-verified unchanged). Guards: 4 file-byte pins
+verified pre-decode; cohort `f77d7a66` MATCH (64,746 -> 22,581 requests);
+reconstruction gate PASSED EXACTLY (control arm reproduced the accepted
+multinomial-plus-W0 per-start RPS, max abs diff **0.0**, n=2,509). RESULT
+(2,509 starts; 148,369 train rows, 33,541 positive): mean count-RPS control
+**1.2952473** (= accepted W0 1.29525) vs binary-K **1.2953442**; delta =
+RPS(binary) - RPS(control) = **+0.0000969, CI95 [-0.0000828, +0.0002673]**.
+Pre-declared rule, direction and magnitude reported SEPARATELY: statistical
+direction INCONCLUSIVE (CI overlaps zero); practical magnitude **far below
+the declared practical threshold (0.005)** regardless of CI direction ->
+the dedicated binary objective does not improve K-count forecasts enough to
+justify the added complexity; the multinomial-K control is retained.
+Descriptive per-PA (43,565 matched PAs): log loss control 0.505684 vs
+binary 0.505703; Brier 0.163504 vs 0.163510 - consistent with the count
+result. Valid negative/inconclusive result: NOT a bug to rescue; no rerun,
+no rescue variants, no promotion (none was automatic). Development evidence
+only; no production/policy/model change; outputs preserved untouched.
+Evidence handoff delivered to Chat 2 on PR #57. CLOSEOUT 2026-11-04: Chat
+2's artifact verdict = VERIFIED; record closed once; the multinomial
+control is kept; no binary variants or reruns. PR #57 prepared for
+integration through the existing process (merge via architect delegation
+on the PR). Original run artifacts and receipts preserved untouched.
+
+**SEPARATION COORDINATED 2026-11-04 (owner directive, before further PR
+growth):** completed binary closeout vs new platoon work are separated -
+**PR #57** (`research/binary-k-vs-multinomial-v1`) = the completed binary
+closeout surface (VERIFIED result, artifacts untouched; its head also
+carries the first platoon checkpoint, which is frozen content); **PR #58**
+(`research/platoon-information-v1`, stacked on #57) carries the platoon
+REPAIRED checkpoint `6afe413` (global-prior fallback repaired to the
+cutoff's actual global proportions; cutoff-aware pitcher-hand lookup; card
+reconciled on tie-break/hand-lookup/endpoint weighting; packet revision 2;
+22 platoon tests incl. 2 discriminating regressions). All further platoon
+work (review repairs, execution prep) goes to the platoon branch/PR so
+#57's binary-closeout integration is not coupled to platoon review churn.
+History preserved: no direct-main pushes, no duplicate carriers, no
+destructive edits, no branch rewrites.
+
+**PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
+implementation + synthetic tests ONLY; NO real-data execution):** card
+`docs/adr/PROPOSED-platoon-information-multiclass.md` +
+packet `research/offseason_2026/pregame_pa_ext/execution_packet_platoon_v1.md`.
+Source verification (identity + handedness columns only, no outcome reads):
+pa_table natively carries `stand`/`p_throws` (731,347 rows, zero nulls,
+domains {L,R}); `p_throws` perfectly stable per pitcher (1,512 pitchers,
+0 multi-valued) -> pregame-known; 113 of 1,052 batters switch; 51
+batter-x-throw pairings mixed -> forecast stand is NOT pregame-observable
+for switch hitters, so the declared rule = modal strictly-prior stand
+CONDITIONAL on the pitcher's hand (tie -> lexicographically smallest), then
+overall modal, then unknown -> global fallback. Declared feature family
+(platoon-features-v1): 4 columns = shrunk (stand, p_throws) class rates,
+alpha 40, strictly-prior population (same-date/future cannot enter; no
+target outcomes), unseen split/unknown hand -> exactly the global prior.
+Control = existing 8-feature multinomial-plus-W0 pipeline (reconstruction
+gate vs pinned `ae971758...`, tol 1e-12, ENFORCED pre-decode); challenger =
+12-feature fit, same estimator family/hyperparameters. Endpoints
+pre-declared: primary = per-PA multiclass log loss (identical matched-PA
+population, per-start paired bootstrap 2000/20261001); practical threshold
+0.0005 nats; K-count non-degradation margin 0.002 count-RPS; classwise +
+K metrics = declared secondary; promotion never automatic. Implementation:
+`platoon_features.py` + `platoon_comparison.py` +
+`tests/test_platoon_comparison.py` (20 synthetic tests incl. same-date/
+future label-exclusion, sparse-split shrinkage direction, switch-hitter
+stand rules, keyed alignment, reload parity, all gates; requirement-to-test
+closure table in the test docstring). 135 targeted tests green. Command-
+to-CLI checked (15/15 flags). Refusals/stop conditions exhaustive
+(matched-PA class outside fitted set refuses). Ack token is a technical
+gate, NOT authorization; the executable is frozen during review.
+
+approval will not be asked for again. No merge prerequisite, no new
+feature work, no SHAP, calibration, taxonomy expansion, or unrelated
+ticket work.
+
+**PLATOON RUN EXECUTED ONCE 2026-11-04 - CLOSED 2026-11-04: CHAT 2 ARTIFACT
+VERDICT = INDEPENDENTLY VERIFIED (supplied via owner; owner authorization +
+Chat 2 checkpoint/packet confirmation both recorded; exact packet command,
+exit 0). Artifacts and receipts preserved untouched; the record is closed
+once; the POINT-ESTIMATE-ONLY K-count guard limitation is RETAINED (it is
+an acceptance guard, not a noninferiority test). Outcome per the
+pre-declared rule: the platoon feature family registers a CANDIDATE
+feature-family addition for a FUTURE frozen-contract decision; the
+12-feature multinomial-plus-platoon pipeline is the lane's development
+control going forward; promotion never automatic; no production/policy/
+live-model change made or authorized):** pre-execution
+verification passed (10/10 module hashes, 7/7 file pins incl. procedural
+raw-event hashes, cohort content hash recomputed 2,509 keys, destination
+absent). Destination write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\platoon_information_v1\`
+(9 files; output hashes reconcile against receipt_final; receipt chain
+intact; receipt_initial verified immutable). Guards: 4 file-byte pins
+verified pre-decode; cohort `f77d7a66` MATCH (64,746 -> 22,581 requests);
+reconstruction gate PASSED EXACTLY (control arm reproduced the accepted
+multinomial-plus-W0 per-start RPS, max abs diff **0.0**, n=2,509; control
+mean count-RPS 1.2952473 = accepted W0). **RESULT (2,509 starts; 148,369
+train rows; 43,565 matched PAs):** primary = mean per-PA multiclass log
+loss control **1.2245976** vs platoon challenger **1.2238507**; contrast
+statistic = per-start means (each start equally weighted), paired
+bootstrap 2000/20261001: **delta = -0.0008712, CI95 [-0.0012622,
+-0.0005038] - ENTIRELY BELOW ZERO -> platoon challenger favored
+statistically.** Practical magnitude: |delta| = 0.00087 > the declared
+0.0005-nat practical threshold -> practically meaningful. **K-count
+non-degradation guard (point-estimate acceptance guard, NOT a statistical
+noninferiority claim): point estimate +0.0000409, within the 0.002
+margin** (CI [-0.0029, +0.0030] reported as context). Per the pre-declared
+rule: the platoon feature family REGISTERS A CANDIDATE feature-family
+addition for a FUTURE frozen-contract decision; promotion is NEVER
+automatic - no production, policy, or live-model change is made or
+authorized by this result. Classwise/K metrics and per-cutoff split-rate
+table in the report/artifacts (declared secondary). Development evidence
+only; outputs preserved write-once untouched; single run, no retry, no
+variants. Evidence handoff delivered to Chat 2 on PR #58. CLOSEOUT
+2026-11-04: Chat 2's artifact verdict = INDEPENDENTLY VERIFIED; record
+closed once (see block header); artifacts untouched; no rescue variants,
+no rerun.
+
+**INTEGRATION PREP 2026-11-04 (#57/#58, existing process; NOT blocking the
+next specification):** destination of the stack is MAIN via the dependent
+chain #58 (`research/platoon-information-v1`, base = #57's branch) -> #57
+(`research/binary-k-vs-multinomial-v1`, base = main) -> main; the
+dependency order is preserved (merge #57 first, then #58, or both in one
+delegation). Both PRs: CI pass both jobs, CLEAN, no conflicts. Merges are
+architect-delegated on the PRs (Chat 2 executes); no direct-main pushes.
+The LGBM slice below is specified and implemented WITHOUT waiting for that
+integration.
+
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
 (1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
