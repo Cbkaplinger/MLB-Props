@@ -78,12 +78,16 @@ where:
   `q_global_c(cutoff)` exactly (full shrinkage to the global prior). An
   unknown/missing stand or p_throws on a forecast row -> the same global
   fallback.
-- **Forecast-row stand (switch hitters):** the batter's MODAL strictly-prior
-  stand CONDITIONAL on the opposing pitcher's `p_throws` (p_throws is
-  pregame-known and stable); tie or no conditional history -> the batter's
-  modal strictly-prior stand overall; no batter history -> unknown ->
-  global fallback. Historical rows use their own recorded `stand` (they are
-  history, not forecasts).
+- **Forecast-row stand (switch hitters):** the batter's stand is NOT
+  pregame-observable, so the forecast uses the modal strictly-prior stand
+  CONDITIONAL on the opposing pitcher's hand; the pitcher's hand is their
+  MODAL STRICTLY-PRIOR `p_throws` AT THE CUTOFF (verified stable per
+  pitcher over the full table; a pitcher with no rows strictly before the
+  cutoff has NO known hand -> unknown -> global fallback). Ties resolve to
+  the lexicographically smallest stand. No conditional history -> the
+  batter's modal strictly-prior stand overall; no batter history ->
+  unknown -> global fallback. Historical rows use their own recorded
+  `stand` (they are history, not forecasts).
 - **Computed per distinct cutoff** (training-row dates and request cutoff
   dates), reusing the states-v2 cutoff convention; the per-cutoff tables are
   the only added computation.
@@ -94,12 +98,16 @@ no same-date row, no future row contributes to any feature.
 
 ## Endpoints (pre-declared before scoring)
 
-- **Primary:** mean per-PA multiclass log loss (identical matched-PA
-  population for both arms; probabilities from the keyed table, matchup-key
-  m:1 join), aggregated per start and contrasted with the registered paired
-  slate-date bootstrap (2,000 draws, seed 20261001). Statistical direction:
-  CI entirely below zero favors the platoon challenger; entirely above
-  favors the control; overlapping zero is inconclusive.
+- **Primary:** multiclass log loss on the identical matched-PA population
+  (probabilities from the keyed table, matchup-key m:1 join).
+  **Weighting (declared):** the contrast statistic is the PER-START MEAN of
+  per-PA log loss - each start equally weighted, PAs equally weighted
+  within a start - contrasted with the registered paired slate-date
+  bootstrap (2,000 draws, seed 20261001). The headline mean per-PA log-
+  loss values are descriptive summaries of the same matched population.
+  Statistical direction: CI entirely below zero favors the platoon
+  challenger; entirely above favors the control; overlapping zero is
+  inconclusive.
 - **Practical threshold (declared):** a mean log-loss improvement below
   0.0005 nats does not justify the added feature family, regardless of CI
   direction.

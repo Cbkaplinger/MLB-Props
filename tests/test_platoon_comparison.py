@@ -403,6 +403,75 @@ def test_switch_hitter_forecast_stand_rules():
     assert r3["f_stand"] is None
 
 
+# ------------- 7b. cutoff-aware hand lookup (DISCRIMINATING regression)
+def test_pitcher_hand_lookup_is_cutoff_aware():
+    """A pitcher whose ONLY rows are at/after the cutoff has NO known
+    hand at that cutoff (global fallback downstream). Under the earlier
+    full-frame lookup bug the hand leaked backward from at/after-cutoff
+    rows and this test failed."""
+    pa = _pa_frame()
+    rows = pa.to_dicts()
+    p3 = 700003
+    # P3 pitches ONLY on the assessment day (at the request cutoff)
+    for i, b in enumerate(B1[:3]):
+        rows.append({"game_date": GAME_DATE, "game_pk": 900003,
+                     "inning_topbot": "Top", "at_bat_number": 700 + i,
+                     "pitcher": p3, "batter": b, "y": 0,
+                     "stand": "L", "p_throws": "R"})
+    pa3 = pl.DataFrame(rows, schema=PA_SCHEMA)
+    pa3 = pa3.with_columns(pl.lit(0, dtype=pl.Int64).alias("class_label"))
+    req = pl.DataFrame({
+        "batter": [B1[0], B1[0]],
+        "pitcher": [p3, p3],
+        "cutoff": [GAME_DATE, date(2025, 4, 16)],
+    }, schema={"batter": pl.Int64, "pitcher": pl.Int64,
+               "cutoff": pl.Date})
+    out = pf.forecast_matchup_hands(pa3, req).sort("cutoff")
+    r_early = out.row(0, named=True)
+    r_late = out.row(1, named=True)
+    # AT the cutoff: no strictly-prior rows for P3 -> hand unknown
+    assert r_early["f_hand"] is None
+    # hand unknown -> conditional lookup impossible -> overall modal
+    assert r_early["f_stand"] == "L"
+    # one day later: P3's rows are strictly prior -> hand known
+    assert r_late["f_hand"] == "R"
+    assert r_late["f_stand"] == "L"
+
+
+# ------------- 7c. unknown-hand fallback uses the GLOBAL prior exactly
+def test_unknown_hand_falls_back_to_global_prior_not_cell_rate():
+    """DISCRIMINATING regression: the global-prior fallback for an
+    unknown hand must be the cutoff's global class proportions, NOT the
+    first cell's shrunk rate. (The original bug returned the (L,L) cell
+    rate for unknown-hand rows.)"""
+    rows = []
+    # (L,R): 100 class-0 rows -> shrunk strongly toward class 0
+    for i in range(100):
+        rows.append((date(2024, 1, 1), "L", "R", 0))
+    # (L,L): 100 class-2 rows -> shrunk strongly toward class 2
+    for i in range(100):
+        rows.append((date(2024, 1, 1), "L", "L", 2))
+    labeled = pl.DataFrame(rows, schema={
+        "game_date": pl.Date, "stand": pl.Utf8, "p_throws": pl.Utf8,
+        "class_label": pl.Int64}, orient="row")
+    labeled = labeled.with_columns(pl.lit(1).alias("pitcher"),
+                                   pl.lit(1).alias("batter"))
+    rates = pf.build_split_class_rates(labeled, [date(2024, 2, 1)],
+                                       alpha=40.0, n_classes=4)
+    frame = pl.DataFrame({
+        "cutoff": [date(2024, 2, 1)],
+        "stand": ["L"],
+        "p_throws": [None],
+    }, schema={"cutoff": pl.Date, "stand": pl.Utf8,
+               "p_throws": pl.Utf8}, orient="row")
+    out = pf.attach_platoon_features(frame, rates, n_classes=4)
+    r = out.row(0, named=True)
+    # global prior: 100 class-0 / 200 total = 0.5 (NOT the (L,R) cell's
+    # ~0.857 nor the (L,L) cell's ~0.143)
+    assert abs(r["p_platoon_0"] - 0.5) < 1e-12
+    assert abs(r["p_platoon_2"] - 0.5) < 1e-12
+
+
 # ------------------------- 8. same-date/future exclusion (labels only)
 def test_same_date_and_future_labels_excluded(tmp_path):
     h = _write(tmp_path)

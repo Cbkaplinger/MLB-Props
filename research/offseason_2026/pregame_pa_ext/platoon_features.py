@@ -141,20 +141,32 @@ def forecast_matchup_hands(pa_labeled: pl.DataFrame,
     """Pregame-observable (stand, p_throws) for each unique
     (batter, pitcher, cutoff) request row.
 
-    Returns the input frame plus `f_stand` and `f_hand` columns, either
-    of which may be None (unknown -> global fallback downstream).
-    Conditional modal stand: tie -> lexicographically smallest stand."""
+    Cutoff-aware: the pitcher's hand is their modal strictly-prior
+    p_throws AT THE CUTOFF (a pitcher with no rows strictly before the
+    cutoff has NO known hand -> None); the batter's stand is their modal
+    strictly-prior stand CONDITIONAL on that hand (tie ->
+    lexicographically smallest stand); no conditional history -> modal
+    stand overall; no batter history -> None (unknown -> global fallback
+    downstream). Returns the input frame plus `f_stand` and `f_hand`."""
     _require_columns(requests, ["batter", "pitcher", "cutoff"],
                      "requests")
     labeled = _labeled(pa_labeled)
     req = requests.select("batter", "pitcher", "cutoff").unique()
-    hands = pitcher_hands(pa_labeled)
+    hand_cum = _cum_daily(labeled, ["pitcher", "p_throws"])
     cond_cum = _cum_daily(labeled, ["batter", "p_throws", "stand"])
     overall_cum = _cum_daily(labeled, ["batter", "stand"])
 
+    hand_parts = []
     cond_parts = []
     overall_parts = []
     for t in sorted(set(req["cutoff"].unique().to_list())):
+        hand_parts.append(
+            hand_cum.filter(pl.col("game_date") < t)
+            .sort(["pitcher", "cum", "p_throws"],
+                  descending=[False, True, False])
+            .group_by(["pitcher"], maintain_order=True)
+            .first()
+            .with_columns(pl.lit(t).alias("cutoff_date")))
         cond_parts.append(
             cond_cum.filter(pl.col("game_date") < t)
             .sort(["batter", "p_throws", "cum", "stand"],
@@ -169,11 +181,22 @@ def forecast_matchup_hands(pa_labeled: pl.DataFrame,
             .group_by(["batter"], maintain_order=True)
             .first()
             .with_columns(pl.lit(t).alias("cutoff_date")))
-    cond = pl.concat(cond_parts) if cond_parts else None
+    hands = (pl.concat(hand_parts)
+             .select(pl.col("cutoff_date"), pl.col("pitcher"),
+                     pl.col("p_throws").alias("hand"))
+             if hand_parts else None)
+    cond = (pl.concat(cond_parts)
+            if cond_parts else None)
     overall = pl.concat(overall_parts) if overall_parts else None
-    out = (req.join(hands, on="pitcher", how="left")
-           .with_columns(pl.col("hand").alias("f_hand"))
-           .drop("hand"))
+    out = req
+    if hands is not None:
+        out = out.join(
+            hands.select(pl.col("cutoff_date"), pl.col("pitcher"),
+                         pl.col("hand").alias("f_hand")),
+            left_on=["cutoff", "pitcher"],
+            right_on=["cutoff_date", "pitcher"], how="left")
+    else:
+        out = out.with_columns(pl.lit(None, dtype=pl.Utf8).alias("f_hand"))
     if cond is not None:
         out = out.join(
             cond.select(pl.col("cutoff_date"), pl.col("batter"),
@@ -181,12 +204,18 @@ def forecast_matchup_hands(pa_labeled: pl.DataFrame,
                         pl.col("stand").alias("cond_stand")),
             left_on=["cutoff", "batter", "f_hand"],
             right_on=["cutoff_date", "batter", "p_throws"], how="left")
+    else:
+        out = out.with_columns(
+            pl.lit(None, dtype=pl.Utf8).alias("cond_stand"))
     if overall is not None:
         out = out.join(
             overall.select(pl.col("cutoff_date"), pl.col("batter"),
                            pl.col("stand").alias("overall_stand")),
             left_on=["cutoff", "batter"],
             right_on=["cutoff_date", "batter"], how="left")
+    else:
+        out = out.with_columns(
+            pl.lit(None, dtype=pl.Utf8).alias("overall_stand"))
     out = out.with_columns(
         pl.coalesce(["cond_stand", "overall_stand"]).alias("f_stand"))
     return out.drop(["cond_stand", "overall_stand"])
@@ -205,7 +234,7 @@ def attach_platoon_features(frame: pl.DataFrame, rates: pl.DataFrame,
                      ["cutoff_date", "stand", "p_throws", "n_hist"]
                      + rate_cols, "platoon rates")
     q = rates.group_by("cutoff_date").agg(
-        **{f"_gp_{c}": pl.col(f"p_class_{c}").first()
+        **{f"_gp_{c}": pl.col(f"_q_{c}").first()
            for c in range(n_classes)})
     idx = frame.with_row_index("__rid__")
     known = idx.filter(pl.col("stand").is_not_null()
