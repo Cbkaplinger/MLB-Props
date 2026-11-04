@@ -154,13 +154,26 @@ binary 0.505703; Brier 0.163504 vs 0.163510 - consistent with the count
 result. Valid negative/inconclusive result: NOT a bug to rescue; no rerun,
 no rescue variants, no promotion (none was automatic). Development evidence
 only; no production/policy/model change; outputs preserved untouched.
-Evidence handoff delivered to Chat 2 on PR #57 (run artifacts untouched;
-no variants, no second experiment). CLOSEOUT 2026-11-04: Chat 2's artifact
-verdict = VERIFIED; record closed once; the multinomial control is kept;
-no binary variants or reruns. PR #57 prepared for integration through the
-existing process (CI pass both jobs on the head, CLEAN; merge via architect
-delegation on the PR). Original run artifacts and receipts preserved
-untouched.
+Evidence handoff delivered to Chat 2 on PR #57. CLOSEOUT 2026-11-04: Chat
+2's artifact verdict = VERIFIED; record closed once; the multinomial
+control is kept; no binary variants or reruns. PR #57 prepared for
+integration through the existing process (merge via architect delegation
+on the PR). Original run artifacts and receipts preserved untouched.
+
+**SEPARATION COORDINATED 2026-11-04 (owner directive, before further PR
+growth):** completed binary closeout vs new platoon work are separated -
+**PR #57** (`research/binary-k-vs-multinomial-v1`) = the completed binary
+closeout surface (VERIFIED result, artifacts untouched; its head also
+carries the first platoon checkpoint, which is frozen content); **PR #58**
+(`research/platoon-information-v1`, stacked on #57) carries the platoon
+REPAIRED checkpoint `6afe413` (global-prior fallback repaired to the
+cutoff's actual global proportions; cutoff-aware pitcher-hand lookup; card
+reconciled on tie-break/hand-lookup/endpoint weighting; packet revision 2;
+22 platoon tests incl. 2 discriminating regressions). All further platoon
+work (review repairs, execution prep) goes to the platoon branch/PR so
+#57's binary-closeout integration is not coupled to platoon review churn.
+History preserved: no direct-main pushes, no duplicate carriers, no
+destructive edits, no branch rewrites.
 
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
