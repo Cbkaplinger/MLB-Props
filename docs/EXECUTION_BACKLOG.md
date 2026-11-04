@@ -206,21 +206,40 @@ to-CLI checked (15/15 flags). Refusals/stop conditions exhaustive
 (matched-PA class outside fitted set refuses). Ack token is a technical
 gate, NOT authorization; the executable is frozen during review.
 
-**PLATOON EXECUTION AUTHORIZATION RECORDED 2026-11-04 (owner, explicit):
-ONE run of the exact packet command** - packet `execution_packet_platoon_v1.md`
-revision 2 (file sha `1a5543bc7f946e2b854d0f7b8e0f2a2be001002b8de5921917c965ee44f0467f`)
-at frozen executable checkpoint `37ce4d2` (runner `8136e1a8...`, feature
-family `ccc56eca...`; module bytes unchanged). **EXECUTION GATE STILL
-CLOSED:** the packet also requires Chat 2's confirmation of the published
-checkpoint and packet, which has NOT yet been recorded on PR #58. Once Chat
-2 confirms: builder verifies execution bytes, input pins, procedural
-raw-event hashes, cohort identity, reconstruction reference, and absent
-destination; then executes the exact packet command ONCE; preserves all
-outputs and receipts; STOPS on any failure with no adjustment or
-unapproved retry; and hands the run evidence directly to Chat 2. This
 approval will not be asked for again. No merge prerequisite, no new
 feature work, no SHAP, calibration, taxonomy expansion, or unrelated
 ticket work.
+
+**PLATOON RUN EXECUTED ONCE 2026-11-04 - BUILDER-REPORTED, PENDING CHAT 2
+INDEPENDENT VERIFICATION (owner authorization + Chat 2 checkpoint/packet
+confirmation both recorded; exact packet command, exit 0):** pre-execution
+verification passed (10/10 module hashes, 7/7 file pins incl. procedural
+raw-event hashes, cohort content hash recomputed 2,509 keys, destination
+absent). Destination write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\platoon_information_v1\`
+(9 files; output hashes reconcile against receipt_final; receipt chain
+intact; receipt_initial verified immutable). Guards: 4 file-byte pins
+verified pre-decode; cohort `f77d7a66` MATCH (64,746 -> 22,581 requests);
+reconstruction gate PASSED EXACTLY (control arm reproduced the accepted
+multinomial-plus-W0 per-start RPS, max abs diff **0.0**, n=2,509; control
+mean count-RPS 1.2952473 = accepted W0). **RESULT (2,509 starts; 148,369
+train rows; 43,565 matched PAs):** primary = mean per-PA multiclass log
+loss control **1.2245976** vs platoon challenger **1.2238507**; contrast
+statistic = per-start means (each start equally weighted), paired
+bootstrap 2000/20261001: **delta = -0.0008712, CI95 [-0.0012622,
+-0.0005038] - ENTIRELY BELOW ZERO -> platoon challenger favored
+statistically.** Practical magnitude: |delta| = 0.00087 > the declared
+0.0005-nat practical threshold -> practically meaningful. **K-count
+non-degradation guard (point-estimate acceptance guard, NOT a statistical
+noninferiority claim): point estimate +0.0000409, within the 0.002
+margin** (CI [-0.0029, +0.0030] reported as context). Per the pre-declared
+rule: the platoon feature family REGISTERS A CANDIDATE feature-family
+addition for a FUTURE frozen-contract decision; promotion is NEVER
+automatic - no production, policy, or live-model change is made or
+authorized by this result. Classwise/K metrics and per-cutoff split-rate
+table in the report/artifacts (declared secondary). Development evidence
+only; outputs preserved write-once untouched; single run, no retry, no
+variants. Evidence handoff delivered to Chat 2 on PR #58.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
