@@ -254,7 +254,42 @@ executable checkpoint `34c4caf` (runner `de5a4560...`), fresh destination
 review of the repaired checkpoint pending but the owner's revised-scope
 approval is explicit. Pre-execution verification for the attempt:
 packet/runner bytes verified, fresh destination confirmed absent, failed
-destination confirmed unchanged. REPAIR SUMMARY: the fold calendar is
+destination confirmed unchanged.
+
+**LGBM RUN EXECUTED ONCE 2026-11-04 (revised scope approved; exact packet
+revision 3 command, exit 0) - BUILDER-REPORTED, PENDING CHAT 2
+INDEPENDENT VERIFICATION:** pre-execution verification passed (runner/
+packet bytes, input pins, cohort, reference, fresh destination
+`lgbm_multiclass_v1_attempt2` absent; failed destination preserved).
+Destination write-once (9 files; output hashes reconcile against
+receipt_final; receipt chain intact; receipt_initial verified immutable).
+Guards: 4 file-byte pins pre-decode; cohort `f77d7a66` MATCH (64,746 ->
+22,581 requests); reconstruction gate PASSED EXACTLY (the
+multinomial-plus-platoon control reproduced the platoon run's challenger
+arm per-start RPS, max abs diff **0.0**, n=2,509; control mean count-RPS
+1.2952882 = the platoon run's challenger 1.2952882). **Resolved folds
+published (rule: deterministic one-third/two-thirds expanding split over
+49 observed in-window date clusters): fold 1 = fit 2024-05-01..2024-06-18
+(48,393 rows) -> validate 2024-06-19..2024-08-11 (50,920 rows); fold 2 =
+fit ..2024-08-11 (99,313 rows) -> validate 2024-08-12..2024-09-30 (49,056
+rows). Tuning: exactly 12 fits; selected config = num_leaves 7,
+min_data_in_leaf 200 (all fold results in the report/receipt).** PRIMARY
+(per-PA multiclass log loss, per-start means, paired bootstrap
+2000/20261001): control 1.2238507 vs bounded-selected LightGBM
+1.2237087; delta = **-0.0002498, CI95 [-0.0009056, +0.0003974]** -
+direction INCONCLUSIVE (CI overlaps zero) and |delta| BELOW the declared
+0.0005-nat practical threshold. **K-COUNT NON-DEGRADATION GUARD FAILED:
+point estimate +0.0020884 > the 0.002 margin** (CI as context; the guard
+is a point-estimate acceptance criterion, NOT a noninferiority claim).
+**Decision per the pre-declared table: retain the simpler
+multinomial-plus-platoon model; DO NOT adopt the combined LightGBM
+pipeline; the tradeoff is recorded** (small inconclusive log-loss gain
+vs K-count degradation just beyond the margin). The four interpretation
+limitations carry over (development evidence; bounded-selected-vs-fixed
+framing; matched-matchup PA coverage; point-estimate guard). No rescue
+variants, no grid enlargement, no production/policy/live-model change;
+outputs preserved write-once untouched; evidence handoff delivered to
+Chat 2 on PR #59. REPAIR SUMMARY: the fold calendar is
 replaced by a deterministic expanding split over observed in-window
 game-date clusters (one-third/two-thirds positions; outcome-blind; dates
 kept together; feasibility verified before expensive work; resolved dates
