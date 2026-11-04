@@ -1,4 +1,4 @@
-# Equal-information multiclass boosted-tree challenger card
+# Bounded-selected LightGBM vs fixed multinomial challenger card
 
 ## ID
 
@@ -8,9 +8,10 @@
 
 Holding the 12-feature input (8 registered + 4 platoon-features-v1
 columns), the training rows, the pooled W0 workload, the aggregation, and
-the assessment cohort fixed, does a boosted-tree multiclass model improve
-the probability forecasts over the multinomial-plus-platoon development
-control?
+the assessment cohort fixed, does a BOUNDED-SELECTED LightGBM multiclass
+model (grid-selected on chronological folds inside the training window)
+improve the probability forecasts over the FIXED multinomial-plus-platoon
+development control?
 
 ## Status
 

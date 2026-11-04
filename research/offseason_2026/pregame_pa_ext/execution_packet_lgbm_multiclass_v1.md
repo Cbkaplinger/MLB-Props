@@ -39,7 +39,8 @@ during review is a new checkpoint, not this packet.
    LogisticRegression C=1.0 lbfgs, identical softmax), exactly the
    accepted platoon run's challenger arm; equal per-PA training weights.
 2. **Challenger tuning (pre-declared small budget, chronological):**
-   LightGBM multiclass on the IDENTICAL 12 columns; grid = `num_leaves`
+   BOUNDED-SELECTED LightGBM multiclass on the IDENTICAL 12 columns
+   (fixed multinomial control untouched); grid = `num_leaves`
    {7, 15, 31} x `min_data_in_leaf` {50, 200} (6 configurations, fixed
    `learning_rate = 0.05`, `n_estimators = 200`, `seed/deterministic`
    pinned, single-threaded); TWO chronological folds INSIDE the declared
