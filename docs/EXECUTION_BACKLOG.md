@@ -210,9 +210,17 @@ approval will not be asked for again. No merge prerequisite, no new
 feature work, no SHAP, calibration, taxonomy expansion, or unrelated
 ticket work.
 
-**PLATOON RUN EXECUTED ONCE 2026-11-04 - BUILDER-REPORTED, PENDING CHAT 2
-INDEPENDENT VERIFICATION (owner authorization + Chat 2 checkpoint/packet
-confirmation both recorded; exact packet command, exit 0):** pre-execution
+**PLATOON RUN EXECUTED ONCE 2026-11-04 - CLOSED 2026-11-04: CHAT 2 ARTIFACT
+VERDICT = INDEPENDENTLY VERIFIED (supplied via owner; owner authorization +
+Chat 2 checkpoint/packet confirmation both recorded; exact packet command,
+exit 0). Artifacts and receipts preserved untouched; the record is closed
+once; the POINT-ESTIMATE-ONLY K-count guard limitation is RETAINED (it is
+an acceptance guard, not a noninferiority test). Outcome per the
+pre-declared rule: the platoon feature family registers a CANDIDATE
+feature-family addition for a FUTURE frozen-contract decision; the
+12-feature multinomial-plus-platoon pipeline is the lane's development
+control going forward; promotion never automatic; no production/policy/
+live-model change made or authorized):** pre-execution
 verification passed (10/10 module hashes, 7/7 file pins incl. procedural
 raw-event hashes, cohort content hash recomputed 2,509 keys, destination
 absent). Destination write-once at
@@ -239,7 +247,20 @@ automatic - no production, policy, or live-model change is made or
 authorized by this result. Classwise/K metrics and per-cutoff split-rate
 table in the report/artifacts (declared secondary). Development evidence
 only; outputs preserved write-once untouched; single run, no retry, no
-variants. Evidence handoff delivered to Chat 2 on PR #58.
+variants. Evidence handoff delivered to Chat 2 on PR #58. CLOSEOUT
+2026-11-04: Chat 2's artifact verdict = INDEPENDENTLY VERIFIED; record
+closed once (see block header); artifacts untouched; no rescue variants,
+no rerun.
+
+**INTEGRATION PREP 2026-11-04 (#57/#58, existing process; NOT blocking the
+next specification):** destination of the stack is MAIN via the dependent
+chain #58 (`research/platoon-information-v1`, base = #57's branch) -> #57
+(`research/binary-k-vs-multinomial-v1`, base = main) -> main; the
+dependency order is preserved (merge #57 first, then #58, or both in one
+delegation). Both PRs: CI pass both jobs, CLEAN, no conflicts. Merges are
+architect-delegated on the PRs (Chat 2 executes); no direct-main pushes.
+The LGBM slice below is specified and implemented WITHOUT waiting for that
+integration.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
