@@ -154,13 +154,26 @@ binary 0.505703; Brier 0.163504 vs 0.163510 - consistent with the count
 result. Valid negative/inconclusive result: NOT a bug to rescue; no rerun,
 no rescue variants, no promotion (none was automatic). Development evidence
 only; no production/policy/model change; outputs preserved untouched.
-Evidence handoff delivered to Chat 2 on PR #57 (run artifacts untouched;
-no variants, no second experiment). CLOSEOUT 2026-11-04: Chat 2's artifact
-verdict = VERIFIED; record closed once; the multinomial control is kept;
-no binary variants or reruns. PR #57 prepared for integration through the
-existing process (CI pass both jobs on the head, CLEAN; merge via architect
-delegation on the PR). Original run artifacts and receipts preserved
-untouched.
+Evidence handoff delivered to Chat 2 on PR #57. CLOSEOUT 2026-11-04: Chat
+2's artifact verdict = VERIFIED; record closed once; the multinomial
+control is kept; no binary variants or reruns. PR #57 prepared for
+integration through the existing process (merge via architect delegation
+on the PR). Original run artifacts and receipts preserved untouched.
+
+**SEPARATION COORDINATED 2026-11-04 (owner directive, before further PR
+growth):** completed binary closeout vs new platoon work are separated -
+**PR #57** (`research/binary-k-vs-multinomial-v1`) = the completed binary
+closeout surface (VERIFIED result, artifacts untouched; its head also
+carries the first platoon checkpoint, which is frozen content); **PR #58**
+(`research/platoon-information-v1`, stacked on #57) carries the platoon
+REPAIRED checkpoint `6afe413` (global-prior fallback repaired to the
+cutoff's actual global proportions; cutoff-aware pitcher-hand lookup; card
+reconciled on tie-break/hand-lookup/endpoint weighting; packet revision 2;
+22 platoon tests incl. 2 discriminating regressions). All further platoon
+work (review repairs, execution prep) goes to the platoon branch/PR so
+#57's binary-closeout integration is not coupled to platoon review churn.
+History preserved: no direct-main pushes, no duplicate carriers, no
+destructive edits, no branch rewrites.
 
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
@@ -192,6 +205,62 @@ closure table in the test docstring). 135 targeted tests green. Command-
 to-CLI checked (15/15 flags). Refusals/stop conditions exhaustive
 (matched-PA class outside fitted set refuses). Ack token is a technical
 gate, NOT authorization; the executable is frozen during review.
+
+approval will not be asked for again. No merge prerequisite, no new
+feature work, no SHAP, calibration, taxonomy expansion, or unrelated
+ticket work.
+
+**PLATOON RUN EXECUTED ONCE 2026-11-04 - CLOSED 2026-11-04: CHAT 2 ARTIFACT
+VERDICT = INDEPENDENTLY VERIFIED (supplied via owner; owner authorization +
+Chat 2 checkpoint/packet confirmation both recorded; exact packet command,
+exit 0). Artifacts and receipts preserved untouched; the record is closed
+once; the POINT-ESTIMATE-ONLY K-count guard limitation is RETAINED (it is
+an acceptance guard, not a noninferiority test). Outcome per the
+pre-declared rule: the platoon feature family registers a CANDIDATE
+feature-family addition for a FUTURE frozen-contract decision; the
+12-feature multinomial-plus-platoon pipeline is the lane's development
+control going forward; promotion never automatic; no production/policy/
+live-model change made or authorized):** pre-execution
+verification passed (10/10 module hashes, 7/7 file pins incl. procedural
+raw-event hashes, cohort content hash recomputed 2,509 keys, destination
+absent). Destination write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\platoon_information_v1\`
+(9 files; output hashes reconcile against receipt_final; receipt chain
+intact; receipt_initial verified immutable). Guards: 4 file-byte pins
+verified pre-decode; cohort `f77d7a66` MATCH (64,746 -> 22,581 requests);
+reconstruction gate PASSED EXACTLY (control arm reproduced the accepted
+multinomial-plus-W0 per-start RPS, max abs diff **0.0**, n=2,509; control
+mean count-RPS 1.2952473 = accepted W0). **RESULT (2,509 starts; 148,369
+train rows; 43,565 matched PAs):** primary = mean per-PA multiclass log
+loss control **1.2245976** vs platoon challenger **1.2238507**; contrast
+statistic = per-start means (each start equally weighted), paired
+bootstrap 2000/20261001: **delta = -0.0008712, CI95 [-0.0012622,
+-0.0005038] - ENTIRELY BELOW ZERO -> platoon challenger favored
+statistically.** Practical magnitude: |delta| = 0.00087 > the declared
+0.0005-nat practical threshold -> practically meaningful. **K-count
+non-degradation guard (point-estimate acceptance guard, NOT a statistical
+noninferiority claim): point estimate +0.0000409, within the 0.002
+margin** (CI [-0.0029, +0.0030] reported as context). Per the pre-declared
+rule: the platoon feature family REGISTERS A CANDIDATE feature-family
+addition for a FUTURE frozen-contract decision; promotion is NEVER
+automatic - no production, policy, or live-model change is made or
+authorized by this result. Classwise/K metrics and per-cutoff split-rate
+table in the report/artifacts (declared secondary). Development evidence
+only; outputs preserved write-once untouched; single run, no retry, no
+variants. Evidence handoff delivered to Chat 2 on PR #58. CLOSEOUT
+2026-11-04: Chat 2's artifact verdict = INDEPENDENTLY VERIFIED; record
+closed once (see block header); artifacts untouched; no rescue variants,
+no rerun.
+
+**INTEGRATION PREP 2026-11-04 (#57/#58, existing process; NOT blocking the
+next specification):** destination of the stack is MAIN via the dependent
+chain #58 (`research/platoon-information-v1`, base = #57's branch) -> #57
+(`research/binary-k-vs-multinomial-v1`, base = main) -> main; the
+dependency order is preserved (merge #57 first, then #58, or both in one
+delegation). Both PRs: CI pass both jobs, CLEAN, no conflicts. Merges are
+architect-delegated on the PRs (Chat 2 executes); no direct-main pushes.
+The LGBM slice below is specified and implemented WITHOUT waiting for that
+integration.
 
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**

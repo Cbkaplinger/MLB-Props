@@ -1,22 +1,29 @@
-# Execution packet: platoon_information_v1
+# Execution packet: platoon_information_v1 (revision 2 - repaired fallback + cutoff-aware hand lookup)
 
 STATUS: AUTHORIZATION-READY, NOT AUTHORIZED. Every factual claim below was
-checked against the code at the frozen checkpoint (2026-11-04). Approval
-flow: Chat 2 packet review -> explicit owner approval -> single execution
-of the exact command in this packet. The ack token
-`EXECUTE-PLATOON-INFORMATION-V1` is a technical gate only and is NOT
-authorization. Card: `docs/adr/PROPOSED-platoon-information-multiclass.md`.
+checked against the code at the frozen checkpoint (2026-11-04). Revision 2
+repairs two defects found by owner review: (1) the unknown-hand/unseen-cell
+global-prior fallback now uses the cutoff's ACTUAL global class proportions
+(the first implementation returned the first cell's shrunk rate);
+(2) the pitcher-hand lookup is CUTOFF-AWARE (modal strictly-prior hand at
+each cutoff; a pitcher with no strictly-prior rows has no known hand ->
+global fallback) instead of a whole-frame lookup. Two discriminating
+regression tests cover both repairs. Approval flow: Chat 2 packet review ->
+explicit owner approval -> single execution of the exact command in this
+packet. The ack token `EXECUTE-PLATOON-INFORMATION-V1` is a technical gate
+only and is NOT authorization. Card:
+`docs/adr/PROPOSED-platoon-information-multiclass.md`.
 
 ## Code checkpoint (frozen during review)
 
-Executable frozen at the commit introducing this packet on
-`research/binary-k-vs-multinomial-v1` (SHA named in the PR #57 dashboard).
-Module SHA-256 identities at that checkpoint:
+Executable frozen at the commit introducing this packet revision on
+`research/platoon-information-v1` (SHA named in the PR dashboard). Module
+SHA-256 identities at that checkpoint:
 
 | Module | SHA-256 |
 |---|---|
 | platoon_comparison.py (runner) | `8136e1a81f03ff188666a1eb5e7bd184fc41bfdb92a678d7c36b4dc904c2237f` |
-| platoon_features.py (platoon-features-v1) | `7de4db3b5dea7693c74761292b06084fea410b61357bd4c9e8cbda0f58ff4e7c` |
+| platoon_features.py (platoon-features-v1, repaired) | `ccc56ecac9aed45026c32bb5ce9faa69f07fdfcc2eefd831b8e7607ca46e7122` |
 | binary_k_comparison.py (softmax helpers, imported) | `3ad1ccedce6eb6122a017b38b455cdc88d7e0320a0d56dba0d7d0a8b2aefe7ad` |
 | adapter.py | `adfa7283d2150abe05ea480f86451a54cb7f550e8e87d798d8940e3fef5a4e47` |
 | m0_multiclass.py | `5afe972b4f1c8921f2a87b53af4e1783384ec09fb880ab44328d0b3c18e809fd` |
@@ -119,6 +126,18 @@ python research/offseason_2026/pregame_pa_ext/platoon_comparison.py --pa-source 
 
 All 15 flags verified against the CLI argparse (`--help`, 2026-11-04);
 none missing, none extra.
+
+## Verification note (revision 2)
+
+22 synthetic tests green, including two DISCRIMINATING regressions added by
+the repair: (a) an unknown-hand row must receive the cutoff's GLOBAL class
+proportions - the test fails under the original first-cell fallback because
+the fixture's cells differ from the prior; (b) a pitcher with no rows
+strictly before the cutoff has NO known hand at that cutoff (the original
+whole-frame lookup leaked it backward) and gains a known hand at later
+cutoffs. Same-date/future label exclusion, sparse-split shrinkage
+direction, switch-hitter stand rules (conditional modal, overall fallback,
+unknown), keyed alignment, reload parity, and every gate are re-tested.
 
 ## Refusals and stop conditions (exhaustive)
 
