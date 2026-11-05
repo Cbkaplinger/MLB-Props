@@ -2,8 +2,9 @@
 
 Purpose: the curated file list an orchestrator chat should receive as uploaded
 sources, plus the provenance and refresh rules for those uploads. Verified
-against main on 2026-11-05 (main = `e547f34`). This file is a navigation layer;
-it duplicates no authority below.
+against main on 2026-11-05 (re-verified at `466f98d` after the #57/#58/#59
+integration). This file is a navigation layer; it duplicates no authority
+below.
 
 ## Rules for the upload itself
 
@@ -28,7 +29,7 @@ it duplicates no authority below.
 | 7 | `docs/reference/pr_workflow.md` | Canonical PR/integration/authorization conventions | governing |
 | 8 | `docs/DECISIONS.md` | The decision register (D1-D4). Adopted decisions live HERE, not in ADR files | governing |
 | 9 | `docs/diagrams/00-index.md` + current architecture (`01-architecture.md`) and pipeline-stage (`19-pipeline-stages.md`) diagrams | Navigation plus data flow and boundaries, as Mermaid source | reference |
-| 10 | `docs/reference/experiment_sop.md` | How the next experiment must be run (no active card exists right now; next experiment is unassigned) | governing |
+| 10 | `docs/reference/experiment_sop.md` + the ACTIVE assigned experiment card. As of 2026-11-05: platoon-information value is assigned (see `docs/NEXT.md`); its card is `docs/adr/PROPOSED-platoon-information-multiclass.md` with packet `research/offseason_2026/pregame_pa_ext/execution_packet_platoon_v1.md` - label it ASSIGNED, NOT EXECUTED | How the next experiment must be run + the actual next comparison | governing |
 | 11 | `docs/reference/golden_metrics.md` | Canonical numbers - cite, never recompute | governing |
 | 12 | `docs/reference/lineup_train_serve.md` | Train/serve timing contract (lineup proxy vs announced order) | governing |
 
@@ -45,6 +46,9 @@ Optional add-ons, only when relevant to the task:
   a decision on it is actually pending (currently the 2026-10-21 delivery
   pair). Note: all ADR full texts are archived under
   `docs/archive/consolidated/adr/` and governed by `docs/DECISIONS.md`.
+- Exception to that rule: the platoon card named in row 10 is a PROPOSED-file
+  by location but is the owner-ASSIGNED active experiment - include it with an
+  ASSIGNED-NOT-EXECUTED label, distinct from undecided proposals.
 - `docs/reference/results_index.md` - machine-generated experiment index; not
   a source of truth until independently reviewed.
 - For a code audit: the runner under review, its spec, its tests, and
@@ -95,7 +99,7 @@ Re-verify each file against current main before any re-upload:
 - New decision registered or an ADR adopted/rejected -> refresh
   `docs/DECISIONS.md`.
 - Architecture or pipeline change -> refresh the touched diagram(s).
-- New experiment card registered -> replace `experiment_sop.md` with the
-  active card for the duration of that experiment.
+- The assigned experiment changes (closeout lands, new card assigned) ->
+  swap the row-10 card and packet to the newly assigned pair.
 - Between refreshes, GitHub is the live source of status; uploaded snapshots
   are stale by default.

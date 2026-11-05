@@ -85,6 +85,37 @@ template, refresh triggers; corrects earlier proposals - roles doc = `docs/roles
 + card, adopted decisions = `docs/DECISIONS.md` register, `docs/AGENTS_ROLES.md` excluded)
 + one pointer row each in `AGENTS.md` and `docs/README.md`; no code, policy, or production change.
 
+**OWNER BACKFILL + ALIGNMENT 2026-11-05 (temporary owner chat; one PR, docs/ops-only, no promotion):**
+(1) **Untracked backfill PR** (`docs/untracked-backfill-20261105`): 46 machine-local
+files committed to main so the orchestrator's GitHub connector can see them -
+17 ops/market-research scripts (`production/ops/`, incl. `market_research/` +
+`backfill_closes_from_cloud.py`, `dawn_probe.py`), 12 matching test suites,
+12 dated evidence reports + `repo_quality_passthrough/`, 2 referenced paper
+figures (`fig11_live_equity.png`, `fig12_ab.png`), and
+`Odds-Historical.sha256` **relocated from `data/` (never-commit zone) to
+`docs/reference/data_manifests/`**. Labeled owner-directed backfill of
+already-executed local work; NO promotion, NO policy/production-path change.
+(2) **Deliberately NOT committed:** `research/offseason_2026/experiments/`
+trio (`forward_2025.parquet`, `run_2025_selection.py`,
+`selection_2025_report.json`) - experiment outputs are write-once and the
+report implies a 2025-select run whose registration/authorization status
+needs explicit owner disposition (clean-2025-select-once rule). PARKED until
+the owner rules on it.
+(3) **Pack re-verified:** `docs/reference/orchestrator_source_pack.md` row 10
+corrected - the active ASSIGNED experiment is platoon-information value
+(card `docs/adr/PROPOSED-platoon-information-multiclass.md` + packet
+`execution_packet_platoon_v1.md`), not "unassigned". Binary-K and LGBM lanes
+CLOSED/VERIFIED; temporal robustness remains a separate gated milestone
+(NEXT.md does NOT assign it).
+(4) **PR #60 directive (temporal-robustness runner):** stays BUILDER-FROZEN
+for Chat 2's consolidated review. Do NOT merge before review - review
+precedes merge, and merge never authorizes execution. If an orchestrator
+audit needs the runner, attach the PR #60 link as a temporary source.
+(5) **Handoff rule for the orchestrator pack freeze:** provenance
+`Source commit` stamps are taken only AFTER all merges settle; permanent
+instructions stay SHA-free (orchestrator runs `git log --oneline -5` and
+reads `docs/NEXT.md` live).
+
 **BINARY-K VS MULTINOMIAL-K LANE OPENED 2026-11-03 (owner assigned the single
 question; implementation + synthetic tests ONLY; NO real-data execution):**
 spec card `docs/adr/PROPOSED-binary-k-vs-multinomial-k.md` (ID
