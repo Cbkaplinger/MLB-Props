@@ -16,18 +16,15 @@ SHA-256 identities at that checkpoint:
 
 | Module | SHA-256 |
 |---|---|
-| temporal_robustness_evaluation.py (runner, repaired; independently verified at `7949ad2`) | `3b5ae38ef2a1c178957da45b5ec8751025d615f83e1eebe8cef82ae9b8e695e3` |
+| temporal_robustness_evaluation.py (runner, repaired; verified on-disk in the designated execution worktree at `7949ad2`) | `3c7b1468ab4fbb88ec229815e30e41d4facb68b63ddc2d5d914f346e434655cd` |
 | platoon_comparison.py (candidate fit + softmax, imported) | `8136e1a81f03ff188666a1eb5e7bd184fc41bfdb92a678d7c36b4dc904c2237f` |
 | platoon_features.py (platoon-features-v1) | `ccc56ecac9aed45026c32bb5ce9faa69f07fdfcc2eefd831b8e7607ca46e7122` |
 | binary_k_comparison.py (helpers, imported) | `3ad1ccedce6eb6122a017b38b455cdc88d7e0320a0d56dba0d7d0a8b2aefe7ad` |
 | adapter.py | `adfa7283d2150abe05ea480f86451a54cb7f550e8e87d798d8940e3fef5a4e47` |
 
-Byte convention: the hashes above are computed over the working-tree file
-bytes as materialized at the frozen checkpoint (CRLF on the Windows
-checkout); the execution receipt hashes the same checkout bytes, so
-identity holds per checkout. To verify against the committed blob, hash
-`git cat-file blob <checkpoint>:<path>` output rather than a fresh
-re-checkout.
+Runner identity is the LF file currently materialized in the designated
+execution worktree (wtsc). Runtime receipt records its actual bytes.
+Other module pins retain their individually verified byte identities.
 
 | m0_multiclass.py | `5afe972b4f1c8921f2a87b53af4e1783384ec09fb880ab44328d0b3c18e809fd` |
 | workload_comparison.py (pooled-BF37 construction source) | `c0b391bb818f393524d6732946bff41fd4df9d9c0c350e7480e2ff437581f90c` |
