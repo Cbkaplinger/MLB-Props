@@ -79,6 +79,12 @@ paste tables; no status-only comments; batch corrections into the next
 checkpoint; one integration summary per merge; ~150-word routine handoffs;
 historical evidence preserved. Applied going forward; no cleanup project.
 
+**Owner (temporary chat) 2026-11-05, docs-only:** added `docs/reference/orchestrator_source_pack.md`
+(verified 12-file core upload pack for orchestrator/Perplexity-engine chats, provenance
+template, refresh triggers; corrects earlier proposals - roles doc = `docs/roles/README.md`
++ card, adopted decisions = `docs/DECISIONS.md` register, `docs/AGENTS_ROLES.md` excluded)
++ one pointer row each in `AGENTS.md` and `docs/README.md`; no code, policy, or production change.
+
 **BINARY-K VS MULTINOMIAL-K LANE OPENED 2026-11-03 (owner assigned the single
 question; implementation + synthetic tests ONLY; NO real-data execution):**
 spec card `docs/adr/PROPOSED-binary-k-vs-multinomial-k.md` (ID

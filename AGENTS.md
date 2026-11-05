@@ -20,6 +20,7 @@ That backlog is the single holy work-state file (APPROVED / BLOCKED / waiting / 
 | Skill provenance/catalog/evals | `docs/agent/skills-provenance.md`, `docs/agent/skills-catalog.md`, `docs/agent/skills-evaluations.md` |
 | Ops contracts (Checkpoint A) | `docs/reference/reports/ops_contracts_2026-09-30.md` | Settlement + dashboard contracts, OPS-1/OPS-2 cards; remote deployment UNVERIFIED |
 | PR workflow | `docs/reference/pr_workflow.md` | How to make/document/review/merge PRs; what CI green means; identity-block template |
+| Orchestrator source pack | `docs/reference/orchestrator_source_pack.md` | Verified file list + provenance/refresh rules for orchestrator uploads |
 | Cleanup skills | `.cursor/skills/repo-*` | Evidence-first cleanup program: `repo-garbage-collector` (umbrella, routes; 11-phase policy stays at `.agents` copy) + 5 specialists + setup; glossary in `repo-garbage-collector/LANGUAGE.md` |
 
 Also always-on: prefer Polars (`.cursor/rules/use-polars.mdc`); push to your own named branch (see `docs/roles/README.md` git rule).
