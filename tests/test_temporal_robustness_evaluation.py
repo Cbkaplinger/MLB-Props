@@ -529,3 +529,98 @@ def test_write_once_refuses(tmp_path):
             _pa_frame(), _lineups(), _assessment(), existing,
             execution_ack=ACK, raw_events=[h["raw_path"]],
             reconstruction_reference=ref)
+
+
+# --------- 5d. period-specific cohorts (DISCRIMINATING regression)
+def test_r1_survives_2025h1_cohort(tmp_path):
+    """DISCRIMINATING regression for repair 1: the supplied 2025H1 key
+    file must restrict the anchor/R2 path ONLY. Under the original
+    global filter, R1's 2024H2 requests vanished and R1 scored zero
+    starts."""
+    h = _write(tmp_path)
+    # cohort file contains ONLY the 2025H1 keys (the registered shape)
+    r2_keys = _lineups().filter(
+        pl.col('game_date') >= date(2025, 1, 1)).select(
+        'game_pk', 'side', 'pitcher')
+    res = _run(tmp_path, out='out_cohort_split', cohort_keys=r2_keys,
+               expected_cohort_hash=_cohort_hash_of(r2_keys))
+    final = json.loads((Path(res['out_dir']) / 'receipt_final.json')
+                       .read_text(encoding='utf-8'))
+    assert final['cohort_identity']['supplied_cohort_applied_to'] == [
+        'anchor', 'R2']
+    per = {p['id']: p for p in res['periods']}
+    # R1 scored its 2024H2 starts despite the 2025H1-only key file
+    assert per['R1']['n_starts'] == 2
+    assert per['R2']['n_starts'] == 2
+    # R1's own eligible key set: explicitly defined, outcome-
+    # independent, identity recorded
+    r1_ident = per['R1']['r1_cohort_identity']
+    assert r1_ident['n_keys'] == 2
+    assert len(r1_ident['keys_sha256']) == 64
+
+
+# --------- 5e. coverage reconciliation buckets + invariant
+def test_coverage_reconciliation_buckets(tmp_path):
+    """DISCRIMINATING regression for repair 2: per-period coverage with
+    mutually exclusive buckets and the accounting invariant - no silent
+    intersection. The fixture adds one R1 start projected in the
+    lineups with NO actual PAs (missing-outcome bucket)."""
+    lu_rows = _lineups().to_dicts()
+    lu_rows.append({'game_pk': 900102, 'side': 'Top', 'pitcher': P1,
+                    'game_date': date(2024, 8, 21), 'nine_distinct':
+                    True, **{f'u_slot_{i}': B1[i - 1]
+                             for i in range(1, 10)}})
+    schema = {'game_pk': pl.Int64, 'side': pl.Utf8, 'pitcher': pl.Int64,
+              'game_date': pl.Date, 'nine_distinct': pl.Boolean}
+    schema.update({f'u_slot_{i}': pl.Int64 for i in range(1, 10)})
+    lu = pl.DataFrame(lu_rows, schema=schema)
+    res = _run(tmp_path, out='out_cov', lineups=lu)
+    rep = json.loads(
+        (Path(res['out_dir']) / 'temporal_robustness_report.json')
+        .read_text(encoding='utf-8'))
+    cov1 = {p['id']: p for p in rep['periods']}['R1']['coverage']
+    # R1: 3 requested starts, 1 without outcomes -> 2 scored
+    assert cov1['requested_starts_before_exclusions'] == 3
+    assert cov1['excluded_missing_outcomes'] == 1
+    assert cov1['scored_starts'] == 2
+    assert cov1['scored_starts'] + cov1['excluded_missing_outcomes'] \
+        == cov1['requested_starts_before_exclusions']
+    # pooled BF: constructed for every scored cutoff (no registered BF
+    # row requirement on this path)
+    assert 'constructed for every scored cutoff' in \
+        cov1['pooled_bf_coverage']
+    # PA-level accounting separate from start counts
+    pa_acc = cov1['pa_accounting']
+    assert pa_acc['matched_pas'] == 18
+    assert pa_acc['unmatched_pas'] == 0
+    assert pa_acc['projected_matchups_without_actual_pas'] == 9
+
+
+# --------- 5f. 2023 observations with unavailable event labels
+def test_2023_labels_unavailable_refuses(tmp_path):
+    """DISCRIMINATING regression for repair 3: 2023 observations exist in
+    the PA source but the raw-event source for 2023 is NOT supplied ->
+    the bridge cannot label them -> the runner refuses rather than
+    silently shortening the declared training history."""
+    pa = _pa_frame()
+    ev_rows = []
+    for r in pa.iter_rows(named=True):
+        if r['game_date'].year >= 2024:
+            ev_rows.append((r['game_pk'], r['at_bat_number'], r['batter'],
+                            'strikeout' if r['y'] == 1 else 'field_out'))
+    raw = pl.DataFrame(ev_rows, schema={
+        'game_pk': pl.Int64, 'at_bat_number': pl.Int64,
+        'batter': pl.Int64, 'events': pl.Utf8}, orient='row')
+    h = _write(tmp_path, pa=pa)
+    rp = tmp_path / 'raw_events_2024_2025_only.parquet'
+    raw.write_parquet(rp)
+    h['raw_path'] = str(rp)
+    with pytest.raises(ValueError, match='ZERO eligible labels'):
+        te.run_temporal_robustness(
+            pa, _lineups(), _assessment(), tmp_path / 'out_2023',
+            execution_ack=ACK, raw_events=[h['raw_path']],
+            min_fit_date_clusters=2,
+            reconstruction_reference=_wrong_reference())
+    fr = json.loads((tmp_path / 'out_2023' / 'failure_record.json')
+                    .read_text(encoding='utf-8'))
+    assert 'year 2023' in fr['error']

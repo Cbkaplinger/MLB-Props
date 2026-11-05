@@ -252,7 +252,15 @@ def run_temporal_robustness(
         long_all, n_uncovered = ad.projected_long(lineups)
         if long_all.height == 0:
             raise ValueError("empty projection request population")
-        cohort_identity = {"restriction_applied": False}
+        # ---- cohort: supplied 2025H1 keys apply to anchor/R2 ONLY ----
+        # (R1 scores 2024H2; a global 2025H1 filter would remove R1. R1
+        # gets its own explicitly defined, outcome-independent eligible
+        # key set derived from the pinned lineups input, with its
+        # identity recorded.)
+        cohort_identity = {
+            "supplied_cohort_applied_to": ["anchor", "R2"],
+            "restriction_applied": False}
+        cohort_unique = None
         if cohort_keys is not None:
             cohort_unique = cohort_keys.select(*REQ_KEYS).unique()
             if cohort_unique.height != cohort_keys.height:
@@ -269,21 +277,50 @@ def run_temporal_robustness(
                 raise ValueError(
                     f"cohort identity mismatch: actual={cohort_hash_val} "
                     f"expected={expected_cohort_hash}")
-            long_all = long_all.join(cohort_unique, on=REQ_KEYS,
-                                     how="semi")
-            cohort_identity = {"restriction_applied": True,
-                               "n_keys": cohort_unique.height,
-                               "computed_hash": cohort_hash_val,
-                               "expected_hash": expected_cohort_hash,
-                               "hash_match": True}
+            cohort_identity = {
+                "supplied_cohort_applied_to": ["anchor", "R2"],
+                "restriction_applied": True,
+                "n_keys": cohort_unique.height,
+                "computed_hash": cohort_hash_val,
+                "expected_hash": expected_cohort_hash,
+                "hash_match": True}
         if long_all.height == 0:
             raise ValueError(
-                "empty request population after cohort restriction")
+                "empty projection request population after cohort "
+                "validation")
 
-        # ---- feasibility for EVERY period BEFORE any fit --------------
+        # ---- fold feasibility for EVERY period BEFORE any fit --------
         feasibilities = [period_feasibility(pa_labeled, lineups, p,
                                             min_fit_date_clusters)
                          for p in PERIODS]
+
+        # ---- training-label coverage by year (BEFORE any fit) --------
+        # the declared fit windows begin 2023-03-30; the bridge can only
+        # label rows whose raw-event year is supplied. A fit-window year
+        # with raw observations but ZERO eligible labels refuses here
+        # rather than silently shortening the effective training history.
+        label_years = []
+        union_fit = sorted({d for p in PERIODS
+                            for d in [p["fit_start"], p["fit_end"]]})
+        fit_lo, fit_hi = min(union_fit), max(union_fit)
+        in_fit = pa_labeled.filter(
+            (pl.col("game_date") >= pl.lit(fit_lo))
+            & (pl.col("game_date") <= pl.lit(fit_hi)))
+        for y in sorted({x.year for x in
+                         in_fit["game_date"].unique().to_list()}):
+            yr = in_fit.filter(pl.col("game_date").dt.year() == y)
+            n_raw = yr.height
+            n_lab = int(yr.filter(pl.col("class_label") >= 0).height)
+            label_years.append({"year": y, "n_rows": n_raw,
+                                "n_labeled": n_lab})
+            if n_raw > 0 and n_lab == 0:
+                raise ValueError(
+                    f"training-label feasibility: fit-window year {y} "
+                    f"has {n_raw} raw observations but ZERO eligible "
+                    "labels (raw-event source unavailable for that "
+                    "year); the declared training history would be "
+                    "silently shortened - pin the missing source or "
+                    "revise the fit window")
 
         # ---- machinery-identity anchor (before period contrasts) -----
         # the registered 8-feature recipe, refit on the declared
@@ -308,6 +345,11 @@ def run_temporal_robustness(
         anchor_requests = long_all.filter(
             (pl.col("game_date") >= pl.lit(date(2025, 1, 1)))
             & (pl.col("game_date") <= pl.lit(HARD_MAX_SCORE_DATE)))
+        if cohort_unique is not None:
+            anchor_requests = anchor_requests.join(
+                cohort_unique, on=REQ_KEYS, how="semi")
+        if anchor_requests.height == 0:
+            raise ValueError("empty anchor request population")
         anchor_req_dates = sorted(
             anchor_requests["game_date"].unique().to_list())
         p_v2, b_v2, lg_v2, _ = fv.build_v2_states(
@@ -438,6 +480,22 @@ def run_temporal_robustness(
             requests = long_all.filter(
                 (pl.col("game_date") >= pl.lit(period["score_start"]))
                 & (pl.col("game_date") <= pl.lit(period["score_end"])))
+            if pid == "R2" and cohort_unique is not None:
+                requests = requests.join(cohort_unique, on=REQ_KEYS,
+                                         how="semi")
+            # R1 eligible key set: explicitly defined, outcome-
+            # independent - the cohort-restricted score-window request
+            # keys themselves; identity recorded (hash + count)
+            r1_cohort_keys = sorted(
+                (int(r["game_pk"]), str(r["side"]), int(r["pitcher"]))
+                for r in requests.select(*REQ_KEYS).unique()
+                .iter_rows(named=True))
+            r1_cohort_identity = {
+                "definition": ("score-window request keys from the "
+                               "pinned lineups input (outcome-"
+                               "independent)"),
+                "n_keys": len(r1_cohort_keys),
+                "keys_sha256": _cohort_hash(r1_cohort_keys)}
             req_dates = sorted(
                 requests["game_date"].unique().to_list())
             # structural guard: nothing scored reaches the R3 partition
@@ -552,17 +610,62 @@ def run_temporal_robustness(
                 for r in actual.group_by(*REQ_KEYS).agg(
                     realized_k=(pl.col("class_label") == K_CLASS)
                     .cast(pl.Int64).sum()).iter_rows(named=True)}
-            scored_keys = sorted(set(k_real) & set(fc_by_start_of(keyed)))
+            # ---- coverage reconciliation BEFORE rows are filtered ----
+            # mutually exclusive start-level buckets + accounting
+            # invariant; PA counts kept separate from start counts
+            requested_keys = sorted(set(fc_by_start_of(keyed)))
+            keys_with_outcomes = set(k_real)
+            missing_outcome_keys = sorted(
+                k for k in requested_keys
+                if k not in keys_with_outcomes)
+            scored_keys = sorted(
+                k for k in requested_keys if k in keys_with_outcomes)
             if not scored_keys:
                 raise ValueError(
                     f"period {pid}: no scored starts with complete "
                     "outcomes")
+            # actual PAs not joined to any projected matchup (PA-level;
+            # the keyed table is read here and reused for scoring)
+            keyed_read = pl.read_parquet(keyed_path)
+            matched_pa_keys = keyed_read.select(
+                "game_pk", "side", "pitcher", "batter").unique()
+            unmatched_pas = actual.join(
+                matched_pa_keys, on=["game_pk", "side", "pitcher",
+                                     "batter"], how="anti")
+            projected_without_actual = keyed_read.join(
+                actual.select("game_pk", "side", "pitcher", "batter")
+                .unique(), on=["game_pk", "side", "pitcher", "batter"],
+                how="anti")
+            coverage = {
+                "requested_starts_before_exclusions":
+                    len(requested_keys),
+                "excluded_missing_outcomes": len(missing_outcome_keys),
+                "missing_outcome_keys": [
+                    list(k) for k in missing_outcome_keys],
+                "scored_starts": len(scored_keys),
+                "scored_keys_identity_sha256": _cohort_hash(scored_keys),
+                "accounting_invariant": (
+                    "scored + excluded_missing_outcomes == requested"),
+                "pooled_bf_coverage": (
+                    "constructed for every scored cutoff directly from "
+                    "the pinned PA source (no registered BF rows "
+                    "consumed on this path)"),
+                "pa_accounting": {
+                    "unmatched_pas": int(unmatched_pas.height),
+                    "projected_matchups_without_actual_pas":
+                        int(projected_without_actual.height),
+                    "note": ("PA counts are separate from start counts; "
+                             "matched_pas added after the per-PA join"),
+                },
+            }
+            assert len(scored_keys) + len(missing_outcome_keys) == \
+                len(requested_keys), (
+                f"period {pid}: coverage accounting invariant violated")
             dates_p = {k: dates for k, dates in
                        request_date_map(requests).items()
                        if k in set(scored_keys)}
 
             pmf_ctrl, pmf_cand = {}, {}
-            keyed_read = pl.read_parquet(keyed_path)
             fc = fc_table(keyed_read, cls_ctrl, cls_cand, K_CLASS)
             for key in scored_keys:
                 slots = fc.get(key, {})
@@ -581,7 +684,9 @@ def run_temporal_robustness(
                         for k in scored_keys}
             rps_cand = {k: kc.count_rps(pmf_cand[k], k_real[k])
                         for k in scored_keys}
-            # per-PA primary metrics on the identical matched population
+            # per-PA coverage accounting (PA counts, separate from start
+            # counts): matched, unmatched actual PAs, projected matchups
+            # without actual PAs
             n_unique = keyed_read.select(
                 "game_pk", "side", "pitcher", "batter").n_unique()
             if keyed_read.height != n_unique:
@@ -593,6 +698,22 @@ def run_temporal_robustness(
             if matched.height == 0:
                 raise ValueError(
                     f"period {pid}: empty matched per-PA population")
+            unmatched_pas = actual.join(
+                keyed_read.select("game_pk", "side", "pitcher", "batter")
+                .unique(), on=["game_pk", "side", "pitcher", "batter"],
+                how="anti")
+            projected_without_actual = keyed_read.join(
+                actual.select("game_pk", "side", "pitcher", "batter")
+                .unique(), on=["game_pk", "side", "pitcher", "batter"],
+                how="anti")
+            pa_accounting = {
+                "matched_pas": int(matched.height),
+                "unmatched_pas": int(unmatched_pas.height),
+                "projected_matchups_without_actual_pas":
+                    int(projected_without_actual.height),
+                "note": "PA counts are separate from start counts",
+            }
+            coverage["pa_accounting"] = pa_accounting
             unl = matched.filter(~pl.col("class_label").is_in(cls_ctrl))
             if unl.height > 0:
                 raise ValueError(
@@ -681,7 +802,6 @@ def run_temporal_robustness(
             k_pmf_path = out_dir / f"k_pmf_per_start_{pid}.parquet"
             pl.DataFrame(k_pmf_rows).write_parquet(k_pmf_path)
             per_start_frames[pid + "_kpmf"] = k_pmf_path
-            k_pmf_rows = k_pmf_rows  # noqa: F841 (per-period artifact)
             periods_out.append({
                 "id": pid,
                 "n_starts": len(scored_keys),
@@ -689,6 +809,9 @@ def run_temporal_robustness(
                 "mean_logloss_control": ll_ctrl,
                 "mean_logloss_platoon": ll_cand,
                 "paired": paired,
+                "coverage": coverage,
+                "r1_cohort_identity": (r1_cohort_identity
+                                       if pid == "R1" else None),
                 "k_count": {
                     "mean_rps_control": float(np.mean(
                         list(rps_ctrl.values()))),
@@ -709,6 +832,7 @@ def run_temporal_robustness(
             "experiment_identity": EXPERIMENT_ID,
             "reconstruction": reconstruction,
             "feasibility": feasibilities,
+            "training_label_coverage_by_year": label_years,
             "periods": periods_out,
             "structural_limits": config["structural_limits"],
         }
