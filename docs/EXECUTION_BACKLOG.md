@@ -335,9 +335,22 @@ row was added to the experiment impact ledger (from its VERIFIED record;
 nothing recomputed). No new learner, feature family, framework, or model
 run.
 
+**TEMPORAL-ROBUSTNESS R1/R2 AUTHORIZATION RECORDED 2026-11-04 (owner,
+explicit): ONE execution of the exact packet command** - packet revision
+4 (file sha `dc71da5680fa723661034de33752c43b14a2f0daefb73b78486d7d0469e
+5339f` at commit b96c158) against the unchanged reviewed action
+(executable frozen at `7949ad2`; retained recipe fixed; the repaired
+runner identity = Chat 2's verified on-disk LF sha `3c7b1468...` in the
+designated execution worktree wtsc). Includes the added 2023 raw-event
+file (`statcast_2023_regular.parquet`, sha `b9f9db99...`) and full-file
+decoding disclosure for all three raw-event years; earlier experiment
+approvals do not cover this source. Packet revision 3 identity check
+passed (owner-verified); revision 4 is the packet-only identity-
+documentation correction (runner pin + convention wording) - no further
+approval request for it. R3/2026 remain structurally inaccessible.
+
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
-`docs/adr/PROPOSED-platoon-information-multiclass.md` +
 packet `research/offseason_2026/pregame_pa_ext/execution_packet_platoon_v1.md`.
 Source verification (identity + handedness columns only, no outcome reads):
 pa_table natively carries `stand`/`p_throws` (731,347 rows, zero nulls,
