@@ -477,6 +477,29 @@ def run_temporal_robustness(
                 (pl.col("game_date") >= pl.lit(period["fit_start"]))
                 & (pl.col("game_date") <= pl.lit(period["fit_end"]))
                 & (pl.col("class_label") >= 0))
+            # warm-up/fit boundary: the FIRST distinct date in the fit
+            # window has zero strictly-prior labeled history (opening
+            # day); its rows are retained as history for states/rates
+            # but EXCLUDED from fitting. The resolved fit start = the
+            # second distinct date.
+            fit_all_dates = sorted(
+                fit["game_date"].unique().to_list())
+            if len(fit_all_dates) < 2:
+                raise ValueError(
+                    f"period {pid}: only {len(fit_all_dates)} distinct "
+                    "fit-window dates; need at least 2 (warm-up + "
+                    "eligible)")
+            warmup_dates = fit_all_dates[:1]
+            eligible_fit_dates = fit_all_dates[1:]
+            excluded_warmup_rows = int(
+                fit.filter(pl.col("game_date")
+                           == fit_all_dates[0]).height)
+            fit = fit.filter(pl.col("game_date") > fit_all_dates[0])
+            if fit.height == 0:
+                raise ValueError(
+                    f"period {pid}: no eligible fit rows after warm-up "
+                    "exclusion")
+            resolved_fit_start = str(fit_all_dates[1])
             requests = long_all.filter(
                 (pl.col("game_date") >= pl.lit(period["score_start"]))
                 & (pl.col("game_date") <= pl.lit(period["score_end"])))
@@ -804,6 +827,9 @@ def run_temporal_robustness(
             per_start_frames[pid + "_kpmf"] = k_pmf_path
             periods_out.append({
                 "id": pid,
+                "resolved_fit_start": resolved_fit_start,
+                "excluded_warmup_dates": [str(d) for d in warmup_dates],
+                "excluded_warmup_rows": excluded_warmup_rows,
                 "n_starts": len(scored_keys),
                 "n_matched_pas": int(matched.height),
                 "mean_logloss_control": ll_ctrl,

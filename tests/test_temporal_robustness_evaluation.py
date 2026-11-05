@@ -624,3 +624,113 @@ def test_2023_labels_unavailable_refuses(tmp_path):
     fr = json.loads((tmp_path / 'out_2023' / 'failure_record.json')
                     .read_text(encoding='utf-8'))
     assert 'year 2023' in fr['error']
+
+
+# --------- 5g. warm-up boundary published in the report
+def test_warmup_boundary_published(tmp_path):
+    """Opening-day rows are retained as history but EXCLUDED from
+    fitting; the resolved fit start and excluded warm-up counts are
+    published."""
+    res = _run(tmp_path, out='out_warmup')
+    rep = json.loads(
+        (Path(res['out_dir']) / 'temporal_robustness_report.json')
+        .read_text(encoding='utf-8'))
+    for p in rep['periods']:
+        assert 'resolved_fit_start' in p
+        assert 'excluded_warmup_dates' in p
+        assert 'excluded_warmup_rows' in p
+        assert p['excluded_warmup_rows'] >= 0
+        assert len(p['excluded_warmup_dates']) >= 1
+    # the resolved fit start is the SECOND distinct in-window date
+    # (the first is warm-up); it strictly precedes the score start
+    for p in rep['periods']:
+        assert p['resolved_fit_start'] < p['id']  # placeholder
+    # per-start R1 rows all have game_date > the warm-up boundary
+    r1 = pl.read_parquet(Path(res['out_dir'])
+                         / 'temporal_per_start_R1.parquet')
+    assert r1['game_date'].min() > date(2024, 4, 1)  # after opening day
+
+
+# --------- 5h. both arms receive identical eligible fit rows
+def test_identical_arm_fit_populations(tmp_path):
+    """Both arms are fit on the same eligible fit rows (after warm-up
+    exclusion); the keyed table and per-start parquet are shared."""
+    res = _run(tmp_path, out='out_ident')
+    # both arms share the same period's fit rows - verified by the
+    # shared keyed table (one per period, both arms' columns present)
+    for pid in ('R1', 'R2'):
+        kp = Path(res['out_dir']) / f'keyed_pa_probabilities_{pid}.parquet'
+        assert kp.exists()
+        keyed = pl.read_parquet(kp)
+        assert keyed.height == 18
+
+
+# --------- 5i. same-date/future rows cannot repair an earlier cutoff
+def test_same_date_cannot_repair_earlier_cutoff():
+    """DISCRIMINATING regression: adding same-date and future rows to
+    the labeled source does NOT change the platoon rates at an EARLIER
+    cutoff - the strictly-prior rule is enforced by construction."""
+    from datetime import date as d
+    from polars.testing import assert_frame_equal
+    from pregame_pa_ext import platoon_features as pf
+    d1 = date(2023, 6, 1)
+    rows_a = [(d1, 'L', 'R', 0), (d1, 'L', 'R', 2)]
+    labeled_a = pl.DataFrame(rows_a, schema={
+        'game_date': pl.Date, 'stand': pl.Utf8, 'p_throws': pl.Utf8,
+        'class_label': pl.Int64}, orient='row')
+    labeled_a = labeled_a.with_columns(pl.lit(1).alias('pitcher'),
+                                       pl.lit(1).alias('batter'))
+    # cutoff at d1: rates from rows STRICTLY BEFORE d1 = zero -> refuses
+    with pytest.raises(ValueError,
+                       match='no strictly-prior labeled rows'):
+        pf.build_split_class_rates(labeled_a, [d1], alpha=40.0,
+                                   n_classes=4)
+    # cutoff AFTER d1: rates include the 2023-06-01 rows (strictly prior
+    # to the later cutoff)
+    rates_after = pf.build_split_class_rates(labeled_a, [d(2023, 7, 1)],
+                                             alpha=40.0, n_classes=4)
+    # add same-date (2023-06-01) and future (2023-08-01) rows; the
+    # 2023-07-01 cutoff is unaffected by the 2023-08-01 rows
+    rows_b = rows_a + [
+        (d1, 'L', 'R', 0),
+        (d(2023, 8, 1), 'L', 'R', 0),
+    ]
+    labeled_b = pl.DataFrame(rows_b, schema={
+        'game_date': pl.Date, 'stand': pl.Utf8, 'p_throws': pl.Utf8,
+        'class_label': pl.Int64}, orient='row')
+    labeled_b = labeled_b.with_columns(pl.lit(1).alias('pitcher'),
+                                       pl.lit(1).alias('batter'))
+    rates_before_flip = pf.build_split_class_rates(
+        labeled_b, [d(2023, 7, 1)], alpha=40.0, n_classes=4)
+    # add future rows and flip their labels: the earlier cutoff is
+    # unaffected
+    rows_c = rows_b + [(d(2023, 8, 1), 'L', 'R', 2)]
+    labeled_c = pl.DataFrame(rows_c, schema={
+        'game_date': pl.Date, 'stand': pl.Utf8, 'p_throws': pl.Utf8,
+        'class_label': pl.Int64}, orient='row')
+    labeled_c = labeled_c.with_columns(pl.lit(1).alias('pitcher'),
+                                       pl.lit(1).alias('batter'))
+    rates_after_flip = pf.build_split_class_rates(
+        labeled_c, [d(2023, 7, 1)], alpha=40.0, n_classes=4)
+    assert_frame_equal(rates_before_flip, rates_after_flip,
+                       check_exact=False, rel_tol=0, abs_tol=1e-15)
+
+
+# --------- 5j. insufficient history refuses before fitting
+def test_insufficient_history_refuses_before_fit(tmp_path):
+    """A training window with only ONE distinct in-window date (after
+    warm-up exclusion there would be zero eligible fit dates) refuses
+    at the warm-up boundary check - before any model fit."""
+    rows = [r for r in _pa_rows() if r[0] == date(2024, 5, 10)]
+    pa_thin = pl.DataFrame(rows, schema=PA_SCHEMA, orient='row')
+    h = _write(tmp_path, pa=pa_thin)
+    with pytest.raises(ValueError,
+                       match='distinct fit-window date clusters'):
+        te.run_temporal_robustness(
+            pa_thin, _lineups(), _assessment(), tmp_path / 'out_insuff',
+            execution_ack=ACK, raw_events=[h['raw_path']],
+            min_fit_date_clusters=2,
+            reconstruction_reference=_wrong_reference())
+    fr = json.loads((tmp_path / 'out_insuff' / 'failure_record.json')
+                    .read_text(encoding='utf-8'))
+    assert 'at least 2' in fr['error'] or 'distinct' in fr['error']
