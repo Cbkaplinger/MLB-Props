@@ -16,11 +16,19 @@ SHA-256 identities at that checkpoint:
 
 | Module | SHA-256 |
 |---|---|
-| temporal_robustness_evaluation.py (runner, final) | `a2c673e028f221f0a9647502bcc1a6f95076da99e0821435029e615fc6838057` |
+| temporal_robustness_evaluation.py (runner, repaired; independently verified at `7949ad2`) | `3b5ae38ef2a1c178957da45b5ec8751025d615f83e1eebe8cef82ae9b8e695e3` |
 | platoon_comparison.py (candidate fit + softmax, imported) | `8136e1a81f03ff188666a1eb5e7bd184fc41bfdb92a678d7c36b4dc904c2237f` |
 | platoon_features.py (platoon-features-v1) | `ccc56ecac9aed45026c32bb5ce9faa69f07fdfcc2eefd831b8e7607ca46e7122` |
 | binary_k_comparison.py (helpers, imported) | `3ad1ccedce6eb6122a017b38b455cdc88d7e0320a0d56dba0d7d0a8b2aefe7ad` |
 | adapter.py | `adfa7283d2150abe05ea480f86451a54cb7f550e8e87d798d8940e3fef5a4e47` |
+
+Byte convention: the hashes above are computed over the working-tree file
+bytes as materialized at the frozen checkpoint (CRLF on the Windows
+checkout); the execution receipt hashes the same checkout bytes, so
+identity holds per checkout. To verify against the committed blob, hash
+`git cat-file blob <checkpoint>:<path>` output rather than a fresh
+re-checkout.
+
 | m0_multiclass.py | `5afe972b4f1c8921f2a87b53af4e1783384ec09fb880ab44328d0b3c18e809fd` |
 | workload_comparison.py (pooled-BF37 construction source) | `c0b391bb818f393524d6732946bff41fd4df9d9c0c350e7480e2ff437581f90c` |
 | kcount_combiner.py | `94f57a49c0996df5147fb961a085fd229d0ba0e3903c6da0ced9f2d3b670f18f` |
@@ -89,7 +97,6 @@ loss / Brier, K RPS means. No tuning, no calibration.
 | Cohort keys (n=2,509, 2025H1 - applied to the anchor and R2 paths ONLY) | `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\eligible_cohort_keys_2025H1.parquet` | Sorted-key CONTENT hash `f77d7a66639ee94a9157244b357487d5f462c6cb0bd4909bbffb44b924db41b7` - ENFORCED before feature construction (refusal). The file's byte hash is a different quantity, NOT the pin. R1 carries its OWN eligible key set: the R1 score-window request keys from the pinned lineups input (outcome-independent; identity hash + count recorded in the report/receipt) |
 | Raw Statcast 2023 (NEW - labels the declared 2023 fit window) | `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2023\statcast_2023_regular.parquet` | SHA-256 `b9f9db9923badca17e551cf23be8429bfba984361732a8911bf0d68a40d5285f` - RECORDED (procedural). REVISED ACCESS SCOPE: without this file the 2023 fit rows cannot be labeled and the declared 2023 training history silently shortens; the runner now refuses any fit-window year with raw observations but zero eligible labels |
 | Raw Statcast 2024 | `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2024\statcast_2024_regular.parquet` | SHA-256 `de78a1893aa21e305153f5594987f85b40e4bc0cf572484e995a1416b3c49b33` - RECORDED in the receipt (procedural) |
-| Raw Statcast 2023 (NEW - labels the declared 2023 fit window) | `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2023\statcast_2023_regular.parquet` | SHA-256 `b9f9db9923badca17e551cf23be8429bfba984361732a8911bf0d68a40d5285f` - RECORDED (procedural) |
 | Raw Statcast 2025 | `C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2025\statcast_2025_regular.parquet` | SHA-256 `cb072ff830959374ae2f8a8d804a0093e77b2cf0d898fda046b44605d5c31aad` - RECORDED (procedural) |
 
 All six pinned files were re-hashed on disk 2026-11-04 and match; the
