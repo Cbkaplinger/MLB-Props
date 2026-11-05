@@ -32,8 +32,8 @@ The full verified lane stack is on main at **60e244a** (merge of PR #63, untrack
 
 Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Current action: temporal-robustness EXECUTED (VERIFIED); integration pending
+## Current action: temporal-robustness CLOSED (VERIFIED); integration pending
 
-temporal_robustness_v1 was executed once per approved packet revision 7. **Result: BUILDER-REPORTED, pending Chat 2 artifact verification.** Both periods direction consistent (platoon favored); improvement above the 0.0005 threshold in R2, below in R1; K guard passes in both; candidate registered. Chat 2 has VERIFIED the artifacts. The record closes once; integration of #60 into main is the next step.
+temporal_robustness_v1: Executed once; Chat 2 artifact verdict INDEPENDENTLY VERIFIED (supplied via owner). Scientific closeout complete; integration pending. Platoon-favoring direction consistent across both periods; improvement above the 0.0005 threshold in R2, below in R1; K point-estimate guard passes in both; candidate retained. The earlier LightGBM comparison (inconclusive direction, below-threshold point gain, K guard failed) remains a separate closed result — no adoption.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
