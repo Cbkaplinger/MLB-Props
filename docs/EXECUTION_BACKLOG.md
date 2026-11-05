@@ -359,6 +359,36 @@ ef0356c, packet revision 7, as-stored LF SHA-256 `54bef47c501f435f5a228
 artifact and not a changed method). Conditional on Chat 2
 exact-checkpoint PASS. No further approval request needed.
 
+**TEMPORAL-ROBUSTNESS R1/R2 EXECUTED ONCE 2026-11-05 - BUILDER-REPORTED,
+PENDING CHAT 2 INDEPENDENT VERIFICATION** (owner authorization + Chat 2
+PASS both recorded; exact packet revision 7 command, exit 0).
+Destination write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1_attempt2\`
+(10 files; output hashes reconcile against receipt_final; receipt chain
+intact; receipt_initial sha `983ce5aa...` verified immutable). Guards:
+4 file-byte pins pre-decode; cohort `f77d7a66` MATCH; reconstruction
+gate PASSED EXACTLY (max abs diff 0.0, n=2,509). **RESULTS (per-period,
+declared metrics):**
+- **R1** (fit 2023-03-30..2024-06-30 -> score 2024-07-01..09-30; 2,334
+  starts; 39,568 matched PAs): log loss control 1.222370 vs platoon
+  1.221846; per-start-mean delta = **-0.000415, CI95 [-0.000779,
+  -0.000053]** - entirely below zero (challenger favored statistically);
+  K guard -0.000167, within the 0.002 margin (point estimate, True).
+- **R2** (fit ..2024-12-31 -> score 2025-01-01..06-30; 2,509 starts;
+  43,565 matched PAs): log loss control 1.224939 vs platoon 1.224133;
+  per-start-mean delta = **-0.000870, CI95 [-0.001231, -0.000542]** -
+  entirely below zero (challenger favored statistically); K guard
+  -0.000300, within the 0.002 margin (point estimate, True).
+- Both periods: direction CONSISTENT (both favors platoon), improvement
+  above 0.0005 threshold in R2 but below in R1, K guard PASSES in both.
+  Per the card's acceptance criteria: the platoon family qualifies as a
+  CANDIDATE for a future frozen-contract decision; promotion never
+  automatic. Label coverage: 2023 184,104/184,104 labeled; 2024
+  182,266/182,266 labeled (zero unlabeled, the 2023 raw-events pin
+  worked). Development evidence only; no production/policy/live-model
+  change. Outputs preserved write-once untouched; single run, no retry.
+  Evidence handoff delivered to Chat 2 on PR #60.
+
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
 packet `research/offseason_2026/pregame_pa_ext/execution_packet_platoon_v1.md`.
