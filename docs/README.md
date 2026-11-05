@@ -35,6 +35,7 @@ and supporting standards live in `docs/reference/`.
 | Roles and repair rules | `roles/README.md` (ROLES_REV; overrides copied role text anywhere) |
 | Reusable pipeline capabilities | `reference/pipeline_registry.json` |
 | Human navigation | `reference/repo_canonical_map.md` |
+| Orchestrator upload pack | `reference/orchestrator_source_pack.md` (what to hand an orchestrator chat; provenance + refresh rules) |
 | Registered experiments / results / evidence | existing experiment cards, dated reports, immutable run artifacts |
 
 Do not duplicate one authority's content inside another; link instead.

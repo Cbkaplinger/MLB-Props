@@ -79,6 +79,12 @@ paste tables; no status-only comments; batch corrections into the next
 checkpoint; one integration summary per merge; ~150-word routine handoffs;
 historical evidence preserved. Applied going forward; no cleanup project.
 
+**Owner (temporary chat) 2026-11-05, docs-only:** added `docs/reference/orchestrator_source_pack.md`
+(verified 12-file core upload pack for orchestrator/Perplexity-engine chats, provenance
+template, refresh triggers; corrects earlier proposals - roles doc = `docs/roles/README.md`
++ card, adopted decisions = `docs/DECISIONS.md` register, `docs/AGENTS_ROLES.md` excluded)
++ one pointer row each in `AGENTS.md` and `docs/README.md`; no code, policy, or production change.
+
 **CHAT 3 FINAL CLOSEOUT 2026-10-29 (read-only inventory + PR #53 disposition;
 NO deletions, NO merges, NO worktree changes; lane CLOSED after this entry):**
 (1) STATE: local main == origin/main at `31bc557`; primary checkout 0 dirty /
