@@ -367,7 +367,9 @@ Destination write-once at
 (10 files; output hashes reconcile against receipt_final; receipt chain
 intact; receipt_initial sha `983ce5aa...` verified immutable). Guards:
 4 file-byte pins pre-decode; cohort `f77d7a66` MATCH; reconstruction
-gate PASSED EXACTLY (max abs diff 0.0, n=2,509). **RESULTS (per-period,
+gate PASSED EXACTLY (max abs diff 0.0, n=2,509; anchor reference =
+`workload_per_start_v1.parquet` sha `ae971758...`, column `rps_w0_pooled`,
+read from receipt_final, not from memory). **RESULTS (per-period,
 declared metrics):**
 - **R1** (fit 2023-03-30..2024-06-30 -> score 2024-07-01..09-30; 2,334
   starts; 39,568 matched PAs): log loss control 1.222370 vs platoon
