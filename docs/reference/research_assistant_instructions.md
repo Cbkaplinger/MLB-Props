@@ -146,6 +146,30 @@ distributions; uniqueness/coverage/leakage checks; no huge dumps; no duplicated
 split/model/metric/persistence. Train notebook under `models/Strikeout-Model/`.
 Level 3 construction audit: `src/Notebooks/pipeline/training.ipynb`.
 
+## Established experiment-lane pattern (pregame-pa-ext lanes, 2026-11)
+
+The accepted pattern for bounded model comparisons on this lane (workload
+w0v1, binary-K, platoon) — future slices reuse it rather than inventing new
+harnesses:
+
+- One card (PROPOSED-*.md) naming control, challenger, shared components,
+  endpoints, margins, decision rules, artifacts, and limitations BEFORE
+  scoring; one execution packet pinning every input identity, the accepted
+  reference, and the exact single-line command.
+- Runner = thin wrapper over registered machinery (`m0_multiclass`,
+  `adapter`, `forecast_states_v2`, `statcast_event_bridge`,
+  `baseline_ladder.paired_contrast`, `kcount_combiner.count_rps`, pooled-BF37
+  construction imported from the reviewed workload runner for identity).
+- Two fixed-recipe fits on the SAME rows; control arm reconstructs the
+  accepted per-start reference within 1e-12 (ENFORCED pre-decode at the
+  CLI) before any contrast is read.
+- Full class-probability vectors keyed to (game_pk, side, pitcher, slot,
+  batter); no positional transfers; write-once destinations; receipt chain
+  + failure records; ack token is a technical gate, never authorization.
+- Discriminating tests (a bug would fail them), not just successful-
+  execution tests; end-to-end subprocess CLI coverage.
+- Closeout: Chat 2 verifies from saved artifacts; the record closes once.
+
 ## Remaining work
 
 > **Superseded as a work queue.** Live APPROVED / DEFERRED / waiting-on-user items live only in [`docs/EXECUTION_BACKLOG.md`](../EXECUTION_BACKLOG.md) (Session Snapshot). Do not treat the bullets below as the current plan.

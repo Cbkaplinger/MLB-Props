@@ -23,8 +23,14 @@ Limitations: development evidence on the registered 2025H1 cohort - not a fresh 
 
 The reviewed stack is on main at **`8399f2c`** (actual merge SHA): #51 (`7764ac1`), #53 (`4f2490c`), and the #52 content via PR #54 (`1a1790c` + `8399f2c`; #52's own merge had landed on its base branch, so PR #54 carried it to main; carrier PR #55 was closed redundant). CI `test-and-validate` + `tracking` PASS on the integrated heads; 97 targeted tests green on the merged tree; open-PR count is zero. Verified present on main: the accepted closeout (below), the roles approval-requests amendment, the cohort-test determinism fix, and the full reviewed baseline-stack code. No production/policy/model change was made or authorized by this integration.
 
-## Next experiment: not started
+## Next experiment: platoon-information value (assigned, checkpoint below)
 
-The next experiment will not launch until its single question is assigned by the architect. Next sequence after that assignment: isolate one PA improvement -> freeze selected features -> bounded time-ordered tuning -> locked evaluation -> optional calibration -> separately authorized confirmation/operations. Protected partitions and old registrations remain unchanged.
+Binary-K vs multinomial-K: CLOSED 2026-11-04 - Chat 2 artifact verdict VERIFIED; control retained (delta +0.0000969, CI overlapping zero, far below the 0.005 practical threshold); artifacts preserved; PR #57 ready for integration through the existing process (merge via architect delegation).
+
+## Next experiment: LGBM multiclass challenger - CLOSED (COMPLETED/VERIFIED); integration prepared
+
+lgbm_multiclass_v1: CLOSED 2026-11-04 - Chat 2 artifact verdict COMPLETED/VERIFIED; record closed once; both attempt directories + all evidence preserved. Interpretation (corrected per owner): direction inconclusive; point improvement below the 0.0005-nat practical threshold; the interval still permits a practically useful improvement (no equivalence claim, no "LightGBM cannot help" claim); K point-estimate guard failed. **Decision: retain multinomial-plus-platoon; no LightGBM adoption.** Per the owner's post-candidate plan: temporal robustness and any next information-gap feature experiment (player-specific platoon skill, pitch-arsenal) remain separate gated milestones; calibration follows model selection on disjoint chronological data.
+
+Integration: the stack #57 (binary lane, base main) -> #58 (platoon, base #57's branch) -> #59 (LGBM, base #58's branch) -> main. Before each merge: verify the actual base and intended destination; after each parent merge: retarget the child to main and check its diff. No carrier-PR duplication, no direct-main pushes. Bases verified 2026-11-04 (#57 base main CLEAN; #58 base #57-branch CLEAN; #59 base #58-branch, CI completing); merges are architect-delegated on the PRs (Chat 2 executes).
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
