@@ -1,7 +1,10 @@
-# Execution packet: temporal_robustness_v1 (revision 6)
+# Execution packet: temporal_robustness_v1 (revision 7 - fresh attempt destination, corrected authorization status)
 
-STATUS: AUTHORIZATION-READY, NOT AUTHORIZED. Approval recorded (owner,
-explicit; backlog block). Awaiting Chat 2 identity check. The ack token
+STATUS: AUTHORIZATION-READY. No authorization covers this repaired
+checkpoint (0128961 / packet revision 7); the earlier approval covered
+packet revision 3/4 at checkpoint 7949ad2 (pre-warm-up). Awaiting Chat 2
+review of this exact checkpoint + packet, then owner verdict on
+authorization coverage. The ack token
 `EXECUTE-TEMPORAL-ROBUSTNESS-V1` is a technical gate only and is NOT
 authorization. Card: `docs/adr/PROPOSED-temporal-robustness-evaluation.md`.
 
@@ -11,7 +14,7 @@ authorization. Card: `docs/adr/PROPOSED-temporal-robustness-evaluation.md`.
   `research/lgbm-multiclass-v1` (frozen during review). Runner
   `temporal_robustness_evaluation.py` LF SHA-256:
   `aa71c4bf3669458dfbcd75ce63cd7f631df2eaa11d23b8e91ed034e930365b94`
-- **Packet:** revision 6; committed blob SHA-256 published below after
+- **Packet:** revision 7; committed blob SHA-256 published below after
   the commit. Any code change during review is a new checkpoint.
 
 ## Module identities (LF bytes in the designated execution worktree wtsc)
@@ -149,12 +152,12 @@ date clusters; date-column inspection only, no outcome reads).
 
 ## Destination
 
-`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1` - FRESH attempt destination (the failed LGBM attempt's destination `lgbm_multiclass_v1` is PRESERVED UNCHANGED). The runner checks destination non-existence at entry. Evidence saved: `receipt_initial.json` (immutable), `receipt_final.json`, `temporal_robustness_report.json`, `temporal_per_start_R1.parquet`, `temporal_per_start_R2.parquet`, `k_pmf_per_start_R1.parquet`, `k_pmf_per_start_R2.parquet`, `keyed_pa_probabilities_R1.parquet`, `keyed_pa_probabilities_R2.parquet`, `anchor_per_start.parquet`, `failure_record.json` on any exception (then re-raise).
+`C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1_attempt2` - FRESH attempt destination (verified absent through metadata only; the refused temporal attempt's destination `temporal_robustness_v1` and the failed LGBM attempt's destination `lgbm_multiclass_v1` are BOTH PRESERVED UNCHANGED). The runner checks destination non-existence at entry. Evidence saved: `receipt_initial.json` (immutable), `receipt_final.json`, `temporal_robustness_report.json`, `temporal_per_start_R1.parquet`, `temporal_per_start_R2.parquet`, `k_pmf_per_start_R1.parquet`, `k_pmf_per_start_R2.parquet`, `keyed_pa_probabilities_R1.parquet`, `keyed_pa_probabilities_R2.parquet`, `anchor_per_start.parquet`, `failure_record.json` on any exception (then re-raise).
 
 ## Command (single line, copy-paste ready; execution only after Chat 2 identity check)
 
 ```
-python research/offseason_2026/pregame_pa_ext/temporal_robustness_evaluation.py --pa-source "C:\Users\ckaplinger\MLB-Props-Research\overnight-p2\data\pa_table.parquet" --lineups "C:\Users\ckaplinger\MLB-Props-Research\pregame-state-v1\data\projected_lineups_variant_v2.parquet" --assessment "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\assessment_2025H1_v1.parquet" --raw-events "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2023\statcast_2023_regular.parquet,C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2024\statcast_2024_regular.parquet,C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2025\statcast_2025_regular.parquet" --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1" --execution-ack EXECUTE-TEMPORAL-ROBUSTNESS-V1 --cohort-keys "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\eligible_cohort_keys_2025H1.parquet" --expected-cohort-hash f77d7a66639ee94a9157244b357487d5f462c6cb0bd4909bbffb44b924db41b7 --reconstruction-reference "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\workload_personalization_w0v1\workload_per_start_v1.parquet" --expected-reconstruction-sha256 ae971758b70e1649e28046a8180d375872ad0172f9c8b5cc03ab74e8dfa85f79 --expected-pa-sha256 1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff --expected-lineups-sha256 b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b --expected-assessment-sha256 464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa
+python research/offseason_2026/pregame_pa_ext/temporal_robustness_evaluation.py --pa-source "C:\Users\ckaplinger\MLB-Props-Research\overnight-p2\data\pa_table.parquet" --lineups "C:\Users\ckaplinger\MLB-Props-Research\pregame-state-v1\data\projected_lineups_variant_v2.parquet" --assessment "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\assessment_2025H1_v1.parquet" --raw-events "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2023\statcast_2023_regular.parquet,C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2024\statcast_2024_regular.parquet,C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2025\statcast_2025_regular.parquet" --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1_attempt2" --execution-ack EXECUTE-TEMPORAL-ROBUSTNESS-V1 --cohort-keys "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\eligible_cohort_keys_2025H1.parquet" --expected-cohort-hash f77d7a66639ee94a9157244b357487d5f462c6cb0bd4909bbffb44b924db41b7 --reconstruction-reference "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\workload_personalization_w0v1\workload_per_start_v1.parquet" --expected-reconstruction-sha256 ae971758b70e1649e28046a8180d375872ad0172f9c8b5cc03ab74e8dfa85f79 --expected-pa-sha256 1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff --expected-lineups-sha256 b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b --expected-assessment-sha256 464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa
 ```
 
 All 14 flags verified against the CLI argparse (`--help`, 2026-11-04);
