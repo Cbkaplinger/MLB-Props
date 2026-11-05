@@ -359,8 +359,16 @@ ef0356c, packet revision 7, as-stored LF SHA-256 `54bef47c501f435f5a228
 artifact and not a changed method). Conditional on Chat 2
 exact-checkpoint PASS. No further approval request needed.
 
-**TEMPORAL-ROBUSTNESS R1/R2 EXECUTED ONCE 2026-11-05 - BUILDER-REPORTED,
-PENDING CHAT 2 INDEPENDENT VERIFICATION** (owner authorization + Chat 2
+**TEMPORAL-ROBUSTNESS R1/R2 EXECUTED ONCE 2026-11-05 - CLOSED 2026-11-05:
+CHAT 2 ARTIFACT VERDICT = INDEPENDENTLY VERIFIED (supplied via owner);
+record closed once; BOTH attempt directories and all original evidence
+preserved untouched; the POINT-ESTIMATE-ONLY K-count guard limitation is
+RETAINED (it is an acceptance guard, not a noninferiority test). Outcome
+per the pre-declared rule: the platoon feature family registers a
+CANDIDATE for a future frozen-contract decision; the 12-feature
+multinomial-plus-platoon pipeline is the lane's development control going
+forward; promotion never automatic; no production/policy/live-model
+change made or authorized** (owner authorization + Chat 2
 PASS both recorded; exact packet revision 7 command, exit 0).
 Destination write-once at
 `MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1_attempt2\`
