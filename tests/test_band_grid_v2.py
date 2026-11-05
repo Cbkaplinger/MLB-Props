@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "production" / "ops" / "market_research"))
 
+from conftest import artifact_path  # noqa: E402
+
 
 def _load(name, rel):
     spec = importlib.util.spec_from_file_location(
@@ -23,8 +25,6 @@ def _load(name, rel):
 
 _v2 = _load("band_grid_v2", "production/ops/market_research/band_grid_v2.py")
 _sel = _load("select_2025_champion", "production/ops/market_research/select_2025_champion.py")
-
-CAND = ROOT / "artifacts" / "odds_log" / "juiced_replay_candidates.parquet"
 
 
 def _keyset(t: pl.DataFrame) -> set:
@@ -49,7 +49,8 @@ def test_grid_size_and_superset() -> None:
 
 def test_take_v2_matches_selector_on_overlap() -> None:
     # Published 2025 slice only (no new peek): identical row sets.
-    df = pl.read_parquet(CAND).filter(pl.col("yr").cast(pl.String) == "2025")
+    cand = artifact_path("artifacts", "odds_log", "juiced_replay_candidates.parquet")
+    df = pl.read_parquet(cand).filter(pl.col("yr").cast(pl.String) == "2025")
     for fl, cap, side, book in [(0.12, 0.24, "lean", "dkfd"),
                                 (0.10, 0.20, "both", "next"),
                                 (0.08, None, "both", "dkfd")]:
@@ -69,6 +70,7 @@ def test_peek_gate_refuses() -> None:
 
 
 def test_empty_slice_valid() -> None:
+    artifact_path("artifacts", "odds_log", "juiced_replay_candidates.parquet")
     rep = _v2.run(select_from="2026-09-28", allow_peeked=False, n_boot=10)
     assert rep["champion"] is None and rep["promotable"] is True
     assert rep["n_configs"] in (0, 80)
