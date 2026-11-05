@@ -351,11 +351,12 @@ approval request for it. R3/2026 remain structurally inaccessible.
 
 **AUTHORIZATION UPDATED 2026-11-05 (owner, master-orchestrator
 conversation): revision-7 authorization confirmed** - packet checkpoint
-ef0356c, packet revision 7 (owner sha `78b14928...`; ef0356c blob sha
-`54bef47c...` - the commit and revision are correct, the sha difference
-is a byte-representation artifact recorded for Chat 2 to resolve),
-executable checkpoint 0128961, runner LF sha `aa71c4bf...`, destination
-`temporal_robustness_v1_attempt2`. Conditional on Chat 2
+ef0356c, packet revision 7, as-stored LF SHA-256 `54bef47c501f435f5a228
+1b8201abb8a5846beb593873b4f876760bc14386dd6`; executable checkpoint
+0128961, runner LF sha `aa71c4bf...`, destination
+`temporal_robustness_v1_attempt2`. The previously published sha
+`78b14928...` was a PUBLICATION ERROR (not a byte-representation
+artifact and not a changed method). Conditional on Chat 2
 exact-checkpoint PASS. No further approval request needed.
 
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
