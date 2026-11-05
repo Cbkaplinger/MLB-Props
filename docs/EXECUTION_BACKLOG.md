@@ -101,6 +101,18 @@ trio (`forward_2025.parquet`, `run_2025_selection.py`,
 report implies a 2025-select run whose registration/authorization status
 needs explicit owner disposition (clean-2025-select-once rule). PARKED until
 the owner rules on it.
+(2b) **LOST machine-local work (discovered by CI on backfill):** two test
+files targeted extended modules that were never committed and survive nowhere
+on this machine: (a) extended `join_keys.py` (verified alias table
+"Mike Soroka"->"michael soroka", "Daniel Lynch"->"daniel iv lynch" suffix
+rule, `suggest_aliases`) - `tests/test_join_keys.py` REMOVED from the
+backfill rather than fabricating the alias table; (b) cloud-scheduler task
+health in `build_automation_self_check.py` (committed version emits only
+found=yes/no) - the one affected test in `tests/test_automation_self_check.py`
+is `@pytest.mark.skip` with the reason inline; the other 4 tests pass against
+the committed module. Both rebuilds are SMALL, WELL-SPECIFIED follow-ups for
+the owner/Chat 1 if the alias verification and cloud-scheduler health check
+are still wanted; do not re-add the tests before their modules exist.
 (3) **Pack re-verified:** `docs/reference/orchestrator_source_pack.md` row 10
 corrected - the active ASSIGNED experiment is platoon-information value
 (card `docs/adr/PROPOSED-platoon-information-multiclass.md` + packet
