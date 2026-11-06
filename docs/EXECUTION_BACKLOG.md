@@ -373,7 +373,10 @@ approved; batch 2 — 4 local branch deletions under weak approval, one of
 which exceeded the presented batch, all 4 tips ancestors of main, zero
 content loss, restorable on request; batch 3 — 4 forced-deletion
 candidates PROPOSED NOT EXECUTED per owner stop; no remote branch
-touched).**
+touched).** **FURTHER INTEGRATION 2026-11-06: PR #64 (result-summary
+renderer) merged at 290b0fa; PR #65 (publication/dashboard/gate-rules
+consolidation) merged at 2ca8aef; main at 2ca8aef. Integrated content
+verified by Chat 2; main CI passed.**
 
 **TEMPORAL-ROBUSTNESS SPECIFICATION PUBLISHED 2026-11-04 (owner-assigned
 milestone; SPECIFICATION ONLY - no execution, no run):** card
