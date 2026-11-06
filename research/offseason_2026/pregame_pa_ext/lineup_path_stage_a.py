@@ -285,8 +285,30 @@ def run_stage_a(ledger: pl.DataFrame, lineups: pl.DataFrame,
         route_b, n_route_b_targets = _route_b(lineups, pa_table, models,
                                               dev_starts)
 
-        # ---- mutually exclusive exclusion accounting -------------------
+        # ---- numerical-validity gate (BEFORE I1/I2/I3) ----------------
+        # NaN/inf/out-of-range p_h3_raw in either route would propagate
+        # through I2 as NaN (NaN > tol is False in Polars) and cause an
+        # unhandled AdapterError in I3's start_count_pmfs. This gate
+        # catches them with a specific gate name and affected keys.
         start_key = ["game_pk", "side", "pitcher"]
+        for route_name, route_frame in (("route_a", route_a),
+                                        ("route_b", route_b)):
+            invalid = route_frame.filter(
+                pl.col("p_h3_raw").is_nan()
+                | pl.col("p_h3_raw").is_infinite()
+                | (pl.col("p_h3_raw") < 0)
+                | (pl.col("p_h3_raw") > 1))
+            if invalid.height:
+                examples = invalid.head(20).select(
+                    *start_key, "slot", "p_h3_raw").rows()
+                fail("numerical_validity", {
+                    "route": route_name,
+                    "n_invalid_slots": invalid.height,
+                    "detail": ("p_h3_raw must be finite and in [0, 1] "
+                               "in both routes before comparison"),
+                    "examples": examples})
+
+        # ---- mutually exclusive exclusion accounting -------------------
         lineup_starts = set(map(tuple, lineups.select(
             "game_pk", "side", "pitcher").unique().iter_rows()))
         bf_starts = set(map(tuple, bf.select(*start_key).unique()
