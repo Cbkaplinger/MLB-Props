@@ -346,14 +346,34 @@ an equivalence finding and NOT a claim that LightGBM cannot help
 generally). The four interpretation
 limitations carry over (development evidence; bounded-selected-vs-fixed
 framing; matched-matchup PA coverage; point-estimate guard). No rescue
-variants, no grid enlargement, no production/policy/live-model change;
-outputs preserved write-once untouched; evidence handoff delivered to
-Chat 2 on PR #59. REPAIR SUMMARY: the fold calendar is
-replaced by a deterministic expanding split over observed in-window
-game-date clusters (one-third/two-thirds positions; outcome-blind; dates
-kept together; feasibility verified before expensive work; resolved dates
-+ counts published in the report/receipt); the failed attempt's evidence
-remains preserved.
+  variants, no grid enlargement, no production/policy/live-model change;
+  outputs preserved write-once untouched; evidence handoff delivered to
+  Chat 2 on PR #59. REPAIR SUMMARY: the fold calendar is
+  replaced by a deterministic expanding split over observed in-window
+  game-date clusters (one-third/two-thirds positions; outcome-blind; dates
+  kept together; feasibility verified before expensive work; resolved dates
+  + counts published in the report/receipt); the failed attempt's evidence
+  remains preserved. **CLOSEOUT 2026-11-05: Chat 2 artifact verdict =
+  INDEPENDENTLY VERIFIED (supplied via owner); temporal-robustness lane
+  CLOSED; LGBM bounded-selected challenger also CLOSED (control retained,
+  no adoption). PR #64 merged (result-summary renderer); PR #65 merged
+  (publication/dashboard/gate-rules consolidation); PR #66 merged
+  (integration-status reconciliation).**
+
+**STAGE A NUMERICAL-VALIDITY GATE PUBLISHED 2026-11-05 (owner-assigned
+harness engineering slice; synthetic tests ONLY; no real-data run):**
+PR #67 (`research/stage-a-numerical-gate`, base main). Minimal
+reproducer: NaN `p_h3_raw` in the ledger passes the existing null
+filter and I2 (NaN > tol is False in Polars), then causes an unhandled
+AdapterError in I3's `start_count_pmfs`. Repair: numerical-validity
+gate added after route construction, before I1/I2/I3 — checks both
+routes' `p_h3_raw` for NaN, infinity, and [0,1] range violations;
+reports the route name, affected key count, and example keys; fails
+with `numerical_validity` gate and write-once failure receipt. 4
+discriminating tests (NaN, infinite, out-of-range, valid-endpoints).
+34 Stage A tests green (30 existing + 4 new); 46 Stage A + smoke tests
+green. Existing valid baseline behavior unchanged; no feature
+construction or aggregation change; no generic validation framework.
 
 **INTEGRATION COMPLETE 2026-11-04 (#57/#58/#59 -> main; existing process;
 actual destination verified):** all three merged - #57 (binary-K lane

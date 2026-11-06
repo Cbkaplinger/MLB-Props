@@ -214,6 +214,79 @@ def test_stage_a_synthetic_pass_end_to_end(tmp_path):
     assert pl.read_parquet(out / "exclusions.parquet").height == 0
 
 
+# ------------------- numerical-validity gate (repair) ----------------
+def test_stage_a_nan_probability_numerical_validity_gate(tmp_path):
+    """NaN p_h3_raw in route A must trigger the numerical_validity gate
+    (not silently pass through I2 as NaN comparisons, not cause an
+    unhandled AdapterError in I3)."""
+    led = _ledger_fixture().with_columns(
+        pl.when((pl.col("game_pk") == 900001) & (pl.col("slot") == 3))
+        .then(float("nan"))
+        .otherwise(pl.col("p_h3_raw")).alias("p_h3_raw"))
+    with pytest.raises(sa.StageAFailure, match="numerical_validity"):
+        sa.run_stage_a(led, _lineups(), _pa_history(), _bf(), _models(),
+                       tmp_path / "nan_gate")
+    out = tmp_path / "nan_gate"
+    fr = json.loads((out / "failure_record.json").read_text(
+        encoding="utf-8"))
+    assert fr["gate"] == "numerical_validity"
+    assert fr["detail"]["route"] == "route_a"
+    assert fr["detail"]["n_invalid_slots"] >= 1
+    assert not (out / "receipt_final.json").exists()
+
+
+def test_stage_a_infinite_probability_numerical_validity_gate(tmp_path):
+    """Infinite p_h3_raw in route A must trigger the numerical_validity
+    gate (not silently pass through I2 as NaN comparisons)."""
+    led = _ledger_fixture().with_columns(
+        pl.when((pl.col("game_pk") == 900001) & (pl.col("slot") == 3))
+        .then(float("inf"))
+        .otherwise(pl.col("p_h3_raw")).alias("p_h3_raw"))
+    with pytest.raises(sa.StageAFailure, match="numerical_validity"):
+        sa.run_stage_a(led, _lineups(), _pa_history(), _bf(), _models(),
+                       tmp_path / "inf_gate")
+    out = tmp_path / "inf_gate"
+    fr = json.loads((out / "failure_record.json").read_text(
+        encoding="utf-8"))
+    assert fr["gate"] == "numerical_validity"
+    assert fr["detail"]["route"] == "route_a"
+
+
+def test_stage_a_out_of_range_probability_numerical_validity_gate(tmp_path):
+    """p_h3_raw > 1 in route A must trigger the numerical_validity gate
+    (cycled_cond_mean would silently clip it, hiding the corruption)."""
+    led = _ledger_fixture().with_columns(
+        pl.when((pl.col("game_pk") == 900001) & (pl.col("slot") == 5))
+        .then(pl.lit(1.5))
+        .otherwise(pl.col("p_h3_raw")).alias("p_h3_raw"))
+    with pytest.raises(sa.StageAFailure, match="numerical_validity"):
+        sa.run_stage_a(led, _lineups(), _pa_history(), _bf(), _models(),
+                       tmp_path / "oor_gate")
+    out = tmp_path / "oor_gate"
+    fr = json.loads((out / "failure_record.json").read_text(
+        encoding="utf-8"))
+    assert fr["gate"] == "numerical_validity"
+    assert fr["detail"]["route"] == "route_a"
+
+
+def test_stage_a_valid_endpoints_zero_and_one_no_validity_gate(tmp_path):
+    """p_h3_raw = 0 and p_h3_raw = 1 are valid probabilities and must
+    NOT trigger the numerical_validity gate (they may trigger I2 if
+    route B computes different values, but the validity gate itself
+    must not fire for in-range values)."""
+    led = _ledger_fixture().with_columns(
+        pl.when(pl.col("slot") == 1).then(pl.lit(0.0))
+        .when(pl.col("slot") == 2).then(pl.lit(1.0))
+        .otherwise(pl.col("p_h3_raw")).alias("p_h3_raw"))
+    try:
+        sa.run_stage_a(led, _lineups(), _pa_history(), _bf(), _models(),
+                       tmp_path / "endpoints")
+    except sa.StageAFailure as exc:
+        # I2 may fire (route A corrupted vs route B) but the gate must
+        # NOT be numerical_validity
+        assert "numerical_validity" not in str(exc)
+
+
 def test_stage_a_independent_route_not_tautological(tmp_path):
     """The two routes come from different computations: the route B
     reconstruction must EXACTLY reproduce the independently computed

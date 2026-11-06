@@ -32,8 +32,8 @@ The full verified lane stack is on main at **2ca8aef**: #60 (temporal-robustness
 
 Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Current action: none assigned
+## Current action: Stage A numerical-validity gate (published; awaiting Chat 2 review)
 
-The result-summary renderer and the publication-rule consolidation are implemented and integrated. No next scientific experiment is assigned. Completed results, exposed-data limitations, deferred decisions, and historical execution identities are preserved in the backlog and experiment ledger.
+PR #67 (`research/stage-a-numerical-gate`, base main, CI pass, CLEAN): a specific numerical-validity gate added to `lineup_path_stage_a.py` before I1/I2/I3 — NaN/inf/out-of-range `p_h3_raw` in either route triggers a `numerical_validity` gate failure with affected keys, instead of silently passing through I2 or causing an unhandled AdapterError. 34 Stage A tests green (4 new discriminating regressions); 46 Stage A + smoke tests green. No real-data execution. Awaiting Chat 2 review.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
