@@ -355,9 +355,101 @@ kept together; feasibility verified before expensive work; resolved dates
 + counts published in the report/receipt); the failed attempt's evidence
 remains preserved.
 
+**INTEGRATION COMPLETE 2026-11-04 (#57/#58/#59 -> main; existing process;
+actual destination verified):** all three merged - #57 (binary-K lane
+closeout), #58 (platoon lane: repaired checkpoint, verified run, closeout),
+#59 (LGBM lane: repaired fold calendar, verified attempt 2, closeout) at
+21:12:48Z; main at b32fd0c (merge of #59; #56 reconciliation included
+earlier). Bases and destinations verified before each parent merge;
+children retargeted/merged per the recorded procedure by Chat 2/architect.
+No carrier duplication, no direct-main pushes. Integration did not block
+the next specification (below).
+
+**TEMPORAL-ROBUSTNESS SPECIFICATION PUBLISHED 2026-11-04 (owner-assigned
+milestone; SPECIFICATION ONLY - no execution, no run):** card
+docs/adr/PROPOSED-temporal-robustness-evaluation.md = retained-candidate
+manifest (12-feature multinomial-plus-platoon: recipe, cutoff/label rules,
+pooled workload, lineup assumptions, aggregation, verified artifacts, code
+identities) + temporal-evaluation specification: R1 fit
+2023-03-30..2024-06-30 (277 verified date clusters) -> score
+2024-07-01..09-30 (88; EXPOSED); R2 fit ..2024-12-31 (365) -> score
+2025-01-01..06-30 (98; EXPOSED); R3 fit ..2025-06-30 (463) -> score
+2025-07-01..09-28 (86; UNEXPOSED confirm partition - requires a specific
+new owner authorization, NOT requested). Data-date feasibility
+established BEFORE fold declaration (game_date column only, no outcome
+reads; offseason gaps verified - the LGBM failure root). Prior exposure
+disclosed per period; metrics/weighting/calibration allocation/acceptance
+criteria pre-declared; promotion never automatic. The verified LGBM ledger
+row was added to the experiment impact ledger (from its VERIFIED record;
+nothing recomputed). No new learner, feature family, framework, or model
+run.
+
+**TEMPORAL-ROBUSTNESS R1/R2 AUTHORIZATION RECORDED 2026-11-04 (owner,
+explicit): ONE execution of the exact packet command** - packet revision
+4 (file sha `dc71da5680fa723661034de33752c43b14a2f0daefb73b78486d7d0469e
+5339f` at commit b96c158) against the unchanged reviewed action
+(executable frozen at `7949ad2`; retained recipe fixed; the repaired
+runner identity = Chat 2's verified on-disk LF sha `3c7b1468...` in the
+designated execution worktree wtsc). Includes the added 2023 raw-event
+file (`statcast_2023_regular.parquet`, sha `b9f9db99...`) and full-file
+decoding disclosure for all three raw-event years; earlier experiment
+approvals do not cover this source. Packet revision 3 identity check
+passed (owner-verified); revision 4 is the packet-only identity-
+documentation correction (runner pin + convention wording) - no further
+approval request for it. R3/2026 remain structurally inaccessible.
+
+**AUTHORIZATION UPDATED 2026-11-05 (owner, master-orchestrator
+conversation): revision-7 authorization confirmed** - packet checkpoint
+ef0356c, packet revision 7, as-stored LF SHA-256 `54bef47c501f435f5a228
+1b8201abb8a5846beb593873b4f876760bc14386dd6`; executable checkpoint
+0128961, runner LF sha `aa71c4bf...`, destination
+`temporal_robustness_v1_attempt2`. The previously published sha
+`78b14928...` was a PUBLICATION ERROR (not a byte-representation
+artifact and not a changed method). Conditional on Chat 2
+exact-checkpoint PASS. No further approval request needed.
+
+**TEMPORAL-ROBUSTNESS R1/R2 EXECUTED ONCE 2026-11-05 - CLOSED 2026-11-05:
+CHAT 2 ARTIFACT VERDICT = INDEPENDENTLY VERIFIED (supplied via owner);
+record closed once; BOTH attempt directories and all original evidence
+preserved untouched; the POINT-ESTIMATE-ONLY K-count guard limitation is
+RETAINED (it is an acceptance guard, not a noninferiority test). Outcome
+per the pre-declared rule: the platoon feature family registers a
+CANDIDATE for a future frozen-contract decision; the 12-feature
+multinomial-plus-platoon pipeline is the lane's development control going
+forward; promotion never automatic; no production/policy/live-model
+change made or authorized** (owner authorization + Chat 2
+PASS both recorded; exact packet revision 7 command, exit 0).
+Destination write-once at
+`MLB-Props-Research\pregame-pa-ext-v2\diagnostics\temporal_robustness_v1_attempt2\`
+(10 files; output hashes reconcile against receipt_final; receipt chain
+intact; receipt_initial sha `983ce5aa...` verified immutable). Guards:
+4 file-byte pins pre-decode; cohort `f77d7a66` MATCH; reconstruction
+gate PASSED EXACTLY (max abs diff 0.0, n=2,509; anchor reference =
+`workload_per_start_v1.parquet` sha `ae971758...`, column `rps_w0_pooled`,
+read from receipt_final, not from memory). **RESULTS (per-period,
+declared metrics):**
+- **R1** (fit 2023-03-30..2024-06-30 -> score 2024-07-01..09-30; 2,334
+  starts; 39,568 matched PAs): log loss control 1.222370 vs platoon
+  1.221846; per-start-mean delta = **-0.000415, CI95 [-0.000779,
+  -0.000053]** - entirely below zero (challenger favored statistically);
+  K guard -0.000167, within the 0.002 margin (point estimate, True).
+- **R2** (fit ..2024-12-31 -> score 2025-01-01..06-30; 2,509 starts;
+  43,565 matched PAs): log loss control 1.224939 vs platoon 1.224133;
+  per-start-mean delta = **-0.000870, CI95 [-0.001231, -0.000542]** -
+  entirely below zero (challenger favored statistically); K guard
+  -0.000300, within the 0.002 margin (point estimate, True).
+- Both periods: direction CONSISTENT (both favors platoon), improvement
+  above 0.0005 threshold in R2 but below in R1, K guard PASSES in both.
+  Per the card's acceptance criteria: the platoon family qualifies as a
+  CANDIDATE for a future frozen-contract decision; promotion never
+  automatic. Label coverage: 2023 184,104/184,104 labeled; 2024
+  182,266/182,266 labeled (zero unlabeled, the 2023 raw-events pin
+  worked). Development evidence only; no production/policy/live-model
+  change. Outputs preserved write-once untouched; single run, no retry.
+  Evidence handoff delivered to Chat 2 on PR #60.
+
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
-`docs/adr/PROPOSED-platoon-information-multiclass.md` +
 packet `research/offseason_2026/pregame_pa_ext/execution_packet_platoon_v1.md`.
 Source verification (identity + handedness columns only, no outcome reads):
 pa_table natively carries `stand`/`p_throws` (731,347 rows, zero nulls,

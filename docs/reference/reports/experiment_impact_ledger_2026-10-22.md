@@ -220,8 +220,9 @@ passes.
 | binary_k_vs_multinomial_v1 | control 1.2952473 vs binary-K 1.2953442; delta = +0.0000969, CI95 [-0.0000828, +0.0002673] | direction inconclusive (CI overlaps zero); far below the 0.005 threshold -> control retained | VERIFIED (Chat 2, supplied via owner); artifacts: diagnostics\binary_k_vs_multinomial_v1 |
 | platoon_information_v1 | control 1.2952473 vs platoon 1.2952882 count-RPS (K guard +0.0000409, within 0.002 margin, point estimate); primary per-PA multiclass log loss control 1.2245976 vs platoon 1.2238507; per-start-mean delta = -0.0008712, CI95 [-0.0012622, -0.0005038] | challenger favored statistically AND above the 0.0005-nat practical threshold; K point-estimate guard satisfied -> platoon family REGISTERS A CANDIDATE for a future frozen-contract decision; promotion never automatic | VERIFIED (Chat 2, supplied via owner); artifacts: diagnostics\platoon_information_v1 |
 
-Notes: all three are development evidence on the registered 2,509-start
+| lgbm_multiclass_v1 | multinomial-plus-platoon control 1.2952882 count-RPS vs bounded-selected LightGBM 1.2973765 (K guard +0.0020884 > 0.002 margin, point estimate - guard FAILED); primary per-PA multiclass log loss control 1.2238507 vs LightGBM 1.2237087; per-start-mean delta = -0.0002498, CI95 [-0.0009056, +0.0003974] | direction inconclusive (CI overlaps zero); point improvement below the 0.0005-nat practical threshold; the interval still permits a practically useful improvement (no equivalence claim, no LightGBM-cannot-help claim); K point-estimate guard FAILED -> RETAIN multinomial-plus-platoon, NO LightGBM adoption | VERIFIED (Chat 2, supplied via owner); artifacts: diagnostics\lgbm_multiclass_v1_attempt2 (attempt 1 failure evidence preserved at diagnostics\lgbm_multiclass_v1)
+
+Notes: all four are development evidence on the registered 2,509-start
 block_2025H1 cohort (cohort hash f77d7a66...); none is a production or
-betting claim. The lgbm_multiclass_v1 comparison (bounded-selected
-LightGBM vs fixed multinomial) is specified and frozen, awaiting review +
-approval; its row will be added only from its own verified record.
+betting claim. The lgbm_multiclass_v1 row was added 2026-11-04 from its VERIFIED record
+(Chat 2 verdict COMPLETED/VERIFIED, supplied via owner).
