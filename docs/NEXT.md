@@ -19,9 +19,9 @@ Limitations: development evidence on the registered 2025H1 cohort - not a fresh 
 - Ref0-vs-Ref1 multiclass baseline: multinomial K marginal beats population proportions (delta -0.0864, CI below zero); accepted with limitations.
 - Stage-A prediction-path reconciliation: implementation reviewed; real-artifact run remains separately authorization-gated.
 
-## Integration - COMPLETE (2026-11-05)
+## Integration - COMPLETE (2026-11-06)
 
-The full verified lane stack is on main at **60e244a** (merge of PR #63, untracked-backfill; preceded by #57, #58, #59 merges). The temporal-robustness runner + tests + packet are on the open branch `research/lgbm-multiclass-v1` (PR #60, base main, CI pass, CLEAN; Chat 2 artifact verdict VERIFIED). #56 (reconciliation + communication rule) merged earlier. No carrier duplication, no direct-main pushes.
+The full verified lane stack is on main at **2ca8aef**: #60 (temporal-robustness lane, VERIFIED run) at `38da8aa`; #64 (result-summary harness slice, renderer PASS) at `290b0fa`; #65 (publication/dashboard/gate-rules consolidation) at `2ca8aef`; preceded by #56 (reconciliation + communication rule), #57 (binary-K closeout), #58 (platoon lane). Bases and destinations verified before each merge; merged by Chat 2 per architect delegation. No carrier duplication, no direct-main pushes.
 
 ## Lane results ledger (verified)
 
@@ -32,10 +32,8 @@ The full verified lane stack is on main at **60e244a** (merge of PR #63, untrack
 
 Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Current action: result-summary harness slice (assigned; synthetic tests only)
+## Current action: none assigned
 
-temporal_robustness_v1 CLOSED (VERIFIED; PR #60 merged into main at 38da8aa). Next assigned milestone: reusable result-summary renderer from the existing declared report schema. Existing-code fit assessment: no shared reader/summary function exists — each runner writes its own JSON and leaves it. Smallest changed path set: one new module (`result_summary.py`) + one test file. No existing code modified. No new framework/dependency. Specification resolved; implementation + synthetic tests only; no real-data execution.
-
-Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
+The result-summary renderer and the publication-rule consolidation are implemented and integrated. No next scientific experiment is assigned. Completed results, exposed-data limitations, deferred decisions, and historical execution identities are preserved in the backlog and experiment ledger.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
