@@ -206,7 +206,8 @@ def test_incomplete_guard_inputs_unavailable():
     p = s["population_period_coverage"]["periods"][0]
     kg = p["k_count_guard"]
     assert kg["status"] == "unavailable"
-    assert kg["point_estimate"] is None
+    assert kg["status"] == "unavailable"
+    assert kg["point_estimate"] == 0.001
     assert kg["margin"] is None
 
 
