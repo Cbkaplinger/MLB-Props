@@ -32,8 +32,10 @@ The full verified lane stack is on main at **60e244a** (merge of PR #63, untrack
 
 Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Current action: temporal-robustness CLOSED (VERIFIED); integration pending
+## Current action: result-summary harness slice (assigned; synthetic tests only)
 
-temporal_robustness_v1: Executed once; Chat 2 artifact verdict INDEPENDENTLY VERIFIED (supplied via owner). Scientific closeout complete; integration pending. Platoon-favoring direction consistent across both periods; improvement above the 0.0005 threshold in R2, below in R1; K point-estimate guard passes in both; candidate retained. The earlier LightGBM comparison (inconclusive direction, below-threshold point gain, K guard failed) remains a separate closed result — no adoption.
+temporal_robustness_v1 CLOSED (VERIFIED; PR #60 merged into main at 38da8aa). Next assigned milestone: reusable result-summary renderer from the existing declared report schema. Existing-code fit assessment: no shared reader/summary function exists — each runner writes its own JSON and leaves it. Smallest changed path set: one new module (`result_summary.py`) + one test file. No existing code modified. No new framework/dependency. Specification resolved; implementation + synthetic tests only; no real-data execution.
+
+Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.

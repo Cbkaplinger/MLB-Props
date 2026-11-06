@@ -363,7 +363,17 @@ closeout), #58 (platoon lane: repaired checkpoint, verified run, closeout),
 earlier). Bases and destinations verified before each parent merge;
 children retargeted/merged per the recorded procedure by Chat 2/architect.
 No carrier duplication, no direct-main pushes. Integration did not block
-the next specification (below).
+the next specification (below). **FURTHER INTEGRATION 2026-11-05: main
+advanced to 38da8aa (PR #60 temporal-robustness lane merged). The earlier
+owner-directed backfill/source-pack alignment PR #63 was merged
+(2026-11-05). Local worktree/branch cleanup is a separate maintenance
+activity; its actual outcome and approval exceptions are recorded
+separately (Chat 3 supplied: batch 1 — 5 worktree removals explicitly
+approved; batch 2 — 4 local branch deletions under weak approval, one of
+which exceeded the presented batch, all 4 tips ancestors of main, zero
+content loss, restorable on request; batch 3 — 4 forced-deletion
+candidates PROPOSED NOT EXECUTED per owner stop; no remote branch
+touched).**
 
 **TEMPORAL-ROBUSTNESS SPECIFICATION PUBLISHED 2026-11-04 (owner-assigned
 milestone; SPECIFICATION ONLY - no execution, no run):** card
@@ -446,7 +456,24 @@ declared metrics):**
   182,266/182,266 labeled (zero unlabeled, the 2023 raw-events pin
   worked). Development evidence only; no production/policy/live-model
   change. Outputs preserved write-once untouched; single run, no retry.
-  Evidence handoff delivered to Chat 2 on PR #60.
+  Evidence handoff delivered to Chat 2 on PR #60. **CLOSEOUT 2026-11-05:
+  Chat 2 artifact verdict = INDEPENDENTLY VERIFIED (supplied via owner);
+  temporal-robustness lane CLOSED; PR #60 merged into main at 38da8aa
+  (retained recipe fixed; no adoption of the LGBM challenger).**
+
+**RESULT-SUMMARY HARNESS SLICE OPENED 2026-11-05 (owner-assigned
+milestone; synthetic tests ONLY; no real-data execution):** reusable
+result-summary renderer from the existing declared report schema
+(`temporal_robustness_report.json` schema). Implementation boundaries:
+synthetic fixtures only; no fitting/tuning/scoring/bootstrap; no new
+framework/registry/dependency; do not rewrite the temporal runner; do
+not reopen deferred fixes. Summary must distinguish: identities and
+provenance; population/period/coverage; pooled descriptive metrics vs
+registered weighted contrasts; statistical direction vs practical
+threshold; point-estimate guards vs inferential claims; execution,
+verification, and promotion status; development/exposure limitations.
+Do not infer VERIFIED from exit code alone; do not hard-code temporal
+conclusions.
 
 **PLATOON-INFORMATION LANE OPENED 2026-11-04 (owner-assigned milestone;
 implementation + synthetic tests ONLY; NO real-data execution):** card
