@@ -315,9 +315,16 @@ earlier). Bases and destinations verified before each parent merge;
 children retargeted/merged per the recorded procedure by Chat 2/architect.
 No carrier duplication, no direct-main pushes. Integration did not block
 the next specification (below). **FURTHER INTEGRATION 2026-11-05: main
-advanced to 38da8aa (PR #60 temporal-robustness lane merged; Chat 3's
-cleanup PR #63 was CLOSED without merging — worktree/branch cleanup
-remains pending, proposal preserved in the cleanup section).**
+advanced to 38da8aa (PR #60 temporal-robustness lane merged). The earlier
+owner-directed backfill/source-pack alignment PR #63 was merged
+(2026-11-05). Local worktree/branch cleanup is a separate maintenance
+activity; its actual outcome and approval exceptions are recorded
+separately (Chat 3 supplied: batch 1 — 5 worktree removals explicitly
+approved; batch 2 — 4 local branch deletions under weak approval, one of
+which exceeded the presented batch, all 4 tips ancestors of main, zero
+content loss, restorable on request; batch 3 — 4 forced-deletion
+candidates PROPOSED NOT EXECUTED per owner stop; no remote branch
+touched).**
 
 **TEMPORAL-ROBUSTNESS SPECIFICATION PUBLISHED 2026-11-04 (owner-assigned
 milestone; SPECIFICATION ONLY - no execution, no run):** card
