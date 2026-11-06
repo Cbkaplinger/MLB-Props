@@ -7,13 +7,15 @@ Operating standard for all agent windows and the owner. Complements
 
 ## 1. Who does what
 
-| Role | Authority |
-| --- | --- |
-| Any chat window | May create branches/PRs **from its own isolated worktree only**, in its declared scope |
-| Builder (Chat 1) | Implements, pushes, obtains CI; performs authorized merges/integration |
-| Reviewer (Chat 2) | Trailing reviewer/fixer: independent review at the exact published SHA; bounded repairs on claimed paths per docs/roles/chat2-reviewer.md |
-| Repo health (Chat 3) | Documentation, inventories, PR hygiene; docs-only PRs (see docs/roles/chat3-cleaner.md) |
-| Owner | Approves scope, decisions, and any merge/deletion |
+Roles and their authority are defined once in the canonical role cards —
+[architect](../roles/architect.md),
+[builder / Chat 1](../roles/chat1-builder.md),
+[reviewer / Chat 2](../roles/chat2-reviewer.md),
+[documentation maintainer / Chat 3](../roles/chat3-cleaner.md) — under the
+precedence rule in [`docs/roles/README.md`](../roles/README.md) (roles +
+`docs/NEXT.md` override older agent instructions). Every chat works from its
+own isolated worktree in its declared scope; the owner approves scope,
+decisions, and any merge/deletion.
 
 **Never** edit another chat's worktree or branch. Never merge, close another
 chat's PR, or delete a branch without explicit authorization for that action.
@@ -33,6 +35,11 @@ imply standing permission to edit the builder's implementation.
 4. Push with `-u`; open the PR with a body meeting §4.
 5. Open as **draft** when review depends on outstanding work; mark ready when
    the packet is complete and CI is green on the exact head.
+6. **Verify publication before reporting READY FOR REVIEW:** freshly fetch
+   origin and confirm local HEAD == remote branch SHA == PR head SHA; confirm
+   the repository, worktree, owned branch, intended PR base branch, and staged
+   scope; push explicitly to that branch. Work that failed to publish is a
+   blocker, not a delivered checkpoint; unpushed work is labeled LOCAL ONLY.
 
 ## 3. Commit standards
 
@@ -66,6 +73,12 @@ Config + input hashes, when applicable:
 ```
 
 A PR whose body cannot state its tested SHA and CI run is not mergeable.
+
+Update the body from a literal file: write the body to a file, apply it, then
+read it back to verify the actual rendered content. The body states the actual
+task, published SHA, tested SHA, review state, and next action — never a
+remembered or aspirational state. Do not paste completed-experiment execution
+instructions into a utility PR; each body describes its own task and next gate.
 
 ### Test-result vocabulary
 
@@ -102,8 +115,9 @@ substitute for the independent review verdict or owner authorization.
 
 ## 6. Reviewing
 
-- The reviewer **fetches and pins the exact PR head SHA** before reviewing;
-  a pushed change re-opens review of the delta only.
+- The reviewer **fetches the named PR head SHA** (not a remembered branch) and
+  **pins** it before reviewing; a pushed change re-opens review of the delta
+  only.
 - A review response **names the exact reviewed head SHA**. When the review
   target moves, the next review explicitly **supersedes or retains** each
   earlier finding; a finding raised against a superseded SHA is re-validated
@@ -116,7 +130,23 @@ substitute for the independent review verdict or owner authorization.
 - Builder self-check is never independent review.
 - Reopen passed checks only when the delta affects them.
 
-## 7. Merge rules
+## 7. Gates by task type
+
+Gates scale with the task. Do not impose experiment packets, real-data
+execution, or repeat owner approval on ordinary already-authorized
+implementation or utility work. Merge never authorizes an experiment.
+
+| Task type | Gate chain |
+| --- | --- |
+| Implementation | scope -> implement / synthetic-test -> publish -> independent review -> applicable merge delegation/authorization -> integrate -> verify once |
+| Experiment | registered contract -> reviewed implementation -> applicable access/run authorization -> execute under that authorization -> independent evidence verification -> scientific decision |
+| Maintenance | bounded ownership/safety checks -> applicable exact-action approval -> perform approved scope -> verify once |
+
+Approval recording follows `docs/roles/README.md` (Approval requests): one
+explicit question, one recorded approval, no re-ask while the scope is
+unchanged.
+
+## 8. Merge rules
 
 Merge only when ALL hold:
 1. Scope authorized by the owner (or standing lane authority).
@@ -132,7 +162,7 @@ After merging: update local `origin/main`, **record the resulting main SHA** in
 the closeout/identity record, and verify dependent PRs still contain the new
 main or plan their refresh/rebase.
 
-## 8. Comments and closures
+## 9. Comments and closures
 
 - PR comments record decisions, scope notes, and closure rationale — one
   authoritative comment per decision, not threads of status chatter.
@@ -144,13 +174,13 @@ main or plan their refresh/rebase.
 - Conflicting status reports: inspect the live PR state first; post at most one
   reconciliation comment.
 
-## 9. Status reporting
+## 10. Status reporting
 
 Every status report delivers one of: **a deliverable, a decision, or a concrete
 blocker** — with identity block + CI run. Holding notices without new evidence
 are noise; say "no change since <SHA/run>" and stop.
 
-## 10. Current optimization notes (CI)
+## 11. Current optimization notes (CI)
 
 Recorded 2026-10-16; changes to `.github/workflows/` require owner
 authorization before landing:

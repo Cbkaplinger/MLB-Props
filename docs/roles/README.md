@@ -10,9 +10,9 @@ Frozen means reproducible historical state, not permanent architecture. Do not c
 
 ## Delivery cycle
 
-Question and acceptance evidence -> reuse existing code -> implement and synthetic-test -> publish immutable checkpoint -> consolidated independent review -> applicable execution authorization -> run -> reproduce -> accept or reject -> integrate -> update current action. Code may merge before a run when appropriate; merge never authorizes execution.
+Experiment gate chain: Question and acceptance evidence -> reuse existing code -> implement and synthetic-test -> publish immutable checkpoint -> consolidated independent review -> applicable execution authorization -> run -> reproduce -> accept or reject -> integrate -> update current action. Implementation and maintenance tasks follow their own shorter chains (`docs/reference/pr_workflow.md`, "Gates by task type"). Code may merge before a run when appropriate; merge never authorizes execution.
 
-One scientific implementation milestone plus an independent cleanup lane. One writer per claimed path. A review names a SHA; each new checkpoint explicitly supersedes the previous target. Review the delta and affected behavior, not the whole history. New blockers require a violated requirement and reproducer. No polling or repetitive unchanged-status reports.
+One scientific implementation milestone plus an independent cleanup lane. One writer per claimed path. A review names a SHA; each new checkpoint explicitly supersedes the previous target. Review the delta and affected behavior, not the whole history. New blockers require a violated requirement and reproducer. No polling or repetitive unchanged-status reports. Gates scale with task type (implementation / experiment / maintenance; the three operational chains live in `docs/reference/pr_workflow.md`, "Gates by task type").
 
 Routine scoped coding, synthetic tests and documentation checks do not need repeated permission. Real-data reads, derivations, scoring, protected partitions, production, spending and deletions retain their applicable authorization boundaries. An authorization packet must state exactly what is allowed. A test token is not owner authorization.
 
@@ -26,7 +26,7 @@ All changes use owned branch -> PR -> current-head review and required checks ->
 
 ## PR communication
 
-The PR description is the current dashboard: keep it current and concise; link the card, test evidence and checkpoint instead of pasting their tables. Evidence lives in committed files, CI and artifact receipts. No status-only comments or unchanged-status reports; batch minor corrections into the next coherent checkpoint. One consolidated review response per gate; a merge gets one integration summary, not one message per merge or check. Explicit owner decisions: one concise question with exact scope and packet link. Routine handoffs target 150 words or fewer; longer write-ups are justified only by defects needing explanation. Never delete historical evidence to tidy a thread.
+The PR description is the current dashboard: keep it current and concise; link the card, test evidence and checkpoint instead of pasting their tables. Evidence lives in committed files, CI and artifact receipts. No status-only comments or unchanged-status reports; batch minor corrections into the next coherent checkpoint. One consolidated review response per gate; a merge gets one integration summary, not one message per merge or check. Explicit owner decisions: one concise question with exact scope and packet link. Routine handoffs target 150 words or fewer; longer write-ups are justified only by defects needing explanation. Never delete historical evidence to tidy a thread. A checkpoint is READY FOR REVIEW only after verified publication: local HEAD == freshly fetched remote branch SHA == PR head SHA (operational steps in `docs/reference/pr_workflow.md` section 2). A failed push is a blocker, not a delivered checkpoint; unpushed work is labeled LOCAL ONLY.
 
 ## Correcting and reducing documentation
 
@@ -34,6 +34,6 @@ Correct wrong numbers and references in current summaries; state the source and 
 
 NEXT <=4 KB; required startup documents <=12 KB; other living docs <=40 KB. Reduce or archive before creating more files. Reports are evidence, not queues.
 
-Report only a changed state, completed checkpoint or actionable blocker: role revision | task | full SHA | checks | durable link | next action. Classify findings BLOCKER / NONBLOCKING / RESOLVED. One consolidated response per checkpoint/gate, not one per lifetime PR.
+Report only a changed state, completed checkpoint or actionable blocker, with the identity fields the work state needs: role revision | task | PR link | published SHA | tested SHA | reviewed SHA/status | next owner/action. Classify findings BLOCKER / NONBLOCKING / RESOLVED. One consolidated response per checkpoint/gate, not one per lifetime PR.
 
 [Architect](architect.md) | [Builder](chat1-builder.md) | [Reviewer](chat2-reviewer.md) | [Documentation maintainer](chat3-cleaner.md)
