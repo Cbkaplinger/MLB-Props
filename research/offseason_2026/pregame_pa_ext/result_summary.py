@@ -51,66 +51,6 @@ def _require_finite(value, name: str) -> float:
     return v
 
 
-def classify_direction(delta: float, ci_low: float, ci_high: float,
-                       practical_threshold: float) -> dict:
-    """Separate statistical direction from practical magnitude.
-
-    Sign convention: delta = challenger - control.
-    Negative delta favors the challenger; positive favors the control.
-    CI entirely below zero -> challenger_favored; entirely above ->
-    control_favored; overlapping zero -> inconclusive.
-    Practical magnitude: |delta| > practical_threshold -> exceeded.
-    Equality does NOT count as exceeding.
-    """
-    delta = _require_finite(delta, "delta")
-    ci_low = _require_finite(ci_low, "ci_low")
-    ci_high = _require_finite(ci_high, "ci_high")
-    practical_threshold = _require_finite(practical_threshold,
-                                          "practical_threshold")
-    if practical_threshold <= 0:
-        raise ValueError(
-            f"practical_threshold must be positive, got "
-            f"{practical_threshold}")
-    if ci_low > ci_high:
-        raise ValueError(
-            f"CI bounds inverted: low={ci_low} > high={ci_high}")
-    if ci_high < 0:
-        direction = "challenger_favored"
-    elif ci_low > 0:
-        direction = "control_favored"
-    else:
-        direction = "inconclusive"
-    below_threshold = abs(delta) <= practical_threshold
-    return {
-        "statistical_direction": direction,
-        "point_estimate": delta,
-        "ci95": [ci_low, ci_high],
-        "practical_threshold": practical_threshold,
-        "point_below_threshold": below_threshold,
-        "note": ("statistical direction and practical magnitude are "
-                 "reported separately; point below threshold does not "
-                 "justify complexity regardless of CI direction"),
-    }
-
-
-def classify_k_guard(point_estimate: float, margin: float) -> dict:
-    """Separate the point-estimate acceptance guard from inferential
-    claims."""
-    point_estimate = _require_finite(point_estimate, "point_estimate")
-    margin = _require_finite(margin, "margin")
-    if margin <= 0:
-        raise ValueError(f"K guard margin must be positive, got {margin}")
-    return {
-        "guard_type": "point_estimate_acceptance_guard",
-        "margin": margin,
-        "point_estimate": point_estimate,
-        "passes": point_estimate <= margin,
-        "not_a_noninferiority_claim": True,
-        "note": ("point-estimate acceptance guard; NOT a statistical "
-                 "noninferiority test; CI reported as context"),
-    }
-
-
 def summarize_temporal_report(report: dict, *,
                               context: dict | None = None) -> dict:
     """Render a structured comparison summary from a
@@ -149,6 +89,7 @@ def summarize_temporal_report(report: dict, *,
                  "or process completion; missing values are explicitly "
                  "unknown"),
     }
+    provenance = provenance_summary(ctx)
     provenance = {
         "executable_checkpoint": ctx.get("executable_checkpoint"),
         "runner_sha256": ctx.get("runner_sha256"),
@@ -243,7 +184,7 @@ def summarize_temporal_report(report: dict, *,
         "summary_type": "temporal_robustness",
         "identities_and_provenance": {
             "experiment_identity": report["experiment_identity"],
-            "provenance": provenance_summary(provenance),
+            "provenance": provenance_summary(ctx),
             "reconstruction": {
                 "verified": recon["verified"],
                 "max_abs_rps_diff": recon["max_abs_rps_diff"],
