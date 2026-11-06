@@ -7,13 +7,15 @@ Operating standard for all agent windows and the owner. Complements
 
 ## 1. Who does what
 
-| Role | Authority |
-| --- | --- |
-| Any chat window | May create branches/PRs **from its own isolated worktree only**, in its declared scope |
-| Builder (Chat 1) | Implements, pushes, obtains CI; performs authorized merges/integration (docs/roles/chat1-builder.md) |
-| Reviewer (Chat 2) | Trailing reviewer/fixer: independent review at the exact published SHA; bounded repairs on claimed paths per docs/roles/chat2-reviewer.md |
-| Repo health (Chat 3) | Documentation, inventories, PR hygiene; docs-only PRs (see docs/roles/chat3-cleaner.md) |
-| Owner | Approves scope, decisions, and any merge/deletion |
+Roles and their authority are defined once in the canonical role cards —
+[architect](../roles/architect.md),
+[builder / Chat 1](../roles/chat1-builder.md),
+[reviewer / Chat 2](../roles/chat2-reviewer.md),
+[documentation maintainer / Chat 3](../roles/chat3-cleaner.md) — under the
+precedence rule in [`docs/roles/README.md`](../roles/README.md) (roles +
+`docs/NEXT.md` override older agent instructions). Every chat works from its
+own isolated worktree in its declared scope; the owner approves scope,
+decisions, and any merge/deletion.
 
 **Never** edit another chat's worktree or branch. Never merge, close another
 chat's PR, or delete a branch without explicit authorization for that action.

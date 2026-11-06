@@ -10,7 +10,7 @@ Frozen means reproducible historical state, not permanent architecture. Do not c
 
 ## Delivery cycle
 
-Question and acceptance evidence -> reuse existing code -> implement and synthetic-test -> publish immutable checkpoint -> consolidated independent review -> applicable execution authorization -> run -> reproduce -> accept or reject -> integrate -> update current action. Code may merge before a run when appropriate; merge never authorizes execution.
+Experiment gate chain: Question and acceptance evidence -> reuse existing code -> implement and synthetic-test -> publish immutable checkpoint -> consolidated independent review -> applicable execution authorization -> run -> reproduce -> accept or reject -> integrate -> update current action. Implementation and maintenance tasks follow their own shorter chains (`docs/reference/pr_workflow.md`, "Gates by task type"). Code may merge before a run when appropriate; merge never authorizes execution.
 
 One scientific implementation milestone plus an independent cleanup lane. One writer per claimed path. A review names a SHA; each new checkpoint explicitly supersedes the previous target. Review the delta and affected behavior, not the whole history. New blockers require a violated requirement and reproducer. No polling or repetitive unchanged-status reports. Gates scale with task type (implementation / experiment / maintenance; the three operational chains live in `docs/reference/pr_workflow.md`, "Gates by task type").
 
