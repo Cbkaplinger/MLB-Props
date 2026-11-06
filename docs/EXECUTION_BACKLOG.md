@@ -314,7 +314,10 @@ closeout), #58 (platoon lane: repaired checkpoint, verified run, closeout),
 earlier). Bases and destinations verified before each parent merge;
 children retargeted/merged per the recorded procedure by Chat 2/architect.
 No carrier duplication, no direct-main pushes. Integration did not block
-the next specification (below).
+the next specification (below). **FURTHER INTEGRATION 2026-11-05: main
+advanced to 38da8aa (PR #60 temporal-robustness lane merged; Chat 3's
+cleanup PR #63 was CLOSED without merging — worktree/branch cleanup
+remains pending, proposal preserved in the cleanup section).**
 
 **TEMPORAL-ROBUSTNESS SPECIFICATION PUBLISHED 2026-11-04 (owner-assigned
 milestone; SPECIFICATION ONLY - no execution, no run):** card
