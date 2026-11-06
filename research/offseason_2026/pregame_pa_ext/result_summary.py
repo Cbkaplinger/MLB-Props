@@ -43,7 +43,8 @@ def _require(d: dict, keys: set, ctx: str) -> None:
 
 def _require_finite(value, name: str) -> float:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise ValueError(f"{name}: expected numeric, got {type(value).__name__}")
+        raise ValueError(f"{name}: expected numeric, got "
+                         f"{type(value).__name__}")
     v = float(value)
     if not math.isfinite(v):
         raise ValueError(f"{name}: nonfinite value {v}")
@@ -58,20 +59,28 @@ def classify_direction(delta: float, ci_low: float, ci_high: float,
     Negative delta favors the challenger; positive favors the control.
     CI entirely below zero -> challenger_favored; entirely above ->
     control_favored; overlapping zero -> inconclusive.
-    Practical magnitude: |delta| >= practical_threshold -> exceeded.
+    Practical magnitude: |delta| > practical_threshold -> exceeded.
+    Equality does NOT count as exceeding.
     """
     delta = _require_finite(delta, "delta")
     ci_low = _require_finite(ci_low, "ci_low")
     ci_high = _require_finite(ci_high, "ci_high")
+    practical_threshold = _require_finite(practical_threshold,
+                                          "practical_threshold")
+    if practical_threshold <= 0:
+        raise ValueError(
+            f"practical_threshold must be positive, got "
+            f"{practical_threshold}")
     if ci_low > ci_high:
-        raise ValueError(f"CI bounds inverted: low={ci_low} > high={ci_high}")
+        raise ValueError(
+            f"CI bounds inverted: low={ci_low} > high={ci_high}")
     if ci_high < 0:
         direction = "challenger_favored"
     elif ci_low > 0:
         direction = "control_favored"
     else:
         direction = "inconclusive"
-    below_threshold = abs(delta) < practical_threshold
+    below_threshold = abs(delta) <= practical_threshold
     return {
         "statistical_direction": direction,
         "point_estimate": delta,
@@ -112,13 +121,16 @@ def summarize_temporal_report(report: dict, *,
     fields are surfaced as explicit nulls; never inferred.
 
     Expected context keys (all optional):
-      "executed_by": str (who ran the command)
+      "executed_by": str
       "execution_date": str
-      "verification_status": str | None ("VERIFIED", "PENDING", etc.)
+      "verification_status": str | None
       "authorization_status": str | None
       "promotion_status": str | None
-      "pr_status": str | None (open, merged, etc.)
+      "pr_status": str | None
       "pr_number": int | None
+      "runner_sha256": str
+      "packet_sha256": str
+      "consumed_input_identities": dict
     """
     _require(report, _REQUIRED_REPORT_KEYS, "report")
 
@@ -128,13 +140,23 @@ def summarize_temporal_report(report: dict, *,
 
     ctx = context or {}
     injected_status = {
-        "execution_status": ctx.get("execution_status", "completed"),
+        "execution_status": ctx.get("execution_status"),
         "verification_status": ctx.get("verification_status"),
         "authorization_status": ctx.get("authorization_status"),
-        "promotion_status": ctx.get("promotion_status", "never_automatic"),
+        "promotion_status": ctx.get("promotion_status"),
         "note": ("verification/authorization/promotion statuses are "
                  "explicitly injected; never inferred from exit code "
-                 "or process completion"),
+                 "or process completion; missing values are explicitly "
+                 "unknown"),
+    }
+    provenance = {
+        "executable_checkpoint": ctx.get("executable_checkpoint"),
+        "runner_sha256": ctx.get("runner_sha256"),
+        "packet_checkpoint": ctx.get("packet_checkpoint"),
+        "packet_sha256": ctx.get("packet_sha256"),
+        "consumed_input_identities": ctx.get("consumed_input_identities"),
+        "note": ("provenance fields are explicitly injected; missing "
+                 "values remain explicitly unavailable"),
     }
 
     periods_out = []
@@ -149,10 +171,34 @@ def summarize_temporal_report(report: dict, *,
                                        PRACTICAL_LOGLOSS_THRESHOLD)
 
         kc = p.get("k_count", {})
-        nd = kc.get("non_degradation", {})
-        k_guard = classify_k_guard(
-            nd.get("point_estimate", float("nan")),
-            nd.get("margin", K_GUARD_MARGIN)) if nd else None
+        nd = kc.get("non_degradation")
+        if nd is not None:
+            pe = nd.get("point_estimate")
+            mg = nd.get("margin")
+            if pe is None or mg is None:
+                k_guard = {
+                    "guard_type": "point_estimate_acceptance_guard",
+                    "point_estimate": pe, "margin": mg,
+                    "passes": None, "status": "unavailable",
+                    "not_a_noninferiority_claim": True,
+                }
+            else:
+                k_guard = classify_k_guard(pe, mg)
+                supplied_flag = nd.get("within_margin")
+                if supplied_flag is not None and \
+                        supplied_flag != k_guard["passes"]:
+                    k_guard["contradiction"] = (
+                        f"supplied within_margin={supplied_flag} "
+                        f"contradicts computed "
+                        f"passes={k_guard['passes']} from "
+                        f"point_estimate={pe} and margin={mg}")
+        else:
+            k_guard = {
+                "guard_type": "point_estimate_acceptance_guard",
+                "point_estimate": None, "margin": None,
+                "passes": None, "status": "unavailable",
+                "not_a_noninferiority_claim": True,
+            }
 
         pooled_pa = p.get("pooled_pa_logloss", {})
         ctrl_ll = pooled_pa.get("control", p.get("mean_logloss_control"))
@@ -178,9 +224,8 @@ def summarize_temporal_report(report: dict, *,
                 "delta": delta,
                 "ci95": ci,
                 "direction": direction["statistical_direction"],
-                "practical_threshold_exceeded":
-                    direction["point_below_threshold"] is False and
-                    abs(delta) >= PRACTICAL_LOGLOSS_THRESHOLD,
+                "threshold_exceeded":
+                    abs(delta) > PRACTICAL_LOGLOSS_THRESHOLD,
                 "point_below_threshold":
                     direction["point_below_threshold"],
             },
@@ -198,6 +243,7 @@ def summarize_temporal_report(report: dict, *,
         "summary_type": "temporal_robustness",
         "identities_and_provenance": {
             "experiment_identity": report["experiment_identity"],
+            "provenance": provenance_summary(provenance),
             "reconstruction": {
                 "verified": recon["verified"],
                 "max_abs_rps_diff": recon["max_abs_rps_diff"],
@@ -233,9 +279,8 @@ def summarize_temporal_report(report: dict, *,
                  "ci95": po["registered_contrast"]["ci95"],
                  "direction":
                      po["registered_contrast"]["direction"],
-                 "practical_threshold_exceeded":
-                     po["registered_contrast"][
-                         "practical_threshold_exceeded"]}
+                 "threshold_exceeded":
+                     po["registered_contrast"]["threshold_exceeded"]}
                 for po in periods_out
             ],
         },
@@ -245,4 +290,83 @@ def summarize_temporal_report(report: dict, *,
             "development evidence on the registered source; R1/R2 score "
             "windows are EXPOSED - NOT fresh final tests; matched-"
             "matchup PA coverage limitation carries over; 2026 untouched"),
+    }
+
+
+def provenance_summary(ctx: dict) -> dict:
+    """Dedicated provenance section: preserves explicitly supplied
+    executable/packet/input identities; missing values remain
+    explicitly unavailable."""
+    return {
+        "executable_checkpoint": ctx.get("executable_checkpoint"),
+        "runner_sha256": ctx.get("runner_sha256"),
+        "packet_checkpoint": ctx.get("packet_checkpoint"),
+        "packet_sha256": ctx.get("packet_sha256"),
+        "consumed_input_identities": ctx.get("consumed_input_identities"),
+        "executed_by": ctx.get("executed_by"),
+        "execution_date": ctx.get("execution_date"),
+        "note": ("all fields are explicitly injected; missing values "
+                 "remain explicitly unavailable, never inferred"),
+    }
+
+
+def classify_direction(delta: float, ci_low: float, ci_high: float,
+                       practical_threshold: float) -> dict:
+    """Separate statistical direction from practical magnitude.
+
+    Sign convention: delta = challenger - control.
+    Negative delta favors the challenger; positive favors the control.
+    CI entirely below zero -> challenger_favored; entirely above ->
+    control_favored; overlapping zero -> inconclusive.
+    Practical magnitude: |delta| > practical_threshold -> exceeded.
+    Equality does NOT count as exceeding.
+
+    Validates the threshold as finite and positive.
+    """
+    delta = _require_finite(delta, "delta")
+    ci_low = _require_finite(ci_low, "ci_low")
+    ci_high = _require_finite(ci_high, "ci_high")
+    practical_threshold = _require_finite(practical_threshold,
+                                          "practical_threshold")
+    if practical_threshold <= 0:
+        raise ValueError(
+            f"practical_threshold must be positive, got "
+            f"{practical_threshold}")
+    if ci_low > ci_high:
+        raise ValueError(
+            f"CI bounds inverted: low={ci_low} > high={ci_high}")
+    if ci_high < 0:
+        direction = "challenger_favored"
+    elif ci_low > 0:
+        direction = "control_favored"
+    else:
+        direction = "inconclusive"
+    below_threshold = abs(delta) <= practical_threshold
+    return {
+        "statistical_direction": direction,
+        "point_estimate": delta,
+        "ci95": [ci_low, ci_high],
+        "practical_threshold": practical_threshold,
+        "point_below_threshold": below_threshold,
+        "note": ("statistical direction and practical magnitude are "
+                 "reported separately; point below threshold does not "
+                 "justify complexity regardless of CI direction"),
+    }
+
+
+def classify_k_guard(point_estimate: float, margin: float) -> dict:
+    """Separate the point-estimate acceptance guard from inferential
+    claims."""
+    point_estimate = _require_finite(point_estimate, "point_estimate")
+    margin = _require_finite(margin, "margin")
+    if margin <= 0:
+        raise ValueError(f"K guard margin must be positive, got {margin}")
+    return {
+        "guard_type": "point_estimate_acceptance_guard",
+        "margin": margin,
+        "point_estimate": point_estimate,
+        "passes": point_estimate <= margin,
+        "not_a_noninferiority_claim": True,
+        "note": ("point-estimate acceptance guard; NOT a statistical "
+                 "noninferiority test; CI reported as context"),
     }
