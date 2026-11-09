@@ -587,8 +587,67 @@ in the PR description; full-file decode of pa_table, lineups, and
 source and the full-season 2025 raw-event file, and are excluded from
 the comparison population by the cohort restriction and the wrapper's
 structural filters - presence in other decoded files is not asserted;
-prior approvals do not carry over). PR targets main; awaiting Chat 2
-review.
+prior approvals do not carry over). PR #71 integrated (PASS at
+29592fb); superseded by the executed-parity block below.
+
+**CANDIDATE PARITY EXECUTED ONCE 2026-11-09 - CLOSED 2026-11-09: CHAT 2
+ARTIFACT VERDICT = INDEPENDENTLY VERIFIED (owner closed the record after
+verification).** Reference identity resolved per the declared role split:
+Chat 2 attested a **present-day verified reference snapshot** (receipt
+`receipt_final.json` SHA-256 `b1b9135761f3d272d6ac978400fced6defa9ff6a
+61b9cb7a15d0d8dc731224ba`; all four consumed artifacts verified MATCH
+against the receipt's outputs manifest; NO historical receipt hash
+exists in permitted records, so no historical byte continuity is
+claimed). Chat 1 then ran the disclosed parity command ONCE at
+integrated main `3a807a98` with the attested hash and the declared full
+input pins (PA/lineups byte pins and raw-event pins enforced pre-decode;
+cohort content hash `f77d7a66...` matched; assessment parquet excluded;
+fresh write-once destination). **RESULT: PASS, EXACT ZERO** - 2,509
+starts; 22,581 keyed PA-grain rows; 60,216 PMF rows; key-set equality
+both grains; max abs diff **0.0** in all four classes and every K-PMF
+bucket (tolerance 1e-12). Scope: reproducibility/identity ONLY - parity
+does NOT establish predictive superiority. Evidence (write-once,
+preserved): `...\diagnostics\parity_platoon_candidate_v1\`
+(receipt_initial -> parity_comparison -> receipt_final, chain sha
+`b70a2f90...`, status COMPLETED, no failure record); reference
+artifacts in `platoon_information_v1\` untouched; single run, no retry.
+
+**ABLATION BASELINE DECISION RECORDED 2026-11-09 (owner decision +
+recommendation support from existing VERIFIED records only - no new
+experiment, no data reads beyond existing permission):** for subsequent
+ablations: **Reference control = the registered 8-feature multinomial +
+pooled W0 recipe (reconstruction-anchored). Development challenger =
+the registered 12-feature platoon recipe (multinomial-plus-platoon,
+platoon-features-v1). NO production promotion and NO fresh-validation
+claim; promotion never automatic.** Component support (declared
+comparisons, NOT universal proof): (a) 4-class multinomial logistic
+(strikeout/walk_hbp_interference/in_play_out/hit; K = class 0),
+StandardScaler + multinomial LR, no tuning - the binary-K lane and the
+LGBM lane each RETAINED THE CONTROL WITHIN ITS DECLARED COMPARISON
+(binary objective and bounded-selected LGBM did not displace the fixed
+multinomial in those comparisons; that is not universal proof that
+multinomial is superior), and Ref0-vs-Ref1 favored the K marginal over
+population proportions; (b) history = cutoff-correct states-v2
+(strictly-prior aggregate, w150 shrinkage, EW 90d half-life); longer
+estimation history favored (history-sensitivity scorecard, delta
+-0.0111, CI below zero); (c) workload = pooled league BF37 by date
+(W0), favored over pitcher-specific W1 (+0.012406, CI [+0.004410,
++0.020368]); (d) K-COUNT AGGREGATION (construction, separate from
+evaluation): `adapter.start_count_pmfs` builds per-start K-count PMFs
+from per-PA probabilities + the pooled BF37 - it is distribution
+machinery, NOT a metric; (e) EVALUATION METRICS (separate layer):
+per-PA multiclass log loss primary, per-start means for contrasts,
+paired slate-date bootstrap 2000/20261001, K-count RPS non-degradation
+guard (0.002 margin); (f) calibration = NONE in every verified arm
+(uncalibrated softmax; no calibration comparison exists). The platoon
+family's three favored results (platoon run -0.0008712 [-0.0012622,
+-0.0005038]; temporal R1 -0.000415, R2 -0.000870; K guard within
+margin in all three) remain CANDIDATE evidence for the challenger -
+never a promotion. Parity closure is carried above (reproducibility/
+identity only). **Standing unresolved item: no calibration comparison
+exists; production promotion of the challenger remains unset. Next
+action: the architect names the first assigned ablation; no ablation
+work starts before that.**
 
 **LABEL-FREE PREDICTION PATH PUBLISHED 2026-11-08 (owner-assigned
 checkpoint; implementation + focused synthetic tests ONLY; no real/private
