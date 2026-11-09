@@ -532,6 +532,55 @@ approval will not be asked for again. No merge prerequisite, no new
 feature work, no SHAP, calibration, taxonomy expansion, or unrelated
 ticket work.
 
+**CANDIDATE-PARITY ENTRY POINT IMPLEMENTED 2026-11-09 (owner-assigned;
+implementation + synthetic tests ONLY; no execution, no private-artifact
+reads, no real-data access):** one thin committed invocation
+`research/offseason_2026/pregame_pa_ext/parity_platoon_candidate_v1.py`
+(`run_parity` + CLI, parity-platoon-candidate-v1) answering: does the
+integrated prediction path (PR #70 module, main `5b5d93d`) reproduce the
+saved platoon-candidate forecasts from the same fitted model and pinned
+inputs? Identity discipline: expected SHA-256 of the accepted reference
+receipt (`platoon_information_v1/receipt_final.json`) is a REQUIRED
+execution parameter; the receipt is hash-verified BEFORE its `outputs`
+manifest is interpreted; model/reference artifact hashes are verified
+from that manifest BEFORE decode; PA/lineups byte pins and raw-event
+byte pins are ENFORCED pre-decode; cohort identity = registered
+sorted-key content hash (`f77d7a66...` expected, `bk._cohort_hash`
+recipe). Population: cohort restriction before construction; start-key
+set equality vs the cohort; row counts DERIVED from validated keys
+(9 slots x starts, 24 buckets x starts); duplicate/null comparison
+identities refuse before any dedup; no inner-join comparison at either
+grain. Workload: keyed per-start BF37 REUSED from the saved
+`bf37_pooled_by_date_v1.parquet` (the runner's own record; no
+recomputation) - missing/duplicate dates, malformed categories (must
+be exactly 0..36), and invalid distributions refuse (existing
+`ad.validate_bf37_by_start` + structural gates). Comparison: declared
+column mappings (`p_class_{c}_platoon` -> `p_class_{c}`;
+`pmf_platoon` -> `pmf_h3_raw`); finite/valid checks before
+differences; acceptance = key equality + max abs diff <= 1e-12 both
+grains; exact observed diffs reported, zero not required; any mismatch
+stops (failure_record.json, NO success receipt). Receipt ordering
+explicit: ack gate -> destination nonexistence (pre-decode) ->
+reference-receipt verification -> manifest/artifact hashes ->
+receipt_initial (module identities + runtime versions + expectations +
+full-file-decode access disclosure) -> pre-decode input pins ->
+decode/bridge -> cohort -> keyed BF37 -> prediction -> comparison ->
+parity_comparison.json -> receipt_final. 12 synthetic tests green
+(`tests/test_parity_platoon_candidate.py`; success path builds the
+reference through the registered seams independently of the wrapper, so
+the success case is a genuine end-to-end parity exercise). **Evidence
+honesty:** synthetic only - no real-registered-output validation, not
+full-suite or private-artifact validation. **EXECUTION-READINESS GAP
+(disclosed):** the trusted reference-receipt SHA-256 value must be
+supplied from permitted records at execution time - NOT read from the
+private artifacts under this instruction. **EXECUTION REQUIRES FRESH
+OWNER AUTHORIZATION** (prospective command in the PR description;
+full-file decode of pa_table, lineups, and 2024+2025 raw Statcast
+events; rows at/after R3 are present in decoded files and excluded from
+the comparison population only by the cohort restriction and the
+wrapper's structural filters; prior approvals do not carry over). PR
+targets main; awaiting Chat 2 review.
+
 **LABEL-FREE PREDICTION PATH PUBLISHED 2026-11-08 (owner-assigned
 checkpoint; implementation + focused synthetic tests ONLY; no real/private
 data, no fitting/scoring, no calibration, no promotion):** research-only
