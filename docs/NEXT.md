@@ -1,4 +1,4 @@
-﻿# NEXT - current action
+# NEXT - current action
 
 Owner: architect. Updated 2026-11-08. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
@@ -38,8 +38,7 @@ PR for `research/parity-platoon-candidate` (base main): one thin
 committed invocation `parity_platoon_candidate_v1.run_parity` + CLI
 answering whether the integrated prediction path (PR #70 module)
 reproduces the saved platoon-candidate forecasts from the same fitted
-model and pinned inputs. 12 synthetic tests green (reference built
-independently through the registered seams). Reference-receipt
+model and pinned inputs. 14 synthetic tests green (incl. finalization-ordering regressions; reference built independently through the registered seams). Reference-receipt
 SHA-256 is a required execution parameter; execution requires fresh
 owner authorization - synthetic only. Awaiting Chat 2 review.
 

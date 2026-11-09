@@ -22,6 +22,10 @@ Requirement -> implementation -> test-evidence closure table:
   difference reported; no success receipt left              -> test 9
   Nonfinite reference values refused before differences     -> test 10
   CLI success and ack-gate behavior                         -> test 11
+  receipt_initial mutation detected BEFORE success
+  publication (finalization ordering regression)            -> test 12
+  Finalization-write failure leaves NO valid COMPLETED
+  receipt (atomic publication regression)                   -> test 13
 """
 from __future__ import annotations
 
@@ -409,6 +413,58 @@ def test_cli_success_and_ack_gate(tmp_path):
     bad[bad.index("--execution-ack") + 1] = "WRONG-TOKEN"
     with pytest.raises(ValueError, match="execution acknowledgement"):
         pp.main(bad)
+
+
+# --------- 12. receipt_initial mutation detected BEFORE publication
+def test_receipt_initial_mutation_detected_before_publication(
+        tmp_path, monkeypatch):
+    world = _write_world(tmp_path)
+    out = tmp_path / "out"
+    orig = pp.lp.run_prediction
+
+    def mutate_then_predict(model, pa, lineups, bf):
+        # mutate receipt_initial mid-run, before finalization
+        ri = out / "receipt_initial.json"
+        ri.write_text(ri.read_text(encoding="utf-8") + "\n",
+                      encoding="utf-8")
+        return orig(model, pa, lineups, bf)
+
+    monkeypatch.setattr(pp.lp, "run_prediction", mutate_then_predict)
+    with pytest.raises(ValueError, match="immutability check FAILED"):
+        _run(tmp_path, world)
+    assert not (out / "receipt_final.json").exists()
+    assert not (out / "parity_comparison.json").exists()
+    fr = json.loads(
+        (out / "failure_record.json").read_text(encoding="utf-8"))
+    assert fr["failure_stage"] == "finalization"
+    assert "receipt_initial.json" in fr["files_written"]
+    assert "receipt_final.json" not in fr["files_written"]
+
+
+# --------- 13. finalization-write failure leaves NO COMPLETED receipt
+def test_finalization_write_failure_leaves_no_completed_receipt(
+        tmp_path, monkeypatch):
+    world = _write_world(tmp_path)
+    out = tmp_path / "out"
+    real = pp._write_json
+
+    def failing_write(path, payload):
+        if Path(path).name == "receipt_final.json":
+            raise OSError("simulated finalization write failure")
+        return real(path, payload)
+
+    monkeypatch.setattr(pp, "_write_json", failing_write)
+    with pytest.raises(OSError, match="simulated finalization"):
+        _run(tmp_path, world)
+    # parity_comparison was published; receipt_final was not
+    assert (out / "parity_comparison.json").exists()
+    assert not (out / "receipt_final.json").exists()
+    assert not (out / "receipt_final.json.tmp").exists()
+    fr = json.loads(
+        (out / "failure_record.json").read_text(encoding="utf-8"))
+    assert fr["failure_stage"] == "finalization"
+    assert "parity_comparison.json" in fr["files_written"]
+    assert "receipt_final.json" not in fr["files_written"]
 
 
 # ------------------- helper: rewrite receipt after artifact edits

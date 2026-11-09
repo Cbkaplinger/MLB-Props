@@ -39,25 +39,30 @@ parity_comparison.json).
 
 Access disclosure (declared): full-file decode of the PA table, the
 projected-lineups parquet, and the declared raw Statcast event files
-(bridge label consumption). Filtering happens after decode; rows at or
-after the R3 boundary are present in the decoded files and are excluded
-from the comparison population only by the cohort key restriction and
-the wrapper's structural filters. Execution requires fresh owner
-authorization; prior experiment approvals do not carry over.
+(bridge label consumption). Filtering happens after decode. Post-R3
+rows are documented in the PA source (which spans through 2025-09-28)
+and in the full-season 2025 raw-event file; their presence in any other
+decoded file is not asserted. They are excluded from the comparison
+population by the cohort key restriction and the wrapper's structural
+filters. Execution requires fresh owner authorization; prior
+experiment approvals do not carry over.
 
 Receipt ordering (explicit): execution-ack gate -> destination
 nonexistence (before any private decode) -> reference-receipt hash
 verification -> manifest interpretation + artifact hash verification ->
 receipt_initial.json (identities + expectations) -> pre-decode input
 byte pins -> decode/bridge -> cohort identity + restriction -> keyed
-BF37 -> prediction -> comparison -> parity_comparison.json ->
-receipt_final.json. Any refusal or failure writes failure_record.json
-and re-raises.
+BF37 -> prediction -> comparison -> receipt_initial immutability
+verification -> parity_comparison.json -> receipt_final.json (both
+published atomically AFTER the immutability check passes). Any refusal
+or failure writes failure_record.json describing the ACTUAL stage and
+the files actually written, and re-raises.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -96,6 +101,16 @@ START_KEYS = ["game_pk", "side", "pitcher"]
 PMF_KEYS = START_KEYS + ["bucket"]
 N_SLOTS = 9
 N_BUCKETS = 24
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    """Atomic local JSON publication (temp + os.replace): a failed or
+    interrupted write can never leave a partial or valid-looking
+    success artifact."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=1, sort_keys=True,
+                              default=str), encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def _sha_file(path: Path) -> str:
@@ -291,24 +306,37 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
         "access_disclosure": (
             "full-file decode of the PA table, the projected-lineups "
             "parquet, and the declared raw Statcast event files; "
-            "filtering happens after decode; rows at/after the R3 "
-            "boundary are present in the decoded files and excluded "
-            "from the comparison population only by the cohort key "
-            "restriction and the wrapper's structural filters"),
+            "filtering happens after decode; post-R3 rows are "
+            "documented in the PA source (which spans through "
+            "2025-09-28) and in the full-season 2025 raw-event file; "
+            "their presence in any other decoded file is not "
+            "asserted; they are excluded from the comparison "
+            "population by the cohort key restriction and the "
+            "wrapper's structural filters"),
     }
+    state = {"stage": "receipt_initial", "files_written": []}
     initial_path = out_dir / "receipt_initial.json"
-    initial_path.write_text(
-        json.dumps(initial, indent=1, sort_keys=True, default=str),
-        encoding="utf-8")
+    _write_json(initial_path, initial)
+    state["files_written"].append("receipt_initial.json")
     initial_sha = _sha_file(initial_path)
 
-    def _fail(detail: dict) -> None:
+    def _fail(err) -> None:
         (out_dir / "failure_record.json").write_text(
-            json.dumps(detail, indent=1, sort_keys=True, default=str),
+            json.dumps({"stage": EXPERIMENT_ID,
+                        "failure_stage": state["stage"],
+                        "failure": True,
+                        "error": repr(err),
+                        "files_written": list(state["files_written"]),
+                        "note": ("failure_record describes the actual "
+                                 "stage and the files actually "
+                                 "written; original references "
+                                 "untouched")},
+                       indent=1, sort_keys=True, default=str),
             encoding="utf-8")
 
     try:
         # ---- pre-decode input byte pins (ENFORCED) -------------------
+        state["stage"] = "input_pins"
         if len(expected_raw_event_sha256s) != len(raw_event_paths):
             raise ValueError(
                 "raw-event pin count does not match the declared "
@@ -329,12 +357,14 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
                     f"actual={actual} expected={expected}")
 
         # ---- decode + labels (bridge consumes the raw files) ---------
+        state["stage"] = "decode_bridge"
         pa = pl.read_parquet(pa_path)
         lineups = pl.read_parquet(lineups_path)
         pa_labeled, label_acc = seb.attach_terminal_event_labels(
             pa, [Path(p) for p in raw_event_paths])
 
         # ---- cohort identity + restriction BEFORE construction -------
+        state["stage"] = "cohort_restriction"
         cohort_unique = _load_cohort(cohort_keys_path,
                                      expected_cohort_hash)
         lineups_restricted = lineups.join(cohort_unique,
@@ -363,11 +393,13 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
         expected_pmf_rows = N_BUCKETS * n_starts
 
         # ---- keyed BF37 from the SAVED by-date vectors (reuse) -------
+        state["stage"] = "workload_mapping"
         bf_keyed = _keyed_bf37(bf_path, starts)
         bf_keyed, bf_meta = ad.validate_bf37_by_start(
             bf_keyed.select(START_KEYS + ad.PMF37_COLS), starts)
 
         # ---- saved fitted candidate model (hash-verified file) -------
+        state["stage"] = "model_load"
         model_all = json.loads(model_path.read_text(encoding="utf-8"))
         if REF_MODEL_KEY not in model_all:
             raise ValueError(
@@ -376,10 +408,12 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
         classes = [int(c) for c in model["classes"]]
 
         # ---- integrated prediction path ------------------------------
+        state["stage"] = "prediction"
         result = lp.run_prediction(model, pa_labeled,
                                    lineups_restricted, bf_keyed)
 
         # ---- PA-grain comparison --------------------------------------
+        state["stage"] = "comparison"
         ref_keyed = pl.read_parquet(keyed_path)
         wrap_keyed = result["keyed_pa_probabilities"]
         ref_cols = [f"p_class_{c}{REF_KEYED_SUFFIX}" for c in classes]
@@ -457,6 +491,7 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
             - wp[WRAP_PMF_COLUMN].to_numpy()).max())
 
         # ---- acceptance ------------------------------------------------
+        state["stage"] = "acceptance_check"
         comparison = {
             "tolerance": TOLERANCE,
             "n_starts": n_starts,
@@ -479,9 +514,16 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
                 f"tolerance={TOLERANCE!r}; exact per-class "
                 f"differences={pa_diffs}")
 
-        (out_dir / "parity_comparison.json").write_text(
-            json.dumps(comparison, indent=1, sort_keys=True,
-                       default=str), encoding="utf-8")
+        # ---- finalization: immutability verified BEFORE publication ---
+        state["stage"] = "finalization"
+        if _sha_file(initial_path) != initial_sha:
+            raise ValueError(
+                "receipt_initial immutability check FAILED: the "
+                "initial receipt mutated during execution; no success "
+                "artifacts published")
+
+        _write_json(out_dir / "parity_comparison.json", comparison)
+        state["files_written"].append("parity_comparison.json")
 
         final = dict(initial)
         final["counts"] = {
@@ -503,18 +545,16 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
                 out_dir / "parity_comparison.json")}
         final["acceptance"] = {"receipt_chain": initial_sha,
                                "status": "COMPLETED"}
-        (out_dir / "receipt_final.json").write_text(
-            json.dumps(final, indent=1, sort_keys=True, default=str),
-            encoding="utf-8")
+        _write_json(out_dir / "receipt_final.json", final)
+        state["files_written"].append("receipt_final.json")
         if _sha_file(initial_path) != initial_sha:
-            raise ValueError("receipt_initial mutated during execution")
+            raise ValueError(
+                "receipt_initial mutated after the immutability check; "
+                "success artifacts published under a compromised "
+                "chain - treat receipt_final as INVALID")
         return comparison
     except Exception as e:  # noqa: BLE001
-        _fail({"stage": EXPERIMENT_ID, "failure": True,
-               "error": repr(e),
-               "note": ("no receipt_final and no "
-                        "parity_comparison written; original "
-                        "references untouched")})
+        _fail(e)
         raise
 
 

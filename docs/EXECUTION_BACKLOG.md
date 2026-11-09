@@ -534,7 +534,8 @@ ticket work.
 
 **CANDIDATE-PARITY ENTRY POINT IMPLEMENTED 2026-11-09 (owner-assigned;
 implementation + synthetic tests ONLY; no execution, no private-artifact
-reads, no real-data access):** one thin committed invocation
+reads, no real-data access). RECEIPT-FINALIZATION CORRECTION (Chat 2
+finding at 10b18ad, superseding that checkpoint's evidence):** one thin committed invocation
 `research/offseason_2026/pregame_pa_ext/parity_platoon_candidate_v1.py`
 (`run_parity` + CLI, parity-platoon-candidate-v1) answering: does the
 integrated prediction path (PR #70 module, main `5b5d93d`) reproduce the
@@ -565,21 +566,29 @@ reference-receipt verification -> manifest/artifact hashes ->
 receipt_initial (module identities + runtime versions + expectations +
 full-file-decode access disclosure) -> pre-decode input pins ->
 decode/bridge -> cohort -> keyed BF37 -> prediction -> comparison ->
-parity_comparison.json -> receipt_final. 12 synthetic tests green
-(`tests/test_parity_platoon_candidate.py`; success path builds the
-reference through the registered seams independently of the wrapper, so
-the success case is a genuine end-to-end parity exercise). **Evidence
-honesty:** synthetic only - no real-registered-output validation, not
-full-suite or private-artifact validation. **EXECUTION-READINESS GAP
-(disclosed):** the trusted reference-receipt SHA-256 value must be
-supplied from permitted records at execution time - NOT read from the
-private artifacts under this instruction. **EXECUTION REQUIRES FRESH
-OWNER AUTHORIZATION** (prospective command in the PR description;
-full-file decode of pa_table, lineups, and 2024+2025 raw Statcast
-events; rows at/after R3 are present in decoded files and excluded from
-the comparison population only by the cohort restriction and the
-wrapper's structural filters; prior approvals do not carry over). PR
-targets main; awaiting Chat 2 review.
+receipt_initial IMMUTABILITY VERIFICATION -> parity_comparison.json ->
+receipt_final.json (both published atomically AFTER the check; a
+finalization-write failure cannot leave a valid-looking COMPLETED
+receipt; failure_record describes the ACTUAL stage and files written).
+**14 synthetic tests green** (12 original + 2 finalization-ordering
+regressions: receipt_initial mutation detected before success
+publication; finalization-write failure leaves no valid COMPLETED
+receipt) (`tests/test_parity_platoon_candidate.py`; success path builds
+the reference through the registered seams independently of the
+wrapper, so the success case is a genuine end-to-end parity exercise).
+**Evidence honesty:** synthetic only - no real-registered-output
+validation, not full-suite or private-artifact validation.
+**EXECUTION-READINESS GAP (disclosed):** the trusted reference-receipt
+SHA-256 value must be supplied from permitted records at execution time
+- NOT read from the private artifacts under this instruction.
+**EXECUTION REQUIRES FRESH OWNER AUTHORIZATION** (prospective command
+in the PR description; full-file decode of pa_table, lineups, and
+2024+2025 raw Statcast events; post-R3 rows are documented in the PA
+source and the full-season 2025 raw-event file, and are excluded from
+the comparison population by the cohort restriction and the wrapper's
+structural filters - presence in other decoded files is not asserted;
+prior approvals do not carry over). PR targets main; awaiting Chat 2
+review.
 
 **LABEL-FREE PREDICTION PATH PUBLISHED 2026-11-08 (owner-assigned
 checkpoint; implementation + focused synthetic tests ONLY; no real/private
