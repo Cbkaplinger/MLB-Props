@@ -1,4 +1,4 @@
-﻿# NEXT - current action
+# NEXT - current action
 
 Owner: architect. Updated 2026-11-08. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
@@ -32,20 +32,14 @@ The full verified lane stack is on main at **2ca8aef**: #60 (temporal-robustness
 
 Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Current action: label-free prediction path (published; awaiting Chat 2 review)
+## Current action: candidate-parity entry point (published; awaiting Chat 2 review)
 
-PR #70 (`research/label-free-prediction`, base main): research-only
-orchestration `label_free_prediction.run_prediction` connecting the
-retained 12-feature candidate's existing construction seams (states-v2 +
-prior features + platoon-features-v1) to the existing label-free inference
-module (PR #68). After Chat 2's probe (identical per-class coefficients
-made the original fixture feature-independent), the fixture now uses
-distinct per-class coefficient rows: 10 synthetic tests green covering
-same-date/future perturbation invariance, strictly-prior sensitivity
-(max prob delta 0.0251), permutation invariance, adapter parity with the
-registered seams, and refusals; zero-coef uniform case kept as a
-degenerate arithmetic smoke test only. Synthetic only - no real/private
-data, no fitting/scoring, no calibration, no promotion. Awaiting Chat 2
-review; prior Stage A gate (PR #67) merged.
+PR for `research/parity-platoon-candidate` (base main): one thin
+committed invocation `parity_platoon_candidate_v1.run_parity` + CLI
+answering whether the integrated prediction path (PR #70 module)
+reproduces the saved platoon-candidate forecasts from the same fitted
+model and pinned inputs. 14 synthetic tests green (incl. finalization-ordering regressions; reference built independently through the registered seams). Reference-receipt
+SHA-256 is a required execution parameter; execution requires fresh
+owner authorization - synthetic only. Awaiting Chat 2 review.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
