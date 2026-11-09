@@ -27,8 +27,9 @@ imply standing permission to edit the builder's implementation.
 
 ## 2. Making a PR
 
-1. Branch from **fetched `origin/main`** (or the relevant base) in your worktree:
-   `git worktree add <path> -b <lane>/<topic>-<date> origin/main`
+1. Start from **fetched `origin/main`** (or the relevant base) in your
+   existing role workspace. Create a topic branch:
+   `git checkout -b <lane>/<topic>-<date> origin/main`
 2. Lane prefixes observed in this repo: `maintenance/`, `research/`,
    `review/`, `chat2/`, `agent/`, `docs/`. One topic per branch.
 3. Commit **completed, understandable units** (see §3). No placeholder commits.
@@ -40,6 +41,47 @@ imply standing permission to edit the builder's implementation.
    the repository, worktree, owned branch, intended PR base branch, and staged
    scope; push explicitly to that branch. Work that failed to publish is a
    blocker, not a delivered checkpoint; unpushed work is labeled LOCAL ONLY.
+
+### Worktree lifecycle
+
+A worktree belongs to a role or an explicitly named long-running purpose,
+not to each PR, commit, or review checkpoint.
+
+Default active footprint:
+- one primary checkout;
+- one builder worktree;
+- one reviewer worktree;
+- one temporary maintainer worktree only while an assigned maintenance
+  task is active.
+
+Existing HOLD/evidence worktrees are preserved exceptions, not reusable
+workspace capacity and not automatically safe to remove.
+
+Before creating a worktree:
+1. Inspect the existing worktree registry once.
+2. Reuse the role's current workspace if safe.
+3. If reuse is blocked, identify the exact blocker and request a scoped
+   exception naming owner, purpose, path, and retirement condition.
+
+A new branch or PR does not by itself justify a new worktree. Reviewers
+fetch and checkout successive reviewed SHAs in their existing clean,
+released review workspace.
+
+Before switching an existing workspace:
+- confirm ownership and no active job/process depending on it;
+- check tracked, untracked, and relevant ignored content;
+- preserve unique work and environment dependencies;
+- never reset, clean, stash, or overwrite unknown content to force reuse.
+
+After integration:
+- retire the task assignment;
+- retain the role workspace for its next task;
+- remove an exceptional workspace only under an exact approved cleanup
+  batch after safety rechecks.
+
+Worktree removal, local branch deletion, and remote branch deletion are
+separate actions. No automatic deletion, force removal, blanket pruning,
+or history rewriting.
 
 ## 3. Commit standards
 
