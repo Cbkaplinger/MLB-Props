@@ -532,6 +532,46 @@ approval will not be asked for again. No merge prerequisite, no new
 feature work, no SHAP, calibration, taxonomy expansion, or unrelated
 ticket work.
 
+**LABEL-FREE PREDICTION PATH PUBLISHED 2026-11-08 (owner-assigned
+checkpoint; implementation + focused synthetic tests ONLY; no real/private
+data, no fitting/scoring, no calibration, no promotion):** research-only
+orchestration `research/offseason_2026/pregame_pa_ext/label_free_prediction.py`
+(`run_prediction`) connecting the retained 12-feature candidate's existing
+feature construction to the existing label-free inference (PR #68 module).
+Reused seams (no parallel math): `forecast_states_v2.build_v2_states`,
+`adapter.projected_long` / `attach_prior_features`,
+`platoon_features.build_split_class_rates` / `forecast_matchup_hands` /
+`attach_platoon_features`, `label_free_inference.run_label_free_inference`
+(itself reusing `pc._softmax_full`, `adapter.start_count_pmfs`,
+`validate_bf37_by_start`). Wiring mirrors the registered temporal runner's
+request path. Public contract: inputs = fitted 12-feature model dict
+(`platoon_comparison.CHALLENGE_FEATURES`), PA source (`game_date`,
+`game_pk`, `pitcher`, `batter`, `y`, `stand`, `p_throws`, `class_label`),
+projected lineups (nine distinct slots), keyed BF37 frame; outputs = keyed
+full class-probability vectors + keyed 24-bucket K-count PMFs + shape
+metadata. Semantics: cutoff-correct states at request dates only (asof
+backward carries the latest strictly-pre-cutoff aggregate; same-date and
+future PA rows cannot enter by construction); `feat_req` selected to key
+identity + declared features before inference (contract check refuses
+undeclared numeric columns). Coverage/refusal: contract mismatch,
+incomplete nine-slot coverage, empty history, and R3 request dates all fail
+loud; 6 synthetic tests green
+(`tests/test_label_free_prediction.py`; tested SHA published on the PR).
+**Evidence honesty (disclosed for review):** the same-date label-flip test
+shows same-date rows cannot enter their own cutoff's features; it does NOT
+by itself demonstrate future-row exclusion or invariance to changed
+history membership/identities; zero-coef uniform probabilities verify the
+simple model case, not feature-construction correctness; pre-commit results
+are not full-suite or private-artifact validation. **R3 refusal rationale:**
+the R3 confirm partition (2025-07-01+) is UNEXPOSED and accessible only via
+a specific new owner authorization; the wrapper enforces the lane's
+declared structural limit at its boundary. This is a scope guard, NOT
+evidence that protected data was never consumed and NOT a claim of
+protected-data access. Limitations: synthetic-only; strictly-prior dates
+do not certify real historical source availability; unlabeled history
+handling untested; 4-class bridge mapping assumed. PR targets main;
+awaiting Chat 2 review.
+
 **PLATOON RUN EXECUTED ONCE 2026-11-04 - CLOSED 2026-11-04: CHAT 2 ARTIFACT
 VERDICT = INDEPENDENTLY VERIFIED (supplied via owner; owner authorization +
 Chat 2 checkpoint/packet confirmation both recorded; exact packet command,

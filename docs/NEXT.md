@@ -1,6 +1,6 @@
-# NEXT - current action
+﻿# NEXT - current action
 
-Owner: architect. Updated 2026-11-03. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
+Owner: architect. Updated 2026-11-08. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
 ## Workload personalization experiment - COMPLETED / VERIFIED
 
@@ -32,8 +32,8 @@ The full verified lane stack is on main at **2ca8aef**: #60 (temporal-robustness
 
 Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Current action: Stage A numerical-validity gate (published; awaiting Chat 2 review)
+## Current action: label-free prediction path (published; awaiting Chat 2 review)
 
-PR #67 (`research/stage-a-numerical-gate`, base main, CI pass, CLEAN): a specific numerical-validity gate added to `lineup_path_stage_a.py` before I1/I2/I3 — NaN/inf/out-of-range `p_h3_raw` in either route triggers a `numerical_validity` gate failure with affected keys, instead of silently passing through I2 or causing an unhandled AdapterError. 34 Stage A tests green (4 new discriminating regressions); 46 Stage A + smoke tests green. No real-data execution. Awaiting Chat 2 review.
+PR for `research/label-free-prediction` (base main): research-only orchestration `label_free_prediction.run_prediction` connecting the retained 12-feature candidate's existing construction seams (states-v2 + prior features + platoon-features-v1) to the existing label-free inference module (PR #68). 6 synthetic tests green. Synthetic only - no real/private data, no fitting/scoring, no calibration, no promotion. Awaiting Chat 2 review; prior Stage A gate (PR #67) merged.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
