@@ -330,7 +330,7 @@ def test_adapter_parity_with_registered_seams():
 def test_model_contract_mismatch_refuses():
     bad = _make_model()
     bad["features"] = FEATURES[:-1]
-    with pytest.raises(ValueError, match="12-feature"):
+    with pytest.raises(ValueError, match="neither registered contract"):
         lp.run_prediction(bad, _pa_frame(), _lineups(), _make_bf())
 
 
@@ -353,3 +353,171 @@ def test_r3_request_dates_refuse():
     with pytest.raises(ValueError, match="R3"):
         lp.run_prediction(_make_model(), _pa_frame(), lineups,
                           _make_bf())
+
+
+# ------------- dual-contract support (adopted scope 2026-11-09) ------
+
+def _make_control_model(order=None):
+    """Registered 8-feature reference-control model (4-class multinomial
+    over pc.FEATURES). `order` optionally permutes the declared feature
+    order; each feature KEEPS its canonical weight (coefficients follow
+    the permutation), so outputs must be identical."""
+    feats = list(pc.FEATURES)
+    base_rows = [[0.013 * (c + 1) * (j + 2) for j in range(len(feats))]
+                 for c in range(4)]
+    if order is not None:
+        feats = [feats[i] for i in order]
+        coef = [[row[i] for i in order] for row in base_rows]
+    else:
+        coef = base_rows
+    n = len(feats)
+    return {
+        "features": feats,
+        "classes": [0, 1, 2, 3],
+        "coef": coef,
+        "intercept": [-0.25, -0.05, 0.15, 0.35],
+        "mean": [0.0] * n,
+        "scale": [1.0] * n,
+    }
+
+
+# 11. the registered 8-feature control contract is accepted and produces
+#     complete keyed probabilities + valid K PMFs on the SAME inputs
+def test_reference_control_contract_accepted():
+    control_pa = _pa_frame().drop(["stand", "p_throws",
+                                   "class_label"])
+    result = lp.run_prediction(_make_control_model(), control_pa,
+                               _lineups(), _make_bf())
+    assert result["contract"] == "reference_control_v1"
+    assert result["n_starts"] == 2
+    assert result["n_slots"] == 18
+    keyed = result["keyed_pa_probabilities"]
+    assert keyed.height == 18
+    cols = [c for c in keyed.columns if c.startswith("p_class_")]
+    assert len(cols) == 4
+    sums = keyed.select(pl.sum_horizontal(cols).alias("s"))["s"]
+    assert np.allclose(sums.to_numpy(), 1.0, atol=1e-9)
+    pmf = result["k_pmf_per_start"]
+    assert pmf.height == 2 * 24
+    tot = pmf.group_by("game_pk", "side", "pitcher").agg(
+        s=pl.col("pmf_h3_raw").sum())
+    assert np.allclose(tot["s"].to_numpy(), 1.0, atol=1e-9)
+
+
+# 12. feature ORDER is handled correctly: a permuted declared order with
+#     consistently permuted coefficients reproduces identical outputs
+def test_control_feature_order_invariance():
+    order = [3, 0, 6, 1, 7, 2, 5, 4]
+    pa = _pa_frame().drop(["stand", "p_throws", "class_label"])
+    base = lp.run_prediction(_make_control_model(), pa, _lineups(),
+                             _make_bf())
+    permuted = lp.run_prediction(_make_control_model(order=order), pa,
+                                 _lineups(), _make_bf())
+    assert_frame_equal(_keyed(base), _keyed(permuted),
+                       check_exact=False, abs_tol=1e-12)
+    assert_frame_equal(_pmf(base), _pmf(permuted),
+                       check_exact=False, abs_tol=1e-12)
+
+
+# 13. unsupported / malformed contracts refuse, naming both registered
+#     contracts
+def test_unsupported_contract_refuses():
+    bad = _make_control_model()
+    bad["features"] = list(pc.FEATURES) + ["made_up_feature"]
+    with pytest.raises(ValueError, match="neither registered contract"):
+        lp.run_prediction(bad, _pa_frame(), _lineups(), _make_bf())
+
+
+def test_malformed_contract_refuses():
+    bad = _make_model()
+    bad["features"] = list(FEATURES)
+    bad["features"][0] = bad["features"][1]  # duplicate -> set mismatch
+    with pytest.raises(ValueError, match="neither registered contract"):
+        lp.run_prediction(bad, _pa_frame(), _lineups(), _make_bf())
+
+
+# 14. both arms accept the SAME keyed workload inputs and produce
+#     complete outputs over the same start keys
+def test_arms_share_workload_inputs():
+    pa_control = _pa_frame().drop(["stand", "p_throws",
+                                   "class_label"])
+    bf = _make_bf()
+    lineups = _lineups()
+    ctrl = lp.run_prediction(_make_control_model(), pa_control,
+                             lineups, bf)
+    chal = lp.run_prediction(_make_model(), _pa_frame(), lineups, bf)
+    assert ctrl["scored_starts"] == chal["scored_starts"]
+    assert ctrl["contract"] == "reference_control_v1"
+    assert chal["contract"] == "platoon_challenger_v1"
+    for res in (ctrl, chal):
+        assert res["n_starts"] == 2
+        assert res["n_slots"] == 18
+        tot = res["k_pmf_per_start"].group_by(
+            "game_pk", "side", "pitcher").agg(
+            s=pl.col("pmf_h3_raw").sum())
+        assert np.allclose(tot["s"].to_numpy(), 1.0, atol=1e-9)
+
+
+# 15. control-arm adapter parity: wrapper == the registered construction
+#     seams followed by label-free inference (no platoon attach)
+def test_control_adapter_parity_with_registered_seams():
+    model = _make_control_model()
+    pa = _pa_frame().drop(["stand", "p_throws", "class_label"])
+    bf = _make_bf()
+    lineups = _lineups()
+    res = lp.run_prediction(model, pa, lineups, bf)
+
+    pa_ok = pa.filter(pl.col("game_date") < pl.lit(lp.R3_START))
+    long, _ = ad.projected_long(lineups)
+    req_dates = sorted(long["game_date"].unique().to_list())
+    p_v2, b_v2, lg_v2, _ = fv.build_v2_states(pa_ok, req_dates)
+    feat = ad.attach_prior_features(
+        long.select("game_date", "pitcher", "batter", "game_pk",
+                    "side", "slot"), p_v2, b_v2, lg_v2)
+    feat = feat.select(lfi.KEY_COLS + list(model["features"]))
+    expected = lfi.run_label_free_inference(model, feat, bf)
+
+    assert_frame_equal(_keyed(res), _keyed(expected),
+                       check_exact=False, abs_tol=1e-12)
+    assert_frame_equal(_pmf(res), _pmf(expected),
+                       check_exact=False, abs_tol=1e-12)
+
+
+# 16. existing challenger behavior unchanged: same inputs produce the
+#     same keyed probabilities as the pre-refactor seam wiring
+def test_challenger_behavior_unchanged():
+    model = _make_model()
+    pa = _pa_frame()
+    bf = _make_bf()
+    lineups = _lineups()
+    res = lp.run_prediction(model, pa, lineups, bf)
+    # replicate via the unchanged registered seams (as in test 7)
+    pa_ok = pa.filter(pl.col("game_date") < pl.lit(lp.R3_START))
+    long, _ = ad.projected_long(lineups)
+    req_dates = sorted(long["game_date"].unique().to_list())
+    p_v2, b_v2, lg_v2, _ = fv.build_v2_states(pa_ok, req_dates)
+    feat = ad.attach_prior_features(
+        long.select("game_date", "pitcher", "batter", "game_pk",
+                    "side", "slot"), p_v2, b_v2, lg_v2)
+    rates = pf.build_split_class_rates(pa_ok, req_dates,
+                                       alpha=pc.ALPHA, n_classes=4)
+    hands = pf.forecast_matchup_hands(
+        pa_ok, feat.select(pl.col("batter"), pl.col("pitcher"),
+                           pl.col("game_date").alias("cutoff")))
+    feat = (feat.join(hands.select("batter", "pitcher", "cutoff",
+                                   "f_stand", "f_hand"),
+                      left_on=["batter", "pitcher", "game_date"],
+                      right_on=["batter", "pitcher", "cutoff"],
+                      how="left")
+            .with_columns(pl.col("game_date").alias("cutoff"),
+                          pl.col("f_stand").alias("stand"),
+                          pl.col("f_hand").alias("p_throws"))
+            .drop(["f_stand", "f_hand"]))
+    feat = pf.attach_platoon_features(feat, rates, n_classes=4)
+    feat = feat.select(lfi.KEY_COLS + list(model["features"]))
+    expected = lfi.run_label_free_inference(model, feat, bf)
+    assert res["contract"] == "platoon_challenger_v1"
+    assert_frame_equal(_keyed(res), _keyed(expected),
+                       check_exact=False, abs_tol=1e-12)
+    assert_frame_equal(_pmf(res), _pmf(expected),
+                       check_exact=False, abs_tol=1e-12)
