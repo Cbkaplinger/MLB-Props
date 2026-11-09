@@ -4,6 +4,16 @@
      (chat2-review-overnight-20261013/market_eval/PULL_REQUEST_TEMPLATE.md,
      2026-10-14). Nothing aspirational may appear under "What". -->
 
+## Identity
+<!-- Complete before review. Do not use remembered or stale values. -->
+Repository / origin:
+Worktree / branch:
+Task base SHA:
+Current HEAD:
+Remote branch / PR head:
+Working-tree status:
+Claimed paths:
+
 ## Status
 <!-- Choose one: DRAFT / READY-FOR-REVIEW / REVIEWED (cite verdict) / SUPERSEDED (cite replacement) -->
 
@@ -30,3 +40,10 @@
 
 ## Reviewer
 <!-- Verdict, SHA it applies to, findings-file hash. -->
+
+## Integration closeout
+<!-- Complete after merge when applicable. -->
+Merged main SHA:
+Dependent PR disposition:
+Workspace state: retained role workspace / released / removable by approved batch
+Next owner/action:

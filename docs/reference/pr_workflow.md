@@ -42,6 +42,13 @@ imply standing permission to edit the builder's implementation.
    scope; push explicitly to that branch. Work that failed to publish is a
    blocker, not a delivered checkpoint; unpushed work is labeled LOCAL ONLY.
 
+The same identity checkpoint applies at four handoffs: before creating a
+topic branch, before publishing, before review, and before merge. Record the
+base SHA, local HEAD, remote/PR head, ahead/behind counts against
+`origin/main`, working-tree status, claimed paths, and tested SHA. A mismatch
+is `LOCAL ONLY` or `STALE`, never READY; refresh the branch and rerun affected
+checks before handing it forward.
+
 ### Worktree lifecycle
 
 A worktree belongs to a role or an explicitly named long-running purpose,
@@ -66,6 +73,10 @@ Before creating a worktree:
 A new branch or PR does not by itself justify a new worktree. Reviewers
 fetch and checkout successive reviewed SHAs in their existing clean,
 released review workspace.
+
+Never check out the same branch in two worktrees. Reuse a role workspace for
+successive topics only after its prior branch is released and its tracked,
+untracked, and relevant ignored state has been rechecked.
 
 Before switching an existing workspace:
 - confirm ownership and no active job/process depending on it;
@@ -203,6 +214,14 @@ Merge mechanics: normal merge per repo precedent (merge commits; e.g. PR #1).
 After merging: update local `origin/main`, **record the resulting main SHA** in
 the closeout/identity record, and verify dependent PRs still contain the new
 main or plan their refresh/rebase.
+
+Use this closeout sequence:
+`merged -> main-verified -> released -> removable`.
+`main-verified` records the resulting main SHA and dependent-PR disposition.
+`released` confirms that no owner, process, or claimed path still depends on
+the topic workspace. Role worktrees remain reusable; only an exceptional
+workspace reaches `removable`, and only through a separately approved,
+non-force cleanup batch. Branch deletion is never implied.
 
 ## 9. Comments and closures
 

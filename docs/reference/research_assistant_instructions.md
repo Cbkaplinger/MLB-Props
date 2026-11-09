@@ -76,7 +76,8 @@ PnL `1208.55`, Sharpe `0.4438`, Sortino `0.4277`, Brier skill `+0.2069`,
 LogLoss skill `+0.1551`.
 
 Paper: `docs/paper/manuscript.md`. Summary: `docs/paper/resume-summary.md`.
-Status: `docs/diagrams/00-index.md`.
+Diagram navigation: `docs/diagrams/00-index.md`. Current work state:
+`docs/NEXT.md` and `docs/EXECUTION_BACKLOG.md`.
 Freeze: `docs/research/step11_discipline_registry_freeze.md`.
 
 ## Leakage and feature safety

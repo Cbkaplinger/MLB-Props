@@ -1,5 +1,9 @@
 # PROJECT_STORY — what has been done and what was learned (in time order)
 
+> **Historical narrative snapshot, not live work state.** Current assignments,
+> approvals, and next actions live in `docs/NEXT.md` and
+> `docs/EXECUTION_BACKLOG.md`.
+
 **Status:** living narrative. Assembled 2026-10-21 from `docs/research/PAPER_NOTES.md`,
 `docs/research/statistical_audit_and_sequencing_report.md`, and `docs/DECISIONS.md`.
 Reconciled against canonical accepted records 2026-10-27 (Chat 3; delta review on
