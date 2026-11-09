@@ -34,6 +34,18 @@ Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
 ## Current action: label-free prediction path (published; awaiting Chat 2 review)
 
-PR for `research/label-free-prediction` (base main): research-only orchestration `label_free_prediction.run_prediction` connecting the retained 12-feature candidate's existing construction seams (states-v2 + prior features + platoon-features-v1) to the existing label-free inference module (PR #68). 6 synthetic tests green. Synthetic only - no real/private data, no fitting/scoring, no calibration, no promotion. Awaiting Chat 2 review; prior Stage A gate (PR #67) merged.
+PR #70 (`research/label-free-prediction`, base main): research-only
+orchestration `label_free_prediction.run_prediction` connecting the
+retained 12-feature candidate's existing construction seams (states-v2 +
+prior features + platoon-features-v1) to the existing label-free inference
+module (PR #68). After Chat 2's probe (identical per-class coefficients
+made the original fixture feature-independent), the fixture now uses
+distinct per-class coefficient rows: 10 synthetic tests green covering
+same-date/future perturbation invariance, strictly-prior sensitivity
+(max prob delta 0.0251), permutation invariance, adapter parity with the
+registered seams, and refusals; zero-coef uniform case kept as a
+degenerate arithmetic smoke test only. Synthetic only - no real/private
+data, no fitting/scoring, no calibration, no promotion. Awaiting Chat 2
+review; prior Stage A gate (PR #67) merged.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
