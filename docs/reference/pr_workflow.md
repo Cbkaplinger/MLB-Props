@@ -78,6 +78,15 @@ Never check out the same branch in two worktrees. Reuse a role workspace for
 successive topics only after its prior branch is released and its tracked,
 untracked, and relevant ignored state has been rechecked.
 
+The steady state is one primary checkout, one builder PR, and at most one
+maintenance PR. Every active task records one owner, workspace, claimed path
+set, branch, base SHA, current head SHA, PR, and release condition. One writer
+owns each workspace and claimed path; a second agent reviews or proposes a
+transfer, but does not edit in place. Unique local-only work is either
+published from its owned workspace or parked with an owner, reason, and
+reopening trigger. There is one integration branch: `origin/main`; this
+repository does not use a `develop` branch.
+
 Before switching an existing workspace:
 - confirm ownership and no active job/process depending on it;
 - check tracked, untracked, and relevant ignored content;
@@ -165,6 +174,12 @@ Workflow: `.github/workflows/ci.yml` (job `test-and-validate`):
 
 **Green CI on the exact head is necessary, never sufficient.** It does not
 substitute for the independent review verdict or owner authorization.
+
+Read-only health checks must distinguish **FAIL** (a scoped integrity or
+operational error), **WARNING** (advisory or historical drift), and
+**PRESERVATION HOLD** (unknown, dirty, or unique content). Only a scoped
+FAIL blocks delivery. Historical warnings must not become permanent blockers
+for unrelated work, and a preservation hold never authorizes deletion.
 
 ## 6. Reviewing
 
