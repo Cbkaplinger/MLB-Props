@@ -1,6 +1,6 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-08. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
+ Owner: architect. Updated 2026-11-09. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
 
 ## Workload personalization experiment - COMPLETED / VERIFIED
 
@@ -32,14 +32,67 @@ The full verified lane stack is on main at **2ca8aef**: #60 (temporal-robustness
 
 Full table: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Current action: candidate-parity entry point (published; awaiting Chat 2 review)
+## Candidate parity - CLOSED / INDEPENDENTLY VERIFIED (2026-11-09)
 
-PR for `research/parity-platoon-candidate` (base main): one thin
-committed invocation `parity_platoon_candidate_v1.run_parity` + CLI
-answering whether the integrated prediction path (PR #70 module)
-reproduces the saved platoon-candidate forecasts from the same fitted
-model and pinned inputs. 14 synthetic tests green (incl. finalization-ordering regressions; reference built independently through the registered seams). Reference-receipt
-SHA-256 is a required execution parameter; execution requires fresh
-owner authorization - synthetic only. Awaiting Chat 2 review.
+The integrated prediction path (main `3a807a98`) reproduced the saved
+platoon-candidate forecasts from the same fitted model and pinned inputs:
+**PASS, exact zero** at both grains (2,509 starts; 22,581 PA-grain rows;
+60,216 PMF rows; max abs diff 0.0 in all four classes and every K-PMF
+bucket, tolerance 1e-12). Owner/Chat 2 independently verified and CLOSED
+the record. Reference receipt attested as a **present-day verified
+snapshot** (`b1b91357...`, four manifest artifacts MATCH) - no historical
+byte continuity is claimed. Parity establishes reproducibility/identity
+only, NOT predictive superiority. Evidence (write-once, preserved):
+`...\diagnostics\parity_platoon_candidate_v1\` (receipt_initial ->
+parity_comparison -> receipt_final, chain `b70a2f90...`).
+
+## Baseline recipe for subsequent ablations (recommendation, 2026-11-09)
+
+From the existing VERIFIED records only (no new experiment):
+
+- **PA model:** 4-class multinomial logistic (strikeout /
+  walk_hbp_interference / in_play_out / hit; K = class 0),
+  StandardScaler + multinomial LR, no tuning. Supported by: binary-K
+  lane (binary control retained), LGBM lane (fixed multinomial control
+  retained; guard failed), Ref0-vs-Ref1 (K marginal beats population
+  proportions).
+- **Features (retained control):** the registered 8 prior-only FEAT_H3
+  columns. **Unpromoted candidate:** + the 4 platoon columns
+  (platoon-features-v1) - favored with CI entirely below zero in the
+  platoon run (-0.0008712 [-0.0012622, -0.0005038]) and both temporal
+  periods (R1 -0.000415, R2 -0.000870), K guard within margin in all
+  three; registered CANDIDATE for a future frozen-contract decision,
+  never promoted.
+- **History recipe:** cutoff-correct states-v2 (strictly-prior aggregate
+  at each cutoff; w150 shrinkage; EW decay 90d half-life); longer
+  estimation history favored (history-sensitivity scorecard, delta
+  -0.0111, CI below zero).
+- **Workload distribution:** pooled league BF37 by date (W0) - favored
+  over pitcher-specific W1 (+0.012406, CI [+0.004410, +0.020368],
+  entirely above zero); `start_count_pmfs` for K-count PMFs.
+- **Aggregation:** per-PA multiclass log loss primary; per-start means
+  for contrasts; paired slate-date bootstrap 2000 draws / seed 20261001;
+  K-count RPS non-degradation guard (0.002 margin).
+- **Calibration status:** NONE - every verified arm is the uncalibrated
+  softmax; no calibration comparison exists in any lane.
+
+**Retained control = the registered 8-feature multinomial-plus-W0
+recipe** (reconstruction-anchored). **Development control = the
+12-feature multinomial-plus-platoon pipeline** (temporal lane). The
+platoon family is a candidate, not a promoted component.
+
+**Single most important unresolved question:** whether the 12-feature
+multinomial-plus-platoon candidate replaces the 8-feature control as
+the frozen baseline for subsequent ablations (the frozen-contract
+decision the lanes have twice qualified but never taken). Standing
+known-unknown behind it: no calibration comparison exists.
+
+## Current action: owner/architect decision - baseline freeze for subsequent ablations
+
+The baseline-recipe recommendation above is recorded in
+`docs/EXECUTION_BACKLOG.md` (parity closure carried there too). Next
+action: the owner/architect decides the frozen-contract question (8
+vs 12 features; platoon promotion is never automatic). No ablation
+work starts until that decision names the baseline.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
