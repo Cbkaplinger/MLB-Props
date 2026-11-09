@@ -22,7 +22,7 @@ and supporting standards live in `docs/reference/`.
 - `research/`: evidence trail and freeze rationale.
 - `diagrams/`: architecture and risk visuals.
 - `archive/`: deprecated or superseded material.
-- `CLEANUP_LOG.md`: historical cleanup log (not instructions).
+- `archive/CLEANUP_LOG.md`: historical cleanup log (not instructions).
 
 ## Authority map (one home per kind of information)
 

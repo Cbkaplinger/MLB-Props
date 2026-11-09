@@ -42,6 +42,13 @@ imply standing permission to edit the builder's implementation.
    scope; push explicitly to that branch. Work that failed to publish is a
    blocker, not a delivered checkpoint; unpushed work is labeled LOCAL ONLY.
 
+The same identity checkpoint applies at four handoffs: before creating a
+topic branch, before publishing, before review, and before merge. Record the
+base SHA, local HEAD, remote/PR head, ahead/behind counts against
+`origin/main`, working-tree status, claimed paths, and tested SHA. A mismatch
+is `LOCAL ONLY` or `STALE`, never READY; refresh the branch and rerun affected
+checks before handing it forward.
+
 ### Worktree lifecycle
 
 A worktree belongs to a role or an explicitly named long-running purpose,
@@ -66,6 +73,19 @@ Before creating a worktree:
 A new branch or PR does not by itself justify a new worktree. Reviewers
 fetch and checkout successive reviewed SHAs in their existing clean,
 released review workspace.
+
+Never check out the same branch in two worktrees. Reuse a role workspace for
+successive topics only after its prior branch is released and its tracked,
+untracked, and relevant ignored state has been rechecked.
+
+The steady state is one primary checkout, one builder PR, and at most one
+maintenance PR. Every active task records one owner, workspace, claimed path
+set, branch, base SHA, current head SHA, PR, and release condition. One writer
+owns each workspace and claimed path; a second agent reviews or proposes a
+transfer, but does not edit in place. Unique local-only work is either
+published from its owned workspace or parked with an owner, reason, and
+reopening trigger. There is one integration branch: `origin/main`; this
+repository does not use a `develop` branch.
 
 Before switching an existing workspace:
 - confirm ownership and no active job/process depending on it;
@@ -155,6 +175,12 @@ Workflow: `.github/workflows/ci.yml` (job `test-and-validate`):
 **Green CI on the exact head is necessary, never sufficient.** It does not
 substitute for the independent review verdict or owner authorization.
 
+Read-only health checks must distinguish **FAIL** (a scoped integrity or
+operational error), **WARNING** (advisory or historical drift), and
+**PRESERVATION HOLD** (unknown, dirty, or unique content). Only a scoped
+FAIL blocks delivery. Historical warnings must not become permanent blockers
+for unrelated work, and a preservation hold never authorizes deletion.
+
 ## 6. Reviewing
 
 - The reviewer **fetches the named PR head SHA** (not a remembered branch) and
@@ -203,6 +229,14 @@ Merge mechanics: normal merge per repo precedent (merge commits; e.g. PR #1).
 After merging: update local `origin/main`, **record the resulting main SHA** in
 the closeout/identity record, and verify dependent PRs still contain the new
 main or plan their refresh/rebase.
+
+Use this closeout sequence:
+`merged -> main-verified -> released -> removable`.
+`main-verified` records the resulting main SHA and dependent-PR disposition.
+`released` confirms that no owner, process, or claimed path still depends on
+the topic workspace. Role worktrees remain reusable; only an exceptional
+workspace reaches `removable`, and only through a separately approved,
+non-force cleanup batch. Branch deletion is never implied.
 
 ## 9. Comments and closures
 

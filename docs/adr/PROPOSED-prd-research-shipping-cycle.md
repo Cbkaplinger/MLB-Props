@@ -1,6 +1,10 @@
 # PRD: next research and shipping cycle
 
-**Status:** PROPOSED (2026-10-21; pending owner approval)
+> **SUPERSEDED:** Forward planning now lives in
+> [`docs/ROADMAP.md`](../ROADMAP.md). This proposal is retained for
+> historical provenance and does not schedule current work.
+
+**Status:** SUPERSEDED by `docs/ROADMAP.md` (2026-10-22)
 **Goal:** Decide with evidence whether the count layer, workload model or
 aggregation should change before the 2027 season.
 **Assumed deadline:** season opening late March 2027 (owner to confirm).

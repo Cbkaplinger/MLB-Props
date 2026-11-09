@@ -1,5 +1,9 @@
 # PROJECT_STATE — dashboard
 
+> **Historical snapshot, not live work state.** This record is frozen as of
+> 2026-10-19. Read `docs/NEXT.md`, `docs/EXECUTION_BACKLOG.md`, and
+> `docs/roles/` for current assignments, approvals, and operating rules.
+
 Point-in-time dashboard. `docs/EXECUTION_BACKLOG.md` remains the live work
 queue and wins on conflicts. Detailed evidence lives at the linked commits,
 PRs, and lake files — not duplicated here.

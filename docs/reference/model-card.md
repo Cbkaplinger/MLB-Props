@@ -154,7 +154,8 @@ Before publishing performance or using probabilities:
 
 Phase charts (keep separate; do not collapse into one mega-flowchart):
 
-- `docs/diagrams/00-index.md` — status snapshot
+- `docs/diagrams/00-index.md` — diagram navigation; current work state lives in
+  `docs/NEXT.md` and `docs/EXECUTION_BACKLOG.md`
 - `docs/diagrams/01-architecture.md` — as-built L1→L3→train→artifact + live/CLV side branch
 - `docs/diagrams/02-leakage-and-risks.md` — priors, park contamination, ≥9 PA filter
 - `docs/diagrams/03-modeling-and-evaluation.md` — chrono splits, Steps 1–10, Phase 11

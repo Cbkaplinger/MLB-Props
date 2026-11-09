@@ -10,6 +10,7 @@
 | [01 - Architecture](01-architecture.md) | Training + pregame inference pipeline (View A) |
 | [02 - Leakage and risks](02-leakage-and-risks.md) | Leakage boundaries and risk classification |
 | [03 - Modeling and evaluation](03-modeling-and-evaluation.md) | Model quality, calibration, evaluation gates |
+| [04 - Roadmap](04-roadmap.md) | Production, research, and policy roadmap views |
 | [05 - Live prediction flow](05-live-prediction-flow.md) | Daily ops: ingestion → model → board → ledger |
 
 ## Research and governance (PROPOSED)
