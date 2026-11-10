@@ -48,8 +48,14 @@ registered control vs challenger through the shared harness.
   favored: per-PA delta -0.0008712, CI below zero; K guard satisfied).
   Exact invocation + packet: committed
   `execution_packet_platoon_v1.md`; snapshot PRESENT carries it.
-  Any re-invocation needs fresh owner authorization + fresh
-  write-once destination.
+- **REPRODUCTION EXECUTED ONCE 2026-11-10 (owner-authorized,
+  checkpoint `7e6d03c`, fresh destination
+  `platoon_information_v1_reproduction_20261110`): BIT-EXACT -
+  exit 0, delta -0.0008712364... CI95 [-0.0012622, -0.0005038], K
+  guard within margin, and every output artifact byte-identical to
+  the registered run (receipt_final = `b1b91357...224ba`).** The
+  registered comparison result stands reproduced; no further
+  comparison execution needed.
 - Both parity lanes CLOSED/VERIFIED; confirm_2025H2 remains the
   reserved (INSPECTED) confirmation population; no next scientific
-  task assigned until the owner decides on the re-invocation question.
+  task assigned until the owner decides the next question.

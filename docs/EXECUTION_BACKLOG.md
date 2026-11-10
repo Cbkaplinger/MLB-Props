@@ -113,13 +113,33 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   write-once refusal, registered gate failure = exit 1 with failure
   receipt. **A re-invocation requires fresh owner authorization and a
   fresh destination; prior approvals do not carry over.**
+- **REPRODUCTION EXECUTED ONCE 2026-11-10 (owner-authorized; authorized
+  checkpoint `7e6d03c`; destination
+  `...\diagnostics\platoon_information_v1_reproduction_20261110\`
+  fresh write-once): BIT-EXACT REPRODUCTION.** Exit 0, status
+  COMPLETED, chain `9bfd5649...`. Accounting: 64,746 requests before
+  cohort -> 22,581 after; 2,509 starts; 148,369 training rows; 43,565
+  matched PAs; 2,509 starts with log loss; reconstruction gate
+  n_keys 2,509, max_abs_rps_diff 0.0, verified. Primary delta
+  **-0.0008712364487972746**, CI95 [-0.0012622472718286982,
+  -0.0005037855899286848]; K-count RPS guard point estimate
+  4.0898e-05 <= 0.002 margin (within_margin true). **Every output
+  artifact is BYTE-IDENTICAL to the registered run:** per-start
+  parquet `c7428375...` (the pinned reconstruction reference hash),
+  keyed/model/pmf/bf artifacts identical to the parity reference
+  hashes, and `receipt_final.json` = `b1b91357...224ba` - exactly the
+  Chat 2-attested reference-receipt pin used by both parity
+  executions. Interpreter disclosure: primary checkout's `.venv`
+  (wtsc has none); executed code = wtsc HEAD `7e6d03c` (computational
+  files unchanged from main; docs-only delta). Raw-event hashes are
+  RECORDED procedurally by this runner (not pre-decode enforced);
+  PA/lineups/assessment pins, reconstruction pin, and cohort hash are
+  runner-enforced.
 
 ### FORWARD
 
-1. Owner decision: accept the registered closed result as the answer
-   (no execution), or authorize ONE re-invocation of the exact
-   command above into a fresh destination. No builder action until
-   that decision.
+1. Owner decision: the registered comparison result now stands
+   reproduced bit-exactly; no further comparison execution is needed.
 2. Scientific queue: no other task assigned; ablation work stays
    closed (no-2026-tuning; 2025-select / 2026-judge sequencing
    unchanged).
