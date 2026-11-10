@@ -75,20 +75,22 @@ receipts and are not current ownership or queue instructions.
   statements and is preserved at
   `preservation-20261109\patches\wtsc-backlog-uncommitted.patch`; it was not
   copied into current authority.
-- `agent/distribution-spec@52379dd` is reachable from `origin/main`, but its
-  dirty backlog/spec edits and 16 untracked scientific files remain a
-  preservation hold. `main-active` has unique documentation commits
-  `beb146b` and `b70ebfc`, a dirty `AGENTS.md`, five untracked files, and
-  ignored research data. `paext-v2@1321e4b` is reachable from `origin/main`;
-  its reported modification to
+- `agent/distribution-spec@52379dd8c82fe87537173c8b3798caaf5688f41c` is
+  reachable from `origin/main`; its dirty backlog/spec edits and 16
+  untracked scientific files are preserved outside the active workspace set.
+  `main-active` has unique documentation commits `beb146b` and `b70ebfc`, a
+  dirty `AGENTS.md`, five untracked files, and ignored research data; its
+  unique source state is preserved. `paext-v2@1321e4bf45ca1673985612b2994cbda4eca23f9f`
+  is reachable from `origin/main`; its reported modification to
   `tests/test_count_pmf_calibration_runner.py` is metadata-only
-  (`index=worktree=417755a...`), while ignored MLflow storage, artifacts,
-  and dimensions remain. None is safe to remove or bulk-merge.
+  (`index=worktree=417755a...`). Its local synthetic MLflow output, duplicate
+  artifact/dimension data, and caches are noncanonical and are included only
+  in the proposed worktree-removal scope. None is bulk-merged.
 - All reachability statements above use
   `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
   is not used.
 
-### Storage disposition verified for the three held worktrees
+### Storage disposition verified for the three removable-after-approval worktrees
 
 - `distribution-spec`:
   `artifacts/odds_log/recommendations_meta.json` is 140 bytes and byte-identical
@@ -128,10 +130,11 @@ receipts and are not current ownership or queue instructions.
 
 ### DEFERRED
 
-- No scientific branch is merged through maintenance. `distribution-spec`
-  and `main-active` remain preservation/ownership holds; `paext-v2` remains
-  an integrated-content hold until the exact worktree-removal batch below is
-  explicitly approved.
+- No scientific branch is merged through maintenance. Unique source state for
+  `distribution-spec` and `main-active` is recoverable from the existing
+  preservation hold; `paext-v2` has no tracked code delta. The three obsolete
+  checkout directories are removal candidates only after the exact batch below
+  is explicitly approved. Canonical external storage remains outside scope.
 - No test-suite redesign, lifecycle-policy expansion, PR-template
   expansion, new registry, or additional cleanup framework is started.
 - Primary synchronization is complete; verified canonical storage requires no
@@ -147,37 +150,37 @@ set; remote deletion is listed separately from local deletion.
 **Local branches to remove non-force:**
 
 ```text
-docs/reconcile-20261106@9976d0c
-research/next-assigned@8e9fe3a
-research/parity-platoon-candidate@3a807a9
-research/result-summary-v1@1570679
+docs/reconcile-20261106@9976d0cdd6be0b8e33eb553704ff847505377907
+research/next-assigned@8e9fe3a07eca6f1e51ecb5f9ac7d3e4dfd795b5e
+research/parity-platoon-candidate@3a807a988f76c6a2bec59209349b20c6cfc77d9f
+research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
 ```
 
 **Remote branches to remove separately, after the local batch:**
 
 ```text
-origin/chat3/doc-simplify-20261023@587fa4f
-origin/chat3/pub-rules-20261106@47b887b
-origin/docs/consolidation-slice-1@ad5871a
-origin/docs/integration-reconciliation-20261103@ffdae7b
-origin/docs/lineup-path-reconciliation-spec@ca00e4d
-origin/docs/orchestrator-source-pack@9850a28
-origin/docs/reconcile-20261106@9976d0c
-origin/docs/untracked-backfill-20261105@14afec6
-origin/docs/worktree-reuse-rule@8e9b7f8
-origin/research/baseline-benchmark-v1@69aa861
-origin/research/baseline-history-scorecard-v1@1a1790c
-origin/research/baseline-recipe-rec@971df98
-origin/research/binary-k-vs-multinomial-v1@ab22099
-origin/research/count-pmf-calibration-v1@1381e72
-origin/research/label-free-inference@4026979
-origin/research/label-free-prediction@fdbf554
-origin/research/lgbm-multiclass-v1@34efade
-origin/research/paext-v2-count-agg-eval@d6ce42a
-origin/research/parity-platoon-candidate@29592fb
-origin/research/platoon-information-v1@672aaf6
-origin/research/result-summary-v1@1570679
-origin/research/stage-a-numerical-gate@b846117
+origin/chat3/doc-simplify-20261023@587fa4f8fbf5f97526767266b23b9f0e9cf143cf
+origin/chat3/pub-rules-20261106@47b887b0b7a13d1ba422aac1b3b28ef6436cae15
+origin/docs/consolidation-slice-1@ad5871a95c1862cf89c6d8fefec9af9a0214984b
+origin/docs/integration-reconciliation-20261103@ffdae7b239a2c3572ccb26dbd49abfd2ad76b7b5
+origin/docs/lineup-path-reconciliation-spec@ca00e4df5a426acf37ef9d3f43f8e25aa95dc8e1
+origin/docs/orchestrator-source-pack@9850a281cba3fd4a33ad2443a2728934b019036e
+origin/docs/reconcile-20261106@9976d0cdd6be0b8e33eb553704ff847505377907
+origin/docs/untracked-backfill-20261105@14afec6eeefdd2385fedec20b7edf1b056f72acd
+origin/docs/worktree-reuse-rule@8e9b7f8e8633cc74fe15e48d82c6c6c403ae0cd3
+origin/research/baseline-benchmark-v1@69aa861e398a730b020887eed8a90b6c6cbab688
+origin/research/baseline-history-scorecard-v1@1a1790c4aef0c77f0f8909dbdf59c5eef1af07d4
+origin/research/baseline-recipe-rec@971df98a09701431743c23f940f5d9876f06d21e
+origin/research/binary-k-vs-multinomial-v1@ab220994d9a179cd595e196c1646b7c5266089e7
+origin/research/count-pmf-calibration-v1@1381e72badca507eb19331ad28967031aeed5a56
+origin/research/label-free-inference@40269793005cd0da3e9751bf1eb2e861714578c5
+origin/research/label-free-prediction@fdbf5541636a3ee346da0ff5433510048251d81c
+origin/research/lgbm-multiclass-v1@34efade12ee08f9ad178c5f487c6fc1f68308f4d
+origin/research/paext-v2-count-agg-eval@d6ce42a73011ef11f0198a624f0572c88214f887
+origin/research/parity-platoon-candidate@29592fb36d358195483d1372bc77e54c873385d4
+origin/research/platoon-information-v1@672aaf63c137528b704148d9f5bb579229f9bfe6
+origin/research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
+origin/research/stage-a-numerical-gate@b8461178d015a58a54c3d2b37235bb0897dc02c2
 ```
 
 **Scientific worktrees removable after the same exact approval, with no

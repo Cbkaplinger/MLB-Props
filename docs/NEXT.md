@@ -37,8 +37,8 @@ reference is `origin/main` at
 promotion, model change, or review reopening is authorized by this entry.
 
 - Primary `main` is synchronized without reset, stash, clean, or deletion.
-- Stable builder/reviewer ownership and the three preservation holds are
-  recorded in `docs/EXECUTION_BACKLOG.md`.
+- Stable builder/reviewer ownership and the three removable-after-approval
+  worktrees are recorded in `docs/EXECUTION_BACKLOG.md`.
 - The exact four-local/22-remote ref batch and recovery pointers are in that
   backlog; no removal is authorized by this file.
 
