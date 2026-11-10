@@ -240,14 +240,11 @@ def test_tamper_detection_every_type_every_mode(log, rtype, mode):
 
 def test_tamper_last_record_still_detected(log):
     log.append("market_snapshot", D1, market_payload())
-    rid1 = log.append("market_snapshot", D1,
-                      market_payload(game_pk=745002))
+    log.append("market_snapshot", D1, market_payload(game_pk=745002))
     _mutate_row(log, "market_snapshot", D1, 1,
                 lambda r: r.update(over_price=-120))
     with pytest.raises(AssertionError, match="record_id mismatch"):
         log.verify_chain("market_snapshot", D1)
-    # head alone cannot be trusted after tamper
-    assert rid1 is not None
 
 
 def test_settlement_correction_is_new_record_not_edit(log):
