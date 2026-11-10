@@ -89,6 +89,16 @@ receipts and are not current ownership or queue instructions.
 - All reachability statements above use
   `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
   is not used.
+- Helios signal criteria were checked read-only against the current test tree:
+  141 test files and 1,460 test functions are present; no unconditional
+  `assert True` tests were found. Seven tests use only non-`None` assertions
+  and 25 have no direct `assert`/`pytest.raises` node, but many of those call
+  assertion helpers or deliberately raise on failure. They are candidates for
+  producer/deletion-proof review, not proven low-signal tests. PR #75 removed
+  no tests, and no test deletion is included in this cleanup batch.
+  A test is removable only when its named production publisher/path,
+  production-shaped fixture, and failure-on-behavior-deletion check are
+  documented; CI green alone is insufficient.
 
 ### Storage disposition verified for the three removable-after-approval worktrees
 
@@ -156,6 +166,29 @@ research/parity-platoon-candidate@3a807a988f76c6a2bec59209349b20c6cfc77d9f
 research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
 ```
 
+**Additional local refs in the final consolidation batch:**
+
+```text
+agent/distribution-spec@52379dd8c82fe87537173c8b3798caaf5688f41c
+chat3/doc-collapse-20261023@c27eb68f53cee50bc97f66484fbf3dc4bac5c23d
+chat3/lighten-20261023b@94a16b9d1e841da67ce85ded347c9acb04c880a5
+chat3/verify-and-consolidate@9ec1a7afe56975de30752ad23b363c5c81f20480
+chat3/verify-script-20261023@84966bedd752020ec54da5cd163b766dbde13ec0
+docs/architecture-20261009@804e86bc1babf1237d60d1afffed25927275d0fb
+docs/pa-review-record-20261012@0ddb050408cb0e75db1cefdc4d73178ac223e862
+docs/pointer-repairs-20261009@20c2724ce62a8884abf81b83a8cc87ad175f439c
+maintenance/quality-baseline-20261016@35282f14cf50ac85db4230a93da53f3e5ad64ed7
+research/calibration-exec-gate-v1@1321e4bf45ca1673985612b2994cbda4eca23f9f
+research/market-eval-v2@f14530c7991541cbffe4cdd06201616def1ae7c6
+research/paired-uncertainty-v1@80320dedd8ee79a27a8fcb9b4e1931271ea98cb8
+research/paired-uncertainty-v2@b70ebfc4763965b747e44f0be0cd7f3993616cf2
+research/pregame-pa-ext-v1@e03f2386ea5daf5584ab09c641f1275d0158d71b
+research/pregame-pa-ext-v1-legacy@dfd8f1709a52a58bf2ac331dac8af053a79e5e31
+research/pregame-pa-ext-v2@562ab7a49fc80d407f3113fcc0386dcdb23ae982
+research/results-index-v1@7211269a62c20df1a9ba2efce4f98ae1f317ffe1
+review/overnight-20261013@a4c3060906fed3ce80c334b24bb4efe0029777b2
+```
+
 **Remote branches to remove separately, after the local batch:**
 
 ```text
@@ -183,26 +216,31 @@ origin/research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
 origin/research/stage-a-numerical-gate@b8461178d015a58a54c3d2b37235bb0897dc02c2
 ```
 
-**Remote refs intentionally outside this approved batch:**
+**Additional remote refs in the final consolidation batch:**
 
 ```text
 origin/chat3/verify-and-consolidate@9ec1a7afe56975de30752ad23b363c5c81f20480
-  No linked worktree or open PR. Its read-only
-  scripts/verify_theoddsapi.py content is identical to origin/main and was
-  already integrated through PR #44, but this divergent historical ref was
-  not included in the approved 22-ref deletion set.
+  Integrated/superseded: its read-only scripts/verify_theoddsapi.py content
+  is identical to origin/main and PR #44 is merged. No linked worktree or
+  open PR; remove after final approval.
 
 origin/docs/connector-confirmation-policy-20261027@39e2b4a26b2308ad05e3d168420f6d0ed12cbba1
-  No linked worktree or open PR. Its two-document policy commit is not in the
-  current canonical role/NEXT text; current owner-directed rules supersede
-  it. Preserve pending a separate owner decision rather than silently delete
-  or merge an unapproved policy.
+  Superseded: its two-document policy commit is not in the current canonical
+  role/NEXT text; current owner-directed rules supersede it. No linked
+  worktree or open PR; the commit is recoverable from the compact bundle.
+  Remove after final approval; do not merge it.
 
 origin/research/baseline-v2-derivation-runner@c8638f4e734032f00f996292f3fda7d1940aad85
-  No linked worktree or open PR. PR #51 is merged and PR #55 is closed
-  redundant, but this historical scientific tip is not an ancestor of the
-  current main and its stale tree differs broadly from current canonical
-  content. Preserve as historical lineage pending a separate owner decision.
+  Historical/superseded: PR #51 is merged and PR #55 is closed redundant;
+  this stale scientific tree is recoverable from the compact bundle and is
+  not an active consumer. No linked worktree or open PR; remove after final
+  approval without merging its historical tree.
+
+origin/research/calibration-exec-gate-v1@1321e4bf45ca1673985612b2994cbda4eca23f9f
+  Obsolete calibration checkout ref: the tracked test difference is
+  metadata-only and local MLflow output is synthetic/regenerable. Its
+  canonical external database remains retained; remove the ref with paext-v2
+  after the exact worktree storage scope is approved.
 ```
 
 **Scientific worktrees removable after the same exact approval, with
@@ -256,10 +294,12 @@ C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\paext-v2
 
 `wtsc`, `review-68`, and the maintenance workspace remain protected role
 lanes; primary contains owner-local state. Expected worktree count after the
-three removals is 4. The four redundant local-ref deletions leave 21 local
-branches; the 22 remote deletions leave 7 remote heads: `origin/main`, the
-maintenance, builder, and calibration role refs, plus the three named
-historical preservation holds above. No relocation is needed because every retained
+three removals is 4. The final local-ref batch contains 22 deletions and
+leaves only `main`, `chat3/lifecycle-docs-20261109`, and
+`research/dual-arm-prediction` (3 local branches). The final remote-ref batch
+contains 26 deletions and leaves only `origin/main`,
+`origin/chat3/lifecycle-docs-20261109`, and
+`origin/research/dual-arm-prediction` (3 remote heads). No relocation is needed because every retained
 canonical storage destination was verified before this batch was prepared.
 No raw data, credentials, receipts, canonical MLflow database, or unresolved
 experiment output is in the removal scope.
@@ -270,7 +310,10 @@ paths, hashes, and retrieval instructions. The compact hold contains
 `main-active-unique-commits.patch`, the empty `paext-v2` tracked patch, and
 the preserved `wtsc` backlog patch. Applying the nonempty patches against
 their recorded source/base heads passed `git apply --check`; no scientific
-code was run.
+code was run. `historical-refs-20261109.bundle` is 215,557 bytes
+(SHA-256 `30d8bc006ab0ce96403db03c4e692985587387f94e8a72add54aed6939557832`);
+`git bundle verify` passed, and a temporary repository recovered all 48
+local/remote deletion tips with 0 missing tips before being removed.
 
 ---
 
