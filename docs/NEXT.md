@@ -1,7 +1,7 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-10. Temporary cleanup owner: Chat 3 while
-Chats 1 and 2 are paused. ROLES_REV 2026-10-28-r1. Read
+Owner: architect. Updated 2026-11-10. Chat 1 restarted on the assigned
+control-arm parity question. ROLES_REV 2026-10-28-r1. Read
 docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single
 queue.
 
@@ -29,25 +29,23 @@ PASS, exact zero at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows; 
 - Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
 - Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
 
-## Current action: repository consolidation closeout
+## Current action: control-arm parity selection (Chat 1 restart, 2026-11-10)
 
-Chat 3 is the sole active maintenance owner. The verified integration
-reference is `origin/main` at
-`731a32e56a494e778ea0e45d51ea18f3362ac975`; no scientific execution,
-promotion, model change, or review reopening is authorized by this entry.
+Owner-assigned question: can the shared prediction harness reproduce
+the saved reference-control forecasts (registered 8-feature multinomial
++ pooled W0) as it already reproduced the saved challenger forecasts?
 
-- Primary `main` is synchronized without reset, stash, clean, or deletion.
-- Four worktrees remain during review: primary, `wtsc`, `review-68`, and the
-  maintenance workspace.
-- The owner-approved 22-local/26-remote ref batch and three obsolete
-  worktree removals completed on 2026-11-10. The compact bundle and recovery
-  pointers remain in `docs/EXECUTION_BACKLOG.md`; no further cleanup is
-  authorized by this entry.
+- The harness (`label_free_prediction.run_prediction`) already supports
+  both registered contracts; the saved reference dir carries both arms'
+  forecasts. Only `parity_platoon_candidate_v1.py` was
+  challenger-hard-wired; it now takes an explicit `--arm` selection
+  (`platoon_challenger` default, `multinomial_control`, unsupported
+  selection refuses pre-write) with unchanged challenger semantics.
+- Synthetic only (17 parity tests + seam suites green). No real-data
+  execution; control-arm execution still needs fresh owner
+  authorization. No promotion implied. Checkpoint: PR from
+  `research/control-arm-parity`.
+- Consolidation closeout (Chat 3) is CLOSED and merged; history lives
+  in `docs/EXECUTION_BACKLOG.md`.
 
-## Scientific queue hold
-
-The completed candidate-parity evidence above remains historical evidence.
-Any future scientific task resumes only after the architect assigns one
-question; this closeout does not reopen a review or authorize execution.
-
-Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
+## Prior completed milestones (this lane)

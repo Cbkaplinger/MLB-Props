@@ -2,8 +2,18 @@
 
 ONE THIN, COMMITTED INVOCATION (no generic framework): does the
 integrated prediction path (`label_free_prediction.run_prediction`,
-main lineage) reproduce the saved platoon-candidate forecasts from the
-same fitted model and pinned inputs?
+main lineage) reproduce the saved candidate forecasts from the same
+fitted model and pinned inputs, for ONE explicitly selected registered
+arm? Supported arms (registered 2026-11-09 ablation-baseline decision):
+- "platoon_challenger": the 12-feature platoon recipe (development
+  challenger);
+- "multinomial_control": the 8-feature multinomial + pooled W0 recipe
+  (reference control).
+Both arms' saved forecasts live in ONE platoon_comparison reference
+dir (model_artifacts.json carries both model keys; the keyed/pmf
+parquets carry both arms' columns), so arm selection only chooses the
+registered model key, keyed-probability column suffix, and saved PMF
+column name below. Anything else refuses BEFORE any decode or write.
 
 SYNTHETIC-TESTED ONLY until separately authorized; write-once outputs.
 Reuses: statcast_event_bridge (terminal-event labels),
@@ -92,9 +102,19 @@ REF_MODEL_FILE = "model_artifacts.json"
 REF_KEYED_FILE = "keyed_pa_probabilities.parquet"
 REF_PMF_FILE = "k_pmf_per_start_v1.parquet"
 REF_BF_FILE = "bf37_pooled_by_date_v1.parquet"
-REF_MODEL_KEY = "platoon_challenger"
-REF_KEYED_SUFFIX = "_platoon"
-REF_PMF_COLUMN = "pmf_platoon"
+ARM_CHALLENGER = "platoon_challenger"
+ARM_CONTROL = "multinomial_control"
+# explicit supported arm/model/column mapping (registered ablation
+# baseline 2026-11-09); both arms live in one platoon_comparison
+# reference dir; any other selection refuses before decode or write
+SUPPORTED_ARMS = {
+    ARM_CHALLENGER: {"model_key": "platoon_challenger",
+                     "keyed_suffix": "_platoon",
+                     "pmf_column": "pmf_platoon"},
+    ARM_CONTROL: {"model_key": "multinomial_control",
+                  "keyed_suffix": "_control",
+                  "pmf_column": "pmf_multinomial_control"},
+}
 WRAP_PMF_COLUMN = "pmf_h3_raw"
 KEYED_COLS = ["game_pk", "side", "pitcher", "slot", "batter"]
 START_KEYS = ["game_pk", "side", "pitcher"]
@@ -260,11 +280,19 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
                expected_reference_receipt_sha256,
                expected_pa_sha256, expected_lineups_sha256,
                expected_raw_event_sha256s, expected_cohort_hash,
-               out_dir, execution_ack) -> dict:
+               out_dir, execution_ack, arm=ARM_CHALLENGER) -> dict:
     """One exact parity execution; see the module docstring."""
     if execution_ack != EXECUTION_ACK_TOKEN:
         raise ValueError(
             f"execution acknowledgement required: {ACK_ROUTE}")
+    if arm not in SUPPORTED_ARMS:
+        raise ValueError(
+            f"unsupported arm selection {arm!r}; supported arms: "
+            f"{sorted(SUPPORTED_ARMS)} (registered saved "
+            "model/reference arms only)")
+    arm_map = SUPPORTED_ARMS[arm]
+    ref_keyed_suffix = arm_map["keyed_suffix"]
+    ref_pmf_column = arm_map["pmf_column"]
     out_dir = Path(out_dir)
     if out_dir.exists():
         raise ValueError(
@@ -287,6 +315,7 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
     initial = {
         "execution_acknowledgement": {"route": ACK_ROUTE,
                                       "token": execution_ack},
+        "arm_selection": {"arm": arm, **arm_map},
         "code_identity": _code_identity(),
         "runtime_versions": _runtime_versions(),
         "expected_input_identities": {
@@ -401,10 +430,11 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
         # ---- saved fitted candidate model (hash-verified file) -------
         state["stage"] = "model_load"
         model_all = json.loads(model_path.read_text(encoding="utf-8"))
-        if REF_MODEL_KEY not in model_all:
+        ref_model_key = arm_map["model_key"]
+        if ref_model_key not in model_all:
             raise ValueError(
-                f"model artifact lacks the {REF_MODEL_KEY!r} entry")
-        model = model_all[REF_MODEL_KEY]
+                f"model artifact lacks the {ref_model_key!r} entry")
+        model = model_all[ref_model_key]
         classes = [int(c) for c in model["classes"]]
 
         # ---- integrated prediction path ------------------------------
@@ -416,7 +446,7 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
         state["stage"] = "comparison"
         ref_keyed = pl.read_parquet(keyed_path)
         wrap_keyed = result["keyed_pa_probabilities"]
-        ref_cols = [f"p_class_{c}{REF_KEYED_SUFFIX}" for c in classes]
+        ref_cols = [f"p_class_{c}{ref_keyed_suffix}" for c in classes]
         wrap_cols = [f"p_class_{c}" for c in classes]
         for frame, ctx, cols in ((ref_keyed, "reference keyed",
                                   KEYED_COLS + ref_cols),
@@ -446,7 +476,7 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
         pa_diffs = {}
         for c in classes:
             d = np.abs(
-                rk[f"p_class_{c}{REF_KEYED_SUFFIX}"].to_numpy()
+                rk[f"p_class_{c}{ref_keyed_suffix}"].to_numpy()
                 - wk[f"p_class_{c}"].to_numpy())
             pa_diffs[f"p_class_{c}"] = float(d.max())
         pa_max = max(pa_diffs.values())
@@ -455,7 +485,7 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
         ref_pmf = pl.read_parquet(pmf_path)
         wrap_pmf = result["k_pmf_per_start"]
         for frame, ctx, val_col in ((ref_pmf, "reference pmf",
-                                     REF_PMF_COLUMN),
+                                      ref_pmf_column),
                                     (wrap_pmf, "wrapper pmf",
                                      WRAP_PMF_COLUMN)):
             absent = [c for c in PMF_KEYS + [val_col]
@@ -484,10 +514,10 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
             raise ValueError(
                 "PMF-grain key sets differ (missing or extra "
                 "comparison identities)")
-        _require_finite(rp, [REF_PMF_COLUMN], "reference pmf")
+        _require_finite(rp, [ref_pmf_column], "reference pmf")
         _require_finite(wp, [WRAP_PMF_COLUMN], "wrapper pmf")
         pmf_max = float(np.abs(
-            rp[REF_PMF_COLUMN].to_numpy()
+            rp[ref_pmf_column].to_numpy()
             - wp[WRAP_PMF_COLUMN].to_numpy()).max())
 
         # ---- acceptance ------------------------------------------------
@@ -501,9 +531,9 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
             "pa_grain_max_abs_diff": pa_max,
             "pmf_grain_max_abs_diff": pmf_max,
             "column_mappings": {
-                "keyed": {f"p_class_{c}{REF_KEYED_SUFFIX}":
+                "keyed": {f"p_class_{c}{ref_keyed_suffix}":
                           f"p_class_{c}" for c in classes},
-                "pmf": {REF_PMF_COLUMN: WRAP_PMF_COLUMN}},
+                "pmf": {ref_pmf_column: WRAP_PMF_COLUMN}},
             "within_tolerance": (pa_max <= TOLERANCE
                                  and pmf_max <= TOLERANCE),
         }
@@ -561,7 +591,12 @@ def run_parity(*, pa_path, lineups_path, cohort_keys_path,
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="Candidate-parity check: integrated prediction "
-                    "path vs saved platoon-candidate forecasts")
+                    "path vs saved candidate forecasts for one "
+                    "registered arm (platoon_challenger or "
+                    "multinomial_control)")
+    ap.add_argument("--arm", default=ARM_CHALLENGER,
+                    help="registered saved arm to verify "
+                         "(default: platoon_challenger)")
     ap.add_argument("--pa-source", required=True)
     ap.add_argument("--lineups", required=True)
     ap.add_argument("--cohort-keys", required=True)
@@ -579,6 +614,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--execution-ack", required=True)
     args = ap.parse_args(argv)
     run_parity(
+        arm=args.arm,
         pa_path=args.pa_source,
         lineups_path=args.lineups,
         cohort_keys_path=args.cohort_keys,

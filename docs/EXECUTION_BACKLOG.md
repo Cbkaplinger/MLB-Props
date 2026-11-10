@@ -40,6 +40,66 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
+## Session snapshot — Chat 1 restart, control-arm parity selection (2026-11-10)
+
+### PAST
+
+- Consolidation closeout (Chat 3, 2026-11-10): PRs #72/#73/#74 merged;
+  preservation hold verified; obsolete worktrees removed. Executed
+  candidate parity (challenger arm) closed/verified 2026-11-09. Chat 2
+  verified the dual-contract baseline checkpoint at `165b7a9` (PASS,
+  2 nonblocking notes; block appended below in the closeout snapshot).
+
+### PRESENT
+
+- Owner-assigned question (Chat 1 restart from fetched `origin/main`,
+  HEAD `57ce8b2`): can the shared prediction harness reproduce the
+  saved reference-control forecasts (registered 8-feature multinomial
+  + pooled W0) as it already reproduced the saved challenger forecasts?
+- Finding: `label_free_prediction.run_prediction` already supported
+  both registered contracts, and the saved platoon reference dir
+  already carries BOTH arms (model keys `multinomial_control` +
+  `platoon_challenger`; keyed suffixes `_control`/`_platoon`; PMF
+  columns `pmf_multinomial_control`/`pmf_platoon`). Only the thin
+  parity entry point was challenger-hard-wired; no new framework, no
+  model/feature/calibration work.
+- Delivered (synthetic only; no real/private artifact reads, no
+  execution): `parity_platoon_candidate_v1.py` now takes an explicit
+  arm selection (`run_parity(arm=...)` / CLI `--arm`; default
+  `platoon_challenger`, so the existing challenger invocation and
+  comparison semantics are unchanged). The supported
+  arm/model/column mapping is an explicit registry; unsupported
+  selection refuses before any decode or write; the selected arm is
+  recorded in `receipt_initial.json` (`arm_selection`); reference
+  column names and mappings resolve from the registry; 1e-12
+  tolerance unchanged.
+- Tests: `tests/test_parity_platoon_candidate.py` 17 green (14
+  existing + control-arm parity against its registered seam,
+  unsupported-arm refusal, CLI `--arm` selection; the fixture now
+  mirrors the registered both-arm reference layout). Seam suites
+  `test_label_free_prediction.py` + `test_platoon_comparison.py` and
+  the pre-commit trio green (75 total). Full suite not run (evidence
+  honesty: targeted coverage only).
+- Checkpoint: branch `research/control-arm-parity`, one PR; no
+  status-only PR.
+
+### FORWARD
+
+1. Independent review + merge of the control-arm parity PR (Chat 2 /
+   architect delegation).
+2. Real-artifact control-arm execution REMAINS unauthorized: it needs
+   fresh owner authorization with the attested reference-receipt SHA
+   (same discipline as the executed challenger parity; same reference
+   dir, arm `multinomial_control`).
+3. Ablation work beyond parity stays closed (no-2026-tuning;
+   2025-select / 2026-judge sequencing unchanged).
+
+### DEFERRED
+
+- No new framework, no model/feature search, no calibration, no
+  workload recomputation, no dashboard revival; nothing pulled from
+  deferred lanes.
+
 ## Consolidation closeout — 2026-11-10
 
 This is the current state. Older dated snapshots below remain historical
@@ -89,6 +149,28 @@ receipts and are not current ownership or queue instructions.
 - All reachability statements above use
   `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
   is not used.
+- **Chat 2 baseline checkpoint review verdict (2026-11-10, exact SHA
+  `165b7a9f5b349cf308133425ba5481c922585468`): PASS with 2 nonblocking
+  notes.** Scope limited to the new dual-contract baseline-parity
+  selection behavior in
+  `research/offseason_2026/pregame_pa_ext/label_free_prediction.py`
+  (`_match_contract` set-match against the two registered contracts,
+  order-authoritative feature selection, challenger-only platoon attach
+  block, additive `contract` result key) and the affected tests in
+  `tests/test_label_free_prediction.py` (7 new tests). Reviewer reran
+  17/17 synthetic tests in that file and the 34 pre-commit tests: all
+  green, no real-data execution. Contract sets are unambiguous
+  (8-feature control is a strict subset of the 12-feature challenger;
+  multiset match refuses duplicates). Nonblocking notes: (1)
+  `needs_platoon` is hard-keyed to `platoon_challenger_v1`, so a future
+  third contract added to `_REGISTERED_CONTRACTS` would silently take
+  the non-platoon path; (2) the refusal message hardcodes contract
+  names instead of deriving from `_REGISTERED_CONTRACTS`. Neither gates
+  the checkpoint; both are future-proofing only. Retained findings from
+  the completed challenger parity review, cleanup review, and historical
+  model comparisons are not repeated. The `review-68` worktree remained
+  clean at the pinned SHA; no builder edits, private-artifact reads, or
+  merges occurred.
 - Helios signal criteria were checked read-only against the current test tree:
   141 test files and 1,460 test functions are present; no unconditional
   `assert True` tests were found. Seven tests use only non-`None` assertions
