@@ -183,26 +183,53 @@ origin/research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
 origin/research/stage-a-numerical-gate@b8461178d015a58a54c3d2b37235bb0897dc02c2
 ```
 
-**Scientific worktrees removable after the same exact approval, with no
-relocation:**
+**Scientific worktrees removable after the same exact approval, with
+noncanonical storage disposition verified:**
 
 ```text
 C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\distribution-spec
   branch agent/distribution-spec @ 52379dd8c82fe87537173c8b3798caaf5688f41c
   preserve tracked patch + 16 untracked source/test/report files; remove
-  only the duplicate/regenerable ignored artifact and dimension copy.
+  only these verified noncanonical files:
+    artifacts/odds_log/recommendations_meta.json
+      140 bytes, SHA-256 c0a42301d9eeca7752aa8fffc0fd8f44918435f29a5418953566ac9fb2697b76
+    data/dimensions/player_id_map.parquet
+      34,937 bytes, SHA-256 bf6a653f476ab81de9c611c4315796275d2d52a5e23733a589a4baf6a7d5edff
+  plus generated cache paths only: .hypothesis/, .pytest_cache/,
+  **/__pycache__/, *.pyc, and *.pyo.
 
 C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\main-active
   branch research/paired-uncertainty-v2 @ b70ebfc4763965b747e44f0be0cd7f3993616cf2
   preserve unique commits, dirty AGENTS.md, and five untracked files;
-  retain the canonical external start_metrics_v2 file; remove only the
-  duplicate/regenerable ignored artifact/dimension data and caches.
+  retain the canonical external start_metrics_v2 file; remove only these
+  verified duplicate files:
+    artifacts/models/lightgbm_krate_20260821_054126.json
+    artifacts/models/lightgbm_krate_20260821_054126.txt
+    artifacts/models/lightgbm_krate_mono_20260821_054127.json
+    artifacts/models/lightgbm_krate_mono_20260821_054127.txt
+    artifacts/odds_log/recommendations_meta.json
+    data/dimensions/player_id_map.parquet
+    research/offseason_2026/bf_workload_v1/data/start_metrics_v2.parquet
+  The five artifact/model files total 1,031,169 bytes and are byte-identical
+  to primary; start_metrics_v2 is 2,355,296 bytes and byte-identical to
+  C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet.
+  Also remove generated cache paths only: .hypothesis/, .pytest_cache/,
+  **/__pycache__/, *.pyc, and *.pyo.
 
 C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\paext-v2
   branch research/calibration-exec-gate-v1 @ 1321e4bf45ca1673985612b2994cbda4eca23f9f
-  retain external MLB-Props-Research/mlflow.db; remove only local
-  synthetic/regenerable mlruns, duplicate artifact/dimension data, caches,
-  and the metadata-only checkout state with the worktree.
+  retain external C:\Users\ckaplinger\MLB-Props-Research\mlflow.db
+  (1,212,416 bytes, SHA-256 04d714879aad0776e5563f439fa9aedf08d8c13877c7ae5651b45182141def5c).
+  Remove only local synthetic MLflow output:
+    mlruns/ (9 files, 20,452 bytes)
+    research/offseason_2026/specs/count-eval-v2-spec/harness/mlruns/
+      (52 files, 424,850 bytes)
+  and these verified duplicate/regenerable files:
+    artifacts/odds_log/recommendations_meta.json
+    data/dimensions/player_id_map.parquet
+  plus generated cache paths only: .hypothesis/, .pytest_cache/,
+  **/__pycache__/, *.pyc, and *.pyo. The tracked test state is metadata-only
+  (index=worktree=417755a...), so no source recovery is required.
 ```
 
 `wtsc`, `review-68`, and the maintenance workspace remain protected role
@@ -211,6 +238,8 @@ three removals is 4. The four redundant local-ref deletions leave 21 local
 branches; the 22 remote deletions leave `origin/main` plus the three
 protected role branches. No relocation is needed because every retained
 canonical storage destination was verified before this batch was prepared.
+No raw data, credentials, receipts, canonical MLflow database, or unresolved
+experiment output is in the removal scope.
 
 **Recovery evidence:** `MANIFEST.json` records the exact source heads,
 paths, hashes, and retrieval instructions. The compact hold contains
