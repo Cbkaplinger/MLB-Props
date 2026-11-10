@@ -40,6 +40,284 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
+## Consolidation closeout — 2026-11-10
+
+This is the current state. Older dated snapshots below remain historical
+receipts and are not current ownership or queue instructions.
+
+### PAST
+
+- PR #74 merged at `81fb30b`; PR #72 merged at `acf00e3`; PR #73 merged at
+  `731a32e`. Exact-head CI and review history remain intact. No scientific
+  execution, promotion, direct-main push, force operation, or unknown-content
+  deletion occurred.
+- The previously approved local
+  `research/baseline-recipe-rec@971df98` ref was deleted non-force; its
+  remote ref was deleted in the approved remote batch.
+- The existing preservation hold now verifies 25 copied files and five
+  patches (all copied-file hashes and nonempty patch dry-runs pass):
+  `C:\Users\ckaplinger\Downloads\MLB-Props-preservation-20261109`.
+  It excludes raw data, credentials, MLflow storage, artifacts, and caches.
+
+### PRESENT
+
+- Fetched integration reference: `origin/main =
+  731a32e56a494e778ea0e45d51ea18f3362ac975`.
+- Primary `main` is now fast-forwarded to that exact SHA. The three
+  untracked experiment files and ignored storage were not touched. A
+  read-only comparison found 0 collisions between 80,220 ignored/untracked
+  files and tracked paths at `origin/main`.
+- `review-68` is the protected Chat 2 reviewer workspace, detached at
+  `165b7a9`; it has no tracked or untracked edits.
+- `wtsc` is the protected Chat 1 builder workspace on
+  `research/dual-arm-prediction@165b7a9`; it has exactly one uncommitted
+  edit, `docs/EXECUTION_BACKLOG.md`. That edit contains stale pause/open-PR
+  statements and is preserved at
+  `preservation-20261109\patches\wtsc-backlog-uncommitted.patch`; it was not
+  copied into current authority.
+- `agent/distribution-spec@52379dd8c82fe87537173c8b3798caaf5688f41c` is
+  reachable from `origin/main`; its dirty backlog/spec edits and 16
+  untracked scientific files are preserved outside the active workspace set.
+  `main-active` has unique documentation commits `beb146b` and `b70ebfc`, a
+  dirty `AGENTS.md`, five untracked files, and ignored research data; its
+  unique source state is preserved. `paext-v2@1321e4bf45ca1673985612b2994cbda4eca23f9f`
+  is reachable from `origin/main`; its reported modification to
+  `tests/test_count_pmf_calibration_runner.py` is metadata-only
+  (`index=worktree=417755a...`). Its local synthetic MLflow output, duplicate
+  artifact/dimension data, and caches are noncanonical and were included only
+  in the approved worktree-removal scope. None is bulk-merged.
+- All reachability statements above use
+  `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
+  is not used.
+- Helios signal criteria were checked read-only against the current test tree:
+  141 test files and 1,460 test functions are present; no unconditional
+  `assert True` tests were found. Seven tests use only non-`None` assertions
+  and 25 have no direct `assert`/`pytest.raises` node, but many of those call
+  assertion helpers or deliberately raise on failure. They are candidates for
+  producer/deletion-proof review, not proven low-signal tests. PR #75 removed
+  no tests, and no test deletion is included in this cleanup batch.
+  A test is removable only when its named production publisher/path,
+  production-shaped fixture, and failure-on-behavior-deletion check are
+  documented; CI green alone is insufficient.
+
+### Storage disposition verified for the three removed worktrees
+
+- `distribution-spec`:
+  `artifacts/odds_log/recommendations_meta.json` is 140 bytes and byte-identical
+  to primary (`c0a42301...`); `data/dimensions/player_id_map.parquet` is
+  34,937 bytes (`bf6a653f...`), a regenerable dimension copy with no
+  canonical consumer in this worktree. Its tracked patch and 16 untracked
+  source/test/report files are already preserved.
+- `main-active`:
+  the four model files plus `recommendations_meta.json` are byte-identical to
+  primary (1,031,169 bytes total); `data/dimensions/player_id_map.parquet`
+  is a 35,036-byte regenerable copy (`4396257a...`). The
+  `research/offseason_2026/bf_workload_v1/data/start_metrics_v2.parquet`
+  file is 2,355,296 bytes (`af6814ec...`) and matches the canonical external
+  file at
+  `C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet`.
+  No relocation is required.
+- `paext-v2`:
+  `recommendations_meta.json` is byte-identical to primary; its 35,499-byte
+  dimension copy (`8f0d07f7...`) is regenerable. Its local MLflow stores are
+  9 files / 20,452 bytes under `mlruns/` and 52 files / 424,850 bytes under
+  `research/offseason_2026/specs/count-eval-v2-spec/harness/mlruns/`.
+  They are local synthetic harness output, not the canonical tracking store.
+  The canonical `C:\Users\ckaplinger\MLB-Props-Research\mlflow.db`
+  exists (1,212,416 bytes, hash `04d71487...`); no database deletion or
+  relocation is proposed. The metadata-only test state has identical index
+  and worktree blob `417755a...`.
+
+### FORWARD
+
+1. Review this closeout branch/PR as one documentation-maintenance unit.
+2. The owner-approved exact batch below was executed on 2026-11-10 after
+   expected-tip and preservation checks; no candidate was skipped.
+3. Obtain independent review and merge approval for this documentation
+   checkpoint. After integration, reuse `wtsc` for Chat 1 from fetched
+   `origin/main`, and use `review-68` only for the exact published builder
+   head. Release Chat 3's maintenance workspace under separate approval.
+
+### DEFERRED
+
+- No scientific branch is merged through maintenance. Unique source state for
+  `distribution-spec` and `main-active` is recoverable from the existing
+  preservation hold; `paext-v2` had no tracked code delta. The three obsolete
+  checkout directories were removed by the exact approved batch. Canonical
+  external storage remained outside scope.
+- No test-suite redesign, lifecycle-policy expansion, PR-template
+  expansion, new registry, or additional cleanup framework is started.
+- Primary synchronization is complete; verified canonical storage required no
+  relocation. Noncanonical/regenerable ignored storage was confined to the
+  removed worktrees and no protected storage was touched.
+
+### One exact approval batch — executed 2026-11-10
+
+Before execution, every expected ref tip matched, had no open PR, and was
+verified reachable from fetched `origin/main`. Each ref candidate had no
+linked worktree; the three linked worktrees were checked separately under the
+same approval. Local and remote deletion were performed separately.
+
+**Local branches removed:**
+
+```text
+docs/reconcile-20261106@9976d0cdd6be0b8e33eb553704ff847505377907
+research/next-assigned@8e9fe3a07eca6f1e51ecb5f9ac7d3e4dfd795b5e
+research/parity-platoon-candidate@3a807a988f76c6a2bec59209349b20c6cfc77d9f
+research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
+```
+
+**Additional local refs removed in the final consolidation batch:**
+
+```text
+agent/distribution-spec@52379dd8c82fe87537173c8b3798caaf5688f41c
+chat3/doc-collapse-20261023@c27eb68f53cee50bc97f66484fbf3dc4bac5c23d
+chat3/lighten-20261023b@94a16b9d1e841da67ce85ded347c9acb04c880a5
+chat3/verify-and-consolidate@9ec1a7afe56975de30752ad23b363c5c81f20480
+chat3/verify-script-20261023@84966bedd752020ec54da5cd163b766dbde13ec0
+docs/architecture-20261009@804e86bc1babf1237d60d1afffed25927275d0fb
+docs/pa-review-record-20261012@0ddb050408cb0e75db1cefdc4d73178ac223e862
+docs/pointer-repairs-20261009@20c2724ce62a8884abf81b83a8cc87ad175f439c
+maintenance/quality-baseline-20261016@35282f14cf50ac85db4230a93da53f3e5ad64ed7
+research/calibration-exec-gate-v1@1321e4bf45ca1673985612b2994cbda4eca23f9f
+research/market-eval-v2@f14530c7991541cbffe4cdd06201616def1ae7c6
+research/paired-uncertainty-v1@80320dedd8ee79a27a8fcb9b4e1931271ea98cb8
+research/paired-uncertainty-v2@b70ebfc4763965b747e44f0be0cd7f3993616cf2
+research/pregame-pa-ext-v1@e03f2386ea5daf5584ab09c641f1275d0158d71b
+research/pregame-pa-ext-v1-legacy@dfd8f1709a52a58bf2ac331dac8af053a79e5e31
+research/pregame-pa-ext-v2@562ab7a49fc80d407f3113fcc0386dcdb23ae982
+research/results-index-v1@7211269a62c20df1a9ba2efce4f98ae1f317ffe1
+review/overnight-20261013@a4c3060906fed3ce80c334b24bb4efe0029777b2
+```
+
+**Remote branches removed separately after the local batch:**
+
+```text
+origin/chat3/doc-simplify-20261023@587fa4f8fbf5f97526767266b23b9f0e9cf143cf
+origin/chat3/pub-rules-20261106@47b887b0b7a13d1ba422aac1b3b28ef6436cae15
+origin/docs/consolidation-slice-1@ad5871a95c1862cf89c6d8fefec9af9a0214984b
+origin/docs/integration-reconciliation-20261103@ffdae7b239a2c3572ccb26dbd49abfd2ad76b7b5
+origin/docs/lineup-path-reconciliation-spec@ca00e4df5a426acf37ef9d3f43f8e25aa95dc8e1
+origin/docs/orchestrator-source-pack@9850a281cba3fd4a33ad2443a2728934b019036e
+origin/docs/reconcile-20261106@9976d0cdd6be0b8e33eb553704ff847505377907
+origin/docs/untracked-backfill-20261105@14afec6eeefdd2385fedec20b7edf1b056f72acd
+origin/docs/worktree-reuse-rule@8e9b7f8e8633cc74fe15e48d82c6c6c403ae0cd3
+origin/research/baseline-benchmark-v1@69aa861e398a730b020887eed8a90b6c6cbab688
+origin/research/baseline-history-scorecard-v1@1a1790c4aef0c77f0f8909dbdf59c5eef1af07d4
+origin/research/baseline-recipe-rec@971df98a09701431743c23f940f5d9876f06d21e
+origin/research/binary-k-vs-multinomial-v1@ab220994d9a179cd595e196c1646b7c5266089e7
+origin/research/count-pmf-calibration-v1@1381e72badca507eb19331ad28967031aeed5a56
+origin/research/label-free-inference@40269793005cd0da3e9751bf1eb2e861714578c5
+origin/research/label-free-prediction@fdbf5541636a3ee346da0ff5433510048251d81c
+origin/research/lgbm-multiclass-v1@34efade12ee08f9ad178c5f487c6fc1f68308f4d
+origin/research/paext-v2-count-agg-eval@d6ce42a73011ef11f0198a624f0572c88214f887
+origin/research/parity-platoon-candidate@29592fb36d358195483d1372bc77e54c873385d4
+origin/research/platoon-information-v1@672aaf63c137528b704148d9f5bb579229f9bfe6
+origin/research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
+origin/research/stage-a-numerical-gate@b8461178d015a58a54c3d2b37235bb0897dc02c2
+```
+
+**Additional remote refs removed in the final consolidation batch:**
+
+```text
+origin/chat3/verify-and-consolidate@9ec1a7afe56975de30752ad23b363c5c81f20480
+  Integrated/superseded: its read-only scripts/verify_theoddsapi.py content
+  is identical to origin/main and PR #44 is merged. No linked worktree or
+  open PR; removed in the executed batch.
+
+origin/docs/connector-confirmation-policy-20261027@39e2b4a26b2308ad05e3d168420f6d0ed12cbba1
+  Superseded: its two-document policy commit is not in the current canonical
+  role/NEXT text; current owner-directed rules supersede it. No linked
+  worktree or open PR; the commit is recoverable from the compact bundle and
+  was removed in the executed batch; do not merge it.
+
+origin/research/baseline-v2-derivation-runner@c8638f4e734032f00f996292f3fda7d1940aad85
+  Historical/superseded: PR #51 is merged and PR #55 is closed redundant;
+  this stale scientific tree is recoverable from the compact bundle and is
+  not an active consumer. No linked worktree or open PR; it was removed in the
+  executed batch without merging its historical tree.
+
+origin/research/calibration-exec-gate-v1@1321e4bf45ca1673985612b2994cbda4eca23f9f
+  Obsolete calibration checkout ref: the tracked test difference is
+  metadata-only and local MLflow output is synthetic/regenerable. Its
+  canonical external database remains retained; its ref was removed with
+  `paext-v2` in the executed batch.
+```
+
+**Scientific worktrees removed under the same exact approval, with
+noncanonical storage disposition verified:**
+
+```text
+C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\distribution-spec
+  branch agent/distribution-spec @ 52379dd8c82fe87537173c8b3798caaf5688f41c
+  preserve tracked patch + 16 untracked source/test/report files; remove
+  only these verified noncanonical files:
+    artifacts/odds_log/recommendations_meta.json
+      140 bytes, SHA-256 c0a42301d9eeca7752aa8fffc0fd8f44918435f29a5418953566ac9fb2697b76
+    data/dimensions/player_id_map.parquet
+      34,937 bytes, SHA-256 bf6a653f476ab81de9c611c4315796275d2d52a5e23733a589a4baf6a7d5edff
+  plus generated cache paths only: .hypothesis/, .pytest_cache/,
+  **/__pycache__/, *.pyc, and *.pyo.
+
+C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\main-active
+  branch research/paired-uncertainty-v2 @ b70ebfc4763965b747e44f0be0cd7f3993616cf2
+  preserve unique commits, dirty AGENTS.md, and five untracked files;
+  retain the canonical external start_metrics_v2 file; remove only these
+  verified duplicate files:
+    artifacts/models/lightgbm_krate_20260821_054126.json
+    artifacts/models/lightgbm_krate_20260821_054126.txt
+    artifacts/models/lightgbm_krate_mono_20260821_054127.json
+    artifacts/models/lightgbm_krate_mono_20260821_054127.txt
+    artifacts/odds_log/recommendations_meta.json
+    data/dimensions/player_id_map.parquet
+    research/offseason_2026/bf_workload_v1/data/start_metrics_v2.parquet
+  The five artifact/model files total 1,031,169 bytes and are byte-identical
+  to primary; start_metrics_v2 is 2,355,296 bytes and byte-identical to
+  C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet.
+  Also remove generated cache paths only: .hypothesis/, .pytest_cache/,
+  **/__pycache__/, *.pyc, and *.pyo.
+
+C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\paext-v2
+  branch research/calibration-exec-gate-v1 @ 1321e4bf45ca1673985612b2994cbda4eca23f9f
+  retain external C:\Users\ckaplinger\MLB-Props-Research\mlflow.db
+  (1,212,416 bytes, SHA-256 04d714879aad0776e5563f439fa9aedf08d8c13877c7ae5651b45182141def5c).
+  Remove only local synthetic MLflow output:
+    mlruns/ (9 files, 20,452 bytes)
+    research/offseason_2026/specs/count-eval-v2-spec/harness/mlruns/
+      (52 files, 424,850 bytes)
+  and these verified duplicate/regenerable files:
+    artifacts/odds_log/recommendations_meta.json
+    data/dimensions/player_id_map.parquet
+  plus generated cache paths only: .hypothesis/, .pytest_cache/,
+  **/__pycache__/, *.pyc, and *.pyo. The tracked test state is metadata-only
+  (index=worktree=417755a...), so no source recovery is required.
+```
+
+`wtsc`, `review-68`, and the maintenance workspace remain protected role
+lanes; primary contains owner-local state. The three removals left 4
+worktrees. The executed local batch removed 22 refs and leaves only `main`,
+`chat3/lifecycle-docs-20261109`, and `research/dual-arm-prediction` (3 local
+branches). The executed remote batch removed 26 refs and leaves only
+`origin/main`, `origin/chat3/lifecycle-docs-20261109`, and
+`origin/research/dual-arm-prediction` (3 remote heads). No relocation was
+needed because every retained canonical storage destination was verified
+before execution.
+No raw data, credentials, receipts, canonical MLflow database, or unresolved
+experiment output is in the removal scope.
+
+**Recovery evidence:** `MANIFEST.json` records the exact source heads,
+paths, hashes, and retrieval instructions. The compact hold contains
+`distribution-spec.tracked.patch`, `main-active.tracked.patch`,
+`main-active-unique-commits.patch`, the empty `paext-v2` tracked patch, and
+the preserved `wtsc` backlog patch. Applying the nonempty patches against
+their recorded source/base heads passed `git apply --check`; no scientific
+code was run. `historical-refs-20261109.bundle` is 215,557 bytes
+(SHA-256 `30d8bc006ab0ce96403db03c4e692985587387f94e8a72add54aed6939557832`);
+`git bundle verify` passed, and a temporary repository recovered all 48
+local/remote deletion tips with 0 missing tips before being removed.
+
+---
+
 ## Session Snapshot — 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
 
 **INTEGRATION COMPLETE 2026-11-03 (Chat 1 builder reconciliation; docs-only;

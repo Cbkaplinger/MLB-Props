@@ -1,6 +1,9 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-09. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single queue.
+Owner: architect. Updated 2026-11-10. Temporary cleanup owner: Chat 3 while
+Chats 1 and 2 are paused. ROLES_REV 2026-10-28-r1. Read
+docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single
+queue.
 
 ## Ablation baseline decision (owner, 2026-11-09)
 
@@ -26,8 +29,25 @@ PASS, exact zero at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows; 
 - Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
 - Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
 
-## Current action: awaiting the architect's first assigned ablation
+## Current action: repository consolidation closeout
 
-The pairing is decided (control vs challenger above). No ablation work starts until the architect names the first question. Standing unresolved item: no calibration comparison exists; challenger production promotion remains unset.
+Chat 3 is the sole active maintenance owner. The verified integration
+reference is `origin/main` at
+`731a32e56a494e778ea0e45d51ea18f3362ac975`; no scientific execution,
+promotion, model change, or review reopening is authorized by this entry.
+
+- Primary `main` is synchronized without reset, stash, clean, or deletion.
+- Four worktrees remain during review: primary, `wtsc`, `review-68`, and the
+  maintenance workspace.
+- The owner-approved 22-local/26-remote ref batch and three obsolete
+  worktree removals completed on 2026-11-10. The compact bundle and recovery
+  pointers remain in `docs/EXECUTION_BACKLOG.md`; no further cleanup is
+  authorized by this entry.
+
+## Scientific queue hold
+
+The completed candidate-parity evidence above remains historical evidence.
+Any future scientific task resumes only after the architect assigns one
+question; this closeout does not reopen a review or authorize execution.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
