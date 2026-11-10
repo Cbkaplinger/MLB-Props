@@ -1,23 +1,26 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-10. Chat 1 restarted on the assigned
-control-arm parity question. ROLES_REV 2026-10-28-r1. Read
-docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single
-queue.
+Owner: architect. Updated 2026-11-10. Chat 3 is closed and its cleanup is
+integrated on main; Chat 1 is active on the assigned control-arm parity
+task. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card.
+EXECUTION_BACKLOG remains the single queue.
 
 ## Ablation baseline decision (owner, 2026-11-09)
 
-- **Reference control:** registered 8-feature multinomial + pooled W0.
-- **Development challenger:** registered 12-feature platoon recipe (platoon-features-v1).
-- **No production promotion and no fresh-validation claim;** promotion never automatic.
-- Scope limits: the binary-K and LGBM lanes retained the control within their declared comparisons - not universal proof of multinomial superiority; Ref0-vs-Ref1 favored the K marginal over population proportions.
-- **K-count aggregation vs evaluation metrics (separate layers):** `adapter.start_count_pmfs` builds per-start K-count PMFs from per-PA probabilities + pooled BF37 (construction, not a metric); evaluation = per-PA multiclass log loss primary, per-start means, paired slate-date bootstrap 2000/20261001, K-count RPS guard (0.002).
-- Calibration: none in every verified arm (uncalibrated softmax; no calibration comparison exists).
-- Full recipe, workload/history detail, and the control/challenger distinction: `docs/EXECUTION_BACKLOG.md` (ablation-baseline-decision block, 2026-11-09). Verified lane results: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
+- Control: registered 8-feature multinomial plus pooled W0.
+- Challenger: registered 12-feature platoon recipe; no production promotion
+  or fresh-validation claim.
+- Evaluation uses per-PA multiclass log loss, per-start means, paired
+  slate-date bootstrap, and the K-count RPS guard; calibration remains absent.
+- Full recipe and verified results: `docs/EXECUTION_BACKLOG.md` and
+  `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
 ## Candidate parity - CLOSED / INDEPENDENTLY VERIFIED (2026-11-09)
 
-PASS, exact zero at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows; tolerance 1e-12). Reference receipt = a present-day verified snapshot (`b1b91357...`); no historical byte continuity claimed. Reproducibility/identity only, NOT predictive superiority. Evidence (write-once, preserved): `...\diagnostics\parity_platoon_candidate_v1\` (chain `b70a2f90...`). Full record: `docs/EXECUTION_BACKLOG.md` (executed-parity block, 2026-11-09).
+PASS at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows;
+tolerance 1e-12). This is reproducibility/identity evidence, not predictive
+superiority. The write-once receipt and full record are preserved in
+`docs/EXECUTION_BACKLOG.md`.
 
 ## Prior completed milestones (this lane)
 
@@ -29,7 +32,7 @@ PASS, exact zero at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows; 
 - Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
 - Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
 
-## Current action: control-arm parity selection (Chat 1 restart, 2026-11-10)
+## Current action: control-arm parity selection (PR #79)
 
 Owner-assigned question: can the shared prediction harness reproduce
 the saved reference-control forecasts (registered 8-feature multinomial
@@ -43,9 +46,11 @@ the saved reference-control forecasts (registered 8-feature multinomial
   selection refuses pre-write) with unchanged challenger semantics.
 - Synthetic only (17 parity tests + seam suites green). No real-data
   execution; control-arm execution still needs fresh owner
-  authorization. No promotion implied. Checkpoint: PR from
-  `research/control-arm-parity`.
-- Consolidation closeout (Chat 3) is CLOSED and merged; history lives
-  in `docs/EXECUTION_BACKLOG.md`.
-
-## Prior completed milestones (this lane)
+  authorization. No promotion implied.
+- Checkpoint: PR #79 from `research/control-arm-parity`; main
+  `f2ed15c` integrated; review pending on the superseding published
+  head SHA.
+- Footprint stays three worktrees (primary, `wtsc`, detached
+  `review-68`); Chat 3 remains closed; primary's three unregistered
+  owner-local experiment files remain preserved and untouched; no new
+  cleanup lane, queue, or worktree is authorized by this entry.
