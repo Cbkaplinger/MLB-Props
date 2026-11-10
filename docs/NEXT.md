@@ -1,23 +1,27 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-10. Temporary cleanup owner: Chat 3 while
-Chats 1 and 2 are paused. ROLES_REV 2026-10-28-r1. Read
+Owner: architect. Updated 2026-11-10 for the post-closeout handoff after this
+docs checkpoint integrates. Chat 3 then closes; Chats 1 and 2 may resume.
+ROLES_REV 2026-10-28-r1. Read
 docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single
 queue.
 
 ## Ablation baseline decision (owner, 2026-11-09)
 
-- **Reference control:** registered 8-feature multinomial + pooled W0.
-- **Development challenger:** registered 12-feature platoon recipe (platoon-features-v1).
-- **No production promotion and no fresh-validation claim;** promotion never automatic.
-- Scope limits: the binary-K and LGBM lanes retained the control within their declared comparisons - not universal proof of multinomial superiority; Ref0-vs-Ref1 favored the K marginal over population proportions.
-- **K-count aggregation vs evaluation metrics (separate layers):** `adapter.start_count_pmfs` builds per-start K-count PMFs from per-PA probabilities + pooled BF37 (construction, not a metric); evaluation = per-PA multiclass log loss primary, per-start means, paired slate-date bootstrap 2000/20261001, K-count RPS guard (0.002).
-- Calibration: none in every verified arm (uncalibrated softmax; no calibration comparison exists).
-- Full recipe, workload/history detail, and the control/challenger distinction: `docs/EXECUTION_BACKLOG.md` (ablation-baseline-decision block, 2026-11-09). Verified lane results: `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
+- Control: registered 8-feature multinomial plus pooled W0.
+- Challenger: registered 12-feature platoon recipe; no production promotion
+  or fresh-validation claim.
+- Evaluation uses per-PA multiclass log loss, per-start means, paired
+  slate-date bootstrap, and the K-count RPS guard; calibration remains absent.
+- Full recipe and verified results: `docs/EXECUTION_BACKLOG.md` and
+  `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
 ## Candidate parity - CLOSED / INDEPENDENTLY VERIFIED (2026-11-09)
 
-PASS, exact zero at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows; tolerance 1e-12). Reference receipt = a present-day verified snapshot (`b1b91357...`); no historical byte continuity claimed. Reproducibility/identity only, NOT predictive superiority. Evidence (write-once, preserved): `...\diagnostics\parity_platoon_candidate_v1\` (chain `b70a2f90...`). Full record: `docs/EXECUTION_BACKLOG.md` (executed-parity block, 2026-11-09).
+PASS at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows;
+tolerance 1e-12). This is reproducibility/identity evidence, not predictive
+superiority. The write-once receipt and full record are preserved in
+`docs/EXECUTION_BACKLOG.md`.
 
 ## Prior completed milestones (this lane)
 
@@ -29,20 +33,23 @@ PASS, exact zero at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows; 
 - Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
 - Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
 
-## Current action: repository consolidation closeout
+## Current action: restart from canonical main
 
-Chat 3 is the sole active maintenance owner. The verified integration
-reference is `origin/main` at
-`731a32e56a494e778ea0e45d51ea18f3362ac975`; no scientific execution,
-promotion, model change, or review reopening is authorized by this entry.
+The consolidation is complete. `origin/main` and the primary checkout are
+at `57ce8b2f67130329bc894de2b8bfa50e5e1b83f4`, including the reviewed
+test-signal cleanup in PR #77. No scientific execution, promotion, model
+change, or review reopening is authorized by this entry.
 
-- Primary `main` is synchronized without reset, stash, clean, or deletion.
-- Four worktrees remain during review: primary, `wtsc`, `review-68`, and the
-  maintenance workspace.
-- The owner-approved 22-local/26-remote ref batch and three obsolete
-  worktree removals completed on 2026-11-10. The compact bundle and recovery
-  pointers remain in `docs/EXECUTION_BACKLOG.md`; no further cleanup is
-  authorized by this entry.
+- The normal footprint is three worktrees: primary `main`, Chat 1's `wtsc`,
+  and detached Chat 2 reviewer workspace `review-68`.
+- The only active branch refs are `main` and
+  `research/dual-arm-prediction`; no maintenance branch remains.
+- Primary's three unregistered experiment files remain preserved and
+  untouched. Historical ignored storage remains outside the active workspace
+  set at the preservation location recorded in `EXECUTION_BACKLOG.md`.
+- Chat 1 should fast-forward `wtsc` from fetched `origin/main` before a new
+  task. Chat 2 should review only the exact published builder SHA.
+- No new cleanup lane, queue, or worktree is authorized by this entry.
 
 ## Scientific queue hold
 

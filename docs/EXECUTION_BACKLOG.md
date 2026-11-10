@@ -40,10 +40,62 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Consolidation closeout — 2026-11-10
+## Post-closeout canonical state — 2026-11-10
 
-This is the current state. Older dated snapshots below remain historical
-receipts and are not current ownership or queue instructions.
+This is the handoff for main after this docs checkpoint integrates following
+PRs #74-#77. Main is the canonical
+integration history; the role rules and workflow remain in `AGENTS.md`,
+`docs/roles/`, and `docs/reference/pr_workflow.md`.
+
+### PAST
+
+- PR #74, PR #75, PR #76, and PR #77 are merged. The resulting
+  `origin/main` and primary checkout are
+  `57ce8b2f67130329bc894de2b8bfa50e5e1b83f4`.
+- PR #77 removed the superseded result-summary test module, retained its
+  behavioral coverage in the canonical module, and removed one redundant
+  logger assertion. No production or scientific code changed.
+- The approved redundant refs and obsolete scientific worktrees were
+  released. Unique source and ignored research storage remain recoverable
+  outside the active workspace set.
+
+### PRESENT
+
+- Three worktrees remain: primary `main`, Chat 1's `wtsc`, and detached Chat 2
+  reviewer workspace `review-68`. The temporary Chat 3 workspace is released.
+- The only active local and remote branches are `main` and
+  `research/dual-arm-prediction`; no maintenance branch remains.
+- Primary is synchronized with `origin/main` and retains these unregistered
+  owner-local experiment files without modification:
+  `research/offseason_2026/experiments/forward_2025.parquet`,
+  `research/offseason_2026/experiments/run_2025_selection.py`, and
+  `research/offseason_2026/experiments/selection_2025_report.json`.
+- The preserved ignored storage has 52 verified files and a hash manifest at
+  `C:\Users\ckaplinger\MLB-Props-Research\worktree-preservation-20261019\chat3-test-signal-20261110-storage`.
+- No open PR or unreviewed maintenance delta remains. The root rules,
+  canonical roles, single backlog, and main-only integration workflow are
+  present on main.
+
+### FORWARD
+
+1. Chat 1 fetches `origin/main` and fast-forwards `wtsc` before beginning a
+   new bounded builder task.
+2. Chat 2 reuses detached `review-68` and reviews only the exact published
+   builder SHA.
+3. The architect assigns the next bounded scientific or implementation task;
+   Chat 3 remains closed until a new, named maintenance scope is approved.
+
+### DEFERRED
+
+- Do not merge or delete the unregistered experiment files without explicit
+  provenance/owner disposition.
+- Do not start another repository-wide cleanup, test redesign, Helios
+  exploration, policy framework, or additional worktree.
+
+## Historical consolidation closeout receipt — 2026-11-10
+
+The detailed batch record below is preserved execution evidence. It is not
+current ownership or queue state; the current state is recorded above.
 
 ### PAST
 
@@ -293,15 +345,13 @@ C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\paext-v2
   (index=worktree=417755a...), so no source recovery is required.
 ```
 
-`wtsc`, `review-68`, and the maintenance workspace remain protected role
-lanes; primary contains owner-local state. The three removals left 4
-worktrees. The executed local batch removed 22 refs and leaves only `main`,
-`chat3/lifecycle-docs-20261109`, and `research/dual-arm-prediction` (3 local
-branches). The executed remote batch removed 26 refs and leaves only
-`origin/main`, `origin/chat3/lifecycle-docs-20261109`, and
-`origin/research/dual-arm-prediction` (3 remote heads). No relocation was
-needed because every retained canonical storage destination was verified
-before execution.
+At the time of that batch, `wtsc`, `review-68`, and the maintenance workspace
+were protected role lanes; primary contained owner-local state. That batch
+left 4 worktrees and 3 local/remote branch heads, including the then-active
+`chat3/lifecycle-docs-20261109` maintenance refs. PR #77 later integrated
+the final test cleanup and released those maintenance refs and its workspace.
+No relocation was needed because every retained canonical storage destination
+was verified before that batch.
 No raw data, credentials, receipts, canonical MLflow database, or unresolved
 experiment output is in the removal scope.
 
