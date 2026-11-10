@@ -25,13 +25,13 @@ superiority. The write-once receipt and full record are preserved in
 
 ## Prior completed milestones (this lane)
 
-- Workload w0v1: pooled W0 favored over W1 (VERIFIED; delta +0.012406, CI [+0.004410, +0.020368]); BF interpretation correction retained (see ledger); artifacts `...\workload_personalization_w0v1\`.
-- Historical starter-outcome derivation: 9,714 starts (2023-2024); 2,334/2,334 overlap with the registered 2024H2 artifact.
-- History-sensitivity scorecard: longer history favored (delta -0.0111, CI below zero).
-- Ref0-vs-Ref1: multinomial K marginal beats population proportions (delta -0.0864, CI below zero).
-- Stage-A reconciliation: implementation reviewed; real-artifact run remains authorization-gated.
-- Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
-- Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
+All VERIFIED; full records in `docs/EXECUTION_BACKLOG.md` and
+`docs/reference/reports/experiment_impact_ledger_2026-10-22.md`:
+workload w0v1 (pooled W0 favored), historical starter-outcome derivation
+(9,714 starts), history-sensitivity scorecard, Ref0-vs-Ref1, Stage-A
+reconciliation (implemented; real run authorization-gated), binary-K /
+LGBM / platoon lanes (control retained / retained / challenger favored),
+lane stack integrated at `2ca8aef`.
 
 ## Current action: paired comparison - existing CLI sufficient (2026-11-10)
 
