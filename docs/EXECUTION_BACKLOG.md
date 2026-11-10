@@ -40,6 +40,129 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
+## Consolidation closeout — 2026-11-10
+
+This is the current state. Older dated snapshots below remain historical
+receipts and are not current ownership or queue instructions.
+
+### PAST
+
+- PR #74 merged at `81fb30b`; PR #72 merged at `acf00e3`; PR #73 merged at
+  `731a32e`. Exact-head CI and review history remain intact. No scientific
+  execution, promotion, direct-main push, force operation, or unknown-content
+  deletion occurred.
+- The previously approved local
+  `research/baseline-recipe-rec@971df98` ref was deleted non-force; its
+  remote ref remains available.
+- The existing preservation hold now verifies 25 copied files and five
+  patches (all copied-file hashes and nonempty patch dry-runs pass):
+  `C:\Users\ckaplinger\Downloads\MLB-Props-preservation-20261109`.
+  It excludes raw data, credentials, MLflow storage, artifacts, and caches.
+
+### PRESENT
+
+- Fetched integration reference: `origin/main =
+  731a32e56a494e778ea0e45d51ea18f3362ac975`.
+- Primary `main` is now fast-forwarded to that exact SHA. The three
+  untracked experiment files and ignored storage were not touched. A
+  read-only comparison found 0 collisions between 80,220 ignored/untracked
+  files and tracked paths at `origin/main`.
+- `review-68` is the protected Chat 2 reviewer workspace, detached at
+  `165b7a9`; it has no tracked or untracked edits.
+- `wtsc` is the protected Chat 1 builder workspace on
+  `research/dual-arm-prediction@165b7a9`; it has exactly one uncommitted
+  edit, `docs/EXECUTION_BACKLOG.md`. That edit contains stale pause/open-PR
+  statements and is preserved at
+  `preservation-20261109\patches\wtsc-backlog-uncommitted.patch`; it was not
+  copied into current authority.
+- `agent/distribution-spec@52379dd` is reachable from `origin/main`, but its
+  dirty backlog/spec edits and 16 untracked scientific files remain a
+  preservation hold. `main-active` has unique documentation commits
+  `beb146b` and `b70ebfc`, a dirty `AGENTS.md`, five untracked files, and
+  ignored research data. `paext-v2@1321e4b` is reachable from `origin/main`
+  and source-clean, but contains ignored MLflow storage, artifacts, and
+  dimensions. None is safe to remove or bulk-merge.
+- All reachability statements above use
+  `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
+  is not used.
+
+### FORWARD
+
+1. Review this closeout branch/PR as one documentation-maintenance unit.
+2. Obtain one exact approval for the removal batch below; do not execute it
+   from this pass.
+3. After approved removal and a later owner restart, reuse `wtsc` for Chat 1
+   from fetched `origin/main`, and use `review-68` only for the exact
+   published builder head. Chat 3's maintenance workspace is released only
+   after its closeout is accepted.
+
+### DEFERRED
+
+- No scientific branch is merged through maintenance. `distribution-spec`
+  and `main-active` remain preservation/ownership holds; `paext-v2` remains
+  an integrated-content hold until its ignored MLflow/data state is
+  explicitly preserved or released.
+- No test-suite redesign, lifecycle-policy expansion, PR-template
+  expansion, new registry, or additional cleanup framework is started.
+- Primary synchronization is complete; no file relocation is required.
+
+### One exact approval batch — prepared, not executed
+
+Evidence for every redundant ref: no open PR, no linked worktree, and the
+tip is an ancestor of fetched `origin/main`. Approval must name this exact
+set; remote deletion is listed separately from local deletion.
+
+**Local branches to remove non-force:**
+
+```text
+docs/reconcile-20261106@9976d0c
+research/next-assigned@8e9fe3a
+research/parity-platoon-candidate@3a807a9
+research/result-summary-v1@1570679
+```
+
+**Remote branches to remove separately, after the local batch:**
+
+```text
+origin/chat3/doc-simplify-20261023@587fa4f
+origin/chat3/pub-rules-20261106@47b887b
+origin/docs/consolidation-slice-1@ad5871a
+origin/docs/integration-reconciliation-20261103@ffdae7b
+origin/docs/lineup-path-reconciliation-spec@ca00e4d
+origin/docs/orchestrator-source-pack@9850a28
+origin/docs/reconcile-20261106@9976d0c
+origin/docs/untracked-backfill-20261105@14afec6
+origin/docs/worktree-reuse-rule@8e9b7f8
+origin/research/baseline-benchmark-v1@69aa861
+origin/research/baseline-history-scorecard-v1@1a1790c
+origin/research/baseline-recipe-rec@971df98
+origin/research/binary-k-vs-multinomial-v1@ab22099
+origin/research/count-pmf-calibration-v1@1381e72
+origin/research/label-free-inference@4026979
+origin/research/label-free-prediction@fdbf554
+origin/research/lgbm-multiclass-v1@34efade
+origin/research/paext-v2-count-agg-eval@d6ce42a
+origin/research/parity-platoon-candidate@29592fb
+origin/research/platoon-information-v1@672aaf6
+origin/research/result-summary-v1@1570679
+origin/research/stage-a-numerical-gate@b846117
+```
+
+**Worktrees removable in this batch:** none. `wtsc`, `review-68`, and the
+maintenance workspace are protected role lanes; `distribution-spec`,
+`main-active`, and `paext-v2` have preservation holds; primary contains
+owner-local state. No relocation is needed.
+
+**Recovery evidence:** `MANIFEST.json` records the exact source heads,
+paths, hashes, and retrieval instructions. The compact hold contains
+`distribution-spec.tracked.patch`, `main-active.tracked.patch`,
+`main-active-unique-commits.patch`, the empty `paext-v2` tracked patch, and
+the preserved `wtsc` backlog patch. Applying the nonempty patches against
+their recorded source/base heads passed `git apply --check`; no scientific
+code was run.
+
+---
+
 ## Session Snapshot — 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
 
 **INTEGRATION COMPLETE 2026-11-03 (Chat 1 builder reconciliation; docs-only;
