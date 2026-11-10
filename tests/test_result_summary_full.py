@@ -84,6 +84,11 @@ def test_e2e_temporal_summary():
                 "structural_limits", "limitations"):
         assert key in s, key
     assert s["experiment_identity"] == "temporal_robustness_v1"
+    rec = s["identities_and_provenance"]["reconstruction"]
+    assert rec["verified"] is True
+    assert rec["max_abs_rps_diff"] == 0.0
+    assert rec["n_keys"] == 2
+    assert rec["reference_column"] == "rps_w0_pooled"
 
 
 def test_provenance_round_trip():
@@ -96,6 +101,9 @@ def test_provenance_round_trip():
         "consumed_input_identities": {"pa": "1d3be", "lineups": "b6a194"},
         "executed_by": "chat1-builder",
         "execution_date": "2026-11-05",
+        "verification_status": "PENDING",
+        "authorization_status": "recorded",
+        "promotion_status": "never_automatic",
     }
     s = rs.summarize_temporal_report(report, context=ctx)
     prov = s["identities_and_provenance"]["provenance"]
@@ -106,6 +114,11 @@ def test_provenance_round_trip():
     assert prov["consumed_input_identities"]["pa"] == "1d3be"
     assert prov["executed_by"] == "chat1-builder"
     assert prov["execution_date"] == "2026-11-05"
+    inj = s["injected_status"]
+    assert inj["verification_status"] == "PENDING"
+    assert inj["authorization_status"] == "recorded"
+    assert inj["promotion_status"] == "never_automatic"
+    assert "never inferred from exit code" in inj["note"]
 
 
 def test_missing_provenance_explicit():
@@ -122,6 +135,7 @@ def test_population_period_coverage():
     ppc = s["population_period_coverage"]
     assert len(ppc["periods"]) == 1
     assert ppc["periods"][0]["id"] == "R1"
+    assert ppc["feasibility"][0]["n_fit_dates"] == 3
 
 
 def test_pooled_vs_registered_distinguished():
@@ -137,8 +151,10 @@ def test_pooled_vs_registered_distinguished():
 def test_direction_vs_threshold():
     d = rs.classify_direction(-0.000415, -0.000779, -0.000053, 0.0005)
     assert d["statistical_direction"] == "challenger_favored"
+    assert d["point_below_threshold"] is True
     d2 = rs.classify_direction(-0.000870, -0.001231, -0.000542, 0.0005)
     assert d2["statistical_direction"] == "challenger_favored"
+    assert d2["point_below_threshold"] is False
     d3 = rs.classify_direction(+0.001, +0.0005, +0.002, 0.0005)
     assert d3["statistical_direction"] == "control_favored"
     d4 = rs.classify_direction(-0.0001, -0.0005, +0.0005, 0.0005)
@@ -171,6 +187,8 @@ def test_k_guard_vs_inferential():
     kg = rs.classify_k_guard(0.0020884, 0.002)
     assert kg["passes"] is False
     assert kg["not_a_noninferiority_claim"] is True
+    kg2 = rs.classify_k_guard(-0.000300, 0.002)
+    assert kg2["passes"] is True
     with pytest.raises(ValueError, match="nonfinite"):
         rs.classify_k_guard(float("nan"), 0.002)
     with pytest.raises(ValueError, match="positive"):
@@ -219,6 +237,7 @@ def test_unknown_statuses_explicit():
     assert inj["verification_status"] is None
     assert inj["authorization_status"] is None
     assert inj["promotion_status"] is None
+    assert "never inferred from exit code" in inj["note"]
 
 
 def test_missing_experiment_identity_raises():
