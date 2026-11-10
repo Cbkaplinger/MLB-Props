@@ -53,7 +53,7 @@ receipts and are not current ownership or queue instructions.
   deletion occurred.
 - The previously approved local
   `research/baseline-recipe-rec@971df98` ref was deleted non-force; its
-  remote ref remains available.
+  remote ref was deleted in the approved remote batch.
 - The existing preservation hold now verifies 25 copied files and five
   patches (all copied-file hashes and nonempty patch dry-runs pass):
   `C:\Users\ckaplinger\Downloads\MLB-Props-preservation-20261109`.
@@ -84,8 +84,8 @@ receipts and are not current ownership or queue instructions.
   is reachable from `origin/main`; its reported modification to
   `tests/test_count_pmf_calibration_runner.py` is metadata-only
   (`index=worktree=417755a...`). Its local synthetic MLflow output, duplicate
-  artifact/dimension data, and caches are noncanonical and are included only
-  in the proposed worktree-removal scope. None is bulk-merged.
+  artifact/dimension data, and caches are noncanonical and were included only
+  in the approved worktree-removal scope. None is bulk-merged.
 - All reachability statements above use
   `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
   is not used.
@@ -100,7 +100,7 @@ receipts and are not current ownership or queue instructions.
   production-shaped fixture, and failure-on-behavior-deletion check are
   documented; CI green alone is insufficient.
 
-### Storage disposition verified for the three removable-after-approval worktrees
+### Storage disposition verified for the three removed worktrees
 
 - `distribution-spec`:
   `artifacts/odds_log/recommendations_meta.json` is 140 bytes and byte-identical
@@ -153,9 +153,10 @@ receipts and are not current ownership or queue instructions.
 
 ### One exact approval batch — executed 2026-11-10
 
-Before execution, every expected ref tip matched, had no open PR or linked
-worktree, and was verified reachable from fetched `origin/main`. The owner
-approved this exact set; local and remote deletion were performed separately.
+Before execution, every expected ref tip matched, had no open PR, and was
+verified reachable from fetched `origin/main`. Each ref candidate had no
+linked worktree; the three linked worktrees were checked separately under the
+same approval. Local and remote deletion were performed separately.
 
 **Local branches removed:**
 
@@ -222,25 +223,25 @@ origin/research/stage-a-numerical-gate@b8461178d015a58a54c3d2b37235bb0897dc02c2
 origin/chat3/verify-and-consolidate@9ec1a7afe56975de30752ad23b363c5c81f20480
   Integrated/superseded: its read-only scripts/verify_theoddsapi.py content
   is identical to origin/main and PR #44 is merged. No linked worktree or
-  open PR; remove after final approval.
+  open PR; removed in the executed batch.
 
 origin/docs/connector-confirmation-policy-20261027@39e2b4a26b2308ad05e3d168420f6d0ed12cbba1
   Superseded: its two-document policy commit is not in the current canonical
   role/NEXT text; current owner-directed rules supersede it. No linked
-  worktree or open PR; the commit is recoverable from the compact bundle.
-  Remove after final approval; do not merge it.
+  worktree or open PR; the commit is recoverable from the compact bundle and
+  was removed in the executed batch; do not merge it.
 
 origin/research/baseline-v2-derivation-runner@c8638f4e734032f00f996292f3fda7d1940aad85
   Historical/superseded: PR #51 is merged and PR #55 is closed redundant;
   this stale scientific tree is recoverable from the compact bundle and is
-  not an active consumer. No linked worktree or open PR; remove after final
-  approval without merging its historical tree.
+  not an active consumer. No linked worktree or open PR; it was removed in the
+  executed batch without merging its historical tree.
 
 origin/research/calibration-exec-gate-v1@1321e4bf45ca1673985612b2994cbda4eca23f9f
   Obsolete calibration checkout ref: the tracked test difference is
   metadata-only and local MLflow output is synthetic/regenerable. Its
-  canonical external database remains retained; remove the ref with paext-v2
-  after the exact worktree storage scope is approved.
+  canonical external database remains retained; its ref was removed with
+  `paext-v2` in the executed batch.
 ```
 
 **Scientific worktrees removed under the same exact approval, with
