@@ -72,8 +72,10 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   `...\pregame-pa-ext-v2\diagnostics\platoon_information_v1` (receipt
   `b1b91357...224ba` verified pre-interpretation; all four artifact
   hashes verified from its manifest pre-decode); PA/lineups/raw-event
-  byte pins and cohort hash `f77d7a66...` enforced pre-decode and
-  MATCHED; destination
+  file byte pins enforced pre-decode and MATCHED; cohort identity
+  verified before restriction against the registered sorted-key
+  content hash `f77d7a66...` (`bk._cohort_hash` recipe computed at
+  load - the cohort file's byte hash is NOT a pin); destination
   `...\parity_platoon_candidate_v1_control_arm\` fresh write-once.
   **RESULT:** 2,509 starts; 22,581 keyed PA rows; 60,216 PMF rows;
   n_uncovered_slots 0; 87,569 PA rows excluded by the R3 structural
@@ -83,6 +85,15 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   `685cb5dfb3012336110d8975c25592f53eae84bd51ef7455aba12349e8ef6485`
   (status COMPLETED); parity_comparison
   `5c0094da9029a46d805bd3a3e21d9da0c7fd5fca310570446b56a02db5e96d22`.
+  Chat 2 independent verification: **VERIFIED** (supersedes its NOT
+  VERIFIED interim; PR #79 comment
+  https://github.com/Cbkaplinger/MLB-Props/pull/79#issuecomment-6779379426).
+  Evidence distinction: the reviewer independently RECOMPUTED code
+  lineage, approved scope, receipt/artifact identities, and the
+  population arithmetic; the pre-decode pin gates and the 0.0
+  comparison maxima are RUNNER-ASSERTED values (internally consistent,
+  recorded - reviewer recomputation would require an unauthorized
+  rerun). No rerun; the executed result stands.
   Scope: reproducibility/identity ONLY - parity does NOT establish
   predictive superiority; no assessment parquet, no refit, no scoring,
   single run, no retry. Runtime note: the interpreter was the primary

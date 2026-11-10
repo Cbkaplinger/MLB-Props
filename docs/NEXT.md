@@ -43,6 +43,12 @@ single control-arm run executed once from wtsc at that HEAD:
   classes and every K-PMF bucket (tolerance 1e-12). Receipt chain
   `7b239920...` -> status COMPLETED. Evidence (write-once, preserved):
   `...\diagnostics\parity_platoon_candidate_v1_control_arm\`.
+- Chat 2 independently VERIFIED (supersedes its NOT VERIFIED interim;
+  verdict: PR #79 comment
+  https://github.com/Cbkaplinger/MLB-Props/pull/79#issuecomment-6779379426).
+  Reviewer-recomputed: code lineage, scope, receipt/artifact
+  identities, population arithmetic. Runner-asserted (not
+  reviewer-recomputed): the pin gates and the 0.0 maxima.
 - Reproducibility/identity evidence only, not predictive superiority.
   No further execution authorized; no next scientific task assigned
   (architect assigns; ablation queue closed).
