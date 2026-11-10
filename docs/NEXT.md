@@ -50,7 +50,9 @@ promotion, model change, or review reopening is authorized by this entry.
   `165b7a9`. Do not use it for cleanup.
 - `distribution-spec`, `main-active`, and `paext-v2` remain named
   preservation holds because their dirty, unique, ignored, or MLflow state
-  has not been authorized for deletion or merge.
+  has not been authorized for deletion or merge. The paext-v2 reported test
+  modification is metadata-only: its index and worktree blob both equal
+  `417755a...`.
 
 The next action is one owner-approved branch/worktree removal batch recorded
 in `docs/EXECUTION_BACKLOG.md`. Until that approval arrives, preserve all

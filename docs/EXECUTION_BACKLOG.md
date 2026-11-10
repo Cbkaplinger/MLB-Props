@@ -79,9 +79,11 @@ receipts and are not current ownership or queue instructions.
   dirty backlog/spec edits and 16 untracked scientific files remain a
   preservation hold. `main-active` has unique documentation commits
   `beb146b` and `b70ebfc`, a dirty `AGENTS.md`, five untracked files, and
-  ignored research data. `paext-v2@1321e4b` is reachable from `origin/main`
-  and source-clean, but contains ignored MLflow storage, artifacts, and
-  dimensions. None is safe to remove or bulk-merge.
+  ignored research data. `paext-v2@1321e4b` is reachable from `origin/main`;
+  its reported modification to
+  `tests/test_count_pmf_calibration_runner.py` is metadata-only
+  (`index=worktree=417755a...`), while ignored MLflow storage, artifacts,
+  and dimensions remain. None is safe to remove or bulk-merge.
 - All reachability statements above use
   `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
   is not used.
