@@ -32,23 +32,24 @@ superiority. The write-once receipt and full record are preserved in
 - Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
 - Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
 
-## Current action: control-arm parity EXECUTED - task CLOSED (2026-11-10)
+## Current action: paired comparison - existing CLI sufficient (2026-11-10)
 
-The owner-assigned question is answered. PR #79 (explicit arm selection)
-merged; reviewed head `05bab809...`; main `9c8fb63...`. The approved
-single control-arm run executed once from wtsc at that HEAD:
+Owner-assigned question: smallest reusable entry point to evaluate the
+registered control vs challenger through the shared harness.
 
-- **PASS, EXACT ZERO** - 2,509 starts; 22,581 keyed PA rows; 60,216 PMF
-  rows; key-set equality both grains; max abs diff 0.0 in all four
-  classes and every K-PMF bucket (tolerance 1e-12). Receipt chain
-  `7b239920...` -> status COMPLETED. Evidence (write-once, preserved):
-  `...\diagnostics\parity_platoon_candidate_v1_control_arm\`.
-- Chat 2 independently VERIFIED (supersedes its NOT VERIFIED interim;
-  verdict: PR #79 comment
-  https://github.com/Cbkaplinger/MLB-Props/pull/79#issuecomment-6779379426).
-  Reviewer-recomputed: code lineage, scope, receipt/artifact
-  identities, population arithmetic. Runner-asserted (not
-  reviewer-recomputed): the pin gates and the 0.0 maxima.
-- Reproducibility/identity evidence only, not predictive superiority.
-  No further execution authorized; no next scientific task assigned
-  (architect assigns; ablation queue closed).
+- Decision: **no code change, no new PR.** The registered
+  `platoon_comparison.py` CLI (`platoon_information_v1`) already
+  performs the exact paired comparison (both registered arms, same
+  rows, eligible 2025H1 cohort `f77d7a66...`, pooled W0, per-PA
+  multiclass log loss primary, K-count RPS guard, paired bootstrap
+  2000/20261001, reconstruction gate, write-once receipts). Harness
+  equivalence is proven evidence (both parity runs, exact zero).
+- The registered result already exists and is CLOSED (challenger
+  favored: per-PA delta -0.0008712, CI below zero; K guard satisfied).
+  Exact invocation + packet: committed
+  `execution_packet_platoon_v1.md`; snapshot PRESENT carries it.
+  Any re-invocation needs fresh owner authorization + fresh
+  write-once destination.
+- Both parity lanes CLOSED/VERIFIED; confirm_2025H2 remains the
+  reserved (INSPECTED) confirmation population; no next scientific
+  task assigned until the owner decides on the re-invocation question.
