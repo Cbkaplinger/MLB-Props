@@ -125,7 +125,9 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   -0.0005037855899286848]; K-count RPS guard point estimate
   4.0898e-05 <= 0.002 margin (within_margin true). **Every output
   artifact is BYTE-IDENTICAL to the registered run:** per-start
-  parquet `c7428375...` (the pinned reconstruction reference hash),
+  parquet `c7428375...` (the reproduction's per-start OUTPUT hash,
+  byte-identical to the registered run's own output record; the
+  reconstruction REFERENCE pin remains `ae971758...`),
   keyed/model/pmf/bf artifacts identical to the parity reference
   hashes, and `receipt_final.json` = `b1b91357...224ba` - exactly the
   Chat 2-attested reference-receipt pin used by both parity
@@ -135,12 +137,47 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   RECORDED procedurally by this runner (not pre-decode enforced);
   PA/lineups/assessment pins, reconstruction pin, and cohort hash are
   runner-enforced.
+- **CORRECTIONS (Chat 2 review, folded into this checkpoint):**
+  (1) HASH LABEL: `c7428375...` is the reproduction's per-start OUTPUT
+  hash (byte-identical to the registered run's own output record) -
+  the pinned reconstruction REFERENCE hash is `ae971758...`
+  (workload_personalization_w0v1 per-start file); (2) WEIGHTING: the
+  reported per-PA means (control 1.2245976, platoon 1.2238507) are
+  UNWEIGHTED averages over the 43,565 matched PAs; the primary
+  contrast and CI use EQUAL-WEIGHT PER-START means (challenger
+  1.2285053, control 1.2293765) with the per-start paired bootstrap
+  (2000/20261001); the K-count RPS guard uses the same per-start
+  equal weighting.
+- **HARNESS-TO-MARKET SEAM (gap analysis delivered):** prediction-time
+  input capture EXISTS (research/offseason_2026/pregame_lineup_capture.py
+  reads production-captured snapshots with the cutoff contract),
+  saved-model loading EXISTS (registered checkpoint pin `176fb18b...`
+  via `load_serialized_checkpoint`), both sides have tests
+  (`test_live_stack_pin.py`, parity suites, capture tests). The ONE
+  missing piece: no committed bridge converts the harness's keyed
+  24-bucket K-count PMFs into the production count layer's
+  line-probability output contract (`p_over_{line}` on
+  `PROJECTION_K_LINES` via `count_layer.attach_count_predictions`
+  conventions). Concrete task in FORWARD.
 
 ### FORWARD
 
 1. Owner decision: the registered comparison result now stands
    reproduced bit-exactly; no further comparison execution is needed.
-2. Scientific queue: no other task assigned; ablation work stays
+2. **ONE concrete implementation task (proposed, not started):** a
+   thin research-side bridge module
+   (`research/offseason_2026/pregame_pa_ext/harness_to_market_bridge.py`)
+   that converts keyed 24-bucket K-count PMFs into the production
+   line-probability contract (`p_over_{line}` for
+   `count_layer.PROJECTION_K_LINES`; P(K >= line) = sum of buckets
+   >= ceil(line), x.5 lines exact) PLUS one synthetic integration test
+   proving: pin-loaded registered checkpoint -> `run_prediction` ->
+   PMF -> bridge line columns equal direct bucket marginalization;
+   incompatible inputs refuse (non-normalized PMF, wrong bucket
+   count, missing keys). Zero live-path change (count_layer.py stays
+   untouched; shadow contract only). Requires owner task assignment
+   before implementation.
+3. Scientific queue: no other task assigned; ablation work stays
    closed (no-2026-tuning; 2025-select / 2026-judge sequencing
    unchanged).
 

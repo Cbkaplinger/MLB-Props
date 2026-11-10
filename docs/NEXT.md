@@ -1,9 +1,10 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-10. Chat 3 is closed and its cleanup is
-integrated on main; Chat 1 is active on the assigned control-arm parity
-task. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card.
-EXECUTION_BACKLOG remains the single queue.
+Owner: architect. Updated 2026-11-10. Chat 3 closed; cleanup integrated.
+Chat 1 active: both parity lanes and the registered paired comparison are
+CLOSED/reproduced; current deliverable is the harness-to-market seam
+analysis. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your
+card. EXECUTION_BACKLOG remains the single queue.
 
 ## Ablation baseline decision (owner, 2026-11-09)
 
@@ -56,6 +57,22 @@ registered control vs challenger through the shared harness.
   the registered run (receipt_final = `b1b91357...224ba`).** The
   registered comparison result stands reproduced; no further
   comparison execution needed.
+- **Weighting labels (corrected):** the reported per-PA means (control
+  1.2245976, platoon 1.2238507) are UNWEIGHTED averages over the 43,565
+  matched PAs; the primary contrast and its CI use EQUAL-WEIGHT
+  PER-START means (challenger 1.2285053, control 1.2293765) with the
+  per-start paired bootstrap (2000/20261001); the K-count RPS guard
+  uses the same per-start equal weighting.
+- **Hash label corrected (Chat 2 finding):** `c7428375...` is the
+  reproduction's per-start OUTPUT hash (byte-identical to the
+  registered run's own output record); the pinned reconstruction
+  REFERENCE hash is `ae971758...` (workload_personalization_w0v1).
+- **Next gap (identified):** the seam between the harness's keyed
+  24-bucket K-count PMFs and the production count layer's
+  line-probability output contract (`p_over_{line}` on
+  `PROJECTION_K_LINES`) - see backlog FORWARD for the one concrete
+  task. Input capture (pregame_lineup_capture), checkpoint
+  pin-loading, and both sides' tests already exist.
 - Both parity lanes CLOSED/VERIFIED; confirm_2025H2 remains the
   reserved (INSPECTED) confirmation population; no next scientific
   task assigned until the owner decides the next question.
