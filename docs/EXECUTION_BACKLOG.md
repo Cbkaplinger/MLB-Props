@@ -51,53 +51,51 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   2 nonblocking notes; block appended below in the closeout snapshot).
 - Post-closeout docs refresh (Chat 3) integrated: PR #78 at main
   `f2ed15c03590db08d865b58366047526161e4310`; Chat 3 CLOSED; cleanup
-  released. This branch integrates that main (docs-only conflict
-  resolved in place; scientific files untouched).
+  released.
+- Control-arm parity selection implemented, reviewed (Chat 2), and
+  integrated: PR #79 merged; reviewed head
+  `05bab809eaad132adbabee91f8e89242ca41e65d`; resulting main
+  `9c8fb6303905bd087fe0df82f6a6766ea85f7e0f`. The thin parity entry
+  point now takes an explicit arm selection (`run_parity(arm=...)` /
+  CLI `--arm`; default `platoon_challenger` unchanged; unsupported
+  selection refuses pre-write); 17 synthetic parity tests + seam
+  suites green.
 
 ### PRESENT
 
-- Owner-assigned question (Chat 1 restart from fetched `origin/main`,
-  HEAD `57ce8b2`): can the shared prediction harness reproduce the
-  saved reference-control forecasts (registered 8-feature multinomial
-  + pooled W0) as it already reproduced the saved challenger forecasts?
-- Finding: `label_free_prediction.run_prediction` already supported
-  both registered contracts, and the saved platoon reference dir
-  already carries BOTH arms (model keys `multinomial_control` +
-  `platoon_challenger`; keyed suffixes `_control`/`_platoon`; PMF
-  columns `pmf_multinomial_control`/`pmf_platoon`). Only the thin
-  parity entry point was challenger-hard-wired; no new framework, no
-  model/feature/calibration work.
-- Delivered (synthetic only; no real/private artifact reads, no
-  execution): `parity_platoon_candidate_v1.py` now takes an explicit
-  arm selection (`run_parity(arm=...)` / CLI `--arm`; default
-  `platoon_challenger`, so the existing challenger invocation and
-  comparison semantics are unchanged). The supported
-  arm/model/column mapping is an explicit registry; unsupported
-  selection refuses before any decode or write; the selected arm is
-  recorded in `receipt_initial.json` (`arm_selection`); reference
-  column names and mappings resolve from the registry; 1e-12
-  tolerance unchanged.
-- Tests: `tests/test_parity_platoon_candidate.py` 17 green (14
-  existing + control-arm parity against its registered seam,
-  unsupported-arm refusal, CLI `--arm` selection; the fixture now
-  mirrors the registered both-arm reference layout). Seam suites
-  `test_label_free_prediction.py` + `test_platoon_comparison.py` and
-  the pre-commit trio green (75 total). Full suite not run (evidence
-  honesty: targeted coverage only).
-- Checkpoint: PR #79 from branch `research/control-arm-parity`; main
-  `f2ed15c` merged in (docs-only conflict); no status-only PR.
+- **CONTROL-ARM PARITY EXECUTED ONCE 2026-11-10 - PASS, EXACT ZERO**
+  (owner-approved single run; executed from the wtsc worktree at
+  `research/dual-arm-prediction` fast-forwarded to main `9c8fb63`;
+  execution code identity recorded in `receipt_initial.json`
+  `code_identity` + runtime Python 3.11.9 / polars 1.43.0 / numpy
+  2.4.6). Arm `multinomial_control`; reference
+  `...\pregame-pa-ext-v2\diagnostics\platoon_information_v1` (receipt
+  `b1b91357...224ba` verified pre-interpretation; all four artifact
+  hashes verified from its manifest pre-decode); PA/lineups/raw-event
+  byte pins and cohort hash `f77d7a66...` enforced pre-decode and
+  MATCHED; destination
+  `...\parity_platoon_candidate_v1_control_arm\` fresh write-once.
+  **RESULT:** 2,509 starts; 22,581 keyed PA rows; 60,216 PMF rows;
+  n_uncovered_slots 0; 87,569 PA rows excluded by the R3 structural
+  filter; key-set equality both grains; max abs diff **0.0** in all
+  four classes and every K-PMF bucket (tolerance 1e-12);
+  receipt_initial chain `7b239920...`; receipt_final
+  `685cb5dfb3012336110d8975c25592f53eae84bd51ef7455aba12349e8ef6485`
+  (status COMPLETED); parity_comparison
+  `5c0094da9029a46d805bd3a3e21d9da0c7fd5fca310570446b56a02db5e96d22`.
+  Scope: reproducibility/identity ONLY - parity does NOT establish
+  predictive superiority; no assessment parquet, no refit, no scoring,
+  single run, no retry. Runtime note: the interpreter was the primary
+  checkout's `.venv` (wtsc has none); the executed CODE was wtsc's
+  HEAD `9c8fb63` (script resolves modules from its own path); no
+  primary checkout state was modified.
 
 ### FORWARD
 
-1. Independent review + merge of PR #79 (Chat 2 / architect
-   delegation); review pending on the superseding published SHA (this
-   branch's head after the main integration).
-2. Real-artifact control-arm execution REMAINS unauthorized: it needs
-   fresh owner authorization with the attested reference-receipt SHA
-   (same discipline as the executed challenger parity; same reference
-   dir, arm `multinomial_control`).
-3. Ablation work beyond parity stays closed (no-2026-tuning;
-   2025-select / 2026-judge sequencing unchanged).
+1. Integrate this docs-only execution-record checkpoint (one PR from
+   `research/dual-arm-prediction`; wtsc already at main `9c8fb63`).
+2. Scientific queue: no next task assigned; ablation work stays closed
+   (no-2026-tuning; 2025-select / 2026-judge sequencing unchanged).
 
 ### DEFERRED
 

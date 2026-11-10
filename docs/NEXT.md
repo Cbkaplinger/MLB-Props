@@ -32,25 +32,17 @@ superiority. The write-once receipt and full record are preserved in
 - Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
 - Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
 
-## Current action: control-arm parity selection (PR #79)
+## Current action: control-arm parity EXECUTED - task CLOSED (2026-11-10)
 
-Owner-assigned question: can the shared prediction harness reproduce
-the saved reference-control forecasts (registered 8-feature multinomial
-+ pooled W0) as it already reproduced the saved challenger forecasts?
+The owner-assigned question is answered. PR #79 (explicit arm selection)
+merged; reviewed head `05bab809...`; main `9c8fb63...`. The approved
+single control-arm run executed once from wtsc at that HEAD:
 
-- The harness (`label_free_prediction.run_prediction`) already supports
-  both registered contracts; the saved reference dir carries both arms'
-  forecasts. Only `parity_platoon_candidate_v1.py` was
-  challenger-hard-wired; it now takes an explicit `--arm` selection
-  (`platoon_challenger` default, `multinomial_control`, unsupported
-  selection refuses pre-write) with unchanged challenger semantics.
-- Synthetic only (17 parity tests + seam suites green). No real-data
-  execution; control-arm execution still needs fresh owner
-  authorization. No promotion implied.
-- Checkpoint: PR #79 from `research/control-arm-parity`; main
-  `f2ed15c` integrated; review pending on the superseding published
-  head SHA.
-- Footprint stays three worktrees (primary, `wtsc`, detached
-  `review-68`); Chat 3 remains closed; primary's three unregistered
-  owner-local experiment files remain preserved and untouched; no new
-  cleanup lane, queue, or worktree is authorized by this entry.
+- **PASS, EXACT ZERO** - 2,509 starts; 22,581 keyed PA rows; 60,216 PMF
+  rows; key-set equality both grains; max abs diff 0.0 in all four
+  classes and every K-PMF bucket (tolerance 1e-12). Receipt chain
+  `7b239920...` -> status COMPLETED. Evidence (write-once, preserved):
+  `...\diagnostics\parity_platoon_candidate_v1_control_arm\`.
+- Reproducibility/identity evidence only, not predictive superiority.
+  No further execution authorized; no next scientific task assigned
+  (architect assigns; ablation queue closed).
