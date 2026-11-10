@@ -95,7 +95,6 @@ def test_resolve_sample_weights_none_returns_none() -> None:
 def test_resolve_sample_weights_pa_returns_positive_weights() -> None:
     frame = pd.DataFrame({"PA": [9, 22, 27]})
     weights = training.resolve_sample_weights(frame, "pa")
-    assert weights is not None
     np.testing.assert_allclose(weights, [9.0, 22.0, 27.0])
 
 

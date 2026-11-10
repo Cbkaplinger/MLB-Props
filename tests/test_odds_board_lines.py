@@ -390,7 +390,9 @@ def test_score_quote_holds_robust_refusal(tmp_path) -> None:
         _brow(0.65, 6.5), _quote("Test Arm", 6.5, -110, -110),
         unit_dollars=50.0, edge_floor=0.12, prob_offset_map={},
         kpi_policy_path=_tmp_policy_with_refusal(tmp_path))
-    assert s is not None
+    assert s["recommendation"] == "HOLD"
+    assert "robust_refusal" in s["policy_reason"]
+    assert s["stake"] == 0.0
 def test_fill_books_fail_open() -> None:
     assert _fill_books({"fill_books": ["DraftKings", "FanDuel"]}) == [
         "draftkings", "fanduel"]

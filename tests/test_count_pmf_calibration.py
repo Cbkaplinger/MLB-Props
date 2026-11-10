@@ -320,13 +320,6 @@ def test_guarded_loader_persists_parameter_to_disk(tmp_path):
     assert data["fitted_a"] == 1.2
 
 
-def test_guarded_loader_allows_post_freeze_access(tmp_path):
-    loader = cpc.GuardedEvaluationLoader(tmp_path / "params")
-    loader.freeze(1.0)
-    pmfs, outcomes = loader.load([np.ones(24) / 24], [3])
-    assert pmfs is not None and outcomes is not None
-
-
 def test_guarded_loader_freeze_is_one_shot(tmp_path):
     loader = cpc.GuardedEvaluationLoader(tmp_path / "params")
     loader.freeze(1.0)
@@ -364,4 +357,6 @@ def test_guarded_loader_integration_with_fit(tmp_path):
     loader.freeze(a)
     assert loader.is_frozen
     eval_pmfs, eval_outcomes = loader.load([np.ones(24) / 24], [3])
-    assert eval_pmfs is not None
+    assert len(eval_pmfs) == 1
+    np.testing.assert_allclose(eval_pmfs[0], np.ones(24) / 24)
+    assert eval_outcomes == [3]
