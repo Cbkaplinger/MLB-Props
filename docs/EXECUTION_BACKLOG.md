@@ -88,6 +88,34 @@ receipts and are not current ownership or queue instructions.
   `git merge-base --is-ancestor <ref> origin/main`; a tip-equals-main claim
   is not used.
 
+### Storage disposition verified for the three held worktrees
+
+- `distribution-spec`:
+  `artifacts/odds_log/recommendations_meta.json` is 140 bytes and byte-identical
+  to primary (`c0a42301...`); `data/dimensions/player_id_map.parquet` is
+  34,937 bytes (`bf6a653f...`), a regenerable dimension copy with no
+  canonical consumer in this worktree. Its tracked patch and 16 untracked
+  source/test/report files are already preserved.
+- `main-active`:
+  the four model files plus `recommendations_meta.json` are byte-identical to
+  primary (1,031,169 bytes total); `data/dimensions/player_id_map.parquet`
+  is a 35,036-byte regenerable copy (`4396257a...`). The
+  `research/offseason_2026/bf_workload_v1/data/start_metrics_v2.parquet`
+  file is 2,355,296 bytes (`af6814ec...`) and matches the canonical external
+  file at
+  `C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\start_metrics_v2.parquet`.
+  No relocation is required.
+- `paext-v2`:
+  `recommendations_meta.json` is byte-identical to primary; its 35,499-byte
+  dimension copy (`8f0d07f7...`) is regenerable. Its local MLflow stores are
+  9 files / 20,452 bytes under `mlruns/` and 52 files / 424,850 bytes under
+  `research/offseason_2026/specs/count-eval-v2-spec/harness/mlruns/`.
+  They are local synthetic harness output, not the canonical tracking store.
+  The canonical `C:\Users\ckaplinger\MLB-Props-Research\mlflow.db`
+  exists (1,212,416 bytes, hash `04d71487...`); no database deletion or
+  relocation is proposed. The metadata-only test state has identical index
+  and worktree blob `417755a...`.
+
 ### FORWARD
 
 1. Review this closeout branch/PR as one documentation-maintenance unit.
@@ -102,11 +130,13 @@ receipts and are not current ownership or queue instructions.
 
 - No scientific branch is merged through maintenance. `distribution-spec`
   and `main-active` remain preservation/ownership holds; `paext-v2` remains
-  an integrated-content hold until its ignored MLflow/data state is
-  explicitly preserved or released.
+  an integrated-content hold until the exact worktree-removal batch below is
+  explicitly approved.
 - No test-suite redesign, lifecycle-policy expansion, PR-template
   expansion, new registry, or additional cleanup framework is started.
-- Primary synchronization is complete; no file relocation is required.
+- Primary synchronization is complete; verified canonical storage requires no
+  relocation. Noncanonical/regenerable ignored storage is removed only with
+  its approved worktree.
 
 ### One exact approval batch — prepared, not executed
 
@@ -150,10 +180,34 @@ origin/research/result-summary-v1@1570679
 origin/research/stage-a-numerical-gate@b846117
 ```
 
-**Worktrees removable in this batch:** none. `wtsc`, `review-68`, and the
-maintenance workspace are protected role lanes; `distribution-spec`,
-`main-active`, and `paext-v2` have preservation holds; primary contains
-owner-local state. No relocation is needed.
+**Scientific worktrees removable after the same exact approval, with no
+relocation:**
+
+```text
+C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\distribution-spec
+  branch agent/distribution-spec @ 52379dd8c82fe87537173c8b3798caaf5688f41c
+  preserve tracked patch + 16 untracked source/test/report files; remove
+  only the duplicate/regenerable ignored artifact and dimension copy.
+
+C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\main-active
+  branch research/paired-uncertainty-v2 @ b70ebfc4763965b747e44f0be0cd7f3993616cf2
+  preserve unique commits, dirty AGENTS.md, and five untracked files;
+  retain the canonical external start_metrics_v2 file; remove only the
+  duplicate/regenerable ignored artifact/dimension data and caches.
+
+C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\paext-v2
+  branch research/calibration-exec-gate-v1 @ 1321e4bf45ca1673985612b2994cbda4eca23f9f
+  retain external MLB-Props-Research/mlflow.db; remove only local
+  synthetic/regenerable mlruns, duplicate artifact/dimension data, caches,
+  and the metadata-only checkout state with the worktree.
+```
+
+`wtsc`, `review-68`, and the maintenance workspace remain protected role
+lanes; primary contains owner-local state. Expected worktree count after the
+three removals is 4. The four redundant local-ref deletions leave 21 local
+branches; the 22 remote deletions leave `origin/main` plus the three
+protected role branches. No relocation is needed because every retained
+canonical storage destination was verified before this batch was prepared.
 
 **Recovery evidence:** `MANIFEST.json` records the exact source heads,
 paths, hashes, and retrieval instructions. The compact hold contains
