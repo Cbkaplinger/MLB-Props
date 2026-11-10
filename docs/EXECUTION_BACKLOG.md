@@ -183,6 +183,28 @@ origin/research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
 origin/research/stage-a-numerical-gate@b8461178d015a58a54c3d2b37235bb0897dc02c2
 ```
 
+**Remote refs intentionally outside this approved batch:**
+
+```text
+origin/chat3/verify-and-consolidate@9ec1a7afe56975de30752ad23b363c5c81f20480
+  No linked worktree or open PR. Its read-only
+  scripts/verify_theoddsapi.py content is identical to origin/main and was
+  already integrated through PR #44, but this divergent historical ref was
+  not included in the approved 22-ref deletion set.
+
+origin/docs/connector-confirmation-policy-20261027@39e2b4a26b2308ad05e3d168420f6d0ed12cbba1
+  No linked worktree or open PR. Its two-document policy commit is not in the
+  current canonical role/NEXT text; current owner-directed rules supersede
+  it. Preserve pending a separate owner decision rather than silently delete
+  or merge an unapproved policy.
+
+origin/research/baseline-v2-derivation-runner@c8638f4e734032f00f996292f3fda7d1940aad85
+  No linked worktree or open PR. PR #51 is merged and PR #55 is closed
+  redundant, but this historical scientific tip is not an ancestor of the
+  current main and its stale tree differs broadly from current canonical
+  content. Preserve as historical lineage pending a separate owner decision.
+```
+
 **Scientific worktrees removable after the same exact approval, with
 noncanonical storage disposition verified:**
 
@@ -235,8 +257,9 @@ C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\paext-v2
 `wtsc`, `review-68`, and the maintenance workspace remain protected role
 lanes; primary contains owner-local state. Expected worktree count after the
 three removals is 4. The four redundant local-ref deletions leave 21 local
-branches; the 22 remote deletions leave `origin/main` plus the three
-protected role branches. No relocation is needed because every retained
+branches; the 22 remote deletions leave 7 remote heads: `origin/main`, the
+maintenance, builder, and calibration role refs, plus the three named
+historical preservation holds above. No relocation is needed because every retained
 canonical storage destination was verified before this batch was prepared.
 No raw data, credentials, receipts, canonical MLflow database, or unresolved
 experiment output is in the removal scope.
