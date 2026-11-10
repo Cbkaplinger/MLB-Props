@@ -160,24 +160,41 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   `PROJECTION_K_LINES` via `count_layer.attach_count_predictions`
   conventions). Concrete task in FORWARD.
 
+- **SEAM TASK IMPLEMENTED (owner-assigned, checkpoint `acc0d5b`):** the
+  thin research-side shadow adapter
+  `research/offseason_2026/pregame_pa_ext/harness_to_market_bridge.py`
+  converts keyed 24-bucket harness K-PMFs into one row per start with
+  the exact production columns `p_over_2_5 ... p_over_9_5` (from
+  `count_layer.PROJECTION_K_LINES`, imported without the model stack).
+  REUSE: `market_eval_k.model_p_over` is the marginalization (its
+  overflow-tail semantics - k=0..22 exact, tail at 23 - match the
+  actual producer `adapter.count_pmf_from_mixture`, which absorbs
+  residual mass into k=23; verified in code, not guessed); PMF
+  validity reuses `adapter.check_pmf` (finite, [0,1], sum within
+  1e-9 - the documented existing tolerance); malformed PMFs refuse,
+  never normalized/clipped. Identity = (game_pk, side, pitcher),
+  dtypes preserved, deterministic ordering, no start dropped/invented,
+  no k_rate/tbf/expected_K manufactured, zero live-path change
+  (count_layer.py untouched). Tests:
+  `tests/test_harness_to_market_bridge.py` 6 green - hand-calculated
+  marginalization (0.1@K2/0.2@K3/0.3@K10/tail 0.4@K23 -> p_over_2_5
+  0.9, p_over_3_5..9_5 0.7), exact names + identities + deterministic
+  ordering under shuffled rows, tail retained at every in-scope line,
+  agreement with the canonical constant, focused refusals (duplicate/
+  missing bucket, null key, negative/NaN mass, bad normalization,
+  missing column), and one synthetic harness->bridge integration case
+  (existing prediction fixture; registered checkpoint NOT read -
+  synthetic model dict only). Known limitations: probability-column
+  contract only (no market readiness, no k_rate/TBF fabrication);
+  bucket-23 overflow meaning taken from the registered producer; the
+  bridge does not load or validate the live model stack.
+
 ### FORWARD
 
-1. Owner decision: the registered comparison result now stands
-   reproduced bit-exactly; no further comparison execution is needed.
-2. **ONE concrete implementation task (proposed, not started):** a
-   thin research-side bridge module
-   (`research/offseason_2026/pregame_pa_ext/harness_to_market_bridge.py`)
-   that converts keyed 24-bucket K-count PMFs into the production
-   line-probability contract (`p_over_{line}` for
-   `count_layer.PROJECTION_K_LINES`; P(K >= line) = sum of buckets
-   >= ceil(line), x.5 lines exact) PLUS one synthetic integration test
-   proving: pin-loaded registered checkpoint -> `run_prediction` ->
-   PMF -> bridge line columns equal direct bucket marginalization;
-   incompatible inputs refuse (non-normalized PMF, wrong bucket
-   count, missing keys). Zero live-path change (count_layer.py stays
-   untouched; shadow contract only). Requires owner task assignment
-   before implementation.
-3. Scientific queue: no other task assigned; ablation work stays
+1. Review + integrate this bridge PR (Chat 2); no execution - the
+   bridge is synthetic-tested only, and any real-PMF use is a future
+   owner decision.
+2. Scientific queue: no other task assigned; ablation work stays
    closed (no-2026-tuning; 2025-select / 2026-judge sequencing
    unchanged).
 

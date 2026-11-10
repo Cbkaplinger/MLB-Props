@@ -58,5 +58,13 @@ lane stack integrated at `2ca8aef`.
   backlog FORWARD (research-side bridge + synthetic integration test;
   zero live-path change). Input capture, checkpoint pin-loading, and
   both sides' tests already exist.
+- **SEAM IMPLEMENTED (checkpoint `acc0d5b`):** research-side shadow
+  adapter `harness_to_market_bridge.py` (reuses
+  `market_eval_k.model_p_over` + `adapter.check_pmf`; overflow-tail
+  semantics verified against the registered producer; malformed PMFs
+  refuse) + 6 synthetic tests incl. one harness->bridge integration
+  case. Zero live-path change; probability-column contract only, not
+  market readiness. Pending: Chat 2 review of the bridge PR; no
+  execution.
 - confirm_2025H2 remains the reserved (INSPECTED) confirmation
   population; no next scientific task assigned until the owner picks.
