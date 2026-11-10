@@ -37,10 +37,12 @@ reference is `origin/main` at
 promotion, model change, or review reopening is authorized by this entry.
 
 - Primary `main` is synchronized without reset, stash, clean, or deletion.
-- Stable builder/reviewer ownership and the three removable-after-approval
-  worktrees are recorded in `docs/EXECUTION_BACKLOG.md`.
-- The final 22-local/26-remote ref batch, compact bundle, and recovery
-  pointers are in that backlog; no removal is authorized by this file.
+- Four worktrees remain during review: primary, `wtsc`, `review-68`, and the
+  maintenance workspace.
+- The owner-approved 22-local/26-remote ref batch and three obsolete
+  worktree removals completed on 2026-11-10. The compact bundle and recovery
+  pointers remain in `docs/EXECUTION_BACKLOG.md`; no further cleanup is
+  authorized by this entry.
 
 ## Scientific queue hold
 

@@ -131,33 +131,33 @@ receipts and are not current ownership or queue instructions.
 ### FORWARD
 
 1. Review this closeout branch/PR as one documentation-maintenance unit.
-2. Obtain one exact approval for the removal batch below; do not execute it
-   from this pass.
-3. After approved removal and a later owner restart, reuse `wtsc` for Chat 1
-   from fetched `origin/main`, and use `review-68` only for the exact
-   published builder head. Chat 3's maintenance workspace is released only
-   after its closeout is accepted.
+2. The owner-approved exact batch below was executed on 2026-11-10 after
+   expected-tip and preservation checks; no candidate was skipped.
+3. Obtain independent review and merge approval for this documentation
+   checkpoint. After integration, reuse `wtsc` for Chat 1 from fetched
+   `origin/main`, and use `review-68` only for the exact published builder
+   head. Release Chat 3's maintenance workspace under separate approval.
 
 ### DEFERRED
 
 - No scientific branch is merged through maintenance. Unique source state for
   `distribution-spec` and `main-active` is recoverable from the existing
-  preservation hold; `paext-v2` has no tracked code delta. The three obsolete
-  checkout directories are removal candidates only after the exact batch below
-  is explicitly approved. Canonical external storage remains outside scope.
+  preservation hold; `paext-v2` had no tracked code delta. The three obsolete
+  checkout directories were removed by the exact approved batch. Canonical
+  external storage remained outside scope.
 - No test-suite redesign, lifecycle-policy expansion, PR-template
   expansion, new registry, or additional cleanup framework is started.
-- Primary synchronization is complete; verified canonical storage requires no
-  relocation. Noncanonical/regenerable ignored storage is removed only with
-  its approved worktree.
+- Primary synchronization is complete; verified canonical storage required no
+  relocation. Noncanonical/regenerable ignored storage was confined to the
+  removed worktrees and no protected storage was touched.
 
-### One exact approval batch — prepared, not executed
+### One exact approval batch — executed 2026-11-10
 
-Evidence for every redundant ref: no open PR, no linked worktree, and the
-tip is an ancestor of fetched `origin/main`. Approval must name this exact
-set; remote deletion is listed separately from local deletion.
+Before execution, every expected ref tip matched, had no open PR or linked
+worktree, and was verified reachable from fetched `origin/main`. The owner
+approved this exact set; local and remote deletion were performed separately.
 
-**Local branches to remove non-force:**
+**Local branches removed:**
 
 ```text
 docs/reconcile-20261106@9976d0cdd6be0b8e33eb553704ff847505377907
@@ -166,7 +166,7 @@ research/parity-platoon-candidate@3a807a988f76c6a2bec59209349b20c6cfc77d9f
 research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
 ```
 
-**Additional local refs in the final consolidation batch:**
+**Additional local refs removed in the final consolidation batch:**
 
 ```text
 agent/distribution-spec@52379dd8c82fe87537173c8b3798caaf5688f41c
@@ -189,7 +189,7 @@ research/results-index-v1@7211269a62c20df1a9ba2efce4f98ae1f317ffe1
 review/overnight-20261013@a4c3060906fed3ce80c334b24bb4efe0029777b2
 ```
 
-**Remote branches to remove separately, after the local batch:**
+**Remote branches removed separately after the local batch:**
 
 ```text
 origin/chat3/doc-simplify-20261023@587fa4f8fbf5f97526767266b23b9f0e9cf143cf
@@ -216,7 +216,7 @@ origin/research/result-summary-v1@1570679edc1c790559f8124738ee6f3253776d8b
 origin/research/stage-a-numerical-gate@b8461178d015a58a54c3d2b37235bb0897dc02c2
 ```
 
-**Additional remote refs in the final consolidation batch:**
+**Additional remote refs removed in the final consolidation batch:**
 
 ```text
 origin/chat3/verify-and-consolidate@9ec1a7afe56975de30752ad23b363c5c81f20480
@@ -243,7 +243,7 @@ origin/research/calibration-exec-gate-v1@1321e4bf45ca1673985612b2994cbda4eca23f9
   after the exact worktree storage scope is approved.
 ```
 
-**Scientific worktrees removable after the same exact approval, with
+**Scientific worktrees removed under the same exact approval, with
 noncanonical storage disposition verified:**
 
 ```text
@@ -293,14 +293,14 @@ C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props-worktrees\paext-v2
 ```
 
 `wtsc`, `review-68`, and the maintenance workspace remain protected role
-lanes; primary contains owner-local state. Expected worktree count after the
-three removals is 4. The final local-ref batch contains 22 deletions and
-leaves only `main`, `chat3/lifecycle-docs-20261109`, and
-`research/dual-arm-prediction` (3 local branches). The final remote-ref batch
-contains 26 deletions and leaves only `origin/main`,
-`origin/chat3/lifecycle-docs-20261109`, and
-`origin/research/dual-arm-prediction` (3 remote heads). No relocation is needed because every retained
-canonical storage destination was verified before this batch was prepared.
+lanes; primary contains owner-local state. The three removals left 4
+worktrees. The executed local batch removed 22 refs and leaves only `main`,
+`chat3/lifecycle-docs-20261109`, and `research/dual-arm-prediction` (3 local
+branches). The executed remote batch removed 26 refs and leaves only
+`origin/main`, `origin/chat3/lifecycle-docs-20261109`, and
+`origin/research/dual-arm-prediction` (3 remote heads). No relocation was
+needed because every retained canonical storage destination was verified
+before execution.
 No raw data, credentials, receipts, canonical MLflow database, or unresolved
 experiment output is in the removal scope.
 
