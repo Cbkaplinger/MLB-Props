@@ -36,33 +36,16 @@ reference is `origin/main` at
 `731a32e56a494e778ea0e45d51ea18f3362ac975`; no scientific execution,
 promotion, model change, or review reopening is authorized by this entry.
 
-- Primary `main` was fast-forwarded to that SHA without reset, stash, clean,
-  or deletion. Its three untracked experiment files and ignored storage
-  remain in place; a path collision check against `origin/main` found zero
-  collisions.
-- `wtsc` is the protected Chat 1 builder workspace at
-  `research/dual-arm-prediction@165b7a9`. It has one uncommitted
-  `docs/EXECUTION_BACKLOG.md` edit. That edit contains stale pause/open-PR
-  statements, is preserved at
-  `C:\Users\ckaplinger\Downloads\MLB-Props-preservation-20261109\patches\wtsc-backlog-uncommitted.patch`,
-  and is not current authority.
-- `review-68` is the protected Chat 2 reviewer workspace, detached at
-  `165b7a9`. Do not use it for cleanup.
-- `distribution-spec`, `main-active`, and `paext-v2` remain named
-  preservation holds because their dirty, unique, ignored, or MLflow state
-  has not been authorized for deletion or merge. The paext-v2 reported test
-  modification is metadata-only: its index and worktree blob both equal
-  `417755a...`.
-
-The next action is one owner-approved branch/worktree removal batch recorded
-in `docs/EXECUTION_BACKLOG.md`. Until that approval arrives, preserve all
-holds and do not create another inventory, archive, worktree, or framework.
+- Primary `main` is synchronized without reset, stash, clean, or deletion.
+- Stable builder/reviewer ownership and the three preservation holds are
+  recorded in `docs/EXECUTION_BACKLOG.md`.
+- The exact four-local/22-remote ref batch and recovery pointers are in that
+  backlog; no removal is authorized by this file.
 
 ## Scientific queue hold
 
 The completed candidate-parity evidence above remains historical evidence.
 Any future scientific task resumes only after the architect assigns one
-question and Chat 1/Chat 2 receive a fresh restart handoff from
-`origin/main`; this closeout does not reopen a review or authorize execution.
+question; this closeout does not reopen a review or authorize execution.
 
 Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
