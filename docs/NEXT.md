@@ -1,10 +1,9 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-10 for the post-closeout handoff after this
-docs checkpoint integrates. Chat 3 then closes; Chats 1 and 2 may resume.
-ROLES_REV 2026-10-28-r1. Read
-docs/roles/README.md and your card. EXECUTION_BACKLOG remains the single
-queue.
+Owner: architect. Updated 2026-11-10. Chat 3 is closed and its cleanup is
+integrated on main; Chat 1 is active on the assigned control-arm parity
+task. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card.
+EXECUTION_BACKLOG remains the single queue.
 
 ## Ablation baseline decision (owner, 2026-11-09)
 
@@ -33,28 +32,25 @@ superiority. The write-once receipt and full record are preserved in
 - Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
 - Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
 
-## Current action: restart from canonical main
+## Current action: control-arm parity selection (PR #79)
 
-The consolidation is complete. `origin/main` and the primary checkout are
-at `57ce8b2f67130329bc894de2b8bfa50e5e1b83f4`, including the reviewed
-test-signal cleanup in PR #77. No scientific execution, promotion, model
-change, or review reopening is authorized by this entry.
+Owner-assigned question: can the shared prediction harness reproduce
+the saved reference-control forecasts (registered 8-feature multinomial
++ pooled W0) as it already reproduced the saved challenger forecasts?
 
-- The normal footprint is three worktrees: primary `main`, Chat 1's `wtsc`,
-  and detached Chat 2 reviewer workspace `review-68`.
-- The only active branch refs are `main` and
-  `research/dual-arm-prediction`; no maintenance branch remains.
-- Primary's three unregistered experiment files remain preserved and
-  untouched. Historical ignored storage remains outside the active workspace
-  set at the preservation location recorded in `EXECUTION_BACKLOG.md`.
-- Chat 1 should fast-forward `wtsc` from fetched `origin/main` before a new
-  task. Chat 2 should review only the exact published builder SHA.
-- No new cleanup lane, queue, or worktree is authorized by this entry.
-
-## Scientific queue hold
-
-The completed candidate-parity evidence above remains historical evidence.
-Any future scientific task resumes only after the architect assigns one
-question; this closeout does not reopen a review or authorize execution.
-
-Report changed evidence, a checkpoint or a concrete blocker. Do not relay unchanged status, create another queue, or ask the owner to arbitrate routine implementation details.
+- The harness (`label_free_prediction.run_prediction`) already supports
+  both registered contracts; the saved reference dir carries both arms'
+  forecasts. Only `parity_platoon_candidate_v1.py` was
+  challenger-hard-wired; it now takes an explicit `--arm` selection
+  (`platoon_challenger` default, `multinomial_control`, unsupported
+  selection refuses pre-write) with unchanged challenger semantics.
+- Synthetic only (17 parity tests + seam suites green). No real-data
+  execution; control-arm execution still needs fresh owner
+  authorization. No promotion implied.
+- Checkpoint: PR #79 from `research/control-arm-parity`; main
+  `f2ed15c` integrated; review pending on the superseding published
+  head SHA.
+- Footprint stays three worktrees (primary, `wtsc`, detached
+  `review-68`); Chat 3 remains closed; primary's three unregistered
+  owner-local experiment files remain preserved and untouched; no new
+  cleanup lane, queue, or worktree is authorized by this entry.

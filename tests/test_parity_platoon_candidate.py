@@ -22,10 +22,16 @@ Requirement -> implementation -> test-evidence closure table:
   difference reported; no success receipt left              -> test 9
   Nonfinite reference values refused before differences     -> test 10
   CLI success and ack-gate behavior                         -> test 11
-  receipt_initial mutation detected BEFORE success
-  publication (finalization ordering regression)            -> test 12
-  Finalization-write failure leaves NO valid COMPLETED
-  receipt (atomic publication regression)                   -> test 13
+   receipt_initial mutation detected BEFORE success
+   publication (finalization ordering regression)            -> test 12
+   Finalization-write failure leaves NO valid COMPLETED
+   receipt (atomic publication regression)                   -> test 13
+   Control arm (multinomial_control): successful known
+   comparison against its registered seam + explicit
+   arm_selection receipt                                     -> test 14
+   Unsupported arm selection refuses before any write        -> test 15
+   CLI --arm selects the control arm; default stays
+   challenger                                                -> test 16
 """
 from __future__ import annotations
 
@@ -113,6 +119,19 @@ def _model():
     }
 
 
+def _control_model():
+    n = len(pc.FEATURES)
+    return {
+        "features": pc.FEATURES,
+        "classes": [0, 1, 2, 3],
+        "coef": [[round(0.013 * (c + 1) * (j + 1), 6) for j in range(n)]
+                 for c in range(4)],
+        "intercept": [-0.35, -0.05, 0.15, 0.25],
+        "mean": [0.0] * n,
+        "scale": [1.0] * n,
+    }
+
+
 def _lineups():
     rows = [(gk, side, p, REQ, True,
              *(B1 if side == "Top" else B2))
@@ -123,9 +142,11 @@ def _lineups():
     return pl.DataFrame(rows, schema=schema, orient="row")
 
 
-def _reference(pa_labeled, model):
+def _reference(pa_labeled, model, arm):
     """Build the saved-reference forecasts through the REGISTERED
-    construction seams (independent of the wrapper under test)."""
+    construction seams (independent of the wrapper under test). One
+    arm at a time; the challenger arm consumes the platoon family,
+    the control arm consumes the 8 base features only."""
     lineups = _lineups()
     long, _ = ad.projected_long(lineups)
     req_dates = sorted(long["game_date"].unique().to_list())
@@ -133,27 +154,30 @@ def _reference(pa_labeled, model):
     feat = ad.attach_prior_features(
         long.select("game_date", "pitcher", "batter", "game_pk",
                     "side", "slot"), p, b, lg)
-    rates = pf.build_split_class_rates(pa_labeled, req_dates,
-                                       alpha=pc.ALPHA, n_classes=4)
-    hands = pf.forecast_matchup_hands(
-        pa_labeled, feat.select(pl.col("batter"), pl.col("pitcher"),
-                                pl.col("game_date").alias("cutoff")))
-    feat = (feat.join(hands.select("batter", "pitcher", "cutoff",
-                                   "f_stand", "f_hand"),
-                      left_on=["batter", "pitcher", "game_date"],
-                      right_on=["batter", "pitcher", "cutoff"],
-                      how="left")
-            .with_columns(pl.col("game_date").alias("cutoff"),
-                          pl.col("f_stand").alias("stand"),
-                          pl.col("f_hand").alias("p_throws"))
-            .drop(["f_stand", "f_hand"]))
-    feat = pf.attach_platoon_features(feat, rates, n_classes=4)
+    if arm == pp.ARM_CHALLENGER:
+        rates = pf.build_split_class_rates(pa_labeled, req_dates,
+                                           alpha=pc.ALPHA, n_classes=4)
+        hands = pf.forecast_matchup_hands(
+            pa_labeled, feat.select(pl.col("batter"), pl.col("pitcher"),
+                                    pl.col("game_date").alias("cutoff")))
+        feat = (feat.join(hands.select("batter", "pitcher", "cutoff",
+                                       "f_stand", "f_hand"),
+                          left_on=["batter", "pitcher", "game_date"],
+                          right_on=["batter", "pitcher", "cutoff"],
+                          how="left")
+                .with_columns(pl.col("game_date").alias("cutoff"),
+                              pl.col("f_stand").alias("stand"),
+                              pl.col("f_hand").alias("p_throws"))
+                .drop(["f_stand", "f_hand"]))
+        feat = pf.attach_platoon_features(feat, rates, n_classes=4)
     feat = feat.select(lfi.KEY_COLS + list(model["features"]))
     probs = pc._softmax_full(feat, model, model["features"])
+    suffix = pp.SUPPORTED_ARMS[arm]["keyed_suffix"]
+    pmf_col = pp.SUPPORTED_ARMS[arm]["pmf_column"]
     keyed = feat.select(lfi.KEY_COLS)
     for j, c in enumerate(model["classes"]):
         keyed = keyed.with_columns(
-            pl.Series(f"p_class_{c}_platoon", probs[:, j]))
+            pl.Series(f"p_class_{c}{suffix}", probs[:, j]))
     # start-grain PMFs from the same keyed probabilities
     vec_by_date = {REQ: _bf_vector()}
     pmf_rows = []
@@ -161,13 +185,13 @@ def _reference(pa_labeled, model):
         rows = keyed.filter((pl.col("game_pk") == gk)
                             & (pl.col("side") == side)
                             & (pl.col("pitcher") == p)).sort("slot")
-        p9 = rows["p_class_0_platoon"].to_numpy()
+        p9 = rows[f"p_class_0{suffix}"].to_numpy()
         pmf = ad.start_count_pmfs(p9, p9, vec_by_date[REQ])[
             "pmf_h3_raw"]
         for k in range(24):
             pmf_rows.append({"game_pk": gk, "side": side,
                              "pitcher": p, "bucket": k,
-                             "pmf_platoon": float(pmf[k])})
+                             pmf_col: float(pmf[k])})
     return keyed, pl.DataFrame(pmf_rows)
 
 
@@ -198,7 +222,14 @@ def _write_world(tmp: Path, *, drop_bf_date=False, drop_bf_cat=False,
     pa_labeled, _ = seb.attach_terminal_event_labels(
         pa, [r24, r25])
     model = _model()
-    keyed, pmf = _reference(pa_labeled, model)
+    ctrl_model = _control_model()
+    # both arms' saved forecasts live in ONE platoon_comparison
+    # reference dir (matches the registered layout)
+    keyed_p, pmf_p = _reference(pa_labeled, model, pp.ARM_CHALLENGER)
+    keyed_c, pmf_c = _reference(pa_labeled, ctrl_model, pp.ARM_CONTROL)
+    keyed = keyed_p.join(keyed_c, on=lfi.KEY_COLS, how="inner")
+    pmf = pmf_p.join(pmf_c, on=["game_pk", "side", "pitcher", "bucket"],
+                     how="inner")
 
     bf_rows = []
     bf_dates = [date(2025, 5, 2)] if drop_bf_date else [REQ]
@@ -216,7 +247,9 @@ def _write_world(tmp: Path, *, drop_bf_date=False, drop_bf_cat=False,
 
     model_path = ref / "model_artifacts.json"
     model_path.write_text(json.dumps(
-        {"platoon_challenger": model}, indent=1), encoding="utf-8")
+        {"platoon_challenger": model,
+         "multinomial_control": ctrl_model}, indent=1),
+        encoding="utf-8")
     keyed_path = ref / "keyed_pa_probabilities.parquet"
     keyed.write_parquet(keyed_path)
     pmf_path = ref / "k_pmf_per_start_v1.parquet"
@@ -465,6 +498,66 @@ def test_finalization_write_failure_leaves_no_completed_receipt(
     assert fr["failure_stage"] == "finalization"
     assert "parity_comparison.json" in fr["files_written"]
     assert "receipt_final.json" not in fr["files_written"]
+
+
+# --------- 14. control arm: successful known comparison
+def test_control_arm_comparison(tmp_path):
+    world = _write_world(tmp_path)
+    out, comp = _run(tmp_path, world, out_name="out_ctrl",
+                     arm=pp.ARM_CONTROL)
+    assert comp["within_tolerance"] is True
+    assert comp["pa_grain_max_abs_diff"] <= 1e-12
+    assert comp["pmf_grain_max_abs_diff"] <= 1e-12
+    assert comp["n_starts"] == 2
+    assert comp["n_pa_rows"] == 18
+    assert comp["n_pmf_rows"] == 48
+    assert comp["column_mappings"]["pmf"] == {
+        "pmf_multinomial_control": "pmf_h3_raw"}
+    assert sorted(comp["column_mappings"]["keyed"].values()) == \
+        [f"p_class_{c}" for c in range(4)]
+    ri = json.loads(
+        (out / "receipt_initial.json").read_text(encoding="utf-8"))
+    assert ri["arm_selection"] == {
+        "arm": "multinomial_control",
+        "model_key": "multinomial_control",
+        "keyed_suffix": "_control",
+        "pmf_column": "pmf_multinomial_control"}
+    assert (out / "receipt_final.json").exists()
+    assert (out / "parity_comparison.json").exists()
+    assert not (out / "failure_record.json").exists()
+
+
+# --------- 15. unsupported arm selection refuses pre-write
+def test_unsupported_arm_refused(tmp_path):
+    world = _write_world(tmp_path)
+    out = tmp_path / "out_bad"
+    with pytest.raises(ValueError, match="unsupported arm"):
+        _run(tmp_path, world, out_name="out_bad", arm="binary_k")
+    assert not out.exists()
+
+
+# --------- 16. CLI --arm selects the control arm
+def test_cli_arm_selection(tmp_path):
+    world = _write_world(tmp_path)
+    argv = ["--arm", pp.ARM_CONTROL,
+            "--pa-source", world["pa"], "--lineups", world["lineups"],
+            "--cohort-keys", world["cohort"],
+            "--raw-events", ",".join(world["raws"]),
+            "--reference-dir", world["ref"],
+            "--expected-reference-receipt-sha256",
+            world["ref_receipt"],
+            "--expected-pa-sha256", world["pa_sha"],
+            "--expected-lineups-sha256", world["lu_sha"],
+            "--expected-raw-event-sha256s",
+            ",".join(world["raw_shas"]),
+            "--expected-cohort-hash", world["cohort_hash"],
+            "--out-dir", str(tmp_path / "cli_ctrl"),
+            "--execution-ack", pp.EXECUTION_ACK_TOKEN]
+    assert pp.main(argv) == 0
+    final = json.loads(
+        (tmp_path / "cli_ctrl" / "receipt_final.json")
+        .read_text(encoding="utf-8"))
+    assert final["arm_selection"]["arm"] == "multinomial_control"
 
 
 # ------------------- helper: rewrite receipt after artifact edits
