@@ -25,7 +25,9 @@ def test_normal_starter_in_support() -> None:
 
 
 def test_extreme_rest_oos() -> None:
-    assert projection_oos_reason(projected_tbf=22.0, expected_K=5.0, days_rest=120) is not None
+    assert projection_oos_reason(
+        projected_tbf=22.0, expected_K=5.0, days_rest=120
+    ) == "days_rest>=45"
 
 
 def test_min_expected_k_oos() -> None:
@@ -34,7 +36,7 @@ def test_min_expected_k_oos() -> None:
         expected_K=MIN_STARTER_EXPECTED_K - 0.1,
         days_rest=5,
     )
-    assert reason is not None and reason.startswith("expected_K")
+    assert reason == f"expected_K<{MIN_STARTER_EXPECTED_K:g}"
 
 
 def test_abbreviated_outing_opener_and_injury() -> None:

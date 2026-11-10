@@ -89,7 +89,10 @@ def test_string_fetched_at_parsed():
                 "fetched_at": pl.String, "lineup_status": pl.String},
         orient="row")
     r = pc.select_pregame_lineup(s, 1, "NYY", CUTOFF)
-    assert r["ok"] and r["fetched_at"] is not None
+    assert r["ok"] and r["reason"] == pc.REASON_OK
+    assert r["status"] == "confirmed"
+    assert r["fetched_at"] == datetime(
+        2026, 8, 21, 15, 0, tzinfo=timezone.utc)
 
 
 def test_projected_full_rejected_confirmed_only_accepted_allowed():
