@@ -25,7 +25,20 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: market-benchmark seam built (2026-11-11)
+## Current action: boundary-exception coverage follow-up (2026-11-11)
+
+- **Implemented on this branch** (probe_board_coverage_boundary_2025H1.py):
+  the follow-up to the correctly BLOCKED original probe. Explicit
+  declared exception for book-lines boundary groups rg16-rg17 (quote
+  columns only); envelope footer preflight (fail-closed on missing
+  stats); immediate 2025H1 window filter after decode; protected rows
+  never persisted/printed/summarized. Original probe remains
+  fail-closed. 8 synthetic tests + 5 original = 13 green; focused
+  combined run 111 passed. NOT RUN on real odds; needs owner
+  authorization. Near-close labeling: this is a NEAR-CLOSE coverage
+  query, not evidence of early-morning readiness.
+
+## Prior action: market-benchmark seam (CLOSED, PR #84 merged)
 
 - **Implemented on this branch** (market_benchmark_seam.py): the two
   missing seams between the registered market-eval lane
