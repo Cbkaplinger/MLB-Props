@@ -57,11 +57,20 @@ handoffs in PR #83 comments).
   (oddsapi_replay_inventory_2026-09-11.md): Friend -12h open when
   present, else paid morning T-5h; close = paid commence-5min via
   snapshot_envelope.vendor_timestamp (never the reconstructed ts);
-  consensus cache is already de-vigged (never re-devig). The MODEL
-  morning replay is blocked by historical morning-decision-time
-  projected-lineup availability (pregame_lineup_capture.py has no
-  committed 2025H1 morning-coverage record; later confirmed lineups
-  are not morning inputs).
+  consensus cache is already de-vigged (never re-devig). Clocks
+  recorded in pull_oddsapi_historical._snapshot_ts: close -5min,
+  morning -5h, board = fixed 12:00Z (8am ET, all-EDT), open18 -18h
+  (T-24h/-30h dead per probe). 2025 board-clock coverage: UNKNOWN
+  (2023/24 sampled only). The MODEL morning replay is blocked by
+  historical morning-decision-time projected-lineup availability
+  (pregame_lineup_capture.py has no committed 2025H1
+  morning-coverage record; later confirmed lineups are not morning
+  inputs). Replay baseline rows renamed: over_hit (binary panel
+  outcome; full-start K only in assessment-derived paths).
+- Deferred hypothesis (recorded, not implemented): recency-weighted
+  entry consensus (weighting books/snapshots by freshness instead of
+  unweighted median) may reduce stale-quote noise in the open-to-
+  close baseline; evaluate only after the opening clock is fixed.
 - Diagnostic history: first execution hit the exact-key gate
   (2,532-request assessment vs 2,509 eligible cohort); cohort contract
   amended; second execution PASSED with 23 declared exclusions

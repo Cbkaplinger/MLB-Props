@@ -129,6 +129,13 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   The failed command + refusal error are preserved in this record; NO
   failure receipt exists for that run (destination was never created).
 
+- **Opening-clock reconciliation (2026-11-11):** paid-lake clocks are
+  close (commence-5min), morning (T-5h), board (fixed 12:00Z / 8am ET,
+  all-EDT edge documented), open18 (-18h; T-24h/-30h dead per probe);
+  Friend opens are vendor-designated -12h/-6h (97/3). 2025 board-clock
+  coverage UNKNOWN (2023/24 sampled only). Replay baseline rows
+  renamed over_hit (panel y is binary, not full-start K). Deferred:
+  recency-weighted entry-consensus hypothesis (not implemented).
 ### FORWARD
 
 1. Owner decision on the proposed execution packet (NOT RUN; fresh
