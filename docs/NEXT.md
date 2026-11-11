@@ -46,10 +46,22 @@ handoffs in PR #83 comments).
   all-book consensus (registered construction reused unchanged).
   7 synthetic tests green (hand de-vig, LTBO self-exclusion,
   unavailable accounting, cohort/date gates incl. protected block).
-  Closing quotes remain benchmark-only. NOT RUN on real odds;
-  execution needs the registered market-eval gate + delegated owner
-  order. Exact comparison contract + execution packet: see the PR
-  description and backlog FORWARD.
+  Closing quotes remain benchmark-only; the seam's benchmark paths are
+  NEAR-CLOSE (tier A/B around first pitch) - not evidence of
+  early-morning simulation readiness. NOT RUN on real odds; execution
+  needs the registered market-eval gate + delegated owner order. Exact
+  comparison contract + execution packet: see the PR description and
+  backlog FORWARD.
+- Next bounded deliverable: the opening-price replay contract
+  (market-only first). Registered decision clock
+  (oddsapi_replay_inventory_2026-09-11.md): Friend -12h open when
+  present, else paid morning T-5h; close = paid commence-5min via
+  snapshot_envelope.vendor_timestamp (never the reconstructed ts);
+  consensus cache is already de-vigged (never re-devig). The MODEL
+  morning replay is blocked by historical morning-decision-time
+  projected-lineup availability (pregame_lineup_capture.py has no
+  committed 2025H1 morning-coverage record; later confirmed lineups
+  are not morning inputs).
 - Diagnostic history: first execution hit the exact-key gate
   (2,532-request assessment vs 2,509 eligible cohort); cohort contract
   amended; second execution PASSED with 23 declared exclusions
