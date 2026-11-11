@@ -40,18 +40,8 @@ diagnostic (PR #83) merged.
 
 ## Prior action: market-benchmark seam (CLOSED, PR #84 merged)
 
-- **Implemented on this branch** (market_benchmark_seam.py): the two
-  missing seams between the registered market-eval lane
-  (market_eval_k.py) and today's harness outputs - (A) harness keyed
-  24-bucket PMFs + assessment-derived observed K + declared eligible
-  cohort (hash-checked) + declared start dates -> the registered
-  market-eval model frame (block via ad.add_block; protected/unknown
-  blocks refuse); (B) per-book two-sided de-vig probabilities +
-  leave-target-book-out consensus (median over OTHER books at the
-  SAME line; >= 2 other books; unavailable recorded, never filled) +
-  all-book consensus (registered construction reused unchanged).
-  7 synthetic tests green (hand de-vig, LTBO self-exclusion,
-  unavailable accounting, cohort/date gates incl. protected block).
+market_benchmark_seam.py: harness PMF frame + per-book de-vig +
+LTBO consensus. 7 synthetic tests. Zero live-path change.
   Closing quotes remain benchmark-only; the seam's benchmark paths are
   NEAR-CLOSE, not morning evidence. NOT RUN on real odds.
 - Next bounded deliverable: the opening-price replay contract
