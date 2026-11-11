@@ -60,10 +60,11 @@ diagnostic (PR #83) merged.
   morning-coverage record; later confirmed lineups are not morning
   inputs). Replay baseline rows renamed: over_hit (binary panel
   outcome; full-start K only in assessment-derived paths).
-- Deferred hypothesis (recorded, not implemented): recency-weighted
-  entry consensus (weighting books/snapshots by freshness instead of
-  unweighted median) may reduce stale-quote noise in the open-to-
-  close baseline; evaluate only after the opening clock is fixed.
+- Deferred hypothesis (corrected; not implemented): recency weighting
+  of the model's EW features (fixed 90d half-life, self-relative,
+  unshrunk - the committed stale-form finding). The batter-recency
+  challenger was REJECTED and recency-batch-v1 showed development-only
+  gains; no implementation without a new registered reason.
 - Diagnostic history: first execution hit the exact-key gate
   (2,532-request assessment vs 2,509 eligible cohort); cohort contract
   amended; second execution PASSED with 23 declared exclusions

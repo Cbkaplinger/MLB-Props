@@ -134,8 +134,13 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   all-EDT edge documented), open18 (-18h; T-24h/-30h dead per probe);
   Friend opens are vendor-designated -12h/-6h (97/3). 2025 board-clock
   coverage UNKNOWN (2023/24 sampled only). Replay baseline rows
-  renamed over_hit (panel y is binary, not full-start K). Deferred:
-  recency-weighted entry-consensus hypothesis (not implemented).
+  renamed over_hit (panel y is binary, not full-start K). Deferred
+  hypothesis (corrected; not implemented): recency weighting of the
+  model's EW features (fixed 90d half-life, self-relative, unshrunk -
+  the committed stale-form finding: a 2022-only batter presents stale
+  form as current at a 2025 start). The batter-recency challenger was
+  REJECTED and recency-batch-v1 showed development-only gains; no
+  implementation without a new registered reason.
 ### FORWARD
 
 1. Owner decision on the proposed execution packet (NOT RUN; fresh
