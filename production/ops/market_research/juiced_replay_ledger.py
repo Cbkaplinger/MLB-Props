@@ -574,7 +574,11 @@ def main() -> None:
             "clv_pp_over": movement_pp,
             "clv_pp_under": (-movement_pp if movement_pp is not None
                              else None),
-            "realized_k": int(y), "won_over": bool(won_over),
+            # over_hit: BINARY over outcome at the line (panel `y`).
+            # Full-start realized K is NOT carried by this panel; it is
+            # only genuinely sourced in the assessment-derived paths
+            # (market_benchmark_seam / count_pmf_diagnostic).
+            "over_hit": int(y), "won_over": bool(won_over),
             "pnl_flat1u_over": (bet_pnl(1.0, oa, won=won_over)
                                 if oa is not None else None),
             "pnl_flat1u_under": (bet_pnl(1.0, ua, won=(not won_over))
