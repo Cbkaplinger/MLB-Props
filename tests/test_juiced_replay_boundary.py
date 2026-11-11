@@ -119,6 +119,9 @@ def test_ledger_module_is_network_free():
     for token in ("requests", "urllib", "httpx", "socket",
                   "pull_oddsapi", "http.get", "session.post"):
         assert token not in src, f"network surface found: {token}"
+    # the binary panel outcome must not be misnamed realized_k
+    assert '"realized_k"' not in src, (
+        "baseline rows must carry over_hit, not realized_k")
 
 
 # ------------------- 7. raw two-way prices in output rows
