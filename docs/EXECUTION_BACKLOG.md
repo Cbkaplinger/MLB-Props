@@ -40,73 +40,172 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Session snapshot — Chat 1 restart, control-arm parity selection (2026-11-10)
+## Session snapshot — paired-comparison entry point decision (2026-11-10)
 
 ### PAST
 
-- Consolidation closeout (Chat 3, 2026-11-10): PRs #72/#73/#74 merged;
-  preservation hold verified; obsolete worktrees removed. Executed
-  candidate parity (challenger arm) closed/verified 2026-11-09. Chat 2
-  verified the dual-contract baseline checkpoint at `165b7a9` (PASS,
-  2 nonblocking notes; block appended below in the closeout snapshot).
-- Post-closeout docs refresh (Chat 3) integrated: PR #78 at main
-  `f2ed15c03590db08d865b58366047526161e4310`; Chat 3 CLOSED; cleanup
-  released.
-- Control-arm parity selection implemented, reviewed (Chat 2), and
-  integrated: PR #79 merged; reviewed head
-  `05bab809eaad132adbabee91f8e89242ca41e65d`; resulting main
-  `9c8fb6303905bd087fe0df82f6a6766ea85f7e0f`. The thin parity entry
-  point now takes an explicit arm selection (`run_parity(arm=...)` /
-  CLI `--arm`; default `platoon_challenger` unchanged; unsupported
-  selection refuses pre-write); 17 synthetic parity tests + seam
-  suites green.
+- Consolidation closeout (Chat 3) integrated (PR #78); Chat 3 CLOSED.
+- Dual-contract harness baseline checkpoint reviewed PASS (Chat 2,
+  `165b7a9`).
+- Control-arm parity selection implemented, reviewed, integrated (PR
+  #79, reviewed head `05bab809...`); explicit arm registry in
+  `parity_platoon_candidate_v1.py`; challenger semantics unchanged.
+- Control-arm parity EXECUTED once 2026-11-10: PASS, exact zero both
+  grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows; max abs diff
+  0.0; receipt chain `7b239920...` -> COMPLETED); Chat 2 VERIFIED
+  (superseding verdict, PR #79 comment 6779379426). Record integrated
+  via PR #80 (docs-only, merged; result + cohort/INSPECTED caveats in
+  backlog). Result record at `...\diagnostics\parity_platoon_candidate_v1_control_arm\`.
+- Confirmation-cohort reconciliation: dev-exhausted 2,509 cohort
+  (`f77d7a66...`) is NOT reserved; genuinely reserved population =
+  confirm_2025H2 (2,328 starts), INSPECTED (pre-offseason ladder/
+  market-eval scoring) - only reusable as a single fresh
+  pre-registered contract.
 
 ### PRESENT
 
-- **CONTROL-ARM PARITY EXECUTED ONCE 2026-11-10 - PASS, EXACT ZERO**
-  (owner-approved single run; executed from the wtsc worktree at
-  `research/dual-arm-prediction` fast-forwarded to main `9c8fb63`;
-  execution code identity recorded in `receipt_initial.json`
-  `code_identity` + runtime Python 3.11.9 / polars 1.43.0 / numpy
-  2.4.6). Arm `multinomial_control`; reference
-  `...\pregame-pa-ext-v2\diagnostics\platoon_information_v1` (receipt
-  `b1b91357...224ba` verified pre-interpretation; all four artifact
-  hashes verified from its manifest pre-decode); PA/lineups/raw-event
-  file byte pins enforced pre-decode and MATCHED; cohort identity
-  verified before restriction against the registered sorted-key
-  content hash `f77d7a66...` (`bk._cohort_hash` recipe computed at
-  load - the cohort file's byte hash is NOT a pin); destination
-  `...\parity_platoon_candidate_v1_control_arm\` fresh write-once.
-  **RESULT:** 2,509 starts; 22,581 keyed PA rows; 60,216 PMF rows;
-  n_uncovered_slots 0; 87,569 PA rows excluded by the R3 structural
-  filter; key-set equality both grains; max abs diff **0.0** in all
-  four classes and every K-PMF bucket (tolerance 1e-12);
-  receipt_initial chain `7b239920...`; receipt_final
-  `685cb5dfb3012336110d8975c25592f53eae84bd51ef7455aba12349e8ef6485`
-  (status COMPLETED); parity_comparison
-  `5c0094da9029a46d805bd3a3e21d9da0c7fd5fca310570446b56a02db5e96d22`.
-  Chat 2 independent verification: **VERIFIED** (supersedes its NOT
-  VERIFIED interim; PR #79 comment
-  https://github.com/Cbkaplinger/MLB-Props/pull/79#issuecomment-6779379426).
-  Evidence distinction: the reviewer independently RECOMPUTED code
-  lineage, approved scope, receipt/artifact identities, and the
-  population arithmetic; the pre-decode pin gates and the 0.0
-  comparison maxima are RUNNER-ASSERTED values (internally consistent,
-  recorded - reviewer recomputation would require an unauthorized
-  rerun). No rerun; the executed result stands.
-  Scope: reproducibility/identity ONLY - parity does NOT establish
-  predictive superiority; no assessment parquet, no refit, no scoring,
-  single run, no retry. Runtime note: the interpreter was the primary
-  checkout's `.venv` (wtsc has none); the executed CODE was wtsc's
-  HEAD `9c8fb63` (script resolves modules from its own path); no
-  primary checkout state was modified.
+- **Paired-comparison entry point decision (owner-assigned): the
+  EXISTING registered comparison CLI is sufficient - no code change,
+  no new PR.** `platoon_comparison.py` (`platoon_information_v1`,
+  ack `EXECUTE-PLATOON-INFORMATION-V1`) already performs the exact
+  job: fits both registered arms (8-feature control via
+  `m0.fit_multinomial`; 12-feature challenger via `fit_challenger`)
+  on the SAME rows, one shared construction path, cohort-restricted
+  eligible 2025H1 keys (`f77d7a66...`) before construction, pooled-W0
+  workload, per-PA multiclass log-loss primary on the identical
+  matched-PA population (keyed join, empty/duplicate/unknown-label
+  refusals, n_matched recorded), K-count RPS non-degradation guard
+  (0.002), per-start paired bootstrap 2000/20261001, reconstruction
+  gate vs pinned W0 `ae971758...`, write-once receipts with input
+  identities. Harness equivalence is established evidence, not a gap:
+  both parity executions (challenger 2026-11-09, control 2026-11-10)
+  proved `label_free_prediction.run_prediction` reproduces this
+  comparison's saved forecasts at 1e-12 for both arms - a new
+  harness-routed scorer would duplicate metric implementations.
+  **Registered result already exists and is closed:** the one prior
+  execution (`...\diagnostics\platoon_information_v1\`, Chat 2
+  VERIFIED) favored the challenger (per-PA mean log-loss delta
+  -0.0008712, CI95 [-0.0012622, -0.0005038]; K guard satisfied);
+  ablation-baseline decision recorded 2026-11-09.
+- Exact registered invocation (committed packet
+  `research/offseason_2026/pregame_pa_ext/execution_packet_platoon_v1.md`):
+  `platoon_comparison.py --pa-source
+  "C:\Users\ckaplinger\MLB-Props-Research\overnight-p2\data\pa_table.parquet"
+  --lineups "C:\Users\ckaplinger\MLB-Props-Research\pregame-state-v1\data\projected_lineups_variant_v2.parquet"
+  --assessment "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\assessment_2025H1_v1.parquet"
+  --raw-events
+  "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2024\statcast_2024_regular.parquet,C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Savant-Data\regular\2025\statcast_2025_regular.parquet"
+  --train-start 2024-05-01 --train-end 2024-12-31 --out-dir <FRESH
+  write-once dir; `platoon_information_v1` exists and cannot be
+  reused> --execution-ack EXECUTE-PLATOON-INFORMATION-V1 --cohort-keys
+  "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\eligible_cohort_keys_2025H1.parquet"
+  --expected-cohort-hash f77d7a66639ee94a9157244b357487d5f462c6cb0bd4909bbffb44b924db41b7
+  --reconstruction-reference
+  "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\workload_personalization_w0v1\workload_per_start_v1.parquet"
+  --expected-reconstruction-sha256 ae971758b70e1649e28046a8180d375872ad0172f9c8b5cc03ab74e8dfa85f79
+  --expected-pa-sha256 1d3be6297d344a93506c9be094795c798d3e32b97dd7ce2f30523804ca846aff
+  --expected-lineups-sha256 b6a1947c9e212be7e37159edad38a086763c7724de9aabb817c8a6384eb1488b
+  --expected-assessment-sha256 464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa.
+  Access: full-file decode of PA table, lineups, assessment parquet,
+  2024+2025 raw events (fitting + scoring BY DESIGN in this runner);
+  stop conditions: pin/cohort/identity mismatches refuse pre-run,
+  reconstruction gate >1e-12 stops, matched-population/label gates,
+  write-once refusal, registered gate failure = exit 1 with failure
+  receipt. **A re-invocation requires fresh owner authorization and a
+  fresh destination; prior approvals do not carry over.**
+- **REPRODUCTION EXECUTED ONCE 2026-11-10 (owner-authorized; authorized
+  checkpoint `7e6d03c`; destination
+  `...\diagnostics\platoon_information_v1_reproduction_20261110\`
+  fresh write-once): BIT-EXACT REPRODUCTION.** Exit 0, status
+  COMPLETED, chain `9bfd5649...`. Accounting: 64,746 requests before
+  cohort -> 22,581 after; 2,509 starts; 148,369 training rows; 43,565
+  matched PAs; 2,509 starts with log loss; reconstruction gate
+  n_keys 2,509, max_abs_rps_diff 0.0, verified. Primary delta
+  **-0.0008712364487972746**, CI95 [-0.0012622472718286982,
+  -0.0005037855899286848]; K-count RPS guard point estimate
+  4.0898e-05 <= 0.002 margin (within_margin true). **Every output
+  artifact is BYTE-IDENTICAL to the registered run:** per-start
+  parquet `c7428375...` (the reproduction's per-start OUTPUT hash,
+  byte-identical to the registered run's own output record; the
+  reconstruction REFERENCE pin remains `ae971758...`),
+  keyed/model/pmf/bf artifacts identical to the parity reference
+  hashes, and `receipt_final.json` = `b1b91357...224ba` - exactly the
+  Chat 2-attested reference-receipt pin used by both parity
+  executions. Interpreter disclosure: primary checkout's `.venv`
+  (wtsc has none); executed code = wtsc HEAD `7e6d03c` (computational
+  files unchanged from main; docs-only delta). Raw-event hashes are
+  RECORDED procedurally by this runner (not pre-decode enforced);
+  PA/lineups/assessment pins, reconstruction pin, and cohort hash are
+  runner-enforced.
+- **CORRECTIONS (Chat 2 review, folded into this checkpoint):**
+  (1) HASH LABEL: `c7428375...` is the reproduction's per-start OUTPUT
+  hash (byte-identical to the registered run's own output record) -
+  the pinned reconstruction REFERENCE hash is `ae971758...`
+  (workload_personalization_w0v1 per-start file); (2) WEIGHTING: the
+  reported per-PA means (control 1.2245976, platoon 1.2238507) are
+  UNWEIGHTED averages over the 43,565 matched PAs; the primary
+  contrast and CI use EQUAL-WEIGHT PER-START means (challenger
+  1.2285053, control 1.2293765) with the per-start paired bootstrap
+  (2000/20261001); the K-count RPS guard uses the same per-start
+  equal weighting.
+- **HARNESS-TO-MARKET SEAM (gap analysis delivered):** prediction-time
+  input capture EXISTS (research/offseason_2026/pregame_lineup_capture.py
+  reads production-captured snapshots with the cutoff contract),
+  saved-model loading EXISTS (registered checkpoint pin `176fb18b...`
+  via `load_serialized_checkpoint`), both sides have tests
+  (`test_live_stack_pin.py`, parity suites, capture tests). The ONE
+  missing piece: no committed bridge converts the harness's keyed
+  24-bucket K-count PMFs into the production count layer's
+  line-probability output contract (`p_over_{line}` on
+  `PROJECTION_K_LINES` via `count_layer.attach_count_predictions`
+  conventions). Concrete task in FORWARD.
+
+- **SEAM TASK IMPLEMENTED (owner-assigned, checkpoint `acc0d5b`):** the
+  thin research-side shadow adapter
+  `research/offseason_2026/pregame_pa_ext/harness_to_market_bridge.py`
+  converts keyed 24-bucket harness K-PMFs into one row per start with
+  the exact production columns `p_over_2_5 ... p_over_9_5` (from
+  `count_layer.PROJECTION_K_LINES`, imported without the model stack).
+  REUSE: `market_eval_k.model_p_over` is the marginalization (its
+  overflow-tail semantics - k=0..22 exact, tail at 23 - match the
+  actual producer `adapter.count_pmf_from_mixture`, which absorbs
+  residual mass into k=23; verified in code, not guessed); PMF
+  validity reuses `adapter.check_pmf` (finite, [0,1], sum within
+  1e-9 - the documented existing tolerance); malformed PMFs refuse,
+  never normalized/clipped. Identity = (game_pk, side, pitcher),
+  dtypes preserved, deterministic ordering, no start dropped/invented,
+  no k_rate/tbf/expected_K manufactured, zero live-path change
+  (count_layer.py untouched). Tests:
+  `tests/test_harness_to_market_bridge.py` 6 green - hand-calculated
+  marginalization (0.1@K2/0.2@K3/0.3@K10/tail 0.4@K23 -> p_over_2_5
+  0.9, p_over_3_5..9_5 0.7), exact names + identities + deterministic
+  ordering under shuffled rows, tail retained at every in-scope line,
+  agreement with the canonical constant, focused refusals (duplicate/
+  missing bucket, null key, negative/NaN mass, bad normalization,
+  missing column), and one synthetic harness->bridge integration case
+  (existing prediction fixture; registered checkpoint NOT read -
+  synthetic model dict only). Known limitations: probability-column
+  contract only (no market readiness, no k_rate/TBF fabrication);
+  bucket-23 overflow meaning taken from the registered producer; the
+  bridge does not load or validate the live model stack.
+- **HARDENED (same PR, superseding commit): strict bucket validation
+  BEFORE integer conversion** - null, nonfinite, fractional, and
+  non-numeric bucket labels refuse with clear errors; valid
+  integer-typed producer output is preserved unchanged (integral
+  float input also accepted, output identical); **null PMF mass
+  refuses** with an explicit validation error (previously an unclear
+  TypeError). Unused test helper removed. Tests now 9 green (new:
+  strict-label refusals, integral-float acceptance, null-mass
+  refusal).
 
 ### FORWARD
 
-1. Integrate this docs-only execution-record checkpoint (one PR from
-   `research/dual-arm-prediction`; wtsc already at main `9c8fb63`).
-2. Scientific queue: no next task assigned; ablation work stays closed
-   (no-2026-tuning; 2025-select / 2026-judge sequencing unchanged).
+1. Review + integrate this bridge PR (Chat 2); no execution - the
+   bridge is synthetic-tested only, and any real-PMF use is a future
+   owner decision.
+2. Scientific queue: no other task assigned; ablation work stays
+   closed (no-2026-tuning; 2025-select / 2026-judge sequencing
+   unchanged).
 
 ### DEFERRED
 

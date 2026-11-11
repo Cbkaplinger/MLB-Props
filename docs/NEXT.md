@@ -1,9 +1,10 @@
 # NEXT - current action
 
-Owner: architect. Updated 2026-11-10. Chat 3 is closed and its cleanup is
-integrated on main; Chat 1 is active on the assigned control-arm parity
-task. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card.
-EXECUTION_BACKLOG remains the single queue.
+Owner: architect. Updated 2026-11-10. Chat 3 closed; cleanup integrated.
+Chat 1 active: both parity lanes and the registered paired comparison are
+CLOSED/reproduced; current deliverable is the harness-to-market seam
+analysis. ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your
+card. EXECUTION_BACKLOG remains the single queue.
 
 ## Ablation baseline decision (owner, 2026-11-09)
 
@@ -24,31 +25,48 @@ superiority. The write-once receipt and full record are preserved in
 
 ## Prior completed milestones (this lane)
 
-- Workload w0v1: pooled W0 favored over W1 (VERIFIED; delta +0.012406, CI [+0.004410, +0.020368]); BF interpretation correction retained (see ledger); artifacts `...\workload_personalization_w0v1\`.
-- Historical starter-outcome derivation: 9,714 starts (2023-2024); 2,334/2,334 overlap with the registered 2024H2 artifact.
-- History-sensitivity scorecard: longer history favored (delta -0.0111, CI below zero).
-- Ref0-vs-Ref1: multinomial K marginal beats population proportions (delta -0.0864, CI below zero).
-- Stage-A reconciliation: implementation reviewed; real-artifact run remains authorization-gated.
-- Binary-K lane: control retained in its declared comparison (VERIFIED). LGBM lane: control retained, guard failed (VERIFIED). Platoon lane: challenger favored, candidate registered (VERIFIED).
-- Lane stack integrated on main at 2ca8aef (#56-#60, #64, #65); details in `docs/EXECUTION_BACKLOG.md`.
+All VERIFIED; full records in `docs/EXECUTION_BACKLOG.md` and
+`docs/reference/reports/experiment_impact_ledger_2026-10-22.md`:
+workload w0v1 (pooled W0 favored), historical starter-outcome derivation
+(9,714 starts), history-sensitivity scorecard, Ref0-vs-Ref1, Stage-A
+reconciliation (implemented; real run authorization-gated), binary-K /
+LGBM / platoon lanes (control retained / retained / challenger favored),
+lane stack integrated at `2ca8aef`.
 
-## Current action: control-arm parity EXECUTED - task CLOSED (2026-11-10)
+## Current action: paired comparison CLOSED - seam bridge built (2026-11-10)
 
-The owner-assigned question is answered. PR #79 (explicit arm selection)
-merged; reviewed head `05bab809...`; main `9c8fb63...`. The approved
-single control-arm run executed once from wtsc at that HEAD:
-
-- **PASS, EXACT ZERO** - 2,509 starts; 22,581 keyed PA rows; 60,216 PMF
-  rows; key-set equality both grains; max abs diff 0.0 in all four
-  classes and every K-PMF bucket (tolerance 1e-12). Receipt chain
-  `7b239920...` -> status COMPLETED. Evidence (write-once, preserved):
-  `...\diagnostics\parity_platoon_candidate_v1_control_arm\`.
-- Chat 2 independently VERIFIED (supersedes its NOT VERIFIED interim;
-  verdict: PR #79 comment
-  https://github.com/Cbkaplinger/MLB-Props/pull/79#issuecomment-6779379426).
-  Reviewer-recomputed: code lineage, scope, receipt/artifact
-  identities, population arithmetic. Runner-asserted (not
-  reviewer-recomputed): the pin gates and the 0.0 maxima.
-- Reproducibility/identity evidence only, not predictive superiority.
-  No further execution authorized; no next scientific task assigned
-  (architect assigns; ablation queue closed).
+- Decision (no code change, no new PR): the registered
+  `platoon_comparison.py` CLI already performs the exact paired
+  comparison; harness equivalence proven by both parity runs (exact
+  zero). Packet: `execution_packet_platoon_v1.md`.
+- **REPRODUCTION EXECUTED ONCE (owner-authorized, checkpoint
+  `7e6d03c`, fresh write-once destination
+  `platoon_information_v1_reproduction_20261110`): BIT-EXACT** - exit
+  0, delta -0.0008712364... CI95 [-0.0012622, -0.0005038], K guard
+  within margin, every output artifact byte-identical (receipt_final
+  = `b1b91357...224ba`). No further comparison execution needed.
+- Corrections (Chat 2): `c7428375...` = the reproduction's per-start
+  OUTPUT hash (registered output record byte-identical); the pinned
+  reconstruction REFERENCE hash is `ae971758...`. Weighting: per-PA
+  means are unweighted over 43,565 matched PAs; the primary contrast
+  + CI use equal-weight per-start means (challenger 1.2285053,
+  control 1.2293765) with the per-start paired bootstrap; the K RPS
+  guard uses the same per-start weighting.
+- **Seam implemented** (this PR): research-side shadow adapter
+  `harness_to_market_bridge.py` - reuses `market_eval_k.model_p_over`
+  + `adapter.check_pmf`; strict bucket-label validation before int
+  conversion (fractional/nonfinite/null refuse; integer-typed producer
+  output preserved); null PMF mass refuses clearly; malformed PMFs
+  refuse. 9 synthetic tests incl. one harness->bridge integration
+  case. Zero live-path change; probability-column contract only, not
+  market readiness. Pending: Chat 2 review; no execution.
+- **SEAM IMPLEMENTED (checkpoint `acc0d5b`):** research-side shadow
+  adapter `harness_to_market_bridge.py` (reuses
+  `market_eval_k.model_p_over` + `adapter.check_pmf`; overflow-tail
+  semantics verified against the registered producer; malformed PMFs
+  refuse) + 6 synthetic tests incl. one harness->bridge integration
+  case. Zero live-path change; probability-column contract only, not
+  market readiness. Pending: Chat 2 review of the bridge PR; no
+  execution.
+- confirm_2025H2 remains the reserved (INSPECTED) confirmation
+  population; no next scientific task assigned until the owner picks.
