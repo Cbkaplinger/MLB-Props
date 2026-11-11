@@ -129,6 +129,35 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   The failed command + refusal error are preserved in this record; NO
   failure receipt exists for that run (destination was never created).
 
+- **Opening-clock reconciliation (2026-11-11):** paid-lake clocks are
+  close (commence-5min), morning (T-5h), board (fixed 12:00Z / 8am ET,
+  all-EDT edge documented), open18 (-18h; T-24h/-30h dead per probe);
+  Friend opens are vendor-designated -12h/-6h (97/3). 2025 board-clock
+  coverage UNKNOWN (2023/24 sampled only). Replay baseline rows
+  renamed over_hit (panel y is binary, not full-start K). Deferred
+  hypothesis (corrected; not implemented): recency weighting of the
+  model's EW features (fixed 90d half-life, self-relative, unshrunk -
+  the committed stale-form finding: a 2022-only batter presents stale
+  form as current at a 2025 start). The batter-recency challenger was
+  REJECTED and recency-batch-v1 showed development-only gains; no
+  implementation without a new registered reason.
+- **RECOVERED-IDEAS REGISTER RECONCILED (owner-supplied, this PR):**
+  docs/reference/reports/recovered_research_ideas_register_2026-11-11.md
+  (26 entries R01-R26; provenance corrected: R02-R09 directly quoted in
+  conversation, R26 assistant-originated and withdrawn). Dispositions:
+  R05 Markov, R02 Holt, R03 state-space, R04 change-point, R06-R08
+  survival/count families = DEFERRED with revisit triggers in the
+  register (R08 note: Poisson is already the registered count-layer
+  default, src/Python/count_layer.py); R09 PMF-vs-moments = design
+  principle already implemented (24-bucket PMFs throughout); R10-R13 =
+  active/implemented this checkpoint; R14 RotoGrinders = future
+  capture, historical morning availability unestablished; R15
+  pitch-by-pitch = PARKED; R16 = operating requirement; R17
+  calibration/blending = provenance preserved, not a fresh request;
+  R18-R21, R23-R25 = historical leads linked to existing evidence,
+  not reopened; R26 = withdrawn. The register is evidence of intent,
+  not an execution queue.
+
 ### FORWARD
 
 1. Owner decision on the proposed execution packet (NOT RUN; fresh

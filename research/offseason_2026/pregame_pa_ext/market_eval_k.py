@@ -218,6 +218,27 @@ def model_p_over(pmf: np.ndarray, line: float) -> float:
 
 
 # ------------------------------------------------------------- scoring
+def paired_line_scores(o, p_a: np.ndarray, p_b: np.ndarray) -> dict:
+    """THE paired line-score definitions (single implementation):
+    Bernoulli log loss with the registered 1e-12 clip and Brier score
+    for two probability vectors against the SAME realized over
+    indicator. ``score_starts`` uses this for model-vs-close; the
+    benchmark seam reuses it for book-vs-LTBO (probability sources are
+    relabeled; the math is not duplicated)."""
+    eps = 1e-12
+    o = np.asarray(o, dtype=float)
+    p_a = np.asarray(p_a, dtype=float)
+    p_b = np.asarray(p_b, dtype=float)
+    return {
+        "log_loss_a": float(-(o * np.log(p_a + eps)
+                              + (1 - o) * np.log(1 - p_a + eps)).mean()),
+        "log_loss_b": float(-(o * np.log(p_b + eps)
+                              + (1 - o) * np.log(1 - p_b + eps)).mean()),
+        "brier_a": float(((p_a - o) ** 2).mean()),
+        "brier_b": float(((p_b - o) ** 2).mean()),
+    }
+
+
 def score_starts(joined: "pl.DataFrame") -> dict:
     """Per-start model-vs-close scoring on the realized over/under
     outcome + reliability buckets. `joined` needs: game_pk, game_date,
@@ -242,13 +263,11 @@ def score_starts(joined: "pl.DataFrame") -> dict:
     p_m = np.array([r[1] for r in rows])
     p_c = np.array([r[2] for r in rows])
     rps = np.array([r[3] for r in rows])
-    eps = 1e-12
-    ll_m = float(-(o * np.log(p_m + eps)
-                   + (1 - o) * np.log(1 - p_m + eps)).mean())
-    ll_c = float(-(o * np.log(p_c + eps)
-                   + (1 - o) * np.log(1 - p_c + eps)).mean())
-    br_m = float(((p_m - o) ** 2).mean())
-    br_c = float(((p_c - o) ** 2).mean())
+    paired = paired_line_scores(o, p_m, p_c)
+    ll_m = paired["log_loss_a"]
+    ll_c = paired["log_loss_b"]
+    br_m = paired["brier_a"]
+    br_c = paired["brier_b"]
     # reliability: decile buckets of the model probability
     qs = np.quantile(p_m, np.linspace(0, 1, N_BUCKETS_RELIABILITY + 1))
     qs[0], qs[-1] = -np.inf, np.inf
