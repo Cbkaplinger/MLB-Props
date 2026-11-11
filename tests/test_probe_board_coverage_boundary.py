@@ -35,6 +35,9 @@ import pytest
 from production.ops.market_research import (
     probe_board_coverage_boundary_2025H1 as fb,
 )
+from production.ops.market_research import (
+    probe_board_coverage_2025H1 as base,
+)
 
 BOUNDARY = "2025-06-30"
 GD_LO = "2025-01-01"
@@ -45,11 +48,16 @@ SPEC = [("2025-04-10", "e2025a"), ("2026-05-01", "e2026b"),
 
 
 def _rows(spec: list[tuple[str, str]], *, interleave: bool = False) -> list[dict]:
-    rows = []
+    """Two-sided -110/+110 K quotes per (event, clock). Without
+    interleave, rows are grouped by event (date-homogeneous chunks).
+    With interleave, rows round-robin across events so consecutive
+    rows alternate 2025/2026 dates (mixed row groups)."""
+    event_rows = []
     for gd, eid in spec:
+        er = []
         for clock in CLOCKS:
             for side, price in (("over", -110), ("under", 110)):
-                rows.append({
+                er.append({
                     "event_id": eid, "snapshot": clock,
                     "snapshot_ts": f"{gd}T15:00:00Z", "game_date": gd,
                     "season_type": "regular", "book": "draftkings",
@@ -57,11 +65,16 @@ def _rows(spec: list[tuple[str, str]], *, interleave: bool = False) -> list[dict
                     "player_norm": "a p", "line": 4.5, "side": side,
                     "price": price,
                 })
-    if interleave:
-        n = len(rows) // 2
-        a, b = rows[:n], rows[n:]
-        rows = [r for pair in zip(a, b) for r in pair]
-    return rows
+        event_rows.append(er)
+    if interleave and len(event_rows) > 1:
+        rows = []
+        max_len = max(len(er) for er in event_rows)
+        for i in range(max_len):
+            for er in event_rows:
+                if i < len(er):
+                    rows.append(er[i])
+        return rows
+    return [r for er in event_rows for r in er]
 
 
 def _write_book_lines(tmp, name, spec, *, interleave=False,
@@ -344,7 +357,7 @@ def test_empty_frames_explicit(tmp_path):
     filtered = rows.filter((pl.col("game_date") >= GD_LO)
                            & (pl.col("game_date") <= BOUNDARY))
     assert filtered.height == 0
-    per_clock = fb.aggregate_per_clock(filtered, CLOCKS)
+    per_clock = base.aggregate_per_clock(filtered, CLOCKS)
     for clock in CLOCKS:
         assert per_clock[clock]["n_quotes"] == 0
         assert per_clock[clock]["n_two_sided_contracts"] == 0
