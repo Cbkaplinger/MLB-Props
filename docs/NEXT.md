@@ -9,13 +9,11 @@ EXECUTION_BACKLOG remains the single queue.
 
 ## Ablation baseline decision (owner, 2026-11-09)
 
-- Control: registered 8-feature multinomial plus pooled W0.
-- Challenger: registered 12-feature platoon recipe; no production promotion
-  or fresh-validation claim.
-- Evaluation uses per-PA multiclass log loss, per-start means, paired
-  slate-date bootstrap, and the K-count RPS guard; calibration remains absent.
-- Full recipe and verified results: `docs/EXECUTION_BACKLOG.md` and
-  `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
+Control = registered 8-feature multinomial + pooled W0; challenger =
+registered 12-feature platoon recipe; no promotion/fresh-validation
+claim. Evaluation: per-PA multiclass log loss, per-start means, paired
+slate-date bootstrap, K-count RPS guard; no calibration. Full record:
+`docs/EXECUTION_BACKLOG.md` + `experiment_impact_ledger_2026-10-22.md`.
 
 ## Prior completed milestones (this lane)
 
