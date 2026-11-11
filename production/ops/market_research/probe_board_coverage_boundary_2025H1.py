@@ -63,6 +63,7 @@ ENVELOPE = HIST / "snapshot_envelope.parquet"
 BLOCKED_REPORT = HIST / "_probe" / "board_coverage_2025H1.json"
 OUT = HIST / "_probe" / "board_coverage_boundary_2025H1.json"
 BOUNDARY = "2025-06-30"
+GD_LO = "2025-01-01"
 CLOCKS = ["board", "morning", "close"]
 QUERY_ID = "board_coverage_boundary_2025H1"
 
@@ -193,15 +194,27 @@ def main() -> int:
     if rows.height != expected_rows:
         _fail(f"decoded row count {rows.height} != expected "
               f"{expected_rows}")
-    # filter to 2025H1 IMMEDIATELY after boundary-group decode
-    rows = rows.filter(pl.col("game_date") <= BOUNDARY)
-    if rows["game_date"].max() is not None \
-            and rows["game_date"].max() > BOUNDARY:
-        _fail("protected-date rows survived the window filter; refusing")
+    # filter to the full inclusive 2025H1 window IMMEDIATELY after
+    # boundary-group decode: both bounds asserted
+    rows = rows.filter((pl.col("game_date") >= GD_LO)
+                       & (pl.col("game_date") <= BOUNDARY))
+    if rows.height > 0:
+        gd_min = rows["game_date"].min()
+        gd_max = rows["game_date"].max()
+        if gd_min < GD_LO or gd_max > BOUNDARY:
+            _fail(f"window filter bounds violated: min={gd_min} "
+                  f"max={gd_max}; refusing")
+    # else: empty frame is valid (no window rows in allowed groups)
 
     env = read_allowed_groups(ENVELOPE, allowed_env, ENVELOPE_COLUMNS)
     env = env.filter(
-        pl.col("commence_time").str.slice(0, 10) <= BOUNDARY)
+        (pl.col("commence_time").str.slice(0, 10) >= GD_LO)
+        & (pl.col("commence_time").str.slice(0, 10) <= BOUNDARY))
+    if env.height > 0:
+        env_max = env["commence_time"].str.slice(0, 10).max()
+        if env_max > BOUNDARY:
+            _fail(f"envelope protected-date rows survived the window "
+                  f"filter (max={env_max}); refusing")
 
     # ---- registered aggregation (reused, unchanged definitions)
     per_clock = base.aggregate_per_clock(rows, CLOCKS)
