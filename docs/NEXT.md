@@ -65,6 +65,10 @@ diagnostic (PR #83) merged.
   unshrunk - the committed stale-form finding). The batter-recency
   challenger was REJECTED and recency-batch-v1 showed development-only
   gains; no implementation without a new registered reason.
+- Recovered-ideas register reconciled:
+  docs/reference/reports/recovered_research_ideas_register_2026-11-11.md
+  (R01-R26; deferred models have explicit revisit triggers; the
+  register is intent evidence, not an execution queue).
 - Diagnostic history: first execution hit the exact-key gate
   (2,532-request assessment vs 2,509 eligible cohort); cohort contract
   amended; second execution PASSED with 23 declared exclusions
