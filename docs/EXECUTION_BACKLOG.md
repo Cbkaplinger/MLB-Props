@@ -101,24 +101,58 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   alignment; duplicate/null keys; both-direction key mismatch;
   malformed labels/observed K/PMF; CLI ack/write-once/success).
   Pre-commit trio + bridge suite 43 green.
+- **FIRST AUTHORIZED EXECUTION: REGISTERED GATE REFUSAL (execution of
+  record; no output written, no failure receipt exists).** Preflight
+  (procedural, disclosed): reference receipt hash-verified
+  (`b1b91357...224ba`); complete expected PMF hash recovered from its
+  manifest - `8c5c849c289ecd65a561719d9ca7e9ce0975e6e0c377107fb6587c
+  475b3a4916` (the packet's paste was corrupted mid-string); both
+  input disk hashes MATCHED; destination absent. Execution HEAD
+  `a830dda`; exit 1 at the exact-key gate:
+  `missing_from_observed=0; missing_from_forecast=23` - the prepared
+  assessment covers ALL 2,532 requested 2025H1 starters while the
+  forecast side is the 2,509-start eligible cohort (the registered
+  eligible-cohort exclusions; count consistent with the partition
+  table). No tuning, no retry.
+- **COHORT CONTRACT AMENDMENT (this PR):** the diagnostic now takes an
+  explicit `--cohort-keys` input + `--expected-cohort-hash` (registered
+  `bk._cohort_hash` convention) and explicitly evaluates the declared
+  eligible cohort: forecast keys must equal the cohort exactly;
+  observations are restricted to the cohort and must then cover it
+  exactly; observed-only starts outside the cohort are recorded as
+  DECLARED EXCLUSIONS with full key lists (eligibility never derived
+  from forecast availability; no hardcoded discrepancy count). Tests
+  prove the excluded keys are exactly cohort-set-difference members
+  (exact key identity, not count subtraction): broader observation
+  source, missing eligible observations, missing/extra forecasts, bad
+  cohort identity. 16 diagnostic tests green (59 with trio + bridge).
+  The failed command + refusal error are preserved in this record; NO
+  failure receipt exists for that run (destination was never created).
 
 ### FORWARD
 
 1. Owner decision on the proposed execution packet (NOT RUN; fresh
-   owner authorization required):
    `python research/offseason_2026/pregame_pa_ext/count_pmf_diagnostic.py
    --k-pmf "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\platoon_information_v1_reproduction_20261110\k_pmf_per_start_v1.parquet"
    --assessment "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\assessment_2025H1_v1.parquet"
    --arms pmf_multinomial_control,pmf_platoon
+   --cohort-keys "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\pregame_multiclass_baseline_v1_inputs_v2\eligible_cohort_keys_2025H1.parquet"
+   --expected-cohort-hash f77d7a66639ee94a9157244b357487d5f462c6cb0bd4909bbffb44b924db41b7
    --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\count_pmf_diagnostic_v1"
    --execution-ack EXECUTE-COUNT-PMF-DIAGNOSTIC-V1`.
-   Pins: k-PMF = the byte-identical reproduction output (arms
-   `pmf_multinomial_control` + `pmf_platoon`); assessment pin
-   `464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa`.
-   Access: full-file decode of those two files ONLY. Stop conditions:
-   ack gate; destination exists; key mismatch (both directions
-   reported); duplicate/null identities; malformed labels/PMFs
-   (registered gates refuse).
+   Pins: k-PMF = the byte-identical reproduction output
+   (`8c5c849c289ecd65a561719d9ca7e9ce0975e6e0c377107fb6587c475b3a4916`,
+   attested via the verified reference receipt manifest); assessment
+   pin `464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa`;
+   cohort = the registered eligible cohort (hash `f77d7a66...`,
+   hash-checked by the runner). Access: full-file decode of those
+   three files ONLY. Stop conditions: ack gate; destination exists;
+   cohort hash mismatch; forecast/observed-vs-cohort key mismatches
+   (both directions reported); duplicate/null identities; malformed
+   labels/PMFs. Input identity hashes are PROCEDURAL preflight
+   (the CLI enforces the cohort hash + structural gates, not the
+   file byte pins). Malformed labels/PMFs refuse via the registered
+   gates.
 2. Scientific queue: no other task assigned; ablation work stays
    closed (no-2026-tuning; 2025-select / 2026-judge sequencing
    unchanged).

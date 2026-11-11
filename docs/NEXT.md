@@ -51,8 +51,22 @@ implemented and merged (PR #81).
   preserves every completed PA of requested starters, so
   `assessment_2025H1_v1.parquet` supplies complete full-start realized
   K (registered derivation: class_label == 0 count).
-- **Proposed execution packet in backlog FORWARD** (reproduction
-  k-PMF + pinned assessment table; fresh
-  `count_pmf_diagnostic_v1` destination). NOT RUN; needs fresh owner
-  authorization. confirm_2025H2 stays the reserved (INSPECTED)
-  confirmation population.
+## Current action: K-PMF diagnostic - cohort contract amended (2026-11-11)
+
+- First authorized execution (HEAD `a830dda`) hit the registered
+  exact-key gate: the assessment covers all 2,532 requested 2025H1
+  starts vs the 2,509-start eligible forecast cohort
+  (`missing_from_observed=0; missing_from_forecast=23`). Execution of
+  record; no output written; no retry.
+- **Cohort contract amendment (this PR):** explicit `--cohort-keys` +
+  `--expected-cohort-hash` (registered `bk._cohort_hash`); forecast ==
+  cohort exactly; observations restricted to the cohort must cover it
+  exactly; observed-only starts outside the cohort = declared
+  exclusions with full key lists. Tests prove exclusions are exactly
+  the cohort set difference (key identity, not counts). 16 diagnostic
+  tests green (59 with trio + bridge).
+- Revised execution packet (adds `--cohort-keys` + `--expected-cohort-
+  hash`, registered eligible cohort `f77d7a66...`) in backlog FORWARD.
+  Input byte hashes are PROCEDURAL preflight; the runner enforces the
+  cohort hash + structural gates. NOT RUN; fresh owner authorization
+  required for the one rerun.
