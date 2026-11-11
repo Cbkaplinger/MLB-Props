@@ -27,15 +27,15 @@ Reused registered machinery (no second marginalization algorithm):
 Input contract (validated, then refused on violation):
 - required columns: game_pk, side, pitcher, bucket, and the PMF value
   column (default ``pmf_h3_raw``, the harness producer's column);
-- non-null identity keys (game_pk, side, pitcher, bucket);
+- bucket labels STRICTLY validated before integer conversion: null,
+  nonfinite, fractional, and non-numeric labels refuse; valid
+  integer-typed producer output is preserved unchanged;
+- non-null start identity (game_pk, side, pitcher);
+- null PMF mass refuses (clear validation error, never a TypeError);
 - unique (game_pk, side, pitcher, bucket) pairs;
 - exactly the declared 24 buckets (0..23) globally AND per start;
-- per-start PMFs finite, within [0, 1], normalized within 1e-9.
-
-Output: one row per unique start (deterministic ascending
-(game_pk, side, pitcher) order, identity dtypes preserved from the
-input) plus exactly eight ``p_over_{line}`` columns named by the
-production convention (dot -> underscore).
+- per-start PMFs finite, within [0, 1], normalized within 1e-9 of 1
+  (the documented existing ``adapter.check_pmf`` tolerance).
 """
 from __future__ import annotations
 
@@ -56,15 +56,35 @@ from Python.count_layer import PROJECTION_K_LINES  # noqa: E402
 START_KEYS = ("game_pk", "side", "pitcher")
 BUCKET_COL = "bucket"
 DEFAULT_PMF_COLUMN = "pmf_h3_raw"
-# documented existing tolerance (adapter.check_pmf): PMF sum must be
-# within 1e-9 of 1; malformed PMFs refuse, never normalized/clipped
-NORMALIZATION_TOLERANCE = 1e-9
 
 
 def _line_column(line: float) -> str:
     """Production naming convention (count_layer.attach_count_predictions):
     ``p_over_{line with dot replaced by underscore}``."""
     return f"p_over_{str(line).replace('.', '_')}"
+
+
+def _validate_bucket_labels(k_pmf: pl.DataFrame) -> None:
+    """Strict bucket-label validation BEFORE integer conversion: null,
+    nonfinite, fractional, and non-numeric labels refuse; valid
+    integer-typed producer output passes unchanged."""
+    col = k_pmf[BUCKET_COL]
+    if col.null_count() > 0:
+        raise ValueError("null bucket label(s) present")
+    dtype = k_pmf.schema[BUCKET_COL]
+    if dtype in pl.INTEGER_DTYPES:
+        return
+    if dtype not in pl.FLOAT_DTYPES:
+        raise ValueError(
+            f"bucket column dtype {dtype} is neither integer nor "
+            "float; refusing non-numeric bucket labels")
+    for v in col.to_list():
+        if not np.isfinite(v):
+            raise ValueError(f"nonfinite bucket label: {v!r}")
+        if float(v) != int(v):
+            raise ValueError(
+                f"fractional bucket label: {v!r}; buckets must be "
+                "integers 0..23")
 
 
 def bridge_pmf_to_lines(
@@ -81,6 +101,11 @@ def bridge_pmf_to_lines(
     if missing:
         raise ValueError(
             f"k_pmf frame missing required column(s): {missing}")
+    _validate_bucket_labels(k_pmf)
+    if k_pmf[pmf_column].null_count() > 0:
+        raise ValueError(
+            f"null PMF mass in {pmf_column!r}: every (start, bucket) "
+            "row must carry a present mass value")
     identity = [*START_KEYS, BUCKET_COL]
     null_mask = pl.any_horizontal(
         [pl.col(c).is_null() for c in identity])

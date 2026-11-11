@@ -33,7 +33,7 @@ reconciliation (implemented; real run authorization-gated), binary-K /
 LGBM / platoon lanes (control retained / retained / challenger favored),
 lane stack integrated at `2ca8aef`.
 
-## Current action: paired comparison CLOSED - seam task proposed (2026-11-10)
+## Current action: paired comparison CLOSED - seam bridge built (2026-11-10)
 
 - Decision (no code change, no new PR): the registered
   `platoon_comparison.py` CLI already performs the exact paired
@@ -52,12 +52,14 @@ lane stack integrated at `2ca8aef`.
   + CI use equal-weight per-start means (challenger 1.2285053,
   control 1.2293765) with the per-start paired bootstrap; the K RPS
   guard uses the same per-start weighting.
-- **Next gap:** the harness's keyed 24-bucket K-count PMFs are not
-  bridged to the production line-probability contract
-  (`p_over_{line}` on `PROJECTION_K_LINES`). One concrete task is in
-  backlog FORWARD (research-side bridge + synthetic integration test;
-  zero live-path change). Input capture, checkpoint pin-loading, and
-  both sides' tests already exist.
+- **Seam implemented** (this PR): research-side shadow adapter
+  `harness_to_market_bridge.py` - reuses `market_eval_k.model_p_over`
+  + `adapter.check_pmf`; strict bucket-label validation before int
+  conversion (fractional/nonfinite/null refuse; integer-typed producer
+  output preserved); null PMF mass refuses clearly; malformed PMFs
+  refuse. 9 synthetic tests incl. one harness->bridge integration
+  case. Zero live-path change; probability-column contract only, not
+  market readiness. Pending: Chat 2 review; no execution.
 - **SEAM IMPLEMENTED (checkpoint `acc0d5b`):** research-side shadow
   adapter `harness_to_market_bridge.py` (reuses
   `market_eval_k.model_p_over` + `adapter.check_pmf`; overflow-tail

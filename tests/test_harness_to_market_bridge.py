@@ -15,9 +15,12 @@ Requirement -> implementation -> test-evidence closure table:
   Lines agree with the canonical PROJECTION_K_LINES       -> test 4
   Refusals: duplicate bucket, missing bucket, null key,
   invalid mass (negative/NaN), bad normalization          -> test 5
+  Strict bucket labels BEFORE int conversion (fractional,
+  nonfinite, null refuse; integral float accepted)        -> test 6
+  Null PMF mass refuses with a clear validation error     -> test 7
   Synthetic harness -> bridge integration (existing
   prediction fixture; contract + direct-marginalization
-  agreement)                                              -> test 6
+  agreement)                                              -> test 8
 """
 from __future__ import annotations
 
@@ -173,7 +176,7 @@ def test_refusals():
             _k_pmf_frame().drop("pmf_h3_raw"))
 
 
-# ------------------- 6. synthetic harness -> bridge integration
+# ------------------- 8. synthetic harness -> bridge integration
 def _synthetic_pa():
     rows = []
     for gi, (gk, side, p) in enumerate(STARTS):
@@ -211,19 +214,51 @@ def _synthetic_control_model():
     }
 
 
-def _synthetic_bf_keyed():
-    v = np.zeros(37)
-    v[:35] = 0.02
-    v[35] = 0.20
-    v[36] = 0.10
-    rows = []
-    for gk, side, p in STARTS:
-        for j in range(37):
-            rows.append((gk, side, p, j, float(v[j])))
-    return pl.DataFrame(
-        rows, schema={"game_pk": pl.Int64, "side": pl.Utf8,
-                      "pitcher": pl.Int64, "bf_category": pl.Int64,
-                      "bf37_w0_pooled": pl.Float64}, orient="row")
+# ------------------- 6. strict bucket labels BEFORE int conversion
+def test_strict_bucket_label_refusals():
+    # fractional float bucket label refuses (never silently truncated)
+    bad = _k_pmf_frame().with_columns(pl.col("bucket").cast(pl.Float64))
+    bad = bad.with_columns(
+        pl.when(pl.col("bucket") == 3).then(2.5)
+        .otherwise(pl.col("bucket")).alias("bucket"))
+    with pytest.raises(ValueError, match="fractional bucket label"):
+        hb.bridge_pmf_to_lines(bad)
+    # nonfinite float bucket label refuses
+    bad = _k_pmf_frame().with_columns(pl.col("bucket").cast(pl.Float64))
+    bad = bad.with_columns(
+        pl.when(pl.col("bucket") == 3).then(float("nan"))
+        .otherwise(pl.col("bucket")).alias("bucket"))
+    with pytest.raises(ValueError, match="nonfinite bucket label"):
+        hb.bridge_pmf_to_lines(bad)
+    # null bucket label refuses
+    bad = _k_pmf_frame().with_columns(
+        pl.when(pl.col("bucket") == 3).then(None)
+        .otherwise(pl.col("bucket")).alias("bucket"))
+    with pytest.raises(ValueError, match="null bucket label"):
+        hb.bridge_pmf_to_lines(bad)
+    # non-numeric bucket dtype refuses
+    bad = _k_pmf_frame().with_columns(pl.col("bucket").cast(pl.Utf8))
+    with pytest.raises(ValueError, match="neither integer nor float"):
+        hb.bridge_pmf_to_lines(bad)
+
+
+def test_integral_float_buckets_accepted():
+    """Valid integer-valued producer output in float dtype passes and
+    yields output identical to the integer-typed input."""
+    as_int = _k_pmf_frame(shuffle=False)
+    as_float = as_int.with_columns(pl.col("bucket").cast(pl.Float64))
+    out_int = hb.bridge_pmf_to_lines(as_int)
+    out_float = hb.bridge_pmf_to_lines(as_float)
+    assert out_float.equals(out_int)
+
+
+# ------------------- 7. null PMF mass refuses clearly
+def test_null_pmf_mass_refused():
+    bad = _k_pmf_frame().with_columns(
+        pl.when(pl.col("bucket") == 3).then(None)
+        .otherwise(pl.col("pmf_h3_raw")).alias("pmf_h3_raw"))
+    with pytest.raises(ValueError, match="null PMF mass"):
+        hb.bridge_pmf_to_lines(bad)
 
 
 def test_synthetic_harness_to_bridge_integration():

@@ -188,6 +188,15 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   contract only (no market readiness, no k_rate/TBF fabrication);
   bucket-23 overflow meaning taken from the registered producer; the
   bridge does not load or validate the live model stack.
+- **HARDENED (same PR, superseding commit): strict bucket validation
+  BEFORE integer conversion** - null, nonfinite, fractional, and
+  non-numeric bucket labels refuse with clear errors; valid
+  integer-typed producer output is preserved unchanged (integral
+  float input also accepted, output identical); **null PMF mass
+  refuses** with an explicit validation error (previously an unclear
+  TypeError). Unused test helper removed. Tests now 9 green (new:
+  strict-label refusals, integral-float acceptance, null-mass
+  refusal).
 
 ### FORWARD
 
