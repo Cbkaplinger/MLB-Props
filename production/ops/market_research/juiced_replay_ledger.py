@@ -99,21 +99,22 @@ def _two_way_paid(
     snapshot: str,
     ev: pl.DataFrame,
     allowed_books: set[str] | None = None,
+    event_ids: set[str] | None = None,
 ) -> pl.DataFrame:
-    bk = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
+    """Two-sided juiced-pair construction for one snapshot. When
+    ``event_ids`` is provided, the restriction is pushed INTO the lazy
+    scan (pre-decode): row groups outside the declared event set are
+    not decoded. This is the development boundary for year windows —
+    2026 rows are never decoded into a frame under a 2025 window."""
+    scan = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
         (pl.col("market") == "pitcher_strikeouts")
         & (pl.col("snapshot") == snapshot)
         & pl.col("line").is_not_null()
         & pl.col("price").is_not_null()
-    ).collect()
-    if allowed_books is not None:
-        bk = bk.filter(pl.col("book").is_in(sorted(allowed_books)))
-    bk = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
-        (pl.col("market") == "pitcher_strikeouts")
-        & (pl.col("snapshot") == snapshot)
-        & pl.col("line").is_not_null()
-        & pl.col("price").is_not_null()
-    ).collect()
+    )
+    if event_ids is not None:
+        scan = scan.filter(pl.col("event_id").is_in(sorted(event_ids)))
+    bk = scan.collect()
     bk = bk.join(ev, on="event_id", how="left").filter(
         pl.col("gd").is_not_null() & (pl.col("gd") != "")
     ).with_columns(
@@ -143,7 +144,9 @@ def _two_way_paid(
     )
 
 
-def _two_way_friend(allowed_books: set[str] | None = None) -> pl.DataFrame:
+def _two_way_friend(allowed_books: set[str] | None = None,
+                    event_ids: set[str] | None = None,
+                    year_window: tuple | None = None) -> pl.DataFrame:
     if not FRIEND.exists():
         return pl.DataFrame(schema={
             "gd": pl.Utf8, "key": pl.Utf8, "line": pl.Float64,
@@ -155,6 +158,15 @@ def _two_way_friend(allowed_books: set[str] | None = None) -> pl.DataFrame:
     )
     if allowed_books is not None:
         fo = fo.filter(pl.col("bookmaker").is_in(sorted(allowed_books)))
+    # declared boundary: the Friend CSV is small (26k rows) and carries
+    # no event_id; the year restriction is applied to its game_date
+    # column immediately after decode (the parquet scans above carry the
+    # strict pre-decode pushdown)
+    if year_window is not None:
+        ys, ye = year_window
+        fo = fo.filter(
+            (pl.col("game_date").cast(pl.Utf8) >= f"{ys}-01-01")
+            & (pl.col("game_date").cast(pl.Utf8) <= f"{ye}-12-31"))
     fo = fo.with_columns(
         pl.col("game_date").cast(pl.Utf8).alias("gd"),
         pl.col("player_name").map_elements(sorted_key, return_dtype=pl.Utf8).alias("key"),
@@ -289,6 +301,24 @@ def _cell(rows: list[dict], line: float, side: str) -> dict:
     }
 
 
+def resolve_outputs(out_suffix: str, year_restricted: bool,
+                    out_parquet: Path, out_report: Path) -> tuple:
+    """Development-boundary guard. Year-restricted runs are
+    development-only: they REQUIRE an explicit --out-suffix (the
+    canonical report is never overwritten) and REFUSE existing
+    destinations (write-once). Canonical runs keep the historical
+    bare-run behavior unchanged."""
+    if year_restricted and not out_suffix:
+        raise SystemExit(
+            "--year-start/--year-end require --out-suffix: development-"
+            "only runs never overwrite the canonical report")
+    if year_restricted and (out_parquet.exists() or out_report.exists()):
+        raise SystemExit(
+            f"destination exists (write-once): {out_parquet} / "
+            f"{out_report}")
+    return out_parquet, out_report
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--floor-uniform", type=float, default=None,
@@ -302,7 +332,16 @@ def main() -> None:
                          "dkfd = DK else FD only")
     ap.add_argument("--out-suffix", default="",
                     help="sidecar suffix; empty reproduces canonical outputs")
+    ap.add_argument("--year-start", default=None,
+                    help="DEVELOPMENT boundary: restrict event dates to "
+                         "gd year >= start via a pre-decode scan filter; "
+                         "requires --out-suffix; 2026 stays closed unless "
+                         "explicitly authorized")
+    ap.add_argument("--year-end", default=None,
+                    help="DEVELOPMENT boundary: restrict event dates to "
+                         "gd year <= end (see --year-start)")
     args = ap.parse_args()
+    year_restricted = args.year_start is not None or args.year_end is not None
     floors = uniform_floors(args.floor_uniform) if args.floor_uniform is not None else _floors()
     cap = args.cap
     premium = UNDER_LEAN_PREMIUM if args.under_lean else 0.0
@@ -311,32 +350,63 @@ def main() -> None:
         OUT_PARQUET.stem + args.out_suffix + OUT_PARQUET.suffix)
     out_report = OUT_REPORT if not args.out_suffix else OUT_REPORT.with_name(
         OUT_REPORT.stem + args.out_suffix + OUT_REPORT.suffix)
+    out_parquet, out_report = resolve_outputs(
+        args.out_suffix, year_restricted, out_parquet, out_report)
     print(f"floors={'uniform %.2f' % args.floor_uniform if args.floor_uniform is not None else 'live-file'} "
           f"cap={cap} under_lean={args.under_lean} book={args.book_universe} out={args.out_suffix or 'canonical'}")
     evdate = load_event_date_map()
     ev = _event_frame(evdate)
+    # ---- development boundary: pre-decode event restriction. The
+    # allowed event set is computed from the CACHED date map (small
+    # JSON) and pushed into the lazy book_lines scans; protected-year
+    # row groups outside the window are not decoded. The event-date
+    # cache may be (re)built locally from the raw event index when
+    # missing (local file write; no network).
+    allowed_event_ids = None
+    if year_restricted:
+        ys, ye = args.year_start or "0000", args.year_end or "9999"
+        allowed_event_ids = {
+            eid for eid, gd in evdate.items()
+            if ys <= str(gd)[:4] <= ye}
+        if not allowed_event_ids:
+            raise SystemExit(
+                f"year window {ys}..{ye} matches no cached event dates; "
+                "refusing rather than decoding the full lake")
     print("attaching paid morning/close two-way pairs...")
-    morning = _two_way_paid("morning", ev, allowed)
-    close = _two_way_paid("close", ev, allowed)
+    morning = _two_way_paid("morning", ev, allowed, event_ids=allowed_event_ids)
+    close = _two_way_paid("close", ev, allowed, event_ids=allowed_event_ids)
     print(f"morning pairs {morning.height} close pairs {close.height}")
-    friend = _two_way_friend(allowed)
+    friend = _two_way_friend(
+        allowed, event_ids=allowed_event_ids,
+        year_window=(args.year_start, args.year_end)
+        if year_restricted else None)
     print(f"friend open pairs {friend.height}")
 
     env_path = HIST / "snapshot_envelope.parquet"
     invalid = set()
     if env_path.exists():
-        env = pl.read_parquet(env_path).filter(
+        env_scan = pl.scan_parquet(env_path).filter(
             (pl.col("snapshot") == "close")
             & (pl.col("lag_vendor_vs_commence_sec") < 0)
         )
+        if allowed_event_ids is not None:
+            env_scan = env_scan.filter(
+                pl.col("event_id").is_in(sorted(allowed_event_ids)))
+        env = env_scan.collect()
         invalid = set(env["event_id"].to_list())
         print(f"close_invalid events {len(invalid)}")
 
-    uni = pl.read_parquet(PANEL).filter(
+    panel_scan = pl.scan_parquet(PANEL)
+    if year_restricted:
+        ys, ye = args.year_start or "0000", args.year_end or "9999"
+        panel_scan = panel_scan.filter(
+            (pl.col("gd") >= f"{ys}-01-01")
+            & (pl.col("gd") <= f"{ye}-12-31"))
+    uni = panel_scan.filter(
         pl.col("p_ours_cal").is_not_null()
         & pl.col("y").is_not_null()
         & pl.col("p_book_close").is_not_null()
-    )
+    ).collect()
     print(f"universe close-matched {uni.height}")
     j = (
         uni.join(morning, on=["gd", "key", "line"], how="left")
@@ -409,6 +479,14 @@ def main() -> None:
             "edge": edge, "price": amer, "p_mkt": float(best["p_market"]),
             "accepted": accepted, "reason": reason or "taken",
             "floor": fl, "close_invalid": close_invalid, "clv_pp": clv_val,
+            # raw two-way prices per snapshot: the market-only
+            # movement baseline derives from these WITHOUT the model
+            "open_over": rec.get("open_over"),
+            "open_under": rec.get("open_under"),
+            "morning_over": rec.get("morning_over"),
+            "morning_under": rec.get("morning_under"),
+            "close_over": rec.get("close_over"),
+            "close_under": rec.get("close_under"),
             **arms,
             "pnl_flat1u": bet_pnl(arms["stake_flat1u"], amer, won=won) if accepted else 0.0,
             "pnl_band": bet_pnl(arms["stake_band"], amer, won=won) if accepted else 0.0,
@@ -519,6 +597,15 @@ def main() -> None:
             "sizing_arms": ["flat1u", "edge_band", "kelly_1_16", "robust_kelly"],
             "label_2026": "confirmatory -- do not retune live policy",
             "fills": "unmodeled; paper juiced prices",
+            "year_window": (f"{args.year_start}..{args.year_end}"
+                            if year_restricted else "full (canonical)"),
+            "boundary": ("development year-restricted runs push the "
+                         "event/gd restriction into the lazy scans "
+                         "pre-decode; network-free; write-once "
+                         "sidecar destination; rejected contracts "
+                         "preserved with reasons; raw two-way "
+                         "prices per snapshot stored for the "
+                         "market-only movement baseline"),
         },
         "n_candidates": len(rows),
         "n_taken": len(taken),
