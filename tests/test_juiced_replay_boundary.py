@@ -42,27 +42,32 @@ def _evdate() -> dict:
 # ------------------- 1-3. output guard
 def test_year_restricted_requires_suffix():
     with pytest.raises(SystemExit, match="--out-suffix"):
-        jr.resolve_outputs("", True, Path("x.parquet"), Path("x.json"))
+        jr.resolve_outputs("", True,
+                           [Path("x.parquet"), Path("x.json")])
 
 
 def test_year_restricted_write_once(tmp_path):
     existing = tmp_path / "juiced_replay_candidates_dev.parquet"
     existing.write_bytes(b"x")
-    with pytest.raises(SystemExit, match="destination exists"):
-        jr.resolve_outputs("__dev", True, existing,
-                           tmp_path / "juiced_replay_report_dev.json")
-    fresh_p = tmp_path / "juiced_replay_candidates_fresh.parquet"
     fresh_r = tmp_path / "juiced_replay_report_dev.json"
-    assert jr.resolve_outputs("__dev", True, fresh_p,
-                              fresh_r) == (fresh_p, fresh_r)
-    assert not fresh_p.exists() and not fresh_r.exists()
+    with pytest.raises(SystemExit, match="destination exists"):
+        jr.resolve_outputs("__dev", True,
+                           [existing, fresh_r,
+                            tmp_path / "juiced_replay_baseline_dev.parquet"])
+    fresh_p = tmp_path / "juiced_replay_candidates_fresh.parquet"
+    fresh_b = tmp_path / "juiced_replay_baseline_fresh.parquet"
+    out = jr.resolve_outputs("__dev", True,
+                             [fresh_p, fresh_r, fresh_b])
+    assert out == [fresh_p, fresh_r, fresh_b]
+    assert not any(x.exists() for x in out)
 
 
 def test_canonical_default_unchanged(tmp_path):
     c_parquet = tmp_path / "juiced_replay_candidates.parquet"
     c_report = tmp_path / "juiced_replay_report.json"
-    p, r = jr.resolve_outputs("", False, c_parquet, c_report)
-    assert p == c_parquet and r == c_report
+    c_base = tmp_path / "juiced_replay_baseline.parquet"
+    out = jr.resolve_outputs("", False, [c_parquet, c_report, c_base])
+    assert out == [c_parquet, c_report, c_base]
 
 
 # ------------------- 4-5. pre-decode event restriction

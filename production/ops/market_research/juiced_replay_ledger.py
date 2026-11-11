@@ -52,6 +52,7 @@ FLOOR_PATH = Path(__file__).with_name("line_floor_policy.json")
 PANEL = ODDS_DIR / "universe_panel_live.parquet"
 OUT_PARQUET = ODDS_DIR / "juiced_replay_candidates.parquet"
 OUT_REPORT = ODDS_DIR / "juiced_replay_report.json"
+OUT_BASELINE = ODDS_DIR / "juiced_replay_baseline.parquet"
 
 UNIT = 50.0
 LIVE_BASE_FLOOR = 0.12
@@ -145,8 +146,7 @@ def _two_way_paid(
 
 
 def _two_way_friend(allowed_books: set[str] | None = None,
-                    event_ids: set[str] | None = None,
-                    year_window: tuple | None = None) -> pl.DataFrame:
+                    gd_window: tuple | None = None) -> pl.DataFrame:
     if not FRIEND.exists():
         return pl.DataFrame(schema={
             "gd": pl.Utf8, "key": pl.Utf8, "line": pl.Float64,
@@ -162,11 +162,10 @@ def _two_way_friend(allowed_books: set[str] | None = None,
     # no event_id; the year restriction is applied to its game_date
     # column immediately after decode (the parquet scans above carry the
     # strict pre-decode pushdown)
-    if year_window is not None:
-        ys, ye = year_window
+    if gd_window is not None:
         fo = fo.filter(
-            (pl.col("game_date").cast(pl.Utf8) >= f"{ys}-01-01")
-            & (pl.col("game_date").cast(pl.Utf8) <= f"{ye}-12-31"))
+            (pl.col("game_date").cast(pl.Utf8) >= gd_window[0])
+            & (pl.col("game_date").cast(pl.Utf8) <= gd_window[1]))
     fo = fo.with_columns(
         pl.col("game_date").cast(pl.Utf8).alias("gd"),
         pl.col("player_name").map_elements(sorted_key, return_dtype=pl.Utf8).alias("key"),
@@ -301,22 +300,22 @@ def _cell(rows: list[dict], line: float, side: str) -> dict:
     }
 
 
-def resolve_outputs(out_suffix: str, year_restricted: bool,
-                    out_parquet: Path, out_report: Path) -> tuple:
-    """Development-boundary guard. Year-restricted runs are
+def resolve_outputs(out_suffix: str, gd_restricted: bool,
+                    paths: list[Path]) -> list[Path]:
+    """Development-boundary guard. gd-restricted runs are
     development-only: they REQUIRE an explicit --out-suffix (the
     canonical report is never overwritten) and REFUSE existing
-    destinations (write-once). Canonical runs keep the historical
-    bare-run behavior unchanged."""
-    if year_restricted and not out_suffix:
+    destinations (write-once, every declared output). Canonical runs
+    keep the historical bare-run behavior unchanged."""
+    if gd_restricted and not out_suffix:
         raise SystemExit(
-            "--year-start/--year-end require --out-suffix: development-"
+            "--gd-start/--gd-end require --out-suffix: development-"
             "only runs never overwrite the canonical report")
-    if year_restricted and (out_parquet.exists() or out_report.exists()):
+    existing = [str(p) for p in paths if p.exists()]
+    if gd_restricted and existing:
         raise SystemExit(
-            f"destination exists (write-once): {out_parquet} / "
-            f"{out_report}")
-    return out_parquet, out_report
+            f"destination exists (write-once): {existing}")
+    return paths
 
 
 def main() -> None:
@@ -332,16 +331,19 @@ def main() -> None:
                          "dkfd = DK else FD only")
     ap.add_argument("--out-suffix", default="",
                     help="sidecar suffix; empty reproduces canonical outputs")
-    ap.add_argument("--year-start", default=None,
+    ap.add_argument("--gd-start", default=None,
                     help="DEVELOPMENT boundary: restrict event dates to "
-                         "gd year >= start via a pre-decode scan filter; "
-                         "requires --out-suffix; 2026 stays closed unless "
+                         "gd >= start (YYYY-MM-DD) via a pre-decode scan "
+                         "filter; requires --out-suffix; confirm_2025H2 "
+                         "(gd > 2025-06-30) is always excluded for a "
+                         "2025-only window; 2026 stays closed unless "
                          "explicitly authorized")
-    ap.add_argument("--year-end", default=None,
+    ap.add_argument("--gd-end", default=None,
                     help="DEVELOPMENT boundary: restrict event dates to "
-                         "gd year <= end (see --year-start)")
+                         "gd <= end (YYYY-MM-DD; a 2025-only packet uses "
+                         "2025-06-30)")
     args = ap.parse_args()
-    year_restricted = args.year_start is not None or args.year_end is not None
+    gd_restricted = args.gd_start is not None or args.gd_end is not None
     floors = uniform_floors(args.floor_uniform) if args.floor_uniform is not None else _floors()
     cap = args.cap
     premium = UNDER_LEAN_PREMIUM if args.under_lean else 0.0
@@ -350,8 +352,11 @@ def main() -> None:
         OUT_PARQUET.stem + args.out_suffix + OUT_PARQUET.suffix)
     out_report = OUT_REPORT if not args.out_suffix else OUT_REPORT.with_name(
         OUT_REPORT.stem + args.out_suffix + OUT_REPORT.suffix)
-    out_parquet, out_report = resolve_outputs(
-        args.out_suffix, year_restricted, out_parquet, out_report)
+    out_base = OUT_BASELINE if not args.out_suffix else OUT_BASELINE.with_name(
+        OUT_BASELINE.stem + args.out_suffix + OUT_BASELINE.suffix)
+    (out_parquet, out_report, out_base) = resolve_outputs(
+        args.out_suffix, gd_restricted,
+        [out_parquet, out_report, out_base])
     print(f"floors={'uniform %.2f' % args.floor_uniform if args.floor_uniform is not None else 'live-file'} "
           f"cap={cap} under_lean={args.under_lean} book={args.book_universe} out={args.out_suffix or 'canonical'}")
     evdate = load_event_date_map()
@@ -363,23 +368,23 @@ def main() -> None:
     # cache may be (re)built locally from the raw event index when
     # missing (local file write; no network).
     allowed_event_ids = None
-    if year_restricted:
-        ys, ye = args.year_start or "0000", args.year_end or "9999"
+    gd_window = None
+    if gd_restricted:
+        gd_lo = args.gd_start or "0000-01-01"
+        gd_hi = args.gd_end or "9999-12-31"
         allowed_event_ids = {
             eid for eid, gd in evdate.items()
-            if ys <= str(gd)[:4] <= ye}
+            if gd_lo <= str(gd)[:10] <= gd_hi}
         if not allowed_event_ids:
             raise SystemExit(
-                f"year window {ys}..{ye} matches no cached event dates; "
-                "refusing rather than decoding the full lake")
+                f"gd window {gd_lo}..{gd_hi} matches no cached event "
+                "dates; refusing rather than decoding the full lake")
     print("attaching paid morning/close two-way pairs...")
     morning = _two_way_paid("morning", ev, allowed, event_ids=allowed_event_ids)
     close = _two_way_paid("close", ev, allowed, event_ids=allowed_event_ids)
     print(f"morning pairs {morning.height} close pairs {close.height}")
     friend = _two_way_friend(
-        allowed, event_ids=allowed_event_ids,
-        year_window=(args.year_start, args.year_end)
-        if year_restricted else None)
+        allowed, gd_window=gd_window if gd_restricted else None)
     print(f"friend open pairs {friend.height}")
 
     env_path = HIST / "snapshot_envelope.parquet"
@@ -397,17 +402,19 @@ def main() -> None:
         print(f"close_invalid events {len(invalid)}")
 
     panel_scan = pl.scan_parquet(PANEL)
-    if year_restricted:
-        ys, ye = args.year_start or "0000", args.year_end or "9999"
+    if gd_restricted:
         panel_scan = panel_scan.filter(
-            (pl.col("gd") >= f"{ys}-01-01")
-            & (pl.col("gd") <= f"{ye}-12-31"))
-    uni = panel_scan.filter(
-        pl.col("p_ours_cal").is_not_null()
-        & pl.col("y").is_not_null()
-        & pl.col("p_book_close").is_not_null()
+            (pl.col("gd") >= gd_window[0])
+            & (pl.col("gd") <= gd_window[1]))
+    uni_settled = panel_scan.filter(
+        pl.col("y").is_not_null()
     ).collect()
-    print(f"universe close-matched {uni.height}")
+    uni = uni_settled.filter(
+        pl.col("p_ours_cal").is_not_null()
+        & pl.col("p_book_close").is_not_null()
+    )
+    print(f"universe close-matched {uni.height} "
+          f"(baseline-settled {uni_settled.height})")
     j = (
         uni.join(morning, on=["gd", "key", "line"], how="left")
         .join(close, on=["gd", "key", "line"], how="left")
@@ -499,6 +506,99 @@ def main() -> None:
     taken = [r for r in rows if r.get("accepted")]
     frame = pl.DataFrame(rows)
     atomic_write_parquet(frame, out_parquet)
+
+    # ---- baseline population: INDEPENDENT of the legacy p_ours_cal
+    # accept/reject flag. One row per (start, line) in the window with
+    # a settled outcome; per-row eligibility/exclusion reason; the
+    # legacy model flag is preserved as a column, never a filter.
+    j_base = (
+        uni_settled.join(morning, on=["gd", "key", "line"], how="left")
+        .join(close, on=["gd", "key", "line"], how="left")
+        .join(friend, on=["gd", "key", "line"], how="left")
+    )
+    base_rows = []
+    for rec in j_base.iter_rows(named=True):
+        line = float(rec["line"])
+        y = float(rec["y"])
+        won_over = (y == 1.0)
+        reason = ""
+        snap = book = None
+        oa = ua = None
+        if (rec.get("open_over") is not None
+                and rec.get("open_under") is not None):
+            snap = "open"
+            book = rec.get("open_book")
+            oa = float(rec["open_over"])
+            ua = float(rec["open_under"])
+        elif (rec.get("morning_over") is not None
+              and rec.get("morning_under") is not None):
+            snap = "morning"
+            book = rec.get("morning_book")
+            oa = float(rec["morning_over"])
+            ua = float(rec["morning_under"])
+        else:
+            reason = "no_two_way_entry_price"
+        close_pair = (rec.get("close_over") is not None
+                      and rec.get("close_under") is not None)
+        ceid = rec.get("close_event_id")
+        close_invalid = bool(ceid) and ceid in invalid
+        if reason == "" and not close_pair:
+            reason = "no_two_way_close"
+        if reason == "" and close_invalid:
+            reason = "close_invalid_vendor"
+        fair_entry = fair_close = None
+        if reason == "":
+            try:
+                # the de-vigged market probability is model-independent;
+                # evaluate_side is the registered construction
+                fair_entry = float(evaluate_side(
+                    0.0, oa, ua, "over")["p_market"])
+                fair_close = float(evaluate_side(
+                    0.0, float(rec["close_over"]),
+                    float(rec["close_under"]), "over")["p_market"])
+            except (ValueError, ZeroDivisionError, TypeError):
+                reason = "bad_entry_price"
+        movement_pp = ((fair_close - fair_entry) * 100.0
+                       if fair_entry is not None else None)
+        base_rows.append({
+            "gd": rec["gd"], "key": rec["key"],
+            "player_name": rec.get("player_name"),
+            "line": line, "snap": snap, "book": book,
+            "yr": str(rec["gd"])[:4],
+            "entry_over": oa, "entry_under": ua,
+            "fair_over_entry": fair_entry,
+            "close_over": rec.get("close_over"),
+            "close_under": rec.get("close_under"),
+            "fair_over_close": fair_close,
+            "movement_pp": movement_pp,
+            "clv_pp_over": movement_pp,
+            "clv_pp_under": (-movement_pp if movement_pp is not None
+                             else None),
+            "realized_k": int(y), "won_over": bool(won_over),
+            "pnl_flat1u_over": (bet_pnl(1.0, oa, won=won_over)
+                                if oa is not None else None),
+            "pnl_flat1u_under": (bet_pnl(1.0, ua, won=(not won_over))
+                                 if ua is not None else None),
+            "has_model_probability": rec.get("p_ours_cal") is not None,
+            "baseline_reason": reason or "eligible",
+        })
+    base_frame = pl.DataFrame(base_rows)
+    atomic_write_parquet(base_frame, out_base)
+    eligible = [r for r in base_rows if r["baseline_reason"] == "eligible"]
+    reason_counts = {}
+    for r in base_rows:
+        reason_counts[r["baseline_reason"]] =             reason_counts.get(r["baseline_reason"], 0) + 1
+    base_summary = {
+        "n_baseline_rows": len(base_rows),
+        "n_eligible": len(eligible),
+        "reason_counts": reason_counts,
+        "has_model_probability_share": (
+            float(np.mean([1.0 if r["has_model_probability"] else 0.0
+                           for r in base_rows])) if base_rows else None),
+        "note": ("market-only movement baseline over ALL baseline-"
+                 "eligible contracts; model-selected performance is "
+                 "reported separately in the taken/selection sections"),
+    }
 
     def year_slice(yr: str | None) -> list[dict]:
         if yr is None:
@@ -597,8 +697,9 @@ def main() -> None:
             "sizing_arms": ["flat1u", "edge_band", "kelly_1_16", "robust_kelly"],
             "label_2026": "confirmatory -- do not retune live policy",
             "fills": "unmodeled; paper juiced prices",
-            "year_window": (f"{args.year_start}..{args.year_end}"
-                            if year_restricted else "full (canonical)"),
+            "gd_window": (f"{gd_window[0]}..{gd_window[1]} "
+                          "(confirm_2025H2 excluded pre-decode)"
+                          if gd_restricted else "full (canonical)"),
             "boundary": ("development year-restricted runs push the "
                          "event/gd restriction into the lazy scans "
                          "pre-decode; network-free; write-once "
@@ -609,6 +710,7 @@ def main() -> None:
         },
         "n_candidates": len(rows),
         "n_taken": len(taken),
+        "baseline_market_only": base_summary,
         "reject_reasons": reasons,
         "taken_by_snap": {"open": n_open, "morning": n_morn},
         "taken_by_book": books,
