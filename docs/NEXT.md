@@ -17,13 +17,6 @@ card. EXECUTION_BACKLOG remains the single queue.
 - Full recipe and verified results: `docs/EXECUTION_BACKLOG.md` and
   `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`.
 
-## Candidate parity - CLOSED / INDEPENDENTLY VERIFIED (2026-11-09)
-
-PASS at both grains (2,509 starts; 22,581 PA rows; 60,216 PMF rows;
-tolerance 1e-12). This is reproducibility/identity evidence, not predictive
-superiority. The write-once receipt and full record are preserved in
-`docs/EXECUTION_BACKLOG.md`.
-
 ## Prior completed milestones (this lane)
 
 All VERIFIED; full records in `docs/EXECUTION_BACKLOG.md` and
@@ -36,6 +29,27 @@ lane stack integrated at `2ca8aef`. Paired comparison reproduced
 bit-exactly (checkpoint `7e6d03c`; every artifact byte-identical,
 receipt_final = `b1b91357...224ba`); harness-to-market bridge
 implemented and merged (PR #81).
+
+## Current action: market-benchmark seam built (2026-11-11)
+
+- **Implemented on this branch** (market_benchmark_seam.py): the two
+  missing seams between the registered market-eval lane
+  (market_eval_k.py) and today's harness outputs - (A) harness keyed
+  24-bucket PMFs + assessment-derived observed K + declared eligible
+  cohort (hash-checked) + declared start dates -> the registered
+  market-eval model frame (block via ad.add_block; protected/unknown
+  blocks refuse); (B) per-book two-sided de-vig probabilities +
+  leave-target-book-out consensus (median over OTHER books at the
+  SAME line; >= 2 other books; unavailable recorded, never filled) +
+  all-book consensus (registered construction reused unchanged).
+  7 synthetic tests green (hand de-vig, LTBO self-exclusion,
+  unavailable accounting, cohort/date gates incl. protected block).
+  Closing quotes remain benchmark-only. NOT RUN on real odds;
+  execution needs the registered market-eval gate + delegated owner
+  order.
+- Baseline K-PMF diagnostic: executed once (execution of record in
+  backlog); delta-decomposition + completed concentration analysis
+  delivered on PR #83 comments.
 
 ## Current action: baseline K-PMF diagnostic built (2026-11-11)
 
