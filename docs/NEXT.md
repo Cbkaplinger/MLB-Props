@@ -19,16 +19,11 @@ slate-date bootstrap, K-count RPS guard; no calibration. Full record:
 
 All VERIFIED; full records in `docs/EXECUTION_BACKLOG.md` and
 `docs/reference/reports/experiment_impact_ledger_2026-10-22.md`:
-workload w0v1 (pooled W0 favored), historical starter-outcome derivation
-(9,714 starts), history-sensitivity scorecard, Ref0-vs-Ref1, Stage-A
-reconciliation (implemented; real run authorization-gated), binary-K /
-LGBM / platoon lanes (control retained / retained / challenger favored),
-lane stack integrated at `2ca8aef`. Paired comparison reproduced
-bit-exactly (checkpoint `7e6d03c`; every artifact byte-identical,
-receipt_final = `b1b91357...224ba`); harness-to-market bridge
-implemented and merged (PR #81); K-PMF diagnostic built, executed once
-under the cohort contract (PR #83; results + delta-decomposition
-handoffs in PR #83 comments).
+workload w0v1, starter-outcome derivation, history-sensitivity,
+Ref0-vs-Ref1, Stage-A (implemented; authorization-gated), binary-K /
+LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
+reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
+diagnostic (PR #83) merged.
 
 ## Current action: market-benchmark seam built (2026-11-11)
 
