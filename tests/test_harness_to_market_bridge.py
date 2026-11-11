@@ -236,8 +236,12 @@ def test_strict_bucket_label_refusals():
         .otherwise(pl.col("bucket")).alias("bucket"))
     with pytest.raises(ValueError, match="null bucket label"):
         hb.bridge_pmf_to_lines(bad)
-    # non-numeric bucket dtype refuses
+    # non-numeric bucket dtype refuses (string AND boolean: a boolean
+    # label must not become an integer bucket through coercion)
     bad = _k_pmf_frame().with_columns(pl.col("bucket").cast(pl.Utf8))
+    with pytest.raises(ValueError, match="neither integer nor float"):
+        hb.bridge_pmf_to_lines(bad)
+    bad = _k_pmf_frame().with_columns(pl.col("bucket").cast(pl.Boolean))
     with pytest.raises(ValueError, match="neither integer nor float"):
         hb.bridge_pmf_to_lines(bad)
 

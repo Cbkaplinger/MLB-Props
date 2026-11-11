@@ -56,6 +56,12 @@ from Python.count_layer import PROJECTION_K_LINES  # noqa: E402
 START_KEYS = ("game_pk", "side", "pitcher")
 BUCKET_COL = "bucket"
 DEFAULT_PMF_COLUMN = "pmf_h3_raw"
+# explicit supported numeric dtypes (pl.INTEGER_DTYPES / pl.FLOAT_DTYPES
+# are deprecated/removed across supported Polars versions; Boolean and
+# string labels must not become integer buckets through coercion)
+_INTEGER_DTYPES = (pl.Int8, pl.Int16, pl.Int32, pl.Int64,
+                   pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64)
+_FLOAT_DTYPES = (pl.Float32, pl.Float64)
 
 
 def _line_column(line: float) -> str:
@@ -72,9 +78,9 @@ def _validate_bucket_labels(k_pmf: pl.DataFrame) -> None:
     if col.null_count() > 0:
         raise ValueError("null bucket label(s) present")
     dtype = k_pmf.schema[BUCKET_COL]
-    if dtype in pl.INTEGER_DTYPES:
+    if dtype in _INTEGER_DTYPES:
         return
-    if dtype not in pl.FLOAT_DTYPES:
+    if dtype not in _FLOAT_DTYPES:
         raise ValueError(
             f"bucket column dtype {dtype} is neither integer nor "
             "float; refusing non-numeric bucket labels")
