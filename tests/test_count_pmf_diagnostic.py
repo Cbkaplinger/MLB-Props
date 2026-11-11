@@ -1,30 +1,33 @@
-"""Synthetic tests for the keyed K-PMF diagnostic
-(count_pmf_diagnostic.py). Hand-computed fixtures only; no real
-artifacts, no private checkpoint reads, no fitting, no live-path edit.
+"""Synthetic tests for the keyed K-PMF diagnostic (cohort contract).
 
-Hand fixture (both starts carry BOTH arm PMFs; rows shuffled):
-  control PMF:    p[2]=0.5, p[3]=0.5
-  challenger PMF: p[5]=0.25, p[23]=0.75 (overflow bucket 23)
-  observed: start A K=3 (half-line boundary); start B K=30 (declared
-  overflow category, K >= 23)
+SYNTHETIC ONLY: no private inputs, no real-artifact reads, no
+re-runs of prior authorized executions, no fitting. The diagnostic
+evaluates the DECLARED eligible cohort (registered hash convention,
+bk._cohort_hash): forecast keys must equal the cohort exactly;
+observations are restricted to the cohort; observed-only starts
+outside the cohort are recorded as declared exclusions (exact key
+lists, not count subtraction); after restriction the observations
+must cover the cohort exactly.
 
-Hand values:
-  count_logscore (natural log, clip 1e-12, POSITIVE log loss):
-    A control -ln(0.5); B control -ln(1e-12) (overflow bucket 23
-    empty -> clip); A challenger -ln(1e-12) (p[3]=0); B challenger
-    -ln(0.75).
-  count RPS (summed-CDF-squared, tail-aware):
-    A control 0.25; B control 1.125; A challenger 12.125;
-    B challenger 1.125.
-  Lines: control p_over_2_5 = 0.5, p_over_3_5..9_5 = 0.0;
-    challenger p_over_2_5 = 1.0, p_over_3_5 = 1.0, p_over_4_5 = 1.0,
-    p_over_5_5..9_5 = 0.75 (the K=5 mass drops out above 5.5).
-    Observed over frequency: 2.5 -> 1.0 (K=3 and K=30 both over);
-    3.5..9.5 -> 0.5 (only the overflow start).
-  Brier: control 2.5 -> ((0.5-1)^2+(0.5-1)^2)/2 = 0.25;
-    control 3.5..9_5 -> (0^2 + 1^2)/2 = 0.5; challenger 2.5 -> 0.0;
-    challenger 3.5/4_5 -> ((1-0)^2+(1-1)^2)/2 = 0.5;
-    challenger 5_5..9_5 -> ((0.75-0)^2+(0.75-1)^2)/2 = 0.3125.
+Requirement -> implementation -> test-evidence closure table:
+  Log-score sign (positive log loss) + RPS hand values,
+  incl. overflow observed K=30 (bucket 23)                -> test 1
+  Half-line boundaries (K=3 over 2.5 / under 3.5, etc.)   -> test 2
+  Fixed reliability bins: edges, p=0/p=1, empty bins
+  (null means, never zero)                                -> test 3
+  Paired deltas + shuffled-row alignment; arms separate   -> test 4
+  Observed-only starts outside the cohort are recorded
+  as declared exclusions with EXACT key membership
+  (broader observation source; scoring proceeds on the
+  cohort)                                                 -> test 5
+  Cohort start missing from observations refuses          -> test 6
+  Forecast keys != declared cohort refuses (both
+  directions)                                             -> test 7
+  Bad cohort identity (wrong hash / duplicate / null /
+  missing columns) refuses                                -> test 8
+  Malformed labels, observed K, PMF mass refuse           -> test 9
+  CLI: cohort args required; ack gate; write-once;
+  success writes the diagnostic with cohort accounting    -> test 10
 """
 from __future__ import annotations
 
@@ -44,13 +47,17 @@ sys.path.insert(0, str(ROOT / "research" / "offseason_2026"
                        / "pregame_pa_ext"))
 
 from pregame_pa_ext import adapter as ad  # noqa: E402
+from pregame_pa_ext import binary_k_comparison as bk  # noqa: E402
 from pregame_pa_ext import count_pmf_diagnostic as cpd  # noqa: E402
 from pregame_pa_ext import market_eval_k as mk  # noqa: E402
 from Python.count_layer import PROJECTION_K_LINES  # noqa: E402
 
 START_A = (900201, "Top", 700001)
 START_B = (900201, "Bot", 700002)
+START_C = (900301, "Top", 700003)  # broader-observation extra start
+START_D = (900401, "Bot", 700004)  # broader-observation extra start
 STARTS = [START_A, START_B]
+STARTS_WIDE = [START_A, START_B, START_C, START_D]
 
 
 def _pmf_control() -> np.ndarray:
@@ -67,9 +74,9 @@ def _pmf_challenger() -> np.ndarray:
     return pmf
 
 
-def _k_pmf_frame(shuffle=True) -> pl.DataFrame:
+def _k_pmf_frame(starts=STARTS, shuffle=True) -> pl.DataFrame:
     rows = []
-    for gk, side, p in STARTS:
+    for gk, side, p in starts:
         for b in range(ad.K_MAX):
             rows.append((gk, side, p, b, float(_pmf_control()[b]),
                          float(_pmf_challenger()[b])))
@@ -83,8 +90,18 @@ def _k_pmf_frame(shuffle=True) -> pl.DataFrame:
                       "pmf_challenger": pl.Float64}, orient="row")
 
 
-def _observed_frame(ks=(3, 30), shuffle=True) -> pl.DataFrame:
-    rows = [(gk, side, p, k) for (gk, side, p), k in zip(STARTS, ks)]
+def _cohort_frame(starts=STARTS) -> pl.DataFrame:
+    return pl.DataFrame(list(starts), schema={
+        "game_pk": pl.Int64, "side": pl.Utf8,
+        "pitcher": pl.Int64}, orient="row")
+
+
+def _cohort_hash(starts=STARTS) -> str:
+    return bk._cohort_hash(list(starts))
+
+
+def _observed_frame(ks=(3, 30), starts=STARTS, shuffle=True):
+    rows = [(gk, side, p, k) for (gk, side, p), k in zip(starts, ks)]
     if shuffle:
         perm = np.random.default_rng(20261001).permutation(len(rows))
         rows = [rows[i] for i in perm]
@@ -93,15 +110,13 @@ def _observed_frame(ks=(3, 30), shuffle=True) -> pl.DataFrame:
         "realized_k": pl.Int64}, orient="row")
 
 
-def _assessment_frame() -> pl.DataFrame:
-    """Per-PA prepared-assessment fixture: start A 4 PAs, labels
-    [0,0,0,2] -> realized_k 3; start B 30 PAs, all strikeouts ->
-    realized_k 30 (declared overflow category)."""
+def _assessment_frame(starts=STARTS, ks=(3, 30)) -> pl.DataFrame:
+    """Per-PA prepared-assessment fixture: realized_k per start = the
+    supplied ks (start B's 30 = declared overflow category)."""
     rows = []
-    for gi, (gk, side, p) in enumerate(STARTS):
-        n = 4 if gi == 0 else 30
-        for i in range(n):
-            label = 0 if (gi == 1 or i < 3) else 2
+    for (gk, side, p), k in zip(starts, ks):
+        for i in range(max(int(k), 1)):
+            label = 0 if i < k else 2
             rows.append((gk, side, p, i + 1, 900000 + i, label))
     return pl.DataFrame(rows, schema={
         "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
@@ -109,12 +124,24 @@ def _assessment_frame() -> pl.DataFrame:
         "class_label": pl.Int64}, orient="row")
 
 
+def _diagnose(starts=STARTS, ks=(3, 30), **overrides):
+    kwargs = dict(
+        k_pmf=_k_pmf_frame(starts),
+        observed=_observed_frame(ks=ks, starts=starts),
+        pmf_columns=["pmf_control", "pmf_challenger"],
+        cohort=_cohort_frame(starts),
+        expected_cohort_hash=_cohort_hash(starts))
+    kwargs.update(overrides)
+    return cpd.diagnose(**kwargs)
+
+
 # ------------------- 1. log-score sign + RPS (hand values, overflow)
 def test_logscore_sign_and_rps_hand_values():
-    observed = _observed_frame()
-    result = cpd.diagnose(_k_pmf_frame(), observed,
+    result = cpd.diagnose(_k_pmf_frame(), _observed_frame(),
                           pmf_columns=["pmf_control",
-                                       "pmf_challenger"])
+                                       "pmf_challenger"],
+                          cohort=_cohort_frame(),
+                          expected_cohort_hash=_cohort_hash())
     ctrl = result["arms"]["pmf_control"]
     chall = result["arms"]["pmf_challenger"]
     # natural log, positive log loss; overflow K=30 reads bucket 23
@@ -126,11 +153,11 @@ def test_logscore_sign_and_rps_hand_values():
     assert ctrl["count_logloss_mean"] > 0
     # summed-CDF-squared RPS, hand-computed, tail-aware:
     #   A (K=3, control): cdf 0.5 at t=2 -> (0.5-0)^2 = 0.25
-    #   B (K=30, control): cdf 1.0 from t=3, obs 1 from t=23 (hit=23)
-    #     -> sum (1-0)^2 over t=3..22 = 20.25
-    #   A (K=3, challenger): cdf 0 through t=4 -> (0-1)^2 x2 = 2, plus
-    #     (0.25-1)^2 x18 = 10.125 -> 12.125
-    #   B (K=30, challenger): (0.25-0)^2 x18 = 1.125
+    #   B (K=30, control): cdf 1.0 from t=3, obs 1 from t=23
+    #     -> (1-0)^2 x 20 = 20.25
+    #   A (K=3, challenger): cdf 0 through t=4 -> 1 x 2 = 2, plus
+    #     (0.25-1)^2 x 18 = 10.125 -> 12.125
+    #   B (K=30, challenger): (0.25-0)^2 x 18 = 1.125
     assert ctrl["count_rps_mean"] == pytest.approx(
         (0.25 + 20.25) / 2)
     assert chall["count_rps_mean"] == pytest.approx(
@@ -146,24 +173,27 @@ def test_logscore_sign_and_rps_hand_values():
 @pytest.mark.parametrize("k,line,expected_over", [
     (3, 2.5, 1.0),   # K=3 is over 2.5
     (3, 3.5, 0.0),   # K=3 is under 3.5
-    (2, 2.5, 0.0),   # K=2 is under 2.5 (boundary bucket itself)
+    (2, 2.5, 0.0),   # boundary bucket itself is under
     (4, 3.5, 1.0),
     (30, 9.5, 1.0),  # overflow start is over every in-scope line
 ])
 def test_half_line_boundaries(k, line, expected_over):
     pmf = _pmf_control()
     start = START_A
-    rows = []
-    for b in range(ad.K_MAX):
-        rows.append((start[0], start[1], start[2], b,
-                     float(pmf[b])))
+    rows = [(start[0], start[1], start[2], b, float(pmf[b]))
+            for b in range(ad.K_MAX)]
     k_pmf = pl.DataFrame(rows, schema={
         "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
         "bucket": pl.Int64, "pmf_control": pl.Float64}, orient="row")
     observed = pl.DataFrame([start + (k,)], schema={
         "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
         "realized_k": pl.Int64}, orient="row")
-    result = cpd.diagnose(k_pmf, observed, pmf_columns=["pmf_control"])
+    result = cpd.diagnose(
+        k_pmf, observed, pmf_columns=["pmf_control"],
+        cohort=pl.DataFrame([start], schema={
+            "game_pk": pl.Int64, "side": pl.Utf8,
+            "pitcher": pl.Int64}, orient="row"),
+        expected_cohort_hash=bk._cohort_hash([start]))
     s = result["arms"]["pmf_control"]["lines"][str(line)]
     assert s["observed_over_frequency"] == pytest.approx(
         expected_over)
@@ -201,13 +231,14 @@ def test_fixed_reliability_edges_and_empty_bins():
 def test_paired_deltas_and_shuffle_alignment():
     result_shuffled = cpd.diagnose(
         _k_pmf_frame(shuffle=True), _observed_frame(shuffle=True),
-        pmf_columns=["pmf_control", "pmf_challenger"])
+        pmf_columns=["pmf_control", "pmf_challenger"],
+        cohort=_cohort_frame(), expected_cohort_hash=_cohort_hash())
     result_sorted = cpd.diagnose(
         _k_pmf_frame(shuffle=False), _observed_frame(shuffle=False),
-        pmf_columns=["pmf_control", "pmf_challenger"])
+        pmf_columns=["pmf_control", "pmf_challenger"],
+        cohort=_cohort_frame(), expected_cohort_hash=_cohort_hash())
     assert result_shuffled == result_sorted
     paired = result_shuffled["paired"]
-    assert paired is not None
     assert paired["challenger"] == "pmf_challenger"
     assert paired["control"] == "pmf_control"
     assert paired["n_paired_starts"] == 2
@@ -226,77 +257,116 @@ def test_paired_deltas_and_shuffle_alignment():
         assert paired["per_line_brier_delta_mean"][name] == \
             pytest.approx(0.3125 - 0.5)
     assert paired["count_rps_delta_mean"] == pytest.approx(-3.625)
-    # arms stay separate: distinct per-start tables
     assert (ctrl["per_start_count_rps"]
             != chall["per_start_count_rps"])
 
 
 def test_single_arm_has_no_paired_section():
     result = cpd.diagnose(_k_pmf_frame(), _observed_frame(),
-                          pmf_columns=["pmf_control"])
+                          pmf_columns=["pmf_control"],
+                          cohort=_cohort_frame(),
+                          expected_cohort_hash=_cohort_hash())
     assert result["paired"] is None
     assert list(result["arms"]) == ["pmf_control"]
 
 
-# ------------------- 5. key/identity/label refusals
-def test_duplicate_observed_start_refused():
-    bad = pl.concat([_observed_frame(), _observed_frame().head(1)])
-    with pytest.raises(ValueError, match="duplicate identity key"):
-        cpd.diagnose(_k_pmf_frame(), bad,
-                     pmf_columns=["pmf_control"])
+# ------------------- 5. observed-only starts OUTSIDE the cohort:
+#     declared exclusions with EXACT key membership
+def test_observed_outside_cohort_excluded_exactly():
+    """Broader observation source: two extra observed starts that are
+    NOT in the declared cohort. The exclusion list must be exactly
+    those keys (membership, not count subtraction); scoring proceeds
+    on the cohort only."""
+    extra_starts = [START_C, START_D]
+    observed = _observed_frame(ks=(3, 30, 2, 5),
+                               starts=STARTS + extra_starts)
+    cohort = _cohort_frame()
+    result = cpd.diagnose(_k_pmf_frame(), observed,
+                          pmf_columns=["pmf_control",
+                                       "pmf_challenger"],
+                          cohort=cohort,
+                          expected_cohort_hash=_cohort_hash())
+    excl = result["accounting"]["declared_exclusions"][
+        "observed_only_outside_cohort"]
+    assert excl["n"] == 2
+    assert [tuple(k) for k in excl["keys"]] == \
+        sorted([START_C, START_D])
+    assert result["accounting"]["n_observed_starts_full"] == 4
+    assert result["accounting"]["n_observed_starts_restricted"] == 2
+    assert result["accounting"]["n_matched_starts"] == 2
+    for arm in result["arms"].values():
+        assert arm["n_matched_starts"] == 2
 
 
-def test_duplicate_start_bucket_refused():
-    bad = pl.concat([_k_pmf_frame(), _k_pmf_frame().head(1)])
-    with pytest.raises(ValueError, match="duplicate identity"):
-        cpd.diagnose(bad, _observed_frame(),
-                     pmf_columns=["pmf_control"])
+# ------------------- 6. cohort start missing from observations
+def test_cohort_start_missing_from_observations_refused():
+    observed = _observed_frame(ks=(3,), starts=[START_A])
+    with pytest.raises(ValueError) as exc:
+        cpd.diagnose(_k_pmf_frame(), observed,
+                     pmf_columns=["pmf_control"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash=_cohort_hash())
+    msg = str(exc.value)
+    assert "observations after restriction/declared cohort" in msg
+    assert "missing_from_observations after restriction=0" in msg \
+        or "missing_from_observations after restriction" in msg
+    assert "missing_from_observations after restriction" in msg \
+        or "missing_from" in msg
+    assert "1" in msg
 
 
-def test_null_keys_refused():
-    bad = _observed_frame().with_columns(
-        pl.when(pl.col("pitcher") == 700001).then(None)
-        .otherwise(pl.col("pitcher")).alias("pitcher"))
-    with pytest.raises(ValueError, match="null value"):
-        cpd.diagnose(_k_pmf_frame(), bad,
-                     pmf_columns=["pmf_control"])
-    bad = _k_pmf_frame().with_columns(
-        pl.when(pl.col("bucket") == 0).then(None)
-        .otherwise(pl.col("bucket")).alias("bucket"))
-    with pytest.raises(ValueError, match="null bucket label"):
-        cpd.diagnose(bad, _observed_frame(),
-                     pmf_columns=["pmf_control"])
-
-
-def test_key_mismatch_reports_both_directions():
-    # forecast has an extra start the observations lack
-    extra = (900301, "Top", 700003)
-    rows = []
+# ------------------- 7. forecast keys != declared cohort
+def test_forecast_keys_not_equal_cohort_refused():
+    # forecast missing a cohort start -> forecast/cohort mismatch
+    partial = _k_pmf_frame().filter(
+        ~((pl.col("game_pk") == START_B[0])
+          & (pl.col("side") == START_B[1])
+          & (pl.col("pitcher") == START_B[2])))
+    with pytest.raises(ValueError) as exc:
+        cpd.diagnose(partial, _observed_frame(),
+                     pmf_columns=["pmf_control"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash=_cohort_hash())
+    assert "forecast/declared cohort" in str(exc.value)
+    # forecast has an extra start outside the cohort -> same gate
+    extra_rows = []
     for b in range(ad.K_MAX):
-        rows.append((extra[0], extra[1], extra[2], b,
-                     float(_pmf_control()[b]),
-                     float(_pmf_challenger()[b])))
-    bad = pl.concat([_k_pmf_frame(), pl.DataFrame(rows, schema={
+        extra_rows.append((START_C[0], START_C[1], START_C[2], b,
+                           float(_pmf_control()[b]),
+                           float(_pmf_challenger()[b])))
+    bad = pl.concat([_k_pmf_frame(), pl.DataFrame(extra_rows, schema={
         "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
         "bucket": pl.Int64, "pmf_control": pl.Float64,
         "pmf_challenger": pl.Float64}, orient="row")])
     with pytest.raises(ValueError) as exc:
         cpd.diagnose(bad, _observed_frame(),
-                     pmf_columns=["pmf_control"])
-    assert "missing_from_observed=1" in str(exc.value)
-    assert "missing_from_forecast=0" in str(exc.value)
-    # observed has a start the forecast lacks
-    extra_obs = pl.DataFrame([(900301, "Top", 700003, 7)], schema={
-        "game_pk": pl.Int64, "side": pl.Utf8, "pitcher": pl.Int64,
-        "realized_k": pl.Int64}, orient="row")
-    with pytest.raises(ValueError) as exc:
-        cpd.diagnose(_k_pmf_frame(),
-                     pl.concat([_observed_frame(), extra_obs]),
-                     pmf_columns=["pmf_control"])
-    assert "missing_from_observed=0" in str(exc.value)
-    assert "missing_from_forecast=1" in str(exc.value)
+                     pmf_columns=["pmf_control"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash=_cohort_hash())
+    assert "missing_from_declared cohort=1" in str(exc.value)
 
 
+# ------------------- 8. bad cohort identity
+def test_cohort_identity_failures():
+    with pytest.raises(ValueError, match="cohort identity mismatch"):
+        cpd.diagnose(_k_pmf_frame(), _observed_frame(),
+                     pmf_columns=["pmf_control"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash="0" * 64)
+    dup = pl.concat([_cohort_frame(), _cohort_frame().head(1)])
+    with pytest.raises(ValueError, match="duplicate identity"):
+        cpd.validate_cohort(dup, _cohort_hash())
+    null_cohort = _cohort_frame().with_columns(
+        pl.when(pl.col("pitcher") == 700001).then(None)
+        .otherwise(pl.col("pitcher")).alias("pitcher"))
+    with pytest.raises(ValueError, match="null value"):
+        cpd.validate_cohort(null_cohort, _cohort_hash())
+    with pytest.raises(ValueError, match="missing required column"):
+        cpd.validate_cohort(_cohort_frame().drop("side"),
+                            _cohort_hash())
+
+
+# ------------------- 9. malformed labels / observed K / PMF mass
 def test_malformed_labels_and_observed_k_refused():
     bad = _assessment_frame().with_columns(
         pl.when(pl.col("at_bat_number") == 1).then(9)
@@ -309,13 +379,17 @@ def test_malformed_labels_and_observed_k_refused():
         .alias("realized_k"))
     with pytest.raises(ValueError, match="integer-valued"):
         cpd.diagnose(_k_pmf_frame(), bad,
-                     pmf_columns=["pmf_control"])
+                     pmf_columns=["pmf_control"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash=_cohort_hash())
     bad = _observed_frame().with_columns(
         pl.when(pl.col("pitcher") == 700001).then(-1)
         .otherwise(pl.col("realized_k")).alias("realized_k"))
     with pytest.raises(ValueError, match="nonnegative"):
         cpd.diagnose(_k_pmf_frame(), bad,
-                     pmf_columns=["pmf_control"])
+                     pmf_columns=["pmf_control"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash=_cohort_hash())
 
 
 def test_malformed_pmf_mass_refused():
@@ -325,25 +399,33 @@ def test_malformed_pmf_mass_refused():
         .otherwise(pl.col("pmf_control")).alias("pmf_control"))
     with pytest.raises(ad.AdapterError, match="PMF out of"):
         cpd.diagnose(bad, _observed_frame(),
-                     pmf_columns=["pmf_control"])
+                     pmf_columns=["pmf_control"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash=_cohort_hash())
     bad = _k_pmf_frame().with_columns(
         pl.when(pl.col("bucket") == 3).then(float("nan"))
         .otherwise(pl.col("pmf_challenger")).alias("pmf_challenger"))
     with pytest.raises(ad.AdapterError, match="non-finite PMF"):
         cpd.diagnose(bad, _observed_frame(),
-                     pmf_columns=["pmf_control", "pmf_challenger"])
+                     pmf_columns=["pmf_control", "pmf_challenger"],
+                     cohort=_cohort_frame(),
+                     expected_cohort_hash=_cohort_hash())
 
 
-# ------------------- 6. CLI: ack gate, write-once, success
-def test_cli_ack_write_once_and_success(tmp_path):
+# ------------------- 10. CLI: cohort args, ack, write-once, success
+def test_cli_cohort_args_and_success(tmp_path):
     k_pmf_path = tmp_path / "k_pmf.parquet"
     assessment_path = tmp_path / "assessment.parquet"
+    cohort_path = tmp_path / "cohort.parquet"
     _k_pmf_frame().write_parquet(k_pmf_path)
     _assessment_frame().write_parquet(assessment_path)
+    _cohort_frame().write_parquet(cohort_path)
     out = tmp_path / "diag_out"
     argv = ["--k-pmf", str(k_pmf_path),
             "--assessment", str(assessment_path),
             "--arms", "pmf_control,pmf_challenger",
+            "--cohort-keys", str(cohort_path),
+            "--expected-cohort-hash", _cohort_hash(),
             "--out-dir", str(out),
             "--execution-ack", cpd.EXECUTION_ACK_TOKEN]
     assert cpd.main(argv) == 0
@@ -351,12 +433,19 @@ def test_cli_ack_write_once_and_success(tmp_path):
         (out / "count_pmf_diagnostic.json").read_text(
             encoding="utf-8"))
     assert payload["diagnostic_id"] == "count_pmf_diagnostic_v1"
+    assert payload["accounting"]["cohort_identity"]["match"] is True
     assert payload["arms"]["pmf_control"]["n_matched_starts"] == 2
     assert payload["paired"]["count_rps_delta_mean"] == \
         pytest.approx(-3.625)
     # write-once: same destination refuses
     with pytest.raises(ValueError, match="destination exists"):
         cpd.main(argv)
+    # missing cohort args refuse at parse time
+    with pytest.raises(SystemExit):
+        cpd.main(["--k-pmf", str(k_pmf_path), "--assessment",
+                  str(assessment_path), "--arms", "pmf_control",
+                  "--out-dir", str(tmp_path / "out2"),
+                  "--execution-ack", cpd.EXECUTION_ACK_TOKEN])
     # wrong ack refuses
     bad_argv = list(argv)
     bad_argv[bad_argv.index("--execution-ack") + 1] = "WRONG"

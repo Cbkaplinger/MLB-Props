@@ -22,9 +22,14 @@ Reused registered machinery (no duplicated math):
 Conventions (declared, returned with every result):
 - complete start identity (game_pk, side, pitcher); equal weight per
   MATCHED start; denominators = matched starts;
-- exact forecast/observation key equality is REQUIRED: mismatch
-  reports BOTH directions (counts + samples) and refuses - there is
-  no silent inner join;
+- the scored population is the DECLARED cohort (registered
+  ``bk._cohort_hash`` convention; eligibility is never derived from
+  forecast availability): forecast keys must equal the cohort
+  exactly; observations are restricted to the cohort and must then
+  cover it exactly; observed-only starts outside the cohort are
+  recorded as declared exclusions (counts + full key lists); any
+  other mismatch reports BOTH directions (counts + samples) and
+  refuses - there is no silent inner join;
 - K >= 23 belongs to the declared overflow category (bucket 23):
   observed K >= 23 scores the overflow bucket in the log score and
   RPS and counts as observed-over at every in-scope line;
@@ -54,6 +59,7 @@ sys.path.insert(0, str(_HERE.parents[1]))
 sys.path.insert(0, str(_HERE.parents[3] / "src"))
 
 from pregame_pa_ext import adapter as ad  # noqa: E402
+from pregame_pa_ext import binary_k_comparison as bk  # noqa: E402
 from pregame_pa_ext import market_eval_k as mk  # noqa: E402
 from Python.count_layer import PROJECTION_K_LINES  # noqa: E402
 
@@ -175,20 +181,43 @@ def derive_observed_k(assessment: pl.DataFrame) -> pl.DataFrame:
     return obs.sort(START_KEYS)
 
 
-def _require_exact_key_match(forecast_keys: set,
-                             observed_keys: set) -> None:
+def _require_exact_key_match(left_keys: set, right_keys: set,
+                             left_label: str, right_label: str) -> None:
     """Exact key equality is REQUIRED: both directions are reported
     (counts + samples) and the run REFUSES - no silent inner join."""
-    if forecast_keys == observed_keys:
+    if left_keys == right_keys:
         return
-    missing_from_observed = sorted(forecast_keys - observed_keys)
-    missing_from_forecast = sorted(observed_keys - forecast_keys)
+    missing_from_right = sorted(left_keys - right_keys)
+    missing_from_left = sorted(right_keys - left_keys)
     raise ValueError(
-        "forecast/observation key mismatch; exact equality required - "
-        f"missing_from_observed={len(missing_from_observed)} "
-        f"(sample: {missing_from_observed[:5]}); "
-        f"missing_from_forecast={len(missing_from_forecast)} "
-        f"(sample: {missing_from_forecast[:5]}); refusing")
+        f"{left_label}/{right_label} key mismatch; exact equality "
+        f"required - missing_from_{right_label}="
+        f"{len(missing_from_right)} "
+        f"(sample: {missing_from_right[:5]}); "
+        f"missing_from_{left_label}={len(missing_from_left)} "
+        f"(sample: {missing_from_left[:5]}); refusing")
+
+
+def validate_cohort(cohort: pl.DataFrame,
+                    expected_cohort_hash: str) -> pl.DataFrame:
+    """Registered cohort-loading/hash convention (bk._cohort_hash over
+    the sorted unique start keys): complete columns, non-null and
+    unique start identity, expected content hash. Returns the sorted
+    unique cohort frame."""
+    missing = [c for c in START_KEYS if c not in cohort.columns]
+    if missing:
+        raise ValueError(
+            f"cohort frame missing required column(s): {missing}")
+    _reject_null(cohort, START_KEYS, "cohort start identity")
+    _reject_duplicates(cohort, START_KEYS, "cohort start")
+    cohort_unique = cohort.select(START_KEYS).unique()
+    computed = bk._cohort_hash(
+        [tuple(r) for r in cohort_unique.iter_rows()])
+    if computed != expected_cohort_hash:
+        raise ValueError(
+            f"cohort identity mismatch: computed={computed} "
+            f"expected={expected_cohort_hash}; refusing")
+    return cohort_unique.sort(START_KEYS)
 
 
 def _fixed_reliability(pred: np.ndarray, obs: np.ndarray) -> list:
@@ -265,11 +294,20 @@ def _line_name(line: float) -> str:
 
 def diagnose(k_pmf: pl.DataFrame, observed: pl.DataFrame, *,
              pmf_columns: list,
+             cohort: pl.DataFrame,
+             expected_cohort_hash: str,
              lines: tuple = LINES) -> dict:
-    """Keyed diagnostic for one or two arms on IDENTICAL start keys.
-    Arms stay separate; with exactly two arms a paired
-    challenger-minus-control section is returned (second arm minus
-    first arm, equal weight, same matched keys)."""
+    """Keyed diagnostic for one or two arms, explicitly evaluating the
+    DECLARED eligible cohort. Arms stay separate; with exactly two
+    arms a paired challenger-minus-control section is returned (second
+    arm minus first arm, equal weight, same matched keys).
+
+    Cohort contract: the cohort is the declared scored population
+    (registered hash convention) - eligibility is NEVER derived from
+    forecast availability. Forecast start keys must equal the cohort
+    exactly. Observed-only starts outside the cohort are recorded as
+    declared exclusions (never scored, never silently dropped); after
+    restriction the observations must cover the cohort exactly."""
     if len(pmf_columns) < 1 or len(set(pmf_columns)) != len(
             pmf_columns):
         raise ValueError(
@@ -277,6 +315,8 @@ def diagnose(k_pmf: pl.DataFrame, observed: pl.DataFrame, *,
     missing = [c for c in pmf_columns if c not in k_pmf.columns]
     if missing:
         raise ValueError(f"k_pmf missing arm column(s): {missing}")
+    cohort_unique = validate_cohort(cohort, expected_cohort_hash)
+    cohort_keys = {tuple(r) for r in cohort_unique.iter_rows()}
     _reject_null(observed, START_KEYS, "observed start identity")
     _reject_duplicates(observed, START_KEYS, "observed start")
     bad_k = [v for v in observed["realized_k"].to_list()
@@ -289,15 +329,25 @@ def diagnose(k_pmf: pl.DataFrame, observed: pl.DataFrame, *,
     _validate_bucket_labels(k_pmf)
     _validate_forecast(k_pmf, pmf_columns)
 
+    observed_keys_full = {
+        (int(r["game_pk"]), str(r["side"]), int(r["pitcher"]))
+        for r in observed.iter_rows(named=True)}
+    observed_outside_cohort = sorted(observed_keys_full - cohort_keys)
+    observed_restricted = observed.join(cohort_unique, on=START_KEYS,
+                                        how="semi")
     observed_by_key = {
         (int(r["game_pk"]), str(r["side"]), int(r["pitcher"])):
             int(r["realized_k"])
-        for r in observed.iter_rows(named=True)}
+        for r in observed_restricted.iter_rows(named=True)}
     forecast_keys = {
         (int(r["game_pk"]), str(r["side"]), int(r["pitcher"]))
         for r in k_pmf.select(START_KEYS).unique().iter_rows(
             named=True)}
-    _require_exact_key_match(forecast_keys, set(observed_by_key))
+    _require_exact_key_match(forecast_keys, cohort_keys,
+                             "forecast", "declared cohort")
+    _require_exact_key_match(set(observed_by_key), cohort_keys,
+                             "observations after restriction",
+                             "declared cohort")
 
     pmf_by_start_arm: dict[str, dict[tuple, np.ndarray]] = {
         arm: {} for arm in pmf_columns}
@@ -356,12 +406,27 @@ def diagnose(k_pmf: pl.DataFrame, observed: pl.DataFrame, *,
                 for name, v in delta_brier.items()},
         }
     accounting = {
+        "cohort_identity": {
+            "content_hash": expected_cohort_hash,
+            "n_keys": len(cohort_keys),
+            "match": True,
+            "recipe": "bk._cohort_hash over sorted unique start "
+                      "keys (registered convention)"},
+        "declared_exclusions": {
+            "observed_only_outside_cohort": {
+                "n": len(observed_outside_cohort),
+                "keys": [list(k) for k in
+                         observed_outside_cohort]}},
         "n_forecast_starts": len(forecast_keys),
-        "n_observed_starts": len(observed_by_key),
+        "n_observed_starts_full": len(observed_keys_full),
+        "n_observed_starts_restricted": len(observed_by_key),
         "n_matched_starts": len(observed_by_key),
-        "key_matching": ("exact equality required; mismatch reports "
-                         "both directions and refuses (no silent "
-                         "inner join)"),
+        "key_matching": ("forecast keys == declared cohort exactly; "
+                         "observations restricted to the cohort must "
+                         "then cover it exactly; observed-only starts "
+                         "outside the cohort are recorded exclusions; "
+                         "any other mismatch reports both directions "
+                         "and refuses (no silent inner join)"),
         "weighting": "equal weight per matched start",
         "log": (f"natural log; clip {LOG_CLIP} (existing "
                 "count_logscore default); returns POSITIVE log loss "
@@ -395,6 +460,12 @@ def main(argv=None) -> int:
     ap.add_argument("--arms", required=True,
                     help="comma-separated PMF columns; order = "
                          "[control, challenger] for the paired delta")
+    ap.add_argument("--cohort-keys", required=True,
+                    help="declared scored cohort (start keys parquet; "
+                         "the registered eligible cohort)")
+    ap.add_argument("--expected-cohort-hash", required=True,
+                    help="expected cohort content hash "
+                         "(bk._cohort_hash recipe)")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--execution-ack", required=True)
     args = ap.parse_args(argv)
@@ -411,7 +482,11 @@ def main(argv=None) -> int:
     k_pmf = pl.read_parquet(args.k_pmf)
     assessment = pl.read_parquet(args.assessment)
     observed = derive_observed_k(assessment)
-    result = diagnose(k_pmf, observed, pmf_columns=arms, lines=LINES)
+    cohort = pl.read_parquet(args.cohort_keys)
+    result = diagnose(k_pmf, observed, pmf_columns=arms,
+                      cohort=cohort,
+                      expected_cohort_hash=args.expected_cohort_hash,
+                      lines=LINES)
     result["diagnostic_id"] = DIAGNOSTIC_ID
     result["execution_acknowledgement"] = {
         "route": ACK_ROUTE, "token": args.execution_ack}
