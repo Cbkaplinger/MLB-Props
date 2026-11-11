@@ -22,6 +22,8 @@ Requirement -> implementation -> test-evidence closure table:
 from __future__ import annotations
 
 import sys
+import json
+import math
 from datetime import date
 from pathlib import Path
 
@@ -251,3 +253,172 @@ def test_date_contract_gates():
         ms.harness_model_frame(
             _k_pmf_frame(), _observed_frame(), late, _cohort_frame(),
             bk._cohort_hash(list(STARTS)), arm="pmf_control")
+
+
+# ------------------- 8. end-to-end benchmark contract assembly
+
+
+def _quotes_frame(books=("B1", "B2", "B3"),
+                  include_start_b_b2=False,
+                  include_after_first_pitch=False):
+    """Two-sided near-close quotes with VENDOR pitcher keys (the
+    reduced market key). Decision timestamp = each start's
+    first_pitch_ts; quotes are stamped at T-30min (inside the
+    registered 60-minute tier-A window). An optional after-first-pitch
+    quote exercises the tier-A exclusion."""
+    import datetime as dt
+    fp = dt.datetime(2025, 5, 1, 19, 0, tzinfo=dt.timezone.utc)
+    t_in = fp - dt.timedelta(minutes=30)
+    t_after = fp + dt.timedelta(minutes=5)
+    key_of = {700001: "P700001", 700002: "P700002"}
+    rows = []
+    for gk, side, p in STARTS:
+        for book in books:
+            if book == "B2" and p == 700002 and not include_start_b_b2:
+                continue
+            o, u = (-150, 130) if (book == "B1" and p == 700001) \
+                else (-110, -110)
+            for bet, price in (("over", o), ("under", u)):
+                rows.append((gk, key_of[p], book, 4.5, bet, price,
+                             t_in, "live", fp, True))
+        if include_after_first_pitch and p == 700001:
+            rows.append((gk, key_of[p], "B1", 4.5, "over", -110,
+                         t_after, "live", fp, True))
+    return pl.DataFrame(rows, schema={
+        "game_pk": pl.Int64, "pitcher": pl.Utf8, "book": pl.Utf8,
+        "line": pl.Float64, "side": pl.Utf8, "price": pl.Int64,
+        "quote_timestamp": pl.Datetime("us", "UTC"),
+        "snapshot": pl.Utf8, "first_pitch_ts": pl.Datetime("us", "UTC"),
+        "has_commence": pl.Boolean}, orient="row")
+
+
+def _bridge_frame() -> pl.DataFrame:
+    import datetime as dt
+    fp = dt.datetime(2025, 5, 1, 19, 0, tzinfo=dt.timezone.utc)
+    return pl.DataFrame(
+        [(900201, "P700001", 700001, fp, True),
+         (900201, "P700002", 700002, fp, True)],
+        schema={"game_pk": pl.Int64, "pitcher_key": pl.Utf8,
+                "pitcher": pl.Int64,
+                "first_pitch_ts": pl.Datetime("us", "UTC"),
+                "has_commence": pl.Boolean}, orient="row")
+
+
+# ------------------- 8. end-to-end benchmark contract assembly
+def test_end_to_end_benchmark_contract():
+    """Hand-computed end-to-end case: 2-start declared cohort,
+    3 books (B1 de-vigs to 0.5798 at start A, B2/B3 to 0.5), start B
+    missing B2 (LTBO unavailable there), one after-first-pitch quote
+    (excluded by the tier-A decision timestamp)."""
+    observed = _observed_frame()
+    quotes = _quotes_frame(include_after_first_pitch=True)
+    out = ms.benchmark_contract_rows(
+        _k_pmf_frame(), observed, _dates_frame(), _cohort_frame(),
+        bk._cohort_hash(list(STARTS)), "pmf_control", quotes,
+        _bridge_frame())
+
+    # ---- observable coverage accounting (exact)
+    cov = out["coverage"]
+    assert cov["cohort"] == {"n_keys": 2,
+                             "content_hash": bk._cohort_hash(list(STARTS)),
+                             "match": True}
+    assert cov["n_forecast_starts"] == 2
+    assert cov["observed_only_outside_cohort"]["n"] == 0
+    assert cov["n_matched_model_starts"] == 2
+    assert cov["consensus_starts_total"] == 2
+    assert cov["n_consensus_unmatched_to_model"] == 0
+    assert cov["ltbo_unavailable_rows"] == 2  # start B: B1/B3 rows
+    assert cov["book_rows"] == 5  # A: B1+B2+B3; B: B1+B3 (B2 absent)
+    assert cov["quotes_funnel"]["quotes_total"] == 11
+    # the game_pk timing join fans out per (game_pk, pitcher_key); the
+    # own-player filter then drops the opposing-starter duplicates
+    assert cov["quotes_funnel"]["quotes_attached_to_starts"] == 22
+    assert cov["quotes_funnel"]["quotes_other_player_dropped"] == 11
+    assert cov["quotes_funnel"][
+        "quotes_near_close_selected"] == 10
+    assert "first_pitch_ts" in cov["quotes_funnel"]["decision_timestamp"]
+
+    # ---- model-vs-consensus: existing scorer on identical rows
+    sc = out["model_vs_consensus"]
+    assert sc["n"] == 2
+    # control PMF mass at K=2/3 only -> p_over_4.5 = 0.0 both starts;
+    # realized over: A (K=3) -> 0 (ll 0), B (K=30 overflow) -> 1
+    # (ll = -ln(1e-12)); mean = 13.8155...
+    assert sc["log_loss_model"] == pytest.approx(
+        (0.0 + -math.log(1e-12)) / 2)
+    assert sc["log_loss_close"] == pytest.approx(-math.log(0.5))
+    assert sc["brier_model"] == pytest.approx(0.5)
+    assert sc["brier_close"] == pytest.approx(0.25)
+    assert sc["count_rps_model_mean"] == pytest.approx(
+        (0.25 + 20.25) / 2)
+    assert "log_loss_delta_p" in sc["slate_date_bootstrap"]
+
+    # ---- book-vs-LTBO: target-book exclusion + exact hand values.
+    # LTBO rows exist only at start A (start B's B1/B3 rows are
+    # single-other -> unavailable); every book scores n_starts = 1.
+    bs = out["book_scores"]
+    assert set(bs) == {"B1", "B2", "B3"}
+    assert bs["B1"]["n_starts"] == 1
+    assert bs["B2"]["n_starts"] == 1
+    assert bs["B3"]["n_starts"] == 1
+    # B1 at start A: p_book = devig(-150, 130) = 0.5798, realized under
+    # (K=3) -> ll_a = -ln(1 - 0.5798); LTBO = median(B2, B3) = 0.5,
+    # realized under -> ll_b = -ln(0.5)
+    assert bs["B1"]["log_loss_a"] == pytest.approx(
+        -math.log(1 - mk.devig_over(-150, 130)))
+    assert bs["B1"]["log_loss_b"] == pytest.approx(-math.log(0.5))
+    assert bs["B1"]["brier_a"] == pytest.approx(
+        (mk.devig_over(-150, 130)) ** 2)
+    assert bs["B1"]["brier_b"] == pytest.approx(0.25)
+    # B3 at start A: p_book = 0.5 vs its LTBO = median(B1, B2) =
+    # (0.5798 + 0.5) / 2; realized under (K=3, single row) ->
+    # ll_a = -ln(1 - 0.5), ll_b = -ln(1 - 0.5399)
+    assert bs["B3"]["log_loss_a"] == pytest.approx(
+        -math.log(1 - 0.5 + 1e-12))
+    assert bs["B3"]["log_loss_b"] == pytest.approx(
+        -math.log(1 - (mk.devig_over(-150, 130) + 0.5) / 2 + 1e-12))
+
+
+def test_decision_timestamp_and_selector_precondition():
+    import datetime as dt
+    fp = dt.datetime(2025, 5, 1, 19, 0, tzinfo=dt.timezone.utc)
+    bridge = _bridge_frame()
+    # quotes AFTER first pitch are excluded by the tier-A rule
+    out = ms.benchmark_contract_rows(
+        _k_pmf_frame(), _observed_frame(), _dates_frame(),
+        _cohort_frame(), bk._cohort_hash(list(STARTS)), "pmf_control",
+        _quotes_frame(include_after_first_pitch=True),
+        bridge)
+    assert out["coverage"]["quotes_funnel"][
+        "quotes_near_close_selected"] == 10
+    # the after-first-pitch quote (start A, B1, over) is excluded: the
+    # tier-A decision timestamp keeps only pre-first-pitch quotes
+    assert out["coverage"]["quotes_funnel"][
+        "quotes_attached_to_starts"] == 22
+    assert out["coverage"]["quotes_funnel"][
+        "quotes_other_player_dropped"] == 11
+    assert out["coverage"]["quotes_funnel"][
+        "quotes_total"] == 11
+    # every selected quote is at or before the decision timestamp
+    # duplicate quote-side rows refuse at the seam boundary (the
+    # registered selector would silently keep the last via pivot)
+    dup = pl.concat([_quotes_frame(), _quotes_frame().head(1)])
+    with pytest.raises(ValueError, match="duplicate identity"):
+        ms.validate_selected_quotes(dup)
+
+
+def test_ambiguous_identity_mapping_refused():
+    import datetime as dt
+    fp = dt.datetime(2025, 5, 1, 19, 0, tzinfo=dt.timezone.utc)
+    bad_bridge = pl.DataFrame(
+        [(900201, "P700001", 700001, fp, True),
+         (900201, "P700001", 700099, fp, True)],
+        schema={"game_pk": pl.Int64, "pitcher_key": pl.Utf8,
+                "pitcher": pl.Int64,
+                "first_pitch_ts": pl.Datetime("us", "UTC"),
+                "has_commence": pl.Boolean}, orient="row")
+    with pytest.raises(ValueError, match="ambiguous market/start"):
+        ms.benchmark_contract_rows(
+            _k_pmf_frame(), _observed_frame(), _dates_frame(),
+            _cohort_frame(), bk._cohort_hash(list(STARTS)),
+            "pmf_control", _quotes_frame(), bad_bridge)

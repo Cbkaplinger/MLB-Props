@@ -306,3 +306,207 @@ def all_book_consensus(near_close: pl.DataFrame) -> pl.DataFrame:
     """Existing all-book consensus (registered construction, reused
     unchanged)."""
     return mk.consensus_over_probs(near_close)
+
+
+def bridge_market_key(market_frame: pl.DataFrame,
+                      starts_bridge: pl.DataFrame) -> pl.DataFrame:
+    """Map the REDUCED market key (game_pk, pitcher_key) to the
+    complete start identity via the tested bridge; the team side is
+    inherited from the model frame downstream. Ambiguous mappings
+    refuse: one (game_pk, pitcher_key) must map to exactly one MLBAM
+    pitcher."""
+    required = {"game_pk", "pitcher_key", "pitcher"}
+    missing = required - set(starts_bridge.columns)
+    if missing:
+        raise ValueError(
+            f"starts_bridge missing column(s): {sorted(missing)}")
+    bridge = starts_bridge.select(
+        "game_pk", "pitcher_key",
+        pl.col("pitcher").alias("pitcher_id")).unique()
+    dup = bridge.group_by("game_pk", "pitcher_key").agg(
+        n=pl.len()).filter(pl.col("n") > 1)
+    if dup.height > 0:
+        sample = dup.select("game_pk", "pitcher_key").head(3).rows()
+        raise ValueError(
+            f"ambiguous market/start identity mapping: {dup.height} "
+            "(game_pk, pitcher_key) pair(s) map to multiple MLBAM ids "
+            f"(sample: {sample}); refusing")
+    out = market_frame.join(
+        bridge, left_on=["game_pk", "pitcher"],
+        right_on=["game_pk", "pitcher_key"], how="inner")
+    return out.drop("pitcher").rename({"pitcher_id": "pitcher"})
+
+
+def validate_selected_quotes(quotes: pl.DataFrame) -> None:
+    """Selector precondition: the registered near-close selector keeps
+    the LAST duplicate quote-side row (pivot 'first'), so this seam
+    refuses duplicate (start, book, line, side) rows before any pivot
+    or book counting - duplicate rows can never silently pass through
+    or inflate the count of OTHER books."""
+    _reject_duplicates(quotes, ["game_pk", "pitcher", "book", "line",
+                                "side"], "selected near-close quote")
+
+
+def benchmark_contract_rows(
+        k_pmf: pl.DataFrame, observed: pl.DataFrame,
+        start_dates: pl.DataFrame, cohort: pl.DataFrame,
+        expected_cohort_hash: str, arm: str, quotes: pl.DataFrame,
+        starts_bridge: pl.DataFrame, *, min_other_books: int = 2,
+        n_boot: int = 2000, seed: int = 20261001) -> dict:
+    """Narrow end-to-end benchmark contract assembly. Every stage
+    reuses the registered machinery; this function adds only the
+    ordered glue and observable coverage accounting.
+
+    Stages: harness PMF + full-start observed K + declared cohort/dates
+    -> selected two-sided quotes (registered near-close rules; the
+    DECISION TIMESTAMP is each start's first_pitch_ts - the registered
+    tier-A cutoff - so every selected quote is available at or before
+    it; a closing-tier benchmark would be labeled separately)
+    -> book, LTBO, and all-book consensus probabilities
+    -> identical paired contract rows: every source is evaluated
+    against the SAME realized event (the start's full-start observed K)
+    at that source's own quoted line
+    -> the existing outcome scorer (``market_eval_k.score_starts`` for
+    model-vs-consensus with the registered slate-date bootstrap; the
+    extracted paired line-score definitions ``market_eval_k.paired_line_
+    scores`` for book-vs-LTBO, same bootstrap).
+
+    Probability disagreement (book vs LTBO) and outcome scoring are
+    reported separately. Coverage accounting is observable throughout.
+    """
+    from pregame_pa_ext import count_pmf_diagnostic as cpd
+
+    cohort_unique = cpd.validate_cohort(cohort, expected_cohort_hash)
+    cohort_keys = {tuple(r) for r in cohort_unique.iter_rows()}
+    observed_keys_full = {
+        (int(r["game_pk"]), str(r["side"]), int(r["pitcher"]))
+        for r in observed.select(START_KEYS).unique().iter_rows(
+            named=True)}
+    observed_outside_cohort = sorted(observed_keys_full - cohort_keys)
+
+    model_frame = harness_model_frame(
+        k_pmf, observed, start_dates, cohort, expected_cohort_hash,
+        arm)
+
+    # ---- quotes: registered timing + own-player + near-close rules
+    required_bridge = {"game_pk", "pitcher_key", "pitcher",
+                       "first_pitch_ts", "has_commence"}
+    missing = required_bridge - set(starts_bridge.columns)
+    if missing:
+        raise ValueError(
+            f"starts_bridge missing column(s): {sorted(missing)}")
+    _reject_null(quotes, ["game_pk", "pitcher", "book", "line",
+                          "side", "price"], "quote identity")
+    n_quotes_total = quotes.height
+    odds = quotes.join(
+        starts_bridge.select("game_pk", "pitcher_key", "first_pitch_ts",
+                             "has_commence"),
+        on="game_pk", how="inner")
+    odds_own = mk.verified_odds_for_start(odds)
+    near = mk.select_near_close(odds_own)
+    funnel = {
+        "quotes_total": n_quotes_total,
+        "quotes_attached_to_starts": odds.height,
+        "quotes_other_player_dropped": odds.height - odds_own.height,
+        "quotes_near_close_selected": near.height,
+        "decision_timestamp": ("each start's first_pitch_ts (the "
+                               "registered tier-A cutoff); every "
+                               "selected quote is available at or "
+                               "before it; a closing-tier benchmark "
+                               "would be labeled separately")}
+
+    # ---- probabilities per source (bridged to MLBAM start identity;
+    # the SELECTED quotes must be unique per (start, book, line, side)
+    # at this boundary - duplicate rows would silently pass pivot
+    # ('first') and inflate the count of OTHER books
+    validate_selected_quotes(near)
+    book_probs = bridge_market_key(book_over_probabilities(near),
+                                   starts_bridge)
+    ltbo, n_ltbo_unavailable = ltbo_consensus(
+        book_probs, min_other_books=min_other_books)
+    consensus = bridge_market_key(all_book_consensus(near),
+                                  starts_bridge)
+    _reject_duplicates(consensus, ["game_pk", "pitcher"],
+                       "bridged consensus")
+
+    # ---- identical paired contract rows (same realized event)
+    cons_sel = consensus.select("game_pk", "pitcher", "line", "p_over",
+                                "n_books")
+    model_rows = model_frame.join(cons_sel, on=["game_pk", "pitcher"],
+                                  how="inner")
+    if model_rows.height != model_frame.height:
+        raise ValueError(
+            "model rows lost in the consensus join "
+            f"({model_frame.height} -> {model_rows.height}); refusing")
+    n_consensus_unmatched = consensus.height - model_rows.height
+
+    # ---- model-vs-consensus: EXISTING outcome scorer + uncertainty
+    sc = mk.score_starts(model_rows)
+    per = sc.pop("_per_start")
+    sc["slate_date_bootstrap"] = mk.cmp_bootstrap(
+        per, model_rows, n_boot=n_boot, seed=seed)
+
+    # ---- book-vs-LTBO: the same extracted paired line-score
+    # definitions (mk.paired_line_scores) + the same bootstrap. The
+    # market frames carry the REDUCED key (game_pk, pitcher); the team
+    # side is inherited from the model frame, whose (game_pk, pitcher)
+    # mapping is asserted unique (ambiguous mapping would refuse).
+    market_key_unique = (
+        model_frame.group_by(["game_pk", "pitcher"]).agg(n=pl.len())
+        .filter(pl.col("n") > 1).height == 0)
+    if not market_key_unique:
+        raise ValueError(
+            "model frame (game_pk, pitcher) pairs are not unique; the "
+            "reduced market key would map ambiguously; refusing")
+    book_rows = ltbo.join(
+        model_frame.select(["game_pk", "side", "pitcher", "game_date",
+                            "block", "realized_k"]),
+        on=["game_pk", "pitcher"], how="inner")
+    n_book_rows_unmatched = ltbo.height - book_rows.height
+    book_scores = {}
+    for book in sorted(book_rows["book"].unique().to_list()):
+        grp = book_rows.filter(pl.col("book") == book).sort(START_KEYS)
+        o = np.asarray(
+            [1.0 if int(k) > float(l) else 0.0
+             for k, l in zip(grp["realized_k"].to_list(),
+                             grp["line"].to_list())], dtype=float)
+        p_book = np.asarray(grp["p_over_book"].to_list(), dtype=float)
+        p_ltbo = np.asarray(grp["p_over_ltbo"].to_list(), dtype=float)
+        scores = mk.paired_line_scores(o, p_book, p_ltbo)
+        boot = mk.cmp_bootstrap(
+            {"o": o, "p_m": p_book, "p_c": p_ltbo},
+            grp.select("game_date", "block"), n_boot=n_boot, seed=seed)
+        book_scores[book] = {"n_starts": len(grp), **scores,
+                             "slate_date_bootstrap": boot}
+
+    coverage = {
+        "cohort": {"n_keys": len(cohort_keys),
+                   "content_hash": expected_cohort_hash,
+                   "match": True},
+        "n_forecast_starts": len(forecast_keys_in(k_pmf)),
+        "observed_only_outside_cohort": {
+            "n": len(observed_outside_cohort),
+            "keys": [list(k) for k in observed_outside_cohort]},
+        "n_matched_model_starts": model_frame.height,
+        "consensus_starts_total": consensus.height,
+        "n_consensus_unmatched_to_model": n_consensus_unmatched,
+        "ltbo_unavailable_rows": n_ltbo_unavailable,
+        "book_rows": book_probs.height,
+        "quotes_funnel": funnel,
+    }
+    return {
+        "model_rows": model_rows,
+        "consensus": consensus,
+        "book_probs": book_probs,
+        "ltbo": ltbo,
+        "model_vs_consensus": sc,
+        "book_scores": book_scores,
+        "coverage": coverage,
+    }
+
+
+def forecast_keys_in(k_pmf: pl.DataFrame) -> set:
+    """Complete forecast start identity set (keyed PMF contract)."""
+    return {(int(r["game_pk"]), str(r["side"]), int(r["pitcher"]))
+            for r in k_pmf.select(START_KEYS).unique().iter_rows(
+                named=True)}
