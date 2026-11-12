@@ -25,18 +25,34 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: boundary-exception coverage follow-up (2026-11-11)
+## Current action: market-only T-5h replay COMPLETE (2026-11-11)
 
-- **Implemented on this branch** (probe_board_coverage_boundary_2025H1.py):
-  the follow-up to the correctly BLOCKED original probe. Explicit
-  declared exception for book-lines boundary groups rg16-rg17 (quote
-  columns only); envelope footer preflight (fail-closed on missing
-  stats); immediate 2025H1 window filter after decode; protected rows
-  never persisted/printed/summarized. Original probe remains
-  fail-closed. 8 synthetic tests + 5 original = 13 green; focused
-  combined run 111 passed. NOT RUN on real odds; needs owner
-  authorization. Near-close labeling: this is a NEAR-CLOSE coverage
-  query, not evidence of early-morning readiness.
+- **Implemented + synthetic-tested on this branch (PR #86):**
+  juiced_replay_ledger --entry-clock morning_only is the explicit
+  market-only path: bypasses p_ours_cal requirement, live policy
+  filters and sizing arms; baseline construction + canonical de-vig
+  reused; registered defaults preserved (canonical bare run unchanged;
+  no candidates parquet in market-only mode).
+- Identity guards: duplicate quote sides REFUSED (paid lake + Friend
+  CSV); ambiguous reduced-key joins (gd,key,line -> multiple event_id)
+  REFUSED, never first().
+- Vendor timing: morning/close envelope timestamps attached and
+  enforced; missing or post-commence timing = explicit
+  unavailable/refusal state (envelope absent = enforcement disabled,
+  noted in report).
+- Separated states + independent denominators: entry_eligible /
+  entry_reason, settlement_available, close_benchmark_available /
+  close_reason (entry + settlement over all candidates; close
+  benchmark over entry-eligible rows).
+- Tests: 9 green (tests/test_entry_clock.py) incl. raising Friend spy,
+  missing model probability, valid entry with no close, restricted
+  command. Combined gate 63 passed.
+- NOT RUN on real odds. Run packet (write-once, owner authorization):
+  `python production/ops/market_research/juiced_replay_ledger.py
+  --entry-clock morning_only --gd-start 2025-01-01 --gd-end
+  2025-06-30 --out-suffix __mkt2025H1`
+- Boundary-exception coverage follow-up also on this branch
+  (8 synthetic tests; near-close labeling; not run on real odds).
 
 ## Prior action: market-benchmark seam (CLOSED, PR #84 merged)
 

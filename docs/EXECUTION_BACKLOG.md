@@ -40,7 +40,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Session snapshot - boundary-exception coverage follow-up (2026-11-11)
+## Session snapshot - market-only T-5h replay completed (2026-11-11)
 
 ### PAST
 
@@ -53,37 +53,59 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   Destination preserved; no data-page reads. Closed as BLOCKED.
 - Boundary-exception follow-up implemented + synthetic-tested (this
   PR): explicit declared exception for book-lines boundary groups
-  rg16-rg17 (quote columns only); envelope footer preflight added
-  (fail-closed on missing/unusable commence_time stats); immediate
-  2025H1 window filter after boundary-group decode (both bounds
-  asserted; protected rows never persisted/printed/summarized).
+  rg16-rg17 (quote columns only); envelope footer preflight (fail-
+  closed on missing stats); immediate 2025H1 window filter after
+  decode; protected rows never persisted/printed/summarized.
+- gd-window validation hardened (b264520): malformed/reversed dates
+  refused before any I/O; envelope lag label corrected
+  (n_vendor_at_or_before_commence; lag = commence - vendor).
 
 ### PRESENT
 
-- **BOUNDARY-EXCEPTION COVERAGE FOLLOW-UP IMPLEMENTED (this PR):**
-  probe_board_coverage_boundary_2025H1.py reuses the committed probe's
-  row_group_separation (now date-column-parameterized) and the
-  extracted aggregate_per_clock / envelope_timestamp_summary
-  functions. Binding: blocked report -> recorded input hashes ->
-  fresh footer layout must match recorded layout (fail closed on
-  mismatch). Selection: WINDOW_OR_EARLIER + OVERLAPS_PROTECTED
-  (boundary exception) allowed; PROTECTED_ONLY + UNVERIFIABLE
-  excluded. Immediate 2025H1 filter after decode (both bounds
-  asserted). Tests: 8 green (only-allowed-groups decode, boundary
-  filtered, hash mismatch, layout mismatch, envelope missing-stats
-  fail-closed, original report untouched, hand-computed counts,
-  empty-frame handling). Focused combined run: 111 passed.
+- **MARKET-ONLY T-5h REPLAY COMPLETE (this PR):** juiced_replay_ledger
+  --entry-clock morning_only is now an explicit market-only execution
+  path:
+  (1) bypasses legacy model probability requirements (p_ours_cal not
+  required), policy filters (no floors/veto/probation) and sizing
+  execution (no Kelly/edge-band arms); the legacy candidates parquet is
+  NOT produced in this mode; baseline construction and canonical
+  multiplicative de-vig reused unchanged; registered defaults
+  preserved (bare canonical run unchanged).
+  (2) identity guards: duplicate quote sides for the same
+  (gd,key,line,book,event_id) are REFUSED in both paid lake and Friend
+  CSV; a (gd,key,line) mapping to multiple event_id values is REFUSED
+  (ambiguous reduced-key join) -- never resolved with first(). The
+  remaining book selection is the owner-declared pref rule (DK else FD
+  else next US book), documented as such.
+  (3) authoritative vendor timestamps: morning and close envelope rows
+  are attached to pairs; entry (paid morning) and close timing must
+  exist and precede commence; missing timestamp or post-commence
+  vendor ts yields explicit entry_timing_unavailable /
+  entry_timing_post_commence / close_timing_unavailable /
+  close_invalid_vendor states, never implicit validity. Envelope
+  absent = enforcement disabled with an explicit report note.
+  (4) separated states with independent denominators: entry_eligible /
+  entry_reason; settlement_available; close_benchmark_available /
+  close_reason. Report denominators: entry over all candidates,
+  settlement over all candidates, close benchmark over
+  entry-eligible rows only.
+  (5) calendar validation: real dates enforced (2025-02-30 refused).
+  Tests: 9 green in tests/test_entry_clock.py (end-to-end market-only,
+  report denominators + absence of legacy sections, close-timing
+  unavailable, registered Friend-fixture read, raising Friend spy,
+  duplicate-side refusal, ambiguous-key refusal, calendar date,
+  restricted command with dev window). Combined gate: 63 passed.
 
 ### FORWARD
 
-1. Board-clock coverage: EXECUTED once (head `024a458`; EXIT=0).
-   Verdict: sparse_or_absent — board two-sided contracts (28,994)
-   = 63.6% of close two-sided contracts (45,618), below the declared
-   80% threshold; median books-per-event at board = 5 (passes >= 2).
-   Finding: board-clock coverage is sparse relative to close.
-   Recommend the existing paid morning T-5h contract as the
-   separately labeled alternative. No tuning; descriptive only.
-2. Scientific queue: no other task assigned.
+1. Real-data run packet (needs owner authorization; write-once):
+   `python production/ops/market_research/juiced_replay_ledger.py
+   --entry-clock morning_only --gd-start 2025-01-01
+   --gd-end 2025-06-30 --out-suffix __mkt2025H1`
+2. Boundary-exception coverage follow-up: implemented + 8 synthetic
+   tests; NOT RUN on real odds (owner authorization; near-close
+   labeling preserved).
+3. Scientific queue: no other task assigned.
 
 ### DEFERRED
 
