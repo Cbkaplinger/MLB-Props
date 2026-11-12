@@ -220,10 +220,9 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    attested via the verified reference receipt manifest); assessment
    pin `464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa`;
    cohort = the registered eligible cohort (hash `f77d7a66...`,
-   hash-checked by the runner). Access: declared-column /
-   allowed-row-group decoding of those two files ONLY (not full-file
-   decode; no Friend CSV read — Friend permission is NOT a
-   dependency). Stop conditions: ack gate; destination exists;
+   hash-checked by the runner). Access: full-file decode of those
+   three files ONLY: k-PMF, assessment, and cohort-keys; no Friend
+   CSV read. Stop conditions: ack gate; destination exists;
    cohort hash mismatch; forecast/observed-vs-cohort key mismatches
    (both directions reported); duplicate/null identities; malformed
    labels/PMFs. Input identity hashes are PROCEDURAL preflight
