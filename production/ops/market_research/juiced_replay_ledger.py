@@ -318,7 +318,7 @@ def resolve_outputs(out_suffix: str, gd_restricted: bool,
     return paths
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--floor-uniform", type=float, default=None,
                     help="uniform floor for all lines (selection engine)")
@@ -348,7 +348,7 @@ def main() -> None:
                     help="DEVELOPMENT boundary: restrict event dates to "
                          "gd <= end (YYYY-MM-DD; a 2025-only packet uses "
                          "2025-06-30)")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     gd_restricted = args.gd_start is not None or args.gd_end is not None
     floors = uniform_floors(args.floor_uniform) if args.floor_uniform is not None else _floors()
     cap = args.cap
@@ -394,8 +394,14 @@ def main() -> None:
             allowed, gd_window=gd_window if gd_restricted else None)
         print(f"friend open pairs {friend.height}")
     else:
-        friend = _two_way_friend(allowed).head(0)  # empty; schema preserved
-        print(f"entry_clock=morning_only: Friend skipped")
+        # morning_only: Friend CSV is NEVER read; use an empty frame
+        # with the correct schema so the left join produces null
+        friend = pl.DataFrame(schema={
+            "gd": pl.Utf8, "key": pl.Utf8, "line": pl.Float64,
+            "open_book": pl.Utf8, "open_over": pl.Int64,
+            "open_under": pl.Int64,
+        })
+        print("entry_clock=morning_only: Friend CSV skipped")
 
     env_path = HIST / "snapshot_envelope.parquet"
     invalid = set()
@@ -575,6 +581,7 @@ def main() -> None:
             "gd": rec["gd"], "key": rec["key"],
             "player_name": rec.get("player_name"),
             "line": line, "snap": snap, "book": book,
+            "entry_clock": args.entry_clock,
             "yr": str(rec["gd"])[:4],
             "entry_over": oa, "entry_under": ua,
             "fair_over_entry": fair_entry,
@@ -701,6 +708,7 @@ def main() -> None:
             "decision": ("friend open else paid morning"
                          if args.entry_clock == "registered"
                          else "paid morning T-5h only (Friend skipped)"),
+            "entry_clock": args.entry_clock,
             "book": "DK else FD else next US book with two-way quote (canonical per owner 2026-09-11)",
             "dk_fd_only": "sensitivity, not the headline",
             "policy": (
@@ -774,7 +782,8 @@ def main() -> None:
     }, indent=2, default=str))
     print(f"wrote {out_parquet}")
     print(f"wrote {out_report}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
