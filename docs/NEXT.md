@@ -37,16 +37,15 @@ diagnostic (PR #83) merged.
   CSV); ambiguous reduced-key joins (gd,key,line -> multiple event_id)
   REFUSED, never first().
 - Vendor timing: morning/close envelope timestamps attached and
-  enforced; missing or post-commence timing = explicit
-  unavailable/refusal state (envelope absent = enforcement disabled,
-  noted in report).
-- Separated states + independent denominators: entry_eligible /
-  entry_reason, settlement_available, close_benchmark_available /
-  close_reason (entry + settlement over all candidates; close
-  benchmark over entry-eligible rows).
-- Tests: 9 green (tests/test_entry_clock.py) incl. raising Friend spy,
-  missing model probability, valid entry with no close, restricted
-  command. Combined gate 63 passed.
+  ENFORCED AT THE DECLARED DECISION TIMES (morning lag >= 18000 s,
+  close >= 300 s; T-1h quote refused as entry_timing_after_decision);
+  missing/invalid timing or absent envelope = fail-closed refusal.
+- Access boundary: panel projected to minimum identity/date/line/
+  settlement fields; no p_ours_cal decode; book-lines game_date
+  pushdown gives deterministic rg11-rg17 decode scope for 2025H1.
+- Tests: 14 green (tests/test_entry_clock.py) incl. raising Friend
+  spy, duplicate/ambiguous refusals, calendar dates, T-1h refusal,
+  envelope-absent + missing-map fail-closed. Combined gate 67 passed.
 - NOT RUN on real odds. Run packet (write-once, owner authorization):
   `python production/ops/market_research/juiced_replay_ledger.py
   --entry-clock morning_only --gd-start 2025-01-01 --gd-end

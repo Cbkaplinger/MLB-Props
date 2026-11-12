@@ -42,7 +42,13 @@ from Python.market import (  # noqa: E402
     size_in_units,
 )
 from Python.odds_ledger import atomic_write_parquet, atomic_write_text  # noqa: E402
-from join_keys import HIST, ODDS_DIR, load_event_date_map, sorted_key  # noqa: E402
+from join_keys import (  # noqa: E402
+    EVENT_DATE_MAP,
+    HIST,
+    ODDS_DIR,
+    load_event_date_map,
+    sorted_key,
+)
 
 FRIEND = (
     ROOT / "data" / "Odds-Open-Close-2025-2026"
@@ -53,6 +59,16 @@ PANEL = ODDS_DIR / "universe_panel_live.parquet"
 OUT_PARQUET = ODDS_DIR / "juiced_replay_candidates.parquet"
 OUT_REPORT = ODDS_DIR / "juiced_replay_report.json"
 OUT_BASELINE = ODDS_DIR / "juiced_replay_baseline.parquet"
+
+# Declared decision clocks (see the snapshot reconstruction contract in
+# production/ops/market_research): the
+# morning decision is T-5h and the close benchmark is T-5min before
+# commence. A vendor quote is decision-time available only if its
+# AUTHORITATIVE timestamp is at or before the declared decision time
+# (lag = commence - vendor >= decision lag). A T-1h quote is pregame
+# but NOT available at the T-5h decision.
+MORNING_DECISION_LAG_SEC = 5 * 3600
+CLOSE_DECISION_LAG_SEC = 5 * 60
 
 UNIT = 50.0
 LIVE_BASE_FLOOR = 0.12
@@ -101,18 +117,26 @@ def _two_way_paid(
     ev: pl.DataFrame,
     allowed_books: set[str] | None = None,
     event_ids: set[str] | None = None,
+    gd_window: tuple | None = None,
 ) -> pl.DataFrame:
     """Two-sided juiced-pair construction for one snapshot. When
     ``event_ids`` is provided, the restriction is pushed INTO the lazy
     scan (pre-decode): row groups outside the declared event set are
     not decoded. This is the development boundary for year windows —
-    2026 rows are never decoded into a frame under a 2025 window."""
+    2026 rows are never decoded into a frame under a 2025 window.
+    ``gd_window`` additionally pushes the declared game_date bounds
+    into the scan so row-group pruning is statistics-based and the
+    decode scope is deterministic (rg11-rg17 for a 2025H1 window)."""
     scan = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
         (pl.col("market") == "pitcher_strikeouts")
         & (pl.col("snapshot") == snapshot)
         & pl.col("line").is_not_null()
         & pl.col("price").is_not_null()
     )
+    if gd_window is not None:
+        scan = scan.filter(
+            (pl.col("game_date") >= gd_window[0])
+            & (pl.col("game_date") <= gd_window[1]))
     if event_ids is not None:
         scan = scan.filter(pl.col("event_id").is_in(sorted(event_ids)))
     bk = scan.collect()
@@ -416,7 +440,15 @@ def main(argv: list[str] | None = None) -> int:
     if gd_restricted:
         gd_window = (args.gd_start or "0000-01-01",
                      args.gd_end or "9999-12-31")
-    floors = uniform_floors(args.floor_uniform) if args.floor_uniform is not None else _floors()
+        if gd_window[1] >= "2026-01-01":
+            raise SystemExit(
+                "gd window extends into 2026: 2026 rows stay closed "
+                "unless explicitly authorized (no authorization flag "
+                "exists); refusing")
+    market_only = args.entry_clock == "morning_only"
+    floors = ({} if market_only else
+              uniform_floors(args.floor_uniform)
+              if args.floor_uniform is not None else _floors())
     cap = args.cap
     premium = UNDER_LEAN_PREMIUM if args.under_lean else 0.0
     allowed = {"draftkings", "fanduel"} if args.book_universe == "dkfd" else None
@@ -428,7 +460,6 @@ def main(argv: list[str] | None = None) -> int:
         OUT_BASELINE.stem + args.out_suffix + OUT_BASELINE.suffix)
     # market-only mode writes only the baseline + report (no candidates
     # parquet), so only those destinations are declared
-    market_only = args.entry_clock == "morning_only"
     declared = ([out_report, out_base] if market_only
                 else [out_parquet, out_report, out_base])
     guarded = resolve_outputs(args.out_suffix, gd_restricted, declared)
@@ -436,8 +467,17 @@ def main(argv: list[str] | None = None) -> int:
         (out_report, out_base) = guarded
     else:
         (out_parquet, out_report, out_base) = guarded
+    if market_only and not EVENT_DATE_MAP.exists():
+        raise SystemExit(
+            "cached event-date map missing; this order forbids a "
+            "rebuild -- refusing (no network, no raw-index walk)")
     print(f"floors={'uniform %.2f' % args.floor_uniform if args.floor_uniform is not None else 'live-file'} "
           f"cap={cap} under_lean={args.under_lean} book={args.book_universe} out={args.out_suffix or 'canonical'}")
+    if market_only and not EVENT_DATE_MAP.exists():
+        raise SystemExit(
+            "cached event-date map missing; rebuilding is not "
+            "authorized for market-only runs -- refusing (no network, "
+            "no raw-index walk)")
     evdate = load_event_date_map()
     ev = _event_frame(evdate)
     # ---- development boundary: pre-decode event restriction. The
@@ -457,8 +497,12 @@ def main(argv: list[str] | None = None) -> int:
                 "cached event dates; refusing rather than decoding the "
                 "full lake")
     print("attaching paid morning/close two-way pairs...")
-    morning = _two_way_paid("morning", ev, allowed, event_ids=allowed_event_ids)
-    close = _two_way_paid("close", ev, allowed, event_ids=allowed_event_ids)
+    morning = _two_way_paid("morning", ev, allowed,
+                            event_ids=allowed_event_ids,
+                            gd_window=gd_window)
+    close = _two_way_paid("close", ev, allowed,
+                          event_ids=allowed_event_ids,
+                          gd_window=gd_window)
     print(f"morning pairs {morning.height} close pairs {close.height}")
     if args.entry_clock == "registered":
         friend = _two_way_friend(
@@ -478,6 +522,14 @@ def main(argv: list[str] | None = None) -> int:
     invalid: set[str] = set()
     env = None
     env_present = env_path.exists()
+    if market_only and not env_present:
+        # fail closed: without the envelope there is no authoritative
+        # vendor timing, so decision-time availability cannot be
+        # verified. Disclosure of disabled enforcement is insufficient.
+        raise SystemExit(
+            "market-only replay requires snapshot_envelope.parquet "
+            "(fail closed: no envelope -> no verifiable decision-time "
+            "vendor timing)")
     if env_present:
         env_scan = pl.scan_parquet(env_path).filter(
             pl.col("snapshot").is_in(("morning", "close"))
@@ -523,6 +575,12 @@ def main(argv: list[str] | None = None) -> int:
         panel_scan = panel_scan.filter(
             (pl.col("gd") >= gd_window[0])
             & (pl.col("gd") <= gd_window[1]))
+    if market_only:
+        # access boundary: market-only projects the panel's minimum
+        # identity/date/line/settlement fields only; model probability
+        # columns are never decoded in this mode
+        panel_scan = panel_scan.select(
+            ["gd", "key", "line", "y", "player_name"])
     uni_settled = panel_scan.filter(
         pl.col("y").is_not_null()
     ).collect()
@@ -675,6 +733,11 @@ def main(argv: list[str] | None = None) -> int:
                     # lag = commence - vendor: negative means the vendor
                     # quote is post-commence, not a decision-time price
                     entry_reason = "entry_timing_post_commence"
+                elif float(m_lag) < MORNING_DECISION_LAG_SEC:
+                    # quote exists but arrived AFTER the declared T-5h
+                    # decision: unavailable at decision time even though
+                    # it is pregame (a T-1h quote is not a T-5h input)
+                    entry_reason = "entry_timing_after_decision"
         else:
             entry_reason = "no_two_way_entry_price"
         entry_eligible = entry_reason == ""
@@ -702,6 +765,10 @@ def main(argv: list[str] | None = None) -> int:
                 close_reason = "close_timing_unavailable"
             elif float(c_lag) < 0:
                 close_reason = "close_invalid_vendor"
+            elif float(c_lag) < CLOSE_DECISION_LAG_SEC:
+                # vendor quote arrived after the declared T-5min close
+                # benchmark time: not a close-decision-time price
+                close_reason = "close_timing_after_decision"
         fair_close = None
         close_benchmark_available = False
         if close_reason == "":
@@ -739,7 +806,9 @@ def main(argv: list[str] | None = None) -> int:
                                 if oa is not None else None),
             "pnl_flat1u_under": (bet_pnl(1.0, ua, won=(not won_over))
                                  if ua is not None else None),
-            "has_model_probability": rec.get("p_ours_cal") is not None,
+            "has_model_probability": (
+                rec["p_ours_cal"] is not None
+                if "p_ours_cal" in rec else None),
             # ---- separated states with independent denominators
             "entry_eligible": entry_eligible,
             "entry_reason": entry_reason or "eligible",
@@ -825,12 +894,17 @@ def main(argv: list[str] | None = None) -> int:
             "denominator": len(entry_ok),
             "reason_counts": close_reason_counts,
         },
+        # model probability is not accessed in market-only mode
         "has_model_probability_share": (
-            float(np.mean([1.0 if r["has_model_probability"] else 0.0
-                           for r in base_rows])) if base_rows else None),
+            None if market_only else
+            (float(np.mean([1.0 if r["has_model_probability"] else 0.0
+                            for r in base_rows])) if base_rows else None)),
         "note": ("market-only movement baseline over ALL baseline-"
                  "eligible contracts; model-selected performance is "
-                 "reported separately in the taken/selection sections"),
+                 "reported separately in the taken/selection sections"
+                 if not market_only else
+                 "market-only movement baseline over ALL candidates; "
+                 "model probability, policy and sizing not accessed"),
     }
 
     # ---- market-only execution path: legacy model probability
@@ -851,13 +925,33 @@ def main(argv: list[str] | None = None) -> int:
                 "book": "DK else FD else next US book with two-way quote",
                 "vendor_timing_enforced": bool(env_present),
                 "timing_note": (
-                    "envelope present: morning/close vendor timestamps "
-                    "must exist and precede commence; missing or "
-                    "post-commence timing is an explicit unavailable/"
-                    "refusal state"
+                    "envelope present and required: morning/close "
+                    "vendor timestamps must exist and be at or before "
+                    "the declared decision times (morning T-5h, close "
+                    "T-5min before commence); missing, post-commence "
+                    "or post-decision timing is an explicit "
+                    "unavailable/refusal state"
                     if env_present else
                     "envelope absent: timing enforcement disabled "
                     "(legacy behavior)"),
+                "timing_reference": (
+                    "commence_time (vendor convention); actual "
+                    "first-pitch time is NOT supplied and is NOT "
+                    "equated to commence"),
+                "units": {
+                    "fair_over_entry": "probability [0,1] (over-side "
+                                       "multiplicative de-vig)",
+                    "movement_pp": "percentage points of fair-over "
+                                   "probability (close minus entry; "
+                                   "positive = over side shortened)",
+                    "clv_pp_over/under": "percentage points vs entry "
+                                         "fair (over/under perspective)",
+                    "entry_roi_flat1u_over/under": "units won or lost "
+                                                   "per 1.0 unit flat "
+                                                   "stake at entry price",
+                    "over_hit_share": "fraction of contracts where the "
+                                      "over won (panel y = 1)",
+                },
                 "gd_window": (f"{gd_window[0]}..{gd_window[1]} "
                               "(confirm_2025H2 excluded pre-decode)"
                               if gd_restricted else "full (canonical)"),

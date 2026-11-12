@@ -89,12 +89,27 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   close_reason. Report denominators: entry over all candidates,
   settlement over all candidates, close benchmark over
   entry-eligible rows only.
-  (5) calendar validation: real dates enforced (2025-02-30 refused).
-  Tests: 9 green in tests/test_entry_clock.py (end-to-end market-only,
-  report denominators + absence of legacy sections, close-timing
-  unavailable, registered Friend-fixture read, raising Friend spy,
-  duplicate-side refusal, ambiguous-key refusal, calendar date,
-  restricted command with dev window). Combined gate: 63 passed.
+  (5) calendar validation: real dates enforced (2025-02-30 refused);
+  2026-extending gd windows refused outright (no authorization flag).
+  (6) decision-time availability (not merely pregame): morning entry
+  requires lag >= 18000 s (T-5h) and close benchmark requires
+  lag >= 300 s; a T-1h morning quote is refused
+  (entry_timing_after_decision); close analog
+  close_timing_after_decision. Reference is commence; actual
+  first-pitch is not equated.
+  (7) fail-closed: market-only refuses to run without
+  snapshot_envelope.parquet and without the cached event-date map
+  (no rebuild authorized); floors JSON not read in market-only mode;
+  panel access projected to minimum identity/date/line/settlement
+  fields only (gd, key, line, y, player_name; p_ours_cal never
+  decoded); book-lines game_date bounds pushed into the scan
+  (deterministic rg11-rg17 decode scope for 2025H1).
+  Tests: 14 green in tests/test_entry_clock.py (adds
+  entry_timing_after_decision, envelope-absent fail-closed, 2026
+  window refusal, missing event-map refusal). Combined gate: 67
+  passed. Row-group layouts verified footer-only: panel = 1 group
+  (2025-03-27..2026-09-13; full-projected-column decode unavoidable,
+  declared in the execution manifest); book_lines = 35 groups.
 
 ### FORWARD
 

@@ -39,12 +39,16 @@ def _book_lines_rows(extra=None):
     evt003: morning+close quotes, close envelope POST-commence
             (lag < 0 -> close_invalid_vendor)
     evt004: morning quotes only (no close snapshot at all)
+    evt005: morning+close quotes, morning vendor timestamp at T-1h
+            (lag 3600 < 18000): pregame but NOT available at the
+            declared T-5h decision -> entry_timing_after_decision
     """
     rows = []
     for evt, pk, snaps in (("evt001", "aa p", ("morning", "close")),
                            ("evt002", "bb p", ("morning", "close")),
                            ("evt003", "cc p", ("morning", "close")),
-                           ("evt004", "dd p", ("morning",))):
+                           ("evt004", "dd p", ("morning",)),
+                           ("evt005", "ee p", ("morning", "close"))):
         for snap in snaps:
             for book in ("draftkings", "fanduel"):
                 for side, price in (("over", -120), ("under", 105)):
@@ -73,6 +77,8 @@ def _panel_rows():
          "y": 1.0, "p_book_close": 0.50, "player_name": "P C"},
         {"gd": GD, "key": "dd p", "line": LINE, "p_ours_cal": 0.50,
          "y": 0.0, "p_book_close": 0.50, "player_name": "P D"},
+        {"gd": GD, "key": "ee p", "line": LINE, "p_ours_cal": 0.50,
+         "y": 1.0, "p_book_close": 0.50, "player_name": "P E"},
     ]
 
 
@@ -109,6 +115,12 @@ def _envelope_rows():
          "reconstructed_ts": f"{GD}T14:00:00Z",
          "commence_time": f"{GD}T23:00:00Z",
          "lag_vendor_vs_commence_sec": 32400},
+        # evt005: vendor morning quote stamped T-1h before commence
+        {"event_id": "evt005", "snapshot": "morning",
+         "vendor_timestamp": f"{GD}T22:00:00Z",
+         "reconstructed_ts": f"{GD}T18:00:00Z",
+         "commence_time": f"{GD}T23:00:00Z",
+         "lag_vendor_vs_commence_sec": 3600},
     ]
 
 
@@ -116,7 +128,7 @@ FRIEND_CSV = "game_date,player_name,line,bookmaker,over_odds,under_odds\n"
 
 
 def _setup(tmp_path: Path, extra_book_rows=None, friend_csv=None,
-           extra_events=None):
+           extra_events=None, with_envelope=True):
     """Create all synthetic inputs in tmp_path and patch constants."""
     hist = tmp_path / "hist"
     hist.mkdir(parents=True)
@@ -125,16 +137,22 @@ def _setup(tmp_path: Path, extra_book_rows=None, friend_csv=None,
     odds_dir.mkdir(parents=True)
     jr.__dict__["ODDS_DIR"] = odds_dir
     jr.__dict__["PANEL"] = odds_dir / "universe_panel_live.parquet"
+    # cached event-date map (must EXIST; market-only refuses a rebuild)
+    evmap = hist / "event_date_map.json"
+    jr.__dict__["EVENT_DATE_MAP"] = hist / "event_date_map.json"
     # Friend fixture (registered mode reads it; morning_only must not)
     friend = tmp_path / "friend.csv"
     friend.write_text(friend_csv if friend_csv is not None
                       else FRIEND_CSV, encoding="utf-8")
     jr.__dict__["FRIEND"] = friend
 
-    events = {"evt001": GD, "evt002": GD, "evt003": GD, "evt004": GD}
+    events = {"evt001": GD, "evt002": GD, "evt003": GD, "evt004": GD,
+              "evt005": GD}
     if extra_events:
         events.update(extra_events)
     jr.__dict__["load_event_date_map"] = lambda: dict(events)
+    # the cached map file must physically exist (no rebuild authorized)
+    evmap.write_text(json.dumps(events), encoding="utf-8")
 
     pl.DataFrame(_book_lines_rows(extra_book_rows), schema={
         "event_id": pl.Utf8, "snapshot": pl.Utf8, "snapshot_ts": pl.Utf8,
@@ -154,7 +172,8 @@ def _setup(tmp_path: Path, extra_book_rows=None, friend_csv=None,
         "vendor_timestamp": pl.Utf8, "reconstructed_ts": pl.Utf8,
         "commence_time": pl.Utf8,
         "lag_vendor_vs_commence_sec": pl.Int64},
-        orient="row").write_parquet(hist / "snapshot_envelope.parquet")
+        orient="row").write_parquet(hist / "snapshot_envelope.parquet") \
+        if with_envelope else None
 
     jr.__dict__["OUT_PARQUET"] = odds_dir / "juiced_replay_candidates__t.parquet"
     jr.__dict__["OUT_REPORT"] = odds_dir / "juiced_replay_report__t.json"
@@ -168,10 +187,10 @@ def test_market_only_end_to_end(tmp_path):
     assert rc == 0
 
     base = pl.read_parquet(jr.OUT_BASELINE)
-    assert base.height == 4
+    assert base.height == 5
     by_key = {r["key"]: r for r in base.iter_rows(named=True)}
     # evt002: missing model probability is NOT a barrier in market-only
-    assert by_key["bb p"]["has_model_probability"] is False
+    assert by_key["bb p"]["has_model_probability"] is None
     assert by_key["bb p"]["entry_eligible"] is True
     # evt003: close vendor quote post-commence -> explicit refusal
     assert by_key["cc p"]["close_reason"] == "close_invalid_vendor"
@@ -180,6 +199,10 @@ def test_market_only_end_to_end(tmp_path):
     assert by_key["dd p"]["entry_eligible"] is True
     assert by_key["dd p"]["close_reason"] == "no_two_way_close"
     assert by_key["dd p"]["close_benchmark_available"] is False
+    # evt005: T-1h vendor quote is pregame but NOT available at the
+    # declared T-5h decision -> explicit refusal
+    assert by_key["ee p"]["entry_eligible"] is False
+    assert by_key["ee p"]["entry_reason"] == "entry_timing_after_decision"
     # evt001: fully available; movement from canonical de-vig
     # -120 -> 120/220 = 0.5455 implied; +105 -> 100/205 = 0.4878
     # fair over = 0.5455 / (0.5455 + 0.4878) = 0.5279
@@ -209,20 +232,56 @@ def test_market_only_report_denominators(tmp_path):
                    "probation_2_5_3_5", "taken_by_book"):
         assert legacy not in rep
     d = rep["baseline_market_only"]
-    assert d["n_baseline_rows"] == 4
+    assert d["n_baseline_rows"] == 5
     # independent denominators
-    assert d["entry"]["denominator"] == 4
+    assert d["entry"]["denominator"] == 5
     assert d["entry"]["n_eligible"] == 4
-    assert d["settlement"]["denominator"] == 4
-    assert d["settlement"]["n_available"] == 4
+    assert d["entry"]["reason_counts"]["entry_timing_after_decision"] == 1
+    assert d["settlement"]["denominator"] == 5
+    assert d["settlement"]["n_available"] == 5
     # close benchmark is assessed over the entry-eligible population
     assert d["close_benchmark"]["denominator"] == 4
     assert d["close_benchmark"]["n_available"] == 1  # evt001 only
     assert d["close_benchmark"]["reason_counts"] == {
         "available": 1, "no_two_way_close": 1,
-        "close_invalid_vendor": 1, "close_timing_unavailable": 1}
+        "close_invalid_vendor": 1, "close_timing_unavailable": 2}
+    # model probability was never accessed in market-only mode
+    assert d["has_model_probability_share"] is None
     mv = rep["market_movement"]
     assert mv["n"] == 1 and mv["denominator"] == 4
+    assert rep["contract"]["units"]["movement_pp"].startswith(
+        "percentage points")
+
+
+def test_entry_timing_after_decision_refused(tmp_path):
+    _setup(tmp_path)
+    jr.main(["--entry-clock", "morning_only"])
+    base = pl.read_parquet(jr.OUT_BASELINE)
+    r = {x["key"]: x for x in base.iter_rows(named=True)}["ee p"]
+    assert r["entry_reason"] == "entry_timing_after_decision"
+    assert r["entry_eligible"] is False
+    assert r["movement_pp"] is None
+
+
+def test_market_only_fails_closed_without_envelope(tmp_path):
+    _setup(tmp_path, with_envelope=False)
+    with pytest.raises(SystemExit, match="fail closed"):
+        jr.main(["--entry-clock", "morning_only"])
+
+
+def test_market_only_refuses_2026_window(tmp_path):
+    _setup(tmp_path)
+    with pytest.raises(SystemExit, match="2026 rows stay closed"):
+        jr.main(["--entry-clock", "morning_only",
+                 "--gd-start", "2025-01-01", "--gd-end", "2026-06-30",
+                 "--out-suffix", "__x"])
+
+
+def test_market_only_refuses_missing_event_map(tmp_path):
+    _setup(tmp_path)
+    (tmp_path / "hist" / "event_date_map.json").unlink()
+    with pytest.raises(SystemExit, match="event-date map"):
+        jr.main(["--entry-clock", "morning_only"])
 
 
 def test_close_timing_unavailable_state(tmp_path):
@@ -313,8 +372,8 @@ def test_main_entry_restricted_command(tmp_path):
     rep = json.loads(out_rep.read_text(encoding="utf-8"))
     assert rep["contract"]["gd_window"] == \
         "2025-01-01..2025-06-30 (confirm_2025H2 excluded pre-decode)"
-    assert rep["n_candidates"] == 4
+    assert rep["n_candidates"] == 5
     # gd window excludes nothing here (all events are 2025-04-10)
     base = pl.read_parquet(jr.OUT_BASELINE.with_name(
         jr.OUT_BASELINE.stem + "__dev2025H1" + jr.OUT_BASELINE.suffix))
-    assert base.height == 4
+    assert base.height == 5
