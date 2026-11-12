@@ -32,17 +32,20 @@ diagnostic (PR #83) merged.
   fourth close-side ambiguous key, castillo luis 2025-04-09, beyond
   the bound three; receipt on PR #87 comment 6829936974; no outputs;
   panel exception not consumed). Awaiting the owner's binding decision.
-- NEW: docs/reference/reports/control_vs_books_evaluation_packet_2026-11-12.md
-  - bounded current-control-versus-books evaluation packet: registered
-  control PMF artifact (platoon reproduction k-PMF, control arm
-  pmf_multinomial_control), eligible cohort f77d7a66... (2,509 starts),
-  NEAR-CLOSE benchmark label (morning model-input availability
-  unestablished - NOT a morning trading replay), book/consensus
-  contract (tier A 60-min cutoff / tier B close snapshot; LTBO >= 2
-  other books), ONE missing wiring step (declared start_dates from
-  count_agg_eval_v1 + ordered seam call into the gated
-  run_market_eval_k). Uses existing bridge/seam/scorer only. NOT
-  EXECUTED; needs the registered market-eval gate + owner order.
+- IMPLEMENTED (PR #88): the thin orchestration runner
+  research/offseason_2026/pregame_pa_ext/run_control_vs_books.py
+  (hash-pinned inputs incl. count_agg_eval dates afc94ad7...;
+  declared start_dates from count_agg_eval_v1 restricted to the
+  cohort, exact-cover enforced by the seam; registered
+  build_task_frames bridge; ack EXECUTE-CONTROL-VS-BOOKS-V1;
+  write-once receipts; control arm pmf_multinomial_control ONLY;
+  NEAR-CLOSE label retained). Identity map + treatment rule +
+  minimum-exact-read proposal added to the packet (sections 0-0d).
+- Tests: tests/test_control_vs_books_runner.py (8 green) +
+  tests/test_event_player_bridge.py (5 fixtures vs the canonical
+  bridge: name normalization, doubleheaders, two vendor IDs -> one
+  validated game, closest-date wins, unmatched). NOT EXECUTED on
+  real data (registered gate + owner order).
 
 ## Prior action: identity-exclusion policy (CLOSED, PR #87 merged)
 

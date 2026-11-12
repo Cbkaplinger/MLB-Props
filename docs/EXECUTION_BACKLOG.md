@@ -94,14 +94,29 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    outputs; panel exception NOT consumed; receipt preserved (PR #87
    comment 6829936974). Next decision (owner): amend the binding to
    the four-key set (new order) or declare close-side treatment.
-2. Current-control-versus-books evaluation packet PREPARED (this PR):
-   docs/reference/reports/control_vs_books_evaluation_packet_2026-11-12.md
-   - registered control arm pmf_multinomial_control (k-PMF artifact
-   pin 8c5c849c...; provenance: byte-identical platoon reproduction,
-   receipt_final b1b91357...), cohort f77d7a66... (2,509 starts),
-   NEAR-CLOSE benchmark label (morning model-input availability
-   unestablished), one missing wiring step = declared start_dates
-   from count_agg_eval_v1 + ordered seam call. NOT EXECUTED.
+2. Current-control-versus-books evaluation packet (PR #88, this
+   branch): packet EXTENDED with (0) recovery-evidence reconciliation
+   (fourth key = close-side union discovery; receipts unchanged; no
+   duplicate claim without evidence), (0b) the canonical identity
+   implementation map (join_coverage.build_task_frames: event->game
+   via +-1-day closest-date + event_id-order tiebreak, id-map
+   player->MLBAM, meta-counted ambiguity/unmatched; no second
+   matcher), (0c) the minimum exact read proposal for the four
+   ambiguous keys (envelope commence/home/away + event-index game
+   number for 8 event ids only), (0d) the coherent treatment rule
+   (declared exclusion with classification provenance; validated
+   same-game mapping proposed as future owner option, not
+   implemented), and the IMPLEMENTED wiring (0->5):
+   research/offseason_2026/pregame_pa_ext/run_control_vs_books.py -
+   gated write-once runner (pins: k-PMF 8c5c849c..., assessment
+   464fe192..., count_agg_eval dates afc94ad7...; cohort hash
+   f77d7a66...; ack EXECUTE-CONTROL-VS-BOOKS-V1; control arm
+   pmf_multinomial_control ONLY, legacy panel never read; NEAR-CLOSE
+   label retained). Tests: tests/test_control_vs_books_runner.py (8
+   green + 1 skip) and tests/test_event_player_bridge.py (5
+   skipif-guarded fixtures: name-order normalization, doubleheaders,
+   two vendor IDs -> one validated game, closest-date-wins, unmatched
+   player/game). NOT EXECUTED on real data (gate + owner order).
 3. Boundary-exception coverage follow-up: implemented + 8 synthetic
    tests; NOT RUN on real odds (owner authorization; near-close
    labeling preserved).

@@ -2,8 +2,105 @@
 
 Bounded preparation only. No fitting, model search, calibration,
 blending, or staking changes. No framework built - every stage reuses
-the registered bridge, seam and scorer. NOT EXECUTED; real-data use
-requires the registered market-eval gate plus a delegated owner order.
+the registered bridge, seam and scorer. The thin orchestration wiring
+is NOW IMPLEMENTED (run_control_vs_books.py, synthetic-tested); real
+execution still requires the registered market-eval gate plus a
+delegated owner order.
+
+## 0. Recovery evidence reconciliation (both receipts unchanged)
+
+- **Receipt 1 (stopped run, execution of record):** PR #86 comment
+  6816558623. Refused INSIDE morning pair construction: the
+  morning-scan ambiguity guard reported 3 reduced keys (chris paddack
+  4.5, gavin williams 5.5, bryan woo 4.5; 2 event_ids each). Close
+  screening never ran.
+- **Receipt 2 (amended run, PR #87 comment 6829936974):** refused at
+  the binding gate: morning+close UNION detected the same 3 keys
+  (expected-only empty - all three CONFIRMED) plus a fourth,
+  close-side key (2025-04-09, castillo luis, 4.5).
+- **Reconciliation:** the two receipts are consistent - receipt 1
+  sampled the morning scan only (the guard stopped there); receipt 2's
+  union legitimately adds close-side ambiguities. No contradiction.
+- **Available evidence:** the detected reduced keys + n_ev counts;
+  both guards' committed code paths; the binding file; unchanged input
+  hashes. **Missing evidence:** the conflicting event_ids per key
+  (not persisted by either refusal), and any game-level fields
+  (commence_time, home/away teams, scheduled times/game numbers) for
+  those events.
+- **Not claimed as duplicates:** a (gd, key) mapping to two event_ids
+  is NOT called a vendor duplicate without supporting evidence - it
+  could be a legitimate doubleheader listing or a vendor re-listing.
+  Classification requires the minimum read below; no outcome-, price-,
+  or performance-based resolution is proposed.
+
+## 0b. Identity implementation map (canonical, cited)
+
+- **Bridge:** odds-coverage-v1 `join_coverage.build_task_frames`
+  (private card `C:\Users\ckaplinger\MLB-Props-Research\odds-coverage-v1\join_coverage.py`;
+  card manifest pins book_lines `325abdf0...`, envelope `2b73bc40...`,
+  bf_forecasts `c9c2762f...`, player_id_map `8a463f5c...`).
+- **Name normalization:** `norm_name`/`sorted_name` in the card are a
+  documented mirror of the canonical `norm_player_name`
+  (src/Python/odds_ledger.py) + token-sorted key; tests:
+  private `test_join_coverage.py` (TestNameNormalization,
+  TestRealArchiveSmoke, 7 test classes) + repo fixtures
+  `tests/test_event_player_bridge.py`.
+- **Vendor event -> MLB game:** archive event_map
+  (event_id, game_date, player_norm) matched to starts on the sorted
+  name key with a +-1 day date tolerance (Savant LOCAL game date vs
+  vendor UTC commence date); winner = closest `|date_dist|`, then
+  event_id order; `unique(subset=[game_pk, pitcher])`. Duplicate
+  (game_date, pitcher_key) event pairs are COUNTED
+  (`archive_event_map_duplicate_keys`), never silently mixed; the
+  deterministic tiebreak is disclosed.
+- **Vendor player -> MLBAM:** `data/dimensions/player_id_map.parquet`
+  (mlb_id -> player_name -> sorted key); unresolved names counted
+  (`starts_name_unresolved_from_id_map`), never guessed.
+- **Date/time evidence:** vendor game_date (UTC of commence) vs Savant
+  local game_date (+-1 day tolerance, documented ET-vs-UTC artifact);
+  first_pitch_ts = envelope earliest commence_time
+  (`load_envelope_commence`); `has_commence` = envelope presence.
+- **Ambiguity/duplicate/unmatched behavior:** duplicate (game_date,
+  pitcher_key) event sets -> meta-counted, resolved by the declared
+  closest-date + event_id-order rule (one deterministic winner; the
+  losing event's quotes never enter the task odds); vendor players
+  with no start -> excluded from odds; starts with no event ->
+  has_commence False + meta count. All behavior pinned by the new
+  repo fixtures (two-vendor-IDs, closest-date-wins, doubleheader,
+  unmatched).
+- **No second matcher was created** - the wiring and tests reuse this
+  canonical bridge.
+
+## 0c. Minimum exact read (proposal; NOT executed)
+
+To classify the four ambiguous reduced keys (three receipt-bound +
+castillo luis 2025-04-09) WITHOUT outcomes/prices:
+- event_id lists per key: already-authorized book-lines rg scope
+  (event_id, game_date, player_norm columns only);
+- envelope columns `commence_time`, `home_team`, `away_team` for
+  those specific event_ids (already-declared envelope fields);
+- if still unresolved: the vendor event-index game number for those
+  event_ids only (doubleheader indicator).
+This is a bounded 8-event-id lookup, not a lake-wide query.
+
+## 0d. Treatment rule (proposal, one coherent rule)
+
+For each reduced key whose identity maps to multiple event_ids,
+classify via the canonical bridge (starts match + envelope evidence):
+`validated_same_game` (all conflicting event_ids map to one validated
+MLB game - same (game_pk, pitcher) start, supported by identical
+commence/team evidence), `conflicting_games`, or `unresolved`.
+Treatment (one rule, applied to morning AND close BEFORE pair
+construction): **declared exclusion with recorded classification
+provenance** in every case - the panel join is reduced-key and cannot
+tolerate event-level fan-out, so ambiguity at the reduced key excludes
+the candidate regardless of classification; the classification
+(validated_same_game vs conflicting_games vs unresolved) is recorded
+as the auditable reason. No arbitrary first(), no fuzzy-score
+acceptance, no silent key widening; complete denominators preserved.
+(If the owner prefers, a future order could admit validated_same_game
+keys through the existing duplicate-side guard - that is NOT
+implemented and needs its own declared rule.)
 
 ## 1. Registered control PMF artifact and provenance
 
@@ -79,7 +176,7 @@ requires the registered market-eval gate plus a delegated owner order.
 - One-sided ladders are never converted into PMFs; no model PMF is
   inferred from a single line.
 
-## 5. Existing invocation vs the ONE missing orchestration step
+## 5. Orchestration wiring (now implemented; was the ONE missing step)
 
 - **Exists (implemented, synthetic-tested, merged):**
   `market_benchmark_seam.benchmark_contract_rows` (Seam A
@@ -87,24 +184,27 @@ requires the registered market-eval gate plus a delegated owner order.
   paired contract rows; the registered `score_starts` and
   `paired_line_scores` scorers with the slate-date bootstrap) and the
   gated `market_eval_k.run_market_eval_k` runner.
-- **ONE missing step (precise):** a thin research-side runner that
-  loads the pinned files and calls the existing glue, write-once:
-  1. read k-PMF, assessment, cohort (the three pinned files);
-  2. `observed = cpd.derive_observed_k(assessment)`;
-  3. **declare start_dates from the registered
-     `count_agg_eval_v1.parquet`** (it carries game_pk, side,
-     pitcher, game_date, block, realized_k for the dev window;
-     4,823 rows) restricted to the cohort - the seam asserts exact
-     cover, so no date invention is possible (this is the only new
-     wiring; the pinned PMF/assessment/cohort carry NO game_date
-     column, verified footer-only);
-  4. build `quotes` + `starts_bridge` via the existing
-     `build_task_frames(book_lines, envelope, bf_forecasts, [MARKET],
-     window 2024-07-01..2025-06-30)`;
-  5. `benchmark_contract_rows(k_pmf, observed, start_dates, cohort,
-     cohort_hash, arm="pmf_multinomial_control", quotes,
-     starts_bridge)` -> coverage + model-vs-consensus and
-     book-vs-LTBO artifacts into a fresh write-once out-dir.
+- **IMPLEMENTED THIS PR (the one missing step):**
+  `research/offseason_2026/pregame_pa_ext/run_control_vs_books.py` -
+  a thin, gated, write-once runner that (1) hash-pins and loads the
+  three registered files plus `count_agg_eval_v1.parquet` (dates
+  source; pin `afc94ad7...`), (2) derives observed K via the
+  registered `derive_observed_k`, (3) declares start_dates from
+  count_agg_eval_v1 restricted to the cohort (seam asserts exact
+  cover - no date invention), (4) builds quotes + starts_bridge via
+  the registered `build_task_frames` (dev window 2024-07-01..2025-06-30),
+  (5) calls `benchmark_contract_rows` with
+  `arm="pmf_multinomial_control"` ONLY. Execution-ack
+  `EXECUTE-CONTROL-VS-BOOKS-V1`; write-once out-dir; receipt_initial /
+  receipt_final / failure_record preserved. Tests:
+  `tests/test_control_vs_books_runner.py` (name normalization, date
+  derivation exact-cover, conflicting-date refusal, missing-column
+  refusal, pin enforcement, ack gate, write-once, seam exact-cover
+  refusal through the runner's derivation).
+- **Remaining unknown:** whether the canonical id-map bridge resolves
+  every cohort start to a game_date (cohort ⊆ count_agg_eval_v1) -
+  the seam's exact-cover assertion answers it on first real run and
+  the runner records the failure receipt if not.
 - No new evaluation code path beyond that ordered call list.
 
 ## 6. Required access and expected outputs
