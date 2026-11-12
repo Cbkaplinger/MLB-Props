@@ -113,14 +113,22 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### FORWARD
 
-1. Real-data run packet (needs owner authorization; write-once):
-   `python production/ops/market_research/juiced_replay_ledger.py
-   --entry-clock morning_only --gd-start 2025-01-01
-   --gd-end 2025-06-30 --out-suffix __mkt2025H1`
-2. Boundary-exception coverage follow-up: implemented + 8 synthetic
+1. **Single-run order EXECUTED once (integrated main 16a99b0, head
+   edde515): STOPPED at a declared stop condition, exit 1** -- the
+   exact-identity guard refused 3 (gd,key,line) contracts in 2025H1
+   that map to TWO event_ids each (vendor duplicate event listings:
+   chris paddack 4.5, gavin williams 5.5, bryan woo on 2025-05-21 /
+   2025-06-11). No outputs produced; input hashes verified unchanged;
+   receipt posted on PR #86 (comment 6816558623). Per the single-run
+   order: preserved, no rerun, no bypass.
+2. Next decision (owner): authorize a DECLARED EXCLUSION of the 3
+   ambiguous (gd,key,line) contracts (explicit
+   ambiguous_event_identity reason, no silent resolution), then
+   re-issue the same single-run command.
+3. Boundary-exception coverage follow-up: implemented + 8 synthetic
    tests; NOT RUN on real odds (owner authorization; near-close
    labeling preserved).
-3. Scientific queue: no other task assigned.
+4. Scientific queue: no other task assigned.
 
 ### DEFERRED
 
