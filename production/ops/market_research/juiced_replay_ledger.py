@@ -112,21 +112,16 @@ def _event_frame(evdate: dict[str, str]) -> pl.DataFrame:
     )
 
 
-def _two_way_paid(
+def _paid_scan(
     snapshot: str,
     ev: pl.DataFrame,
     allowed_books: set[str] | None = None,
     event_ids: set[str] | None = None,
     gd_window: tuple | None = None,
 ) -> pl.DataFrame:
-    """Two-sided juiced-pair construction for one snapshot. When
-    ``event_ids`` is provided, the restriction is pushed INTO the lazy
-    scan (pre-decode): row groups outside the declared event set are
-    not decoded. This is the development boundary for year windows —
-    2026 rows are never decoded into a frame under a 2025 window.
-    ``gd_window`` additionally pushes the declared game_date bounds
-    into the scan so row-group pruning is statistics-based and the
-    decode scope is deterministic (rg11-rg17 for a 2025H1 window)."""
+    """Shared lazy scan + gd-attach for one paid snapshot (post-guards,
+    pre-pairing). Used by pair construction AND identity screening so
+    both see the same declared decode scope."""
     scan = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
         (pl.col("market") == "pitcher_strikeouts")
         & (pl.col("snapshot") == snapshot)
@@ -140,11 +135,61 @@ def _two_way_paid(
     if event_ids is not None:
         scan = scan.filter(pl.col("event_id").is_in(sorted(event_ids)))
     bk = scan.collect()
-    bk = bk.join(ev, on="event_id", how="left").filter(
+    return bk.join(ev, on="event_id", how="left").filter(
         pl.col("gd").is_not_null() & (pl.col("gd") != "")
     ).with_columns(
         pl.col("player_norm").map_elements(sorted_key, return_dtype=pl.Utf8).alias("key")
     )
+
+
+def _ambiguous_reduced_keys(
+    snapshot: str,
+    ev: pl.DataFrame,
+    allowed_books: set[str] | None = None,
+    event_ids: set[str] | None = None,
+    gd_window: tuple | None = None,
+) -> pl.DataFrame:
+    """Reduced identities (gd, key, line) that map to MORE THAN ONE
+    event_id in the permitted inputs. Determined BEFORE book selection,
+    outcome consumption or scoring. Never resolved -- only refused or
+    excluded by declared policy."""
+    bk = _paid_scan(snapshot, ev, allowed_books, event_ids, gd_window)
+    return bk.group_by(["gd", "key", "line"]).agg(
+        pl.col("event_id").n_unique().alias("n_ev"),
+        pl.col("event_id").unique().sort().alias("event_ids"),
+    ).filter(pl.col("n_ev") > 1).drop("n_ev")
+
+
+def _two_way_paid(
+    snapshot: str,
+    ev: pl.DataFrame,
+    allowed_books: set[str] | None = None,
+    event_ids: set[str] | None = None,
+    gd_window: tuple | None = None,
+    drop_keys: set | None = None,
+) -> pl.DataFrame:
+    """Two-sided juiced-pair construction for one snapshot. When
+    ``event_ids`` is provided, the restriction is pushed INTO the lazy
+    scan (pre-decode): row groups outside the declared event set are
+    not decoded. This is the development boundary for year windows —
+    2026 rows are never decoded into a frame under a 2025 window.
+    ``gd_window`` additionally pushes the declared game_date bounds
+    into the scan so row-group pruning is statistics-based and the
+    decode scope is deterministic (rg11-rg17 for a 2025H1 window).
+    ``drop_keys`` (opt-in exclusion policy) removes declared ambiguous
+    reduced identities BEFORE pair construction; it is an EXCLUSION,
+    never an identity resolution."""
+    scan_source = _paid_scan(snapshot, ev, allowed_books, event_ids,
+                             gd_window)
+    bk = scan_source
+    if drop_keys:
+        # anti-join on the reduced key: excluded candidates never reach
+        # pair construction, so no book selection can re-introduce them
+        drop_frame = pl.DataFrame(
+            [ {"gd": k[0], "key": k[1], "line": float(k[2])}
+              for k in sorted(drop_keys) ],
+            schema={"gd": pl.Utf8, "key": pl.Utf8, "line": pl.Float64})
+        bk = bk.join(drop_frame, on=["gd", "key", "line"], how="anti")
     # --- identity guards (no silent ambiguity resolution). A reduced
     # (gd, key, line) that maps to more than one event_id would fan out
     # every downstream join; refuse instead of picking first().
@@ -379,6 +424,24 @@ def _fail_date(flag: str, value: str) -> None:
         "refusing before any input/output side effect")
 
 
+def _check_exclusion_binding(excl: dict, path: str) -> None:
+    """Bind the detected ambiguous reduced keys to a preserved receipt.
+    A detected set different from the bound set REFUSES the run -- the
+    exclusion list is never silently expanded."""
+    spec = json.loads(Path(path).read_text(encoding="utf-8"))
+    expected = {(str(e["gd"]), str(e["key"]), float(e["line"]))
+                for e in spec["expected_excluded_keys"]}
+    detected = set(excl)
+    if expected != detected:
+        missing = sorted(expected - detected)
+        extra = sorted(detected - expected)
+        raise SystemExit(
+            "exclusion-set mismatch: the run is bound to a preserved "
+            f"receipt ({path}); expected-only={missing} "
+            f"detected-only={extra}; stopping (never silently expand "
+            "exclusions)")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--floor-uniform", type=float, default=None,
@@ -396,6 +459,24 @@ def main(argv: list[str] | None = None) -> int:
                          "(canonical decision clock); morning_only = "
                          "paid morning T-5h only (skips Friend CSV "
                          "read and Friend join entirely)")
+    ap.add_argument("--identity-policy", choices=("refuse",
+                                                  "exclude_ambiguous"),
+                    default="refuse",
+                    help="refuse = refuse the run when a reduced "
+                         "(gd,key,line) identity maps to multiple "
+                         "event_ids (default; exact-contract identity); "
+                         "exclude_ambiguous = development-baseline "
+                         "EXCLUSION policy: every affected candidate is "
+                         "excluded with reason ambiguous_event_identity "
+                         "and preserved in accounting with all "
+                         "conflicting event_ids -- never resolved, "
+                         "never first/cheapest/latest/most-favorable")
+    ap.add_argument("--expected-excluded-keys", default=None,
+                    help="JSON binding file listing the expected "
+                         "excluded reduced keys (binds the run to a "
+                         "preserved receipt); requires --identity-policy "
+                         "exclude_ambiguous; a detected set different "
+                         "from the bound set REFUSES the run")
     ap.add_argument("--out-suffix", default="",
                     help="sidecar suffix; empty reproduces canonical outputs")
     ap.add_argument("--gd-start", default=None,
@@ -497,12 +578,52 @@ def main(argv: list[str] | None = None) -> int:
                 "cached event dates; refusing rather than decoding the "
                 "full lake")
     print("attaching paid morning/close two-way pairs...")
+    # ---- identity screening (determines exclusions BEFORE book
+    # selection, model/outcome consumption or scoring). Default policy
+    # is refuse: any reduced identity mapping to multiple event_ids
+    # stops the run inside _two_way_paid. The opt-in policy excludes.
+    exclude_ambiguous = args.identity_policy == "exclude_ambiguous"
+    if args.expected_excluded_keys and not exclude_ambiguous:
+        raise SystemExit(
+            "--expected-excluded-keys requires --identity-policy "
+            "exclude_ambiguous")
+    excl: dict[tuple, dict] = {}
+    binding = None
+    if exclude_ambiguous:
+        amb_m = _ambiguous_reduced_keys(
+            "morning", ev, allowed,
+            event_ids=allowed_event_ids, gd_window=gd_window)
+        amb_c = _ambiguous_reduced_keys(
+            "close", ev, allowed,
+            event_ids=allowed_event_ids, gd_window=gd_window)
+        excl = {}
+        for snap, amb in (("morning", amb_m), ("close", amb_c)):
+            for r in amb.iter_rows(named=True):
+                kk = (r["gd"], r["key"], float(r["line"]))
+                e = excl.setdefault(kk, {"event_ids": [], "snapshots": []})
+                for eid in r["event_ids"]:
+                    if eid not in e["event_ids"]:
+                        e["event_ids"].append(eid)
+                if snap not in e["snapshots"]:
+                    e["snapshots"].append(snap)
+        if args.expected_excluded_keys:
+            _check_exclusion_binding(excl, args.expected_excluded_keys)
+            binding = {"source_file": args.expected_excluded_keys,
+                       "matched": True,
+                       "lineage": "expected set bound to the preserved "
+                                  "stopped-run receipt (PR #86 comment "
+                                  "6816558623; closed as execution of "
+                                  "record)"}
+        print(f"identity-policy exclude_ambiguous: "
+              f"{len(excl)} excluded reduced keys")
     morning = _two_way_paid("morning", ev, allowed,
                             event_ids=allowed_event_ids,
-                            gd_window=gd_window)
+                            gd_window=gd_window,
+                            drop_keys=set(excl) if exclude_ambiguous else None)
     close = _two_way_paid("close", ev, allowed,
                           event_ids=allowed_event_ids,
-                          gd_window=gd_window)
+                          gd_window=gd_window,
+                          drop_keys=set(excl) if exclude_ambiguous else None)
     print(f"morning pairs {morning.height} close pairs {close.height}")
     if args.entry_clock == "registered":
         friend = _two_way_friend(
@@ -702,6 +823,38 @@ def main(argv: list[str] | None = None) -> int:
     )
     base_rows = []
     for rec in j_base.iter_rows(named=True):
+        # ---- declared identity exclusion (BEFORE any outcome or
+        # scoring consumption). Excluded candidates stay in coverage
+        # accounting with their full reduced key, ALL conflicting
+        # event_ids and affected snapshots; quote values are not
+        # persisted; this is an EXCLUSION, not an identity resolution.
+        xkey = (rec["gd"], rec["key"], float(rec["line"]))
+        if xkey in excl:
+            e = excl[xkey]
+            base_rows.append({
+                "gd": rec["gd"], "key": rec["key"],
+                "player_name": rec.get("player_name"),
+                "line": float(rec["line"]), "snap": None, "book": None,
+                "entry_clock": args.entry_clock,
+                "yr": str(rec["gd"])[:4],
+                "entry_over": None, "entry_under": None,
+                "fair_over_entry": None,
+                "close_over": None, "close_under": None,
+                "fair_over_close": None, "movement_pp": None,
+                "clv_pp_over": None, "clv_pp_under": None,
+                "over_hit": None, "won_over": None,
+                "pnl_flat1u_over": None, "pnl_flat1u_under": None,
+                "has_model_probability": None,
+                "entry_eligible": False,
+                "entry_reason": "ambiguous_event_identity",
+                "settlement_available": None,
+                "close_benchmark_available": False,
+                "close_reason": "not_assessed_excluded",
+                "baseline_reason": "ambiguous_event_identity",
+                "conflicting_event_ids": ",".join(e["event_ids"]),
+                "affected_snapshots": ",".join(e["snapshots"]),
+            })
+            continue
         line = float(rec["line"])
         y = float(rec["y"])
         won_over = (y == 1.0)
@@ -822,6 +975,12 @@ def main(argv: list[str] | None = None) -> int:
     base_frame = pl.DataFrame(base_rows)
     atomic_write_parquet(base_frame, out_base)
     n_candidates = len(base_rows)
+    n_excluded_rows = sum(
+        1 for r in base_rows
+        if r["entry_reason"] == "ambiguous_event_identity")
+    # post-screening population: excluded candidates remain in coverage
+    # accounting but never re-enter entry/settlement/close denominators
+    n_screened = n_candidates - n_excluded_rows
     entry_ok = [r for r in base_rows if r["entry_eligible"]]
     settled_ok = [r for r in base_rows if r["settlement_available"]]
     close_ok = [r for r in base_rows
@@ -879,20 +1038,44 @@ def main(argv: list[str] | None = None) -> int:
             ((k, sum(1 for r in base_rows
                      if r["baseline_reason"] == k))
              for k in {r["baseline_reason"] for r in base_rows})},
-        # ---- independent denominators (Req: separated states)
+        # ---- independent denominators (Req: separated states).
+        # Post-screening population: excluded candidates (if any) stay
+        # in coverage accounting but never re-enter these denominators.
         "entry": {
             "n_eligible": len(entry_ok),
-            "denominator": n_candidates,
+            "denominator": n_screened,
             "reason_counts": entry_reason_counts,
         },
         "settlement": {
             "n_available": len(settled_ok),
-            "denominator": n_candidates,
+            "denominator": n_screened,
         },
         "close_benchmark": {
             "n_available": len(close_ok),
             "denominator": len(entry_ok),
             "reason_counts": close_reason_counts,
+        },
+        "identity_screening": {
+            "policy": args.identity_policy,
+            "scope": ("per reduced (gd,key,line) start/line identity; "
+                      "the minimum scope that makes the downstream "
+                      "panel join unambiguous; an ambiguity at either "
+                      "snapshot excludes the candidate from BOTH "
+                      "(union across morning and close, no re-entry)"),
+            "population_before_screening": n_candidates,
+            "n_excluded_keys": len(excl),
+            "n_excluded_rows": n_excluded_rows,
+            "population_after_screening": n_screened,
+            "excluded_keys": [
+                {"gd": k[0], "key": k[1], "line": k[2],
+                 "event_ids": v["event_ids"],
+                 "snapshots": v["snapshots"]}
+                for k, v in sorted(excl.items())],
+            "binding": binding,
+            "note": ("exclusion is a DECLARED DEVELOPMENT-BASELINE "
+                     "EXCLUSION, not an identity resolution; no "
+                     "first/cheapest/latest/most-favorable selection "
+                     "is made and no excluded quote values persist"),
         },
         # model probability is not accessed in market-only mode
         "has_model_probability_share": (

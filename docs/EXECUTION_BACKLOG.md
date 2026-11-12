@@ -40,95 +40,62 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Session snapshot - market-only T-5h replay completed (2026-11-11)
+## Session snapshot - identity-exclusion policy PR (2026-11-12)
 
 ### PAST
 
-- Consolidation closeout, dual-contract harness, control-arm parity,
-  paired-comparison reproduction, recovered-ideas register, board-clock
-  reconciliation: all CLOSED/VERIFIED (PRs #78-#84; full records in
-  prior snapshot receipts below).
-- Original board-coverage probe (PR #84, merged): correctly BLOCKED at
-  row-group separation (rg16-rg17 span the 2025-06-30 boundary).
-  Destination preserved; no data-page reads. Closed as BLOCKED.
-- Boundary-exception follow-up implemented + synthetic-tested (this
-  PR): explicit declared exception for book-lines boundary groups
-  rg16-rg17 (quote columns only); envelope footer preflight (fail-
-  closed on missing stats); immediate 2025H1 window filter after
-  decode; protected rows never persisted/printed/summarized.
-- gd-window validation hardened (b264520): malformed/reversed dates
-  refused before any I/O; envelope lag label corrected
-  (n_vendor_at_or_before_commence; lag = commence - vendor).
+- Market-only T-5h replay implemented + accepted + MERGED (PR #86,
+  main 16a99b0). Single-run order executed once on integrated main
+  (head edde515): STOPPED at a declared stop condition, exit 1 - the
+  exact-identity guard refused 3 (gd,key,line) contracts in 2025H1
+  mapping to TWO event_ids each (chris paddack 4.5, gavin williams
+  5.5, bryan woo 4.5; receipt PR #86 comment 6816558623, preserved
+  unchanged; that run is CLOSED as the execution of record; input
+  hashes verified unchanged; no outputs produced).
+- Board-coverage probes, boundary follow-up, recovered-ideas register:
+  CLOSED as recorded in prior snapshots.
 
 ### PRESENT
 
-- **MARKET-ONLY T-5h REPLAY COMPLETE (this PR):** juiced_replay_ledger
-  --entry-clock morning_only is now an explicit market-only execution
-  path:
-  (1) bypasses legacy model probability requirements (p_ours_cal not
-  required), policy filters (no floors/veto/probation) and sizing
-  execution (no Kelly/edge-band arms); the legacy candidates parquet is
-  NOT produced in this mode; baseline construction and canonical
-  multiplicative de-vig reused unchanged; registered defaults
-  preserved (bare canonical run unchanged).
-  (2) identity guards: duplicate quote sides for the same
-  (gd,key,line,book,event_id) are REFUSED in both paid lake and Friend
-  CSV; a (gd,key,line) mapping to multiple event_id values is REFUSED
-  (ambiguous reduced-key join) -- never resolved with first(). The
-  remaining book selection is the owner-declared pref rule (DK else FD
-  else next US book), documented as such.
-  (3) authoritative vendor timestamps: morning and close envelope rows
-  are attached to pairs; entry (paid morning) and close timing must
-  exist and precede commence; missing timestamp or post-commence
-  vendor ts yields explicit entry_timing_unavailable /
-  entry_timing_post_commence / close_timing_unavailable /
-  close_invalid_vendor states, never implicit validity. Envelope
-  absent = enforcement disabled with an explicit report note.
-  (4) separated states with independent denominators: entry_eligible /
-  entry_reason; settlement_available; close_benchmark_available /
-  close_reason. Report denominators: entry over all candidates,
-  settlement over all candidates, close benchmark over
-  entry-eligible rows only.
-  (5) calendar validation: real dates enforced (2025-02-30 refused);
-  2026-extending gd windows refused outright (no authorization flag).
-  (6) decision-time availability (not merely pregame): morning entry
-  requires lag >= 18000 s (T-5h) and close benchmark requires
-  lag >= 300 s; a T-1h morning quote is refused
-  (entry_timing_after_decision); close analog
-  close_timing_after_decision. Reference is commence; actual
-  first-pitch is not equated.
-  (7) fail-closed: market-only refuses to run without
-  snapshot_envelope.parquet and without the cached event-date map
-  (no rebuild authorized); floors JSON not read in market-only mode;
-  panel access projected to minimum identity/date/line/settlement
-  fields only (gd, key, line, y, player_name; p_ours_cal never
-  decoded); book-lines game_date bounds pushed into the scan
-  (deterministic rg11-rg17 decode scope for 2025H1).
-  Tests: 14 green in tests/test_entry_clock.py (adds
-  entry_timing_after_decision, envelope-absent fail-closed, 2026
-  window refusal, missing event-map refusal). Combined gate: 67
-  passed. Row-group layouts verified footer-only: panel = 1 group
-  (2025-03-27..2026-09-13; full-projected-column decode unavoidable,
-  declared in the execution manifest); book_lines = 35 groups.
+- **IDENTITY-EXCLUSION POLICY PR (this branch):** new opt-in
+  development-baseline policy --identity-policy exclude_ambiguous
+  (default refuse unchanged):
+  - exclusions determined from the permitted paid inputs BEFORE book
+    selection, model/outcome consumption or scoring; union across
+    morning and close (no re-entry through the other snapshot);
+  - scope = per reduced (gd,key,line) start/line identity (minimum
+    scope that makes the panel join unambiguous);
+  - excluded candidates preserved in accounting: full reduced key,
+    ALL conflicting event_ids, affected snapshots, reason
+    ambiguous_event_identity, entry_eligible=False; no excluded quote
+    values persist; never described as resolution;
+  - --expected-excluded-keys binds the run to the preserved receipt
+    (production/ops/market_research/expected_exclusions_2025H1.json,
+    lineage to the stopped run + input hashes); detected set != bound
+    set REFUSES (no silent expansion; not hardcoded);
+  - report adds identity_screening (population before screening,
+    excluded keys/rows, population after screening) and subsequent
+    entry/settlement/close denominators on the post-screening
+    population.
+  Tests: 10 green in tests/test_identity_exclusion.py (default
+  refusal, opt-in exclusion, unchanged clean metrics, single-snapshot
+  ambiguity, book-selection cannot hide, binding mismatch refuses,
+  binding match passes, coverage accounting, binding-without-policy
+  refusal). Combined gate: 76 passed.
+- NO private-data read and NO rerun authorized by this assignment.
 
 ### FORWARD
 
-1. **Single-run order EXECUTED once (integrated main 16a99b0, head
-   edde515): STOPPED at a declared stop condition, exit 1** -- the
-   exact-identity guard refused 3 (gd,key,line) contracts in 2025H1
-   that map to TWO event_ids each (vendor duplicate event listings:
-   chris paddack 4.5, gavin williams 5.5, bryan woo on 2025-05-21 /
-   2025-06-11). No outputs produced; input hashes verified unchanged;
-   receipt posted on PR #86 (comment 6816558623). Per the single-run
-   order: preserved, no rerun, no bypass.
-2. Next decision (owner): authorize a DECLARED EXCLUSION of the 3
-   ambiguous (gd,key,line) contracts (explicit
-   ambiguous_event_identity reason, no silent resolution), then
-   re-issue the same single-run command.
-3. Boundary-exception coverage follow-up: implemented + 8 synthetic
+1. Recovery packet (needs a NEW owner single-run order; not executed
+   here): `python production/ops/market_research/juiced_replay_ledger.py
+   --entry-clock morning_only --gd-start 2025-01-01 --gd-end
+   2025-06-30 --out-suffix __mkt2025H1 --identity-policy
+   exclude_ambiguous --expected-excluded-keys
+   production/ops/market_research/expected_exclusions_2025H1.json`
+2. Boundary-exception coverage follow-up: implemented + 8 synthetic
    tests; NOT RUN on real odds (owner authorization; near-close
    labeling preserved).
-4. Scientific queue: no other task assigned.
+3. Scientific queue: no other task assigned.
 
 ### DEFERRED
 

@@ -25,33 +25,44 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: market-only T-5h replay COMPLETE (2026-11-11)
+## Current action: identity-exclusion policy PR (2026-11-12)
 
-- **Implemented + synthetic-tested on this branch (PR #86):**
-  juiced_replay_ledger --entry-clock morning_only is the explicit
-  market-only path: bypasses p_ours_cal requirement, live policy
-  filters and sizing arms; baseline construction + canonical de-vig
-  reused; registered defaults preserved (canonical bare run unchanged;
-  no candidates parquet in market-only mode).
-- Identity guards: duplicate quote sides REFUSED (paid lake + Friend
-  CSV); ambiguous reduced-key joins (gd,key,line -> multiple event_id)
-  REFUSED, never first().
-- Vendor timing: morning/close envelope timestamps attached and
-  ENFORCED AT THE DECLARED DECISION TIMES (morning lag >= 18000 s,
-  close >= 300 s; T-1h quote refused as entry_timing_after_decision);
-  missing/invalid timing or absent envelope = fail-closed refusal.
-- Access boundary: panel projected to minimum identity/date/line/
-  settlement fields; no p_ours_cal decode; book-lines game_date
-  pushdown gives deterministic rg11-rg17 decode scope for 2025H1.
-- Tests: 14 green (tests/test_entry_clock.py) incl. raising Friend
-  spy, duplicate/ambiguous refusals, calendar dates, T-1h refusal,
-  envelope-absent + missing-map fail-closed. Combined gate 67 passed.
-- NOT RUN on real odds. Run packet (write-once, owner authorization):
+- PR #86 merged (main 16a99b0); the single-run order was executed once
+  and STOPPED at the exact-identity guard (3 reduced keys mapping to
+  two event_ids each in 2025H1). That run is CLOSED as the execution
+  of record; receipt preserved (PR #86 comment 6816558623).
+- This PR adds the opt-in development-baseline policy
+  `--identity-policy exclude_ambiguous` (default refuse unchanged):
+  exclusions determined BEFORE book selection/outcome consumption,
+  union across morning+close (no re-entry), preserved in accounting
+  with all conflicting event_ids, never resolved.
+- `--expected-excluded-keys` binds the run to the preserved receipt
+  (expected_exclusions_2025H1.json); any different detected set
+  REFUSES. Population before/after screening + post-screening
+  denominators reported.
+- Tests: 10 green (tests/test_identity_exclusion.py); combined gate
+  76 passed. NO private-data read or rerun authorized here.
+- Recovery packet (requires a NEW owner single-run order):
   `python production/ops/market_research/juiced_replay_ledger.py
   --entry-clock morning_only --gd-start 2025-01-01 --gd-end
-  2025-06-30 --out-suffix __mkt2025H1`
-- Boundary-exception coverage follow-up also on this branch
-  (8 synthetic tests; near-close labeling; not run on real odds).
+  2025-06-30 --out-suffix __mkt2025H1 --identity-policy
+  exclude_ambiguous --expected-excluded-keys
+  production/ops/market_research/expected_exclusions_2025H1.json`
+
+## Prior action: market-only T-5h replay (CLOSED, PR #86 merged)
+
+juiced_replay_ledger --entry-clock morning_only: explicit market-only
+path (bypasses p_ours_cal/policy/sizing; canonical bare run unchanged;
+no candidates parquet). Identity guards refuse duplicate quote sides
+and ambiguous reduced-key joins; decision-time vendor timing enforced
+(morning lag >= 18000 s, close >= 300 s; T-1h quote refused); fail-
+closed on absent envelope/event map; panel projected to minimum
+identity/date/line/settlement fields; book-lines game_date pushdown
+(deterministic rg11-rg17 scope for 2025H1). 14 tests green. Executed
+once under a single-run order: STOPPED at the exact-identity guard
+(3 duplicate-event contracts); receipt preserved; CLOSED as the
+execution of record. The identity-exclusion policy PR above handles
+the declared recovery.
 
 ## Prior action: market-benchmark seam (CLOSED, PR #84 merged)
 
