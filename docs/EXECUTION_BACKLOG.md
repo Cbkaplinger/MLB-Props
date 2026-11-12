@@ -40,6 +40,52 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
+## Session snapshot - boundary-exception coverage follow-up (2026-11-11)
+
+### PAST
+
+- Consolidation closeout, dual-contract harness, control-arm parity,
+  paired-comparison reproduction, recovered-ideas register, board-clock
+  reconciliation: all CLOSED/VERIFIED (PRs #78-#84; full records in
+  prior snapshot receipts below).
+- Original board-coverage probe (PR #84, merged): correctly BLOCKED at
+  row-group separation (rg16-rg17 span the 2025-06-30 boundary).
+  Destination preserved; no data-page reads. Closed as BLOCKED.
+- Boundary-exception follow-up implemented + synthetic-tested (this
+  PR): explicit declared exception for book-lines boundary groups
+  rg16-rg17 (quote columns only); envelope footer preflight added
+  (fail-closed on missing/unusable commence_time stats); immediate
+  2025H1 window filter after boundary-group decode (both bounds
+  asserted; protected rows never persisted/printed/summarized).
+
+### PRESENT
+
+- **BOUNDARY-EXCEPTION COVERAGE FOLLOW-UP IMPLEMENTED (this PR):**
+  probe_board_coverage_boundary_2025H1.py reuses the committed probe's
+  row_group_separation (now date-column-parameterized) and the
+  extracted aggregate_per_clock / envelope_timestamp_summary
+  functions. Binding: blocked report -> recorded input hashes ->
+  fresh footer layout must match recorded layout (fail closed on
+  mismatch). Selection: WINDOW_OR_EARLIER + OVERLAPS_PROTECTED
+  (boundary exception) allowed; PROTECTED_ONLY + UNVERIFIABLE
+  excluded. Immediate 2025H1 filter after decode (both bounds
+  asserted). Tests: 8 green (only-allowed-groups decode, boundary
+  filtered, hash mismatch, layout mismatch, envelope missing-stats
+  fail-closed, original report untouched, hand-computed counts,
+  empty-frame handling). Focused combined run: 111 passed.
+
+### FORWARD
+
+1. Owner decision: authorize the boundary-exception coverage query
+   (read-only; book_lines rg16-rg17 quote columns + envelope
+   timestamp columns transiently decoded, immediately filtered).
+2. Scientific queue: no other task assigned.
+
+### DEFERRED
+
+- No new framework, model, calibration, tuning, dashboard, or
+  consensus features.
+
 ## Session snapshot - baseline K-PMF diagnostic (2026-11-11)
 
 ### PAST
@@ -175,7 +221,8 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    pin `464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa`;
    cohort = the registered eligible cohort (hash `f77d7a66...`,
    hash-checked by the runner). Access: full-file decode of those
-   three files ONLY. Stop conditions: ack gate; destination exists;
+   three files ONLY: k-PMF, assessment, and cohort-keys; no Friend
+   CSV read. Stop conditions: ack gate; destination exists;
    cohort hash mismatch; forecast/observed-vs-cohort key mismatches
    (both directions reported); duplicate/null identities; malformed
    labels/PMFs. Input identity hashes are PROCEDURAL preflight

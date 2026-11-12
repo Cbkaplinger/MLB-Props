@@ -67,11 +67,12 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def row_group_separation(path: Path, protected_boundary: str) -> dict:
+def row_group_separation(path: Path, protected_boundary: str, *,
+                         date_column: str = "game_date") -> dict:
     """Footer-metadata-only classification of every row group against
-    the protected date boundary (gd > boundary = protected). Missing
-    or unusable game_date statistics -> UNVERIFIABLE; a group spanning
-    the boundary -> NOT_SEPARABLE; neither may pass as safe."""
+    the protected date boundary (date value > boundary = protected).
+    Missing or unusable date statistics -> UNVERIFIABLE; a group
+    spanning the boundary -> NOT_SEPARABLE; neither may pass as safe."""
     import pyarrow.parquet as pq
     pf = pq.ParquetFile(path)
     groups = []
@@ -84,7 +85,7 @@ def row_group_separation(path: Path, protected_boundary: str) -> dict:
             col = rg.column(j)
             path = col.path_in_schema
             name = path[0] if isinstance(path, list) else path
-            if name != "game_date":
+            if name != date_column:
                 continue
             st = col.statistics
             if st is not None and st.has_min_max \
@@ -128,6 +129,66 @@ def _two_sided(book_lines_clock: pl.DataFrame) -> pl.DataFrame:
         return wide.head(0)
     return wide.filter(pl.col("over").is_not_null()
                        & pl.col("under").is_not_null())
+
+
+def aggregate_per_clock(rows: pl.DataFrame, clocks: list) -> dict:
+    """Registered coverage aggregation per clock (extracted from the
+    original main; same definitions): quotes, events, unique starts,
+    two-sided exact contracts, per-book two-sided counts, median
+    books-per-event, reconstructed snapshot_ts presence."""
+    per_clock = {}
+    for clock in clocks:
+        c = rows.filter(pl.col("snapshot") == clock)
+        wide = c.filter(pl.col("line").is_not_null()).pivot(
+            values="price",
+            index=["event_id", "player_norm", "line", "book"],
+            on="side", aggregate_function="first")
+        two = (wide.filter(pl.col("over").is_not_null()
+                           & pl.col("under").is_not_null())
+               if ("over" in wide.columns and "under" in wide.columns)
+               else wide.head(0))
+        per_book = (two.group_by("book").agg(n=pl.len()).sort("book")
+                    if two.height else
+                    pl.DataFrame(schema={"book": pl.Utf8, "n": pl.UInt32}))
+        books_per_event = (two.group_by(["event_id", "player_norm"])
+                           .agg(pl.col("book").n_unique()
+                                .alias("n_books")).sort("event_id"))
+        per_clock[clock] = {
+            "n_quotes": c.height,
+            "n_events": c["event_id"].n_unique(),
+            "n_unique_starts": c.select(["event_id", "player_norm"])
+            .unique().height,
+            "n_two_sided_contracts": two.height,
+            "books_two_sided": {r["book"]: int(r["n"]) for r in
+                                per_book.iter_rows(named=True)},
+            "median_books_per_event": float(
+                books_per_event["n_books"].median())
+            if books_per_event.height else 0.0,
+            "snapshot_ts_present_reconstructed": int(
+                c["snapshot_ts"].is_not_null().sum()),
+        }
+    return per_clock
+
+
+def envelope_timestamp_summary(env: pl.DataFrame, clocks: list) -> dict:
+    """Envelope vendor-timestamp availability/validity per clock
+    (extracted from the original main; same definitions)."""
+    env_per_clock = {}
+    for clock in clocks:
+        e = env.filter(pl.col("snapshot") == clock)
+        lags = sorted(v for v in e["lag_vendor_vs_commence_sec"].to_list()
+                      if v is not None)
+        env_per_clock[clock] = {
+            "n": e.height,
+            "vendor_timestamp_present": int(
+                e["vendor_timestamp"].is_not_null().sum()),
+            "lag_p50_sec": lags[len(lags) // 2] if lags else None,
+            "lag_p90_sec": (lags[int(0.9 * (len(lags) - 1))]
+                            if lags else None),
+            "n_vendor_at_or_after_commence": sum(1 for v in lags
+                                                 if v >= 0),
+        }
+    return env_per_clock
 
 
 def main() -> int:
@@ -191,38 +252,7 @@ def main() -> int:
     rows = scan.select(["event_id", "snapshot", "snapshot_ts", "book",
                         "player_norm", "line", "side",
                         "price"]).collect()
-
-    per_clock = {}
-    for clock in CLOCKS:
-        c = rows.filter(pl.col("snapshot") == clock)
-        wide = c.filter(pl.col("line").is_not_null()).pivot(
-            values="price",
-            index=["event_id", "player_norm", "line", "book"],
-            on="side", aggregate_function="first")
-        two = (wide.filter(pl.col("over").is_not_null()
-                           & pl.col("under").is_not_null())
-               if ("over" in wide.columns and "under" in wide.columns)
-               else wide.head(0))
-        per_book = (two.group_by("book").agg(n=pl.len()).sort("book")
-                    if two.height else
-                    pl.DataFrame(schema={"book": pl.Utf8, "n": pl.UInt32}))
-        books_per_event = (two.group_by(["event_id", "player_norm"])
-                           .agg(pl.col("book").n_unique()
-                                .alias("n_books")).sort("event_id"))
-        per_clock[clock] = {
-            "n_quotes": c.height,
-            "n_events": c["event_id"].n_unique(),
-            "n_unique_starts": c.select(["event_id", "player_norm"])
-            .unique().height,
-            "n_two_sided_contracts": two.height,
-            "books_two_sided": {r["book"]: int(r["n"]) for r in
-                                per_book.iter_rows(named=True)},
-            "median_books_per_event": float(
-                books_per_event["n_books"].median())
-            if books_per_event.height else 0.0,
-            "snapshot_ts_present_reconstructed": int(
-                c["snapshot_ts"].is_not_null().sum()),
-        }
+    per_clock = aggregate_per_clock(rows, CLOCKS)
 
     env = pl.scan_parquet(ENVELOPE).filter(
         (pl.col("snapshot").is_in(CLOCKS))
@@ -230,21 +260,7 @@ def main() -> int:
         & (pl.col("commence_time").str.slice(0, 10) <= GD_HI)
     ).select(["event_id", "snapshot", "vendor_timestamp", "commence_time",
               "lag_vendor_vs_commence_sec"]).collect()
-    env_per_clock = {}
-    for clock in CLOCKS:
-        e = env.filter(pl.col("snapshot") == clock)
-        lags = sorted(v for v in e["lag_vendor_vs_commence_sec"].to_list()
-                      if v is not None)
-        env_per_clock[clock] = {
-            "n": e.height,
-            "vendor_timestamp_present": int(
-                e["vendor_timestamp"].is_not_null().sum()),
-            "lag_p50_sec": lags[len(lags) // 2] if lags else None,
-            "lag_p90_sec": (lags[int(0.9 * (len(lags) - 1))]
-                            if lags else None),
-            "n_vendor_at_or_after_commence": sum(1 for v in lags
-                                                 if v >= 0),
-        }
+    env_per_clock = envelope_timestamp_summary(env, CLOCKS)
 
     b2 = per_clock["board"]["n_two_sided_contracts"]
     c2 = per_clock["close"]["n_two_sided_contracts"]

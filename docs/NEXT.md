@@ -25,26 +25,25 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: market-benchmark seam built (2026-11-11)
+## Current action: boundary-exception coverage follow-up (2026-11-11)
 
-- **Implemented on this branch** (market_benchmark_seam.py): the two
-  missing seams between the registered market-eval lane
-  (market_eval_k.py) and today's harness outputs - (A) harness keyed
-  24-bucket PMFs + assessment-derived observed K + declared eligible
-  cohort (hash-checked) + declared start dates -> the registered
-  market-eval model frame (block via ad.add_block; protected/unknown
-  blocks refuse); (B) per-book two-sided de-vig probabilities +
-  leave-target-book-out consensus (median over OTHER books at the
-  SAME line; >= 2 other books; unavailable recorded, never filled) +
-  all-book consensus (registered construction reused unchanged).
-  7 synthetic tests green (hand de-vig, LTBO self-exclusion,
-  unavailable accounting, cohort/date gates incl. protected block).
+- **Implemented on this branch** (probe_board_coverage_boundary_2025H1.py):
+  the follow-up to the correctly BLOCKED original probe. Explicit
+  declared exception for book-lines boundary groups rg16-rg17 (quote
+  columns only); envelope footer preflight (fail-closed on missing
+  stats); immediate 2025H1 window filter after decode; protected rows
+  never persisted/printed/summarized. Original probe remains
+  fail-closed. 8 synthetic tests + 5 original = 13 green; focused
+  combined run 111 passed. NOT RUN on real odds; needs owner
+  authorization. Near-close labeling: this is a NEAR-CLOSE coverage
+  query, not evidence of early-morning readiness.
+
+## Prior action: market-benchmark seam (CLOSED, PR #84 merged)
+
+market_benchmark_seam.py: harness PMF frame + per-book de-vig +
+LTBO consensus. 7 synthetic tests. Zero live-path change.
   Closing quotes remain benchmark-only; the seam's benchmark paths are
-  NEAR-CLOSE (tier A/B around first pitch) - not evidence of
-  early-morning simulation readiness. NOT RUN on real odds; execution
-  needs the registered market-eval gate + delegated owner order. Exact
-  comparison contract + execution packet: see the PR description and
-  backlog FORWARD.
+  NEAR-CLOSE, not morning evidence. NOT RUN on real odds.
 - Next bounded deliverable: the opening-price replay contract
   (market-only first). Registered decision clock
   (oddsapi_replay_inventory_2026-09-11.md): Friend -12h open when
@@ -65,11 +64,6 @@ diagnostic (PR #83) merged.
   unshrunk - the committed stale-form finding). The batter-recency
   challenger was REJECTED and recency-batch-v1 showed development-only
   gains; no implementation without a new registered reason.
-- Recovered-ideas register reconciled:
-  docs/reference/reports/recovered_research_ideas_register_2026-11-11.md
-  (R01-R26; deferred models have explicit revisit triggers; the
-  register is intent evidence, not an execution queue).
-- Diagnostic history: first execution hit the exact-key gate
-  (2,532-request assessment vs 2,509 eligible cohort); cohort contract
-  amended; second execution PASSED with 23 declared exclusions
+- Diagnostic: first execution BLOCKED (2,532 vs 2,509); second PASSED
+  with 23 exclusions
   (results + delta-decomposition handoffs in PR #83 comments).
