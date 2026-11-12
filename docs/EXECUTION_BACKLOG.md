@@ -76,9 +76,13 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### FORWARD
 
-1. Owner decision: authorize the boundary-exception coverage query
-   (read-only; book_lines rg16-rg17 quote columns + envelope
-   timestamp columns transiently decoded, immediately filtered).
+1. Board-clock coverage: EXECUTED once (head `024a458`; EXIT=0).
+   Verdict: sparse_or_absent — board two-sided contracts (28,994)
+   = 63.6% of close two-sided contracts (45,618), below the declared
+   80% threshold; median books-per-event at board = 5 (passes >= 2).
+   Finding: board-clock coverage is sparse relative to close.
+   Recommend the existing paid morning T-5h contract as the
+   separately labeled alternative. No tuning; descriptive only.
 2. Scientific queue: no other task assigned.
 
 ### DEFERRED
