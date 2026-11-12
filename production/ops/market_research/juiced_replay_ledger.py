@@ -329,6 +329,12 @@ def main() -> None:
     ap.add_argument("--book-universe", choices=("next", "dkfd"), default="next",
                     help="next = DK else FD else next US book (canonical); "
                          "dkfd = DK else FD only")
+    ap.add_argument("--entry-clock", choices=("registered", "morning_only"),
+                    default="registered",
+                    help="registered = Friend open else paid morning "
+                         "(canonical decision clock); morning_only = "
+                         "paid morning T-5h only (skips Friend CSV "
+                         "read and Friend join entirely)")
     ap.add_argument("--out-suffix", default="",
                     help="sidecar suffix; empty reproduces canonical outputs")
     ap.add_argument("--gd-start", default=None,
@@ -383,9 +389,13 @@ def main() -> None:
     morning = _two_way_paid("morning", ev, allowed, event_ids=allowed_event_ids)
     close = _two_way_paid("close", ev, allowed, event_ids=allowed_event_ids)
     print(f"morning pairs {morning.height} close pairs {close.height}")
-    friend = _two_way_friend(
-        allowed, gd_window=gd_window if gd_restricted else None)
-    print(f"friend open pairs {friend.height}")
+    if args.entry_clock == "registered":
+        friend = _two_way_friend(
+            allowed, gd_window=gd_window if gd_restricted else None)
+        print(f"friend open pairs {friend.height}")
+    else:
+        friend = _two_way_friend(allowed).head(0)  # empty; schema preserved
+        print(f"entry_clock=morning_only: Friend skipped")
 
     env_path = HIST / "snapshot_envelope.parquet"
     invalid = set()
@@ -481,6 +491,7 @@ def main() -> None:
         row = {
             "gd": rec["gd"], "key": rec["key"], "player_name": rec.get("player_name"),
             "line": line, "side": side, "snap": snap, "book": book,
+            "entry_clock": args.entry_clock,
             "yr": str(rec["gd"])[:4],
             "p_ours_cal": pm, "y": y, "won": bool(won),
             "edge": edge, "price": amer, "p_mkt": float(best["p_market"]),
@@ -687,7 +698,9 @@ def main() -> None:
         "contract": {
             "model": "frozen p_ours_cal universe_panel_live",
             "edge": "two-way multiplicative de-vig at juiced book pair",
-            "decision": "friend open else paid morning",
+            "decision": ("friend open else paid morning"
+                         if args.entry_clock == "registered"
+                         else "paid morning T-5h only (Friend skipped)"),
             "book": "DK else FD else next US book with two-way quote (canonical per owner 2026-09-11)",
             "dk_fd_only": "sensitivity, not the headline",
             "policy": (

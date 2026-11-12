@@ -224,7 +224,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    attested via the verified reference receipt manifest); assessment
    pin `464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa`;
    cohort = the registered eligible cohort (hash `f77d7a66...`,
-   hash-checked by the runner). Access: full-file decode of those
+    hash-checked by the runner). Access: full-file decode of those
    three files ONLY: k-PMF, assessment, and cohort-keys; no Friend
    CSV read. Stop conditions: ack gate; destination exists;
    cohort hash mismatch; forecast/observed-vs-cohort key mismatches
@@ -232,6 +232,9 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    labels/PMFs. Input identity hashes are PROCEDURAL preflight
    (the CLI enforces the cohort hash + structural gates, not the
    file byte pins). Malformed labels/PMFs refuse via the registered
+   gates. The board-coverage probe's access is SEPARATE: it uses
+   declared-column / allowed-row-group decoding (not full-file); no
+   Friend read (Friend is not a dependency of that probe).
    gates.
 2. Scientific queue: no other task assigned; ablation work stays
    closed (no-2026-tuning; 2025-select / 2026-judge sequencing
