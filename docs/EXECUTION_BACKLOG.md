@@ -40,7 +40,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 ---
 
 
-## Session snapshot - boundary-exception coverage follow-up (2026-11-11)
+## Session snapshot - market-only T-5h replay completed (2026-11-11)
 
 ### PAST
 
@@ -53,33 +53,74 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   Destination preserved; no data-page reads. Closed as BLOCKED.
 - Boundary-exception follow-up implemented + synthetic-tested (this
   PR): explicit declared exception for book-lines boundary groups
-  rg16-rg17 (quote columns only); envelope footer preflight added
-  (fail-closed on missing/unusable commence_time stats); immediate
-  2025H1 window filter after boundary-group decode (both bounds
-  asserted; protected rows never persisted/printed/summarized).
+  rg16-rg17 (quote columns only); envelope footer preflight (fail-
+  closed on missing stats); immediate 2025H1 window filter after
+  decode; protected rows never persisted/printed/summarized.
+- gd-window validation hardened (b264520): malformed/reversed dates
+  refused before any I/O; envelope lag label corrected
+  (n_vendor_at_or_before_commence; lag = commence - vendor).
 
 ### PRESENT
 
-- **BOUNDARY-EXCEPTION COVERAGE FOLLOW-UP IMPLEMENTED (this PR):**
-  probe_board_coverage_boundary_2025H1.py reuses the committed probe's
-  row_group_separation (now date-column-parameterized) and the
-  extracted aggregate_per_clock / envelope_timestamp_summary
-  functions. Binding: blocked report -> recorded input hashes ->
-  fresh footer layout must match recorded layout (fail closed on
-  mismatch). Selection: WINDOW_OR_EARLIER + OVERLAPS_PROTECTED
-  (boundary exception) allowed; PROTECTED_ONLY + UNVERIFIABLE
-  excluded. Immediate 2025H1 filter after decode (both bounds
-  asserted). Tests: 8 green (only-allowed-groups decode, boundary
-  filtered, hash mismatch, layout mismatch, envelope missing-stats
-  fail-closed, original report untouched, hand-computed counts,
-  empty-frame handling). Focused combined run: 111 passed.
+- **MARKET-ONLY T-5h REPLAY COMPLETE (this PR):** juiced_replay_ledger
+  --entry-clock morning_only is now an explicit market-only execution
+  path:
+  (1) bypasses legacy model probability requirements (p_ours_cal not
+  required), policy filters (no floors/veto/probation) and sizing
+  execution (no Kelly/edge-band arms); the legacy candidates parquet is
+  NOT produced in this mode; baseline construction and canonical
+  multiplicative de-vig reused unchanged; registered defaults
+  preserved (bare canonical run unchanged).
+  (2) identity guards: duplicate quote sides for the same
+  (gd,key,line,book,event_id) are REFUSED in both paid lake and Friend
+  CSV; a (gd,key,line) mapping to multiple event_id values is REFUSED
+  (ambiguous reduced-key join) -- never resolved with first(). The
+  remaining book selection is the owner-declared pref rule (DK else FD
+  else next US book), documented as such.
+  (3) authoritative vendor timestamps: morning and close envelope rows
+  are attached to pairs; entry (paid morning) and close timing must
+  exist and precede commence; missing timestamp or post-commence
+  vendor ts yields explicit entry_timing_unavailable /
+  entry_timing_post_commence / close_timing_unavailable /
+  close_invalid_vendor states, never implicit validity. Envelope
+  absent = enforcement disabled with an explicit report note.
+  (4) separated states with independent denominators: entry_eligible /
+  entry_reason; settlement_available; close_benchmark_available /
+  close_reason. Report denominators: entry over all candidates,
+  settlement over all candidates, close benchmark over
+  entry-eligible rows only.
+  (5) calendar validation: real dates enforced (2025-02-30 refused);
+  2026-extending gd windows refused outright (no authorization flag).
+  (6) decision-time availability (not merely pregame): morning entry
+  requires lag >= 18000 s (T-5h) and close benchmark requires
+  lag >= 300 s; a T-1h morning quote is refused
+  (entry_timing_after_decision); close analog
+  close_timing_after_decision. Reference is commence; actual
+  first-pitch is not equated.
+  (7) fail-closed: market-only refuses to run without
+  snapshot_envelope.parquet and without the cached event-date map
+  (no rebuild authorized); floors JSON not read in market-only mode;
+  panel access projected to minimum identity/date/line/settlement
+  fields only (gd, key, line, y, player_name; p_ours_cal never
+  decoded); book-lines game_date bounds pushed into the scan
+  (deterministic rg11-rg17 decode scope for 2025H1).
+  Tests: 14 green in tests/test_entry_clock.py (adds
+  entry_timing_after_decision, envelope-absent fail-closed, 2026
+  window refusal, missing event-map refusal). Combined gate: 67
+  passed. Row-group layouts verified footer-only: panel = 1 group
+  (2025-03-27..2026-09-13; full-projected-column decode unavoidable,
+  declared in the execution manifest); book_lines = 35 groups.
 
 ### FORWARD
 
-1. Owner decision: authorize the boundary-exception coverage query
-   (read-only; book_lines rg16-rg17 quote columns + envelope
-   timestamp columns transiently decoded, immediately filtered).
-2. Scientific queue: no other task assigned.
+1. Real-data run packet (needs owner authorization; write-once):
+   `python production/ops/market_research/juiced_replay_ledger.py
+   --entry-clock morning_only --gd-start 2025-01-01
+   --gd-end 2025-06-30 --out-suffix __mkt2025H1`
+2. Boundary-exception coverage follow-up: implemented + 8 synthetic
+   tests; NOT RUN on real odds (owner authorization; near-close
+   labeling preserved).
+3. Scientific queue: no other task assigned.
 
 ### DEFERRED
 
@@ -220,7 +261,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    attested via the verified reference receipt manifest); assessment
    pin `464fe1922c4aa3090f46b43cdce4949a888ad0c20ccd269d5c2cce671a1b80aa`;
    cohort = the registered eligible cohort (hash `f77d7a66...`,
-   hash-checked by the runner). Access: full-file decode of those
+    hash-checked by the runner). Access: full-file decode of those
    three files ONLY: k-PMF, assessment, and cohort-keys; no Friend
    CSV read. Stop conditions: ack gate; destination exists;
    cohort hash mismatch; forecast/observed-vs-cohort key mismatches
@@ -228,6 +269,9 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    labels/PMFs. Input identity hashes are PROCEDURAL preflight
    (the CLI enforces the cohort hash + structural gates, not the
    file byte pins). Malformed labels/PMFs refuse via the registered
+   gates. The board-coverage probe's access is SEPARATE: it uses
+   declared-column / allowed-row-group decoding (not full-file); no
+   Friend read (Friend is not a dependency of that probe).
    gates.
 2. Scientific queue: no other task assigned; ablation work stays
    closed (no-2026-tuning; 2025-select / 2026-judge sequencing

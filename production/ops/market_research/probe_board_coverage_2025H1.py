@@ -185,8 +185,11 @@ def envelope_timestamp_summary(env: pl.DataFrame, clocks: list) -> dict:
             "lag_p50_sec": lags[len(lags) // 2] if lags else None,
             "lag_p90_sec": (lags[int(0.9 * (len(lags) - 1))]
                             if lags else None),
-            "n_vendor_at_or_after_commence": sum(1 for v in lags
-                                                 if v >= 0),
+            # lag = commence - vendor (producer convention, see
+            # recover_snapshot_envelope._sec): lag >= 0 means the
+            # vendor responded at or BEFORE first pitch
+            "n_vendor_at_or_before_commence": sum(1 for v in lags
+                                                  if v >= 0),
         }
     return env_per_clock
 

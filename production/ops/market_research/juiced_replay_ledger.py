@@ -24,7 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -42,7 +42,13 @@ from Python.market import (  # noqa: E402
     size_in_units,
 )
 from Python.odds_ledger import atomic_write_parquet, atomic_write_text  # noqa: E402
-from join_keys import HIST, ODDS_DIR, load_event_date_map, sorted_key  # noqa: E402
+from join_keys import (  # noqa: E402
+    EVENT_DATE_MAP,
+    HIST,
+    ODDS_DIR,
+    load_event_date_map,
+    sorted_key,
+)
 
 FRIEND = (
     ROOT / "data" / "Odds-Open-Close-2025-2026"
@@ -53,6 +59,16 @@ PANEL = ODDS_DIR / "universe_panel_live.parquet"
 OUT_PARQUET = ODDS_DIR / "juiced_replay_candidates.parquet"
 OUT_REPORT = ODDS_DIR / "juiced_replay_report.json"
 OUT_BASELINE = ODDS_DIR / "juiced_replay_baseline.parquet"
+
+# Declared decision clocks (see the snapshot reconstruction contract in
+# production/ops/market_research): the
+# morning decision is T-5h and the close benchmark is T-5min before
+# commence. A vendor quote is decision-time available only if its
+# AUTHORITATIVE timestamp is at or before the declared decision time
+# (lag = commence - vendor >= decision lag). A T-1h quote is pregame
+# but NOT available at the T-5h decision.
+MORNING_DECISION_LAG_SEC = 5 * 3600
+CLOSE_DECISION_LAG_SEC = 5 * 60
 
 UNIT = 50.0
 LIVE_BASE_FLOOR = 0.12
@@ -101,18 +117,26 @@ def _two_way_paid(
     ev: pl.DataFrame,
     allowed_books: set[str] | None = None,
     event_ids: set[str] | None = None,
+    gd_window: tuple | None = None,
 ) -> pl.DataFrame:
     """Two-sided juiced-pair construction for one snapshot. When
     ``event_ids`` is provided, the restriction is pushed INTO the lazy
     scan (pre-decode): row groups outside the declared event set are
     not decoded. This is the development boundary for year windows —
-    2026 rows are never decoded into a frame under a 2025 window."""
+    2026 rows are never decoded into a frame under a 2025 window.
+    ``gd_window`` additionally pushes the declared game_date bounds
+    into the scan so row-group pruning is statistics-based and the
+    decode scope is deterministic (rg11-rg17 for a 2025H1 window)."""
     scan = pl.scan_parquet(HIST / "book_lines_pitcher.parquet").filter(
         (pl.col("market") == "pitcher_strikeouts")
         & (pl.col("snapshot") == snapshot)
         & pl.col("line").is_not_null()
         & pl.col("price").is_not_null()
     )
+    if gd_window is not None:
+        scan = scan.filter(
+            (pl.col("game_date") >= gd_window[0])
+            & (pl.col("game_date") <= gd_window[1]))
     if event_ids is not None:
         scan = scan.filter(pl.col("event_id").is_in(sorted(event_ids)))
     bk = scan.collect()
@@ -121,16 +145,42 @@ def _two_way_paid(
     ).with_columns(
         pl.col("player_norm").map_elements(sorted_key, return_dtype=pl.Utf8).alias("key")
     )
+    # --- identity guards (no silent ambiguity resolution). A reduced
+    # (gd, key, line) that maps to more than one event_id would fan out
+    # every downstream join; refuse instead of picking first().
+    amb = bk.group_by(["gd", "key", "line"]).agg(
+        pl.col("event_id").n_unique().alias("n_ev")).filter(
+        pl.col("n_ev") > 1)
+    if amb.height:
+        sample = amb.head(5).rows()
+        raise SystemExit(
+            f"ambiguous reduced-key join: {amb.height} (gd,key,line) "
+            f"map to multiple event_id values, e.g. {sample}; refusing")
     over = bk.filter(pl.col("side") == "over").select(
         ["gd", "key", "line", "book", "event_id", "price"]
     ).rename({"price": "over_amer"})
     under = bk.filter(pl.col("side") == "under").select(
         ["gd", "key", "line", "book", "price"]
     ).rename({"price": "under_amer"})
+    # duplicate quote sides for the same event/book/line are a lake
+    # integrity failure; refuse rather than multiply the join
+    for name, fr in (("over", over), ("under", under)):
+        dup_key = [c for c in ("gd", "key", "line", "book", "event_id")
+                   if c in fr.columns]
+        if fr.height != fr.unique(subset=dup_key).height:
+            raise SystemExit(
+                f"duplicate {name}-side quotes for the same "
+                f"(gd,key,line,book,event_id); refusing")
+    # --- pairs: multi-book quotes for one (gd,key,line) are expected;
+    # selection among books is the DECLARED registered rule (pref order
+    # below), not silent ambiguity resolution
     pairs = over.join(under, on=["gd", "key", "line", "book"])
     pairs = pairs.with_columns(
         pl.col("book").map_elements(_pref, return_dtype=pl.Int64).alias("pref")
     )
+    # the .first() below implements the owner-declared book preference
+    # (DK else FD else next US book, 2026-09-11) over a deterministic
+    # (pref, book) sort -- not an ambiguity default
     return (
         pairs.sort(["gd", "key", "line", "pref", "book"])
         .group_by(["gd", "key", "line"], maintain_order=True)
@@ -171,6 +221,11 @@ def _two_way_friend(allowed_books: set[str] | None = None,
         pl.col("player_name").map_elements(sorted_key, return_dtype=pl.Utf8).alias("key"),
         pl.col("bookmaker").map_elements(_pref, return_dtype=pl.Int64).alias("pref"),
     )
+    if fo.height != fo.unique(
+            subset=["gd", "key", "line", "bookmaker"]).height:
+        raise SystemExit(
+            "duplicate Friend quotes for the same "
+            "(gd,key,line,bookmaker); refusing")
     return (
         fo.sort(["gd", "key", "line", "pref", "bookmaker"])
         .group_by(["gd", "key", "line"], maintain_order=True)
@@ -318,7 +373,13 @@ def resolve_outputs(out_suffix: str, gd_restricted: bool,
     return paths
 
 
-def main() -> None:
+def _fail_date(flag: str, value: str) -> None:
+    raise SystemExit(
+        f"{flag} must be a valid YYYY-MM-DD date; got {value!r}; "
+        "refusing before any input/output side effect")
+
+
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--floor-uniform", type=float, default=None,
                     help="uniform floor for all lines (selection engine)")
@@ -329,6 +390,12 @@ def main() -> None:
     ap.add_argument("--book-universe", choices=("next", "dkfd"), default="next",
                     help="next = DK else FD else next US book (canonical); "
                          "dkfd = DK else FD only")
+    ap.add_argument("--entry-clock", choices=("registered", "morning_only"),
+                    default="registered",
+                    help="registered = Friend open else paid morning "
+                         "(canonical decision clock); morning_only = "
+                         "paid morning T-5h only (skips Friend CSV "
+                         "read and Friend join entirely)")
     ap.add_argument("--out-suffix", default="",
                     help="sidecar suffix; empty reproduces canonical outputs")
     ap.add_argument("--gd-start", default=None,
@@ -342,9 +409,46 @@ def main() -> None:
                     help="DEVELOPMENT boundary: restrict event dates to "
                          "gd <= end (YYYY-MM-DD; a 2025-only packet uses "
                          "2025-06-30)")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     gd_restricted = args.gd_start is not None or args.gd_end is not None
-    floors = uniform_floors(args.floor_uniform) if args.floor_uniform is not None else _floors()
+    if gd_restricted:
+        # validate before any input/output side effect: shape AND a real
+        # calendar date (2025-02-30 is correctly refused)
+        for label, val in [("--gd-start", args.gd_start),
+                           ("--gd-end", args.gd_end)]:
+            if val is not None:
+                parts = val.split("-")
+                shape_ok = (len(parts) == 3 and len(parts[0]) == 4
+                            and all(p.isdigit() for p in parts)
+                            and all(len(p) == d for p, d
+                                    in zip(parts, (4, 2, 2))))
+                cal_ok = False
+                if shape_ok:
+                    try:
+                        date.fromisoformat(val)
+                        cal_ok = True
+                    except ValueError:
+                        cal_ok = False
+                if not (shape_ok and cal_ok):
+                    _fail_date(label, val)
+        lo = args.gd_start or "0000-01-01"
+        hi = args.gd_end or "9999-12-31"
+        if lo > hi:
+            _fail_date("--gd-start/--gd-end",
+                       f"reversed window {lo}..{hi}")
+    gd_window = None
+    if gd_restricted:
+        gd_window = (args.gd_start or "0000-01-01",
+                     args.gd_end or "9999-12-31")
+        if gd_window[1] >= "2026-01-01":
+            raise SystemExit(
+                "gd window extends into 2026: 2026 rows stay closed "
+                "unless explicitly authorized (no authorization flag "
+                "exists); refusing")
+    market_only = args.entry_clock == "morning_only"
+    floors = ({} if market_only else
+              uniform_floors(args.floor_uniform)
+              if args.floor_uniform is not None else _floors())
     cap = args.cap
     premium = UNDER_LEAN_PREMIUM if args.under_lean else 0.0
     allowed = {"draftkings", "fanduel"} if args.book_universe == "dkfd" else None
@@ -354,11 +458,26 @@ def main() -> None:
         OUT_REPORT.stem + args.out_suffix + OUT_REPORT.suffix)
     out_base = OUT_BASELINE if not args.out_suffix else OUT_BASELINE.with_name(
         OUT_BASELINE.stem + args.out_suffix + OUT_BASELINE.suffix)
-    (out_parquet, out_report, out_base) = resolve_outputs(
-        args.out_suffix, gd_restricted,
-        [out_parquet, out_report, out_base])
+    # market-only mode writes only the baseline + report (no candidates
+    # parquet), so only those destinations are declared
+    declared = ([out_report, out_base] if market_only
+                else [out_parquet, out_report, out_base])
+    guarded = resolve_outputs(args.out_suffix, gd_restricted, declared)
+    if market_only:
+        (out_report, out_base) = guarded
+    else:
+        (out_parquet, out_report, out_base) = guarded
+    if market_only and not EVENT_DATE_MAP.exists():
+        raise SystemExit(
+            "cached event-date map missing; this order forbids a "
+            "rebuild -- refusing (no network, no raw-index walk)")
     print(f"floors={'uniform %.2f' % args.floor_uniform if args.floor_uniform is not None else 'live-file'} "
           f"cap={cap} under_lean={args.under_lean} book={args.book_universe} out={args.out_suffix or 'canonical'}")
+    if market_only and not EVENT_DATE_MAP.exists():
+        raise SystemExit(
+            "cached event-date map missing; rebuilding is not "
+            "authorized for market-only runs -- refusing (no network, "
+            "no raw-index walk)")
     evdate = load_event_date_map()
     ev = _event_frame(evdate)
     # ---- development boundary: pre-decode event restriction. The
@@ -368,144 +487,209 @@ def main() -> None:
     # cache may be (re)built locally from the raw event index when
     # missing (local file write; no network).
     allowed_event_ids = None
-    gd_window = None
     if gd_restricted:
-        gd_lo = args.gd_start or "0000-01-01"
-        gd_hi = args.gd_end or "9999-12-31"
         allowed_event_ids = {
             eid for eid, gd in evdate.items()
-            if gd_lo <= str(gd)[:10] <= gd_hi}
+            if gd_window[0] <= str(gd)[:10] <= gd_window[1]}
         if not allowed_event_ids:
             raise SystemExit(
-                f"gd window {gd_lo}..{gd_hi} matches no cached event "
-                "dates; refusing rather than decoding the full lake")
+                f"gd window {gd_window[0]}..{gd_window[1]} matches no "
+                "cached event dates; refusing rather than decoding the "
+                "full lake")
     print("attaching paid morning/close two-way pairs...")
-    morning = _two_way_paid("morning", ev, allowed, event_ids=allowed_event_ids)
-    close = _two_way_paid("close", ev, allowed, event_ids=allowed_event_ids)
+    morning = _two_way_paid("morning", ev, allowed,
+                            event_ids=allowed_event_ids,
+                            gd_window=gd_window)
+    close = _two_way_paid("close", ev, allowed,
+                          event_ids=allowed_event_ids,
+                          gd_window=gd_window)
     print(f"morning pairs {morning.height} close pairs {close.height}")
-    friend = _two_way_friend(
-        allowed, gd_window=gd_window if gd_restricted else None)
-    print(f"friend open pairs {friend.height}")
+    if args.entry_clock == "registered":
+        friend = _two_way_friend(
+            allowed, gd_window=gd_window if gd_restricted else None)
+        print(f"friend open pairs {friend.height}")
+    else:
+        # morning_only: Friend CSV is NEVER read; use an empty frame
+        # with the correct schema so the left join produces null
+        friend = pl.DataFrame(schema={
+            "gd": pl.Utf8, "key": pl.Utf8, "line": pl.Float64,
+            "open_book": pl.Utf8, "open_over": pl.Int64,
+            "open_under": pl.Int64,
+        })
+        print("entry_clock=morning_only: Friend CSV skipped")
 
     env_path = HIST / "snapshot_envelope.parquet"
-    invalid = set()
-    if env_path.exists():
+    invalid: set[str] = set()
+    env = None
+    env_present = env_path.exists()
+    if market_only and not env_present:
+        # fail closed: without the envelope there is no authoritative
+        # vendor timing, so decision-time availability cannot be
+        # verified. Disclosure of disabled enforcement is insufficient.
+        raise SystemExit(
+            "market-only replay requires snapshot_envelope.parquet "
+            "(fail closed: no envelope -> no verifiable decision-time "
+            "vendor timing)")
+    if env_present:
         env_scan = pl.scan_parquet(env_path).filter(
-            (pl.col("snapshot") == "close")
-            & (pl.col("lag_vendor_vs_commence_sec") < 0)
+            pl.col("snapshot").is_in(("morning", "close"))
         )
         if allowed_event_ids is not None:
             env_scan = env_scan.filter(
                 pl.col("event_id").is_in(sorted(allowed_event_ids)))
         env = env_scan.collect()
-        invalid = set(env["event_id"].to_list())
+        # ambiguous envelope rows would fan out the timing join
+        for s in ("morning", "close"):
+            sub = env.filter(pl.col("snapshot") == s)
+            if sub.height and sub["event_id"].n_unique() != sub.height:
+                raise SystemExit(
+                    f"ambiguous snapshot_envelope rows: duplicate "
+                    f"event_id for snapshot={s}; refusing")
+        # legacy close-invalid preflight: lag < 0 means the vendor
+        # responded AFTER commence (lag = commence - vendor), so the
+        # close snapshot is post-game, not a decision-time price
+        invalid = set(env.filter(
+            (pl.col("snapshot") == "close")
+            & (pl.col("lag_vendor_vs_commence_sec") < 0)
+        )["event_id"].to_list())
         print(f"close_invalid events {len(invalid)}")
+    else:
+        print("snapshot_envelope.parquet absent: vendor-timing "
+              "enforcement disabled (legacy behavior)")
+    if env_present:
+        env_m = env.filter(pl.col("snapshot") == "morning").select(
+            ["event_id",
+             pl.col("vendor_timestamp").alias("morning_vendor_ts"),
+             pl.col("lag_vendor_vs_commence_sec").alias("morning_lag_sec")])
+        env_c = env.filter(pl.col("snapshot") == "close").select(
+            ["event_id",
+             pl.col("vendor_timestamp").alias("close_vendor_ts"),
+             pl.col("lag_vendor_vs_commence_sec").alias("close_lag_sec")])
+        morning = morning.join(env_m, left_on="morning_event_id",
+                               right_on="event_id", how="left")
+        close = close.join(env_c, left_on="close_event_id",
+                           right_on="event_id", how="left")
 
     panel_scan = pl.scan_parquet(PANEL)
     if gd_restricted:
         panel_scan = panel_scan.filter(
             (pl.col("gd") >= gd_window[0])
             & (pl.col("gd") <= gd_window[1]))
+    if market_only:
+        # access boundary: market-only projects the panel's minimum
+        # identity/date/line/settlement fields only; model probability
+        # columns are never decoded in this mode
+        panel_scan = panel_scan.select(
+            ["gd", "key", "line", "y", "player_name"])
     uni_settled = panel_scan.filter(
         pl.col("y").is_not_null()
     ).collect()
-    uni = uni_settled.filter(
-        pl.col("p_ours_cal").is_not_null()
-        & pl.col("p_book_close").is_not_null()
-    )
-    print(f"universe close-matched {uni.height} "
-          f"(baseline-settled {uni_settled.height})")
-    j = (
-        uni.join(morning, on=["gd", "key", "line"], how="left")
-        .join(close, on=["gd", "key", "line"], how="left")
-        .join(friend, on=["gd", "key", "line"], how="left")
-    )
+    if args.entry_clock == "registered":
+        uni = uni_settled.filter(
+            pl.col("p_ours_cal").is_not_null()
+            & pl.col("p_book_close").is_not_null()
+        )
+        print(f"universe close-matched {uni.height} "
+              f"(baseline-settled {uni_settled.height})")
+        j = (
+            uni.join(morning, on=["gd", "key", "line"], how="left")
+            .join(close, on=["gd", "key", "line"], how="left")
+            .join(friend, on=["gd", "key", "line"], how="left")
+        )
+    else:
+        # market-only path: the legacy model-selected pipeline (p_ours_cal
+        # requirement, policy filter, sizing arms) is NOT executed at all
+        print(f"market-only baseline-settled {uni_settled.height} "
+              "(model probability not required)")
 
     rows: list[dict] = []
-    for rec in j.iter_rows(named=True):
-        pm = float(rec["p_ours_cal"])
-        line = float(rec["line"])
-        y = float(rec["y"])
-        use_open = rec.get("open_over") is not None and rec.get("open_under") is not None
-        if use_open:
-            snap, book = "open", rec.get("open_book")
-            oa, ua = float(rec["open_over"]), float(rec["open_under"])
-        elif rec.get("morning_over") is not None and rec.get("morning_under") is not None:
-            snap, book = "morning", rec.get("morning_book")
-            oa, ua = float(rec["morning_over"]), float(rec["morning_under"])
-        else:
-            rows.append({
-                "gd": rec["gd"], "key": rec["key"], "line": line,
-                "accepted": False, "reason": "no_two_way_price",
-                "side": "", "edge": None, "snap": None,
-            })
-            continue
-        try:
-            over_ev = evaluate_side(pm, oa, ua, "over")
-            under_ev = evaluate_side(1.0 - pm, oa, ua, "under")
-        except (ValueError, ZeroDivisionError):
-            rows.append({
-                "gd": rec["gd"], "key": rec["key"], "line": line,
-                "accepted": False, "reason": "bad_price",
-                "side": "", "edge": None, "snap": snap,
-            })
-            continue
-        best = over_ev if float(over_ev["edge"]) >= float(under_ev["edge"]) else under_ev
-        side = str(best["side"])
-        edge = float(best["edge"])
-        p_side = float(best["p_model"])
-        amer = float(best["price_american"])
-        reason = policy_reason(side, line, edge, floors, cap=cap, under_premium=premium)
-        accepted = reason == ""
-        won = (y == 1.0) if side == "over" else (y == 0.0)
-        fl = live_floor(line, side, floors)
-        arms = size_arms(p_side, amer, edge, fl) if accepted else {
-            "stake_flat1u": 0.0, "stake_band": 0.0,
-            "stake_kelly": 0.0, "units_kelly": 0.0, "stake_robust": 0.0,
-        }
-        # Half-size counterfactual for 2.5/3.5 overs that would have been taken.
-        half_ok = (side == "over" and round(line, 1) in (2.5, 3.5) and accepted)
-        clv_val = None
-        close_invalid = False
-        ceid = rec.get("close_event_id")
-        if ceid and ceid in invalid:
-            close_invalid = True
-        if rec.get("close_over") is not None and rec.get("close_under") is not None and not close_invalid:
+    if args.entry_clock == "registered":
+        for rec in j.iter_rows(named=True):
+            pm = float(rec["p_ours_cal"])
+            line = float(rec["line"])
+            y = float(rec["y"])
+            use_open = rec.get("open_over") is not None and rec.get("open_under") is not None
+            if use_open:
+                snap, book = "open", rec.get("open_book")
+                oa, ua = float(rec["open_over"]), float(rec["open_under"])
+            elif rec.get("morning_over") is not None and rec.get("morning_under") is not None:
+                snap, book = "morning", rec.get("morning_book")
+                oa, ua = float(rec["morning_over"]), float(rec["morning_under"])
+            else:
+                rows.append({
+                    "gd": rec["gd"], "key": rec["key"], "line": line,
+                    "accepted": False, "reason": "no_two_way_price",
+                    "side": "", "edge": None, "snap": None,
+                })
+                continue
             try:
-                c_over = evaluate_side(pm, float(rec["close_over"]), float(rec["close_under"]), "over")
-                p_close = float(c_over["p_market"]) if side == "over" else 1.0 - float(c_over["p_market"])
-                p_bet = float(best["p_market"])
-                clv_val = clv_pp(p_close, p_bet) * 100.0
-            except (ValueError, ZeroDivisionError, TypeError):
-                clv_val = None
-        row = {
-            "gd": rec["gd"], "key": rec["key"], "player_name": rec.get("player_name"),
-            "line": line, "side": side, "snap": snap, "book": book,
-            "yr": str(rec["gd"])[:4],
-            "p_ours_cal": pm, "y": y, "won": bool(won),
-            "edge": edge, "price": amer, "p_mkt": float(best["p_market"]),
-            "accepted": accepted, "reason": reason or "taken",
-            "floor": fl, "close_invalid": close_invalid, "clv_pp": clv_val,
-            # raw two-way prices per snapshot: the market-only
-            # movement baseline derives from these WITHOUT the model
-            "open_over": rec.get("open_over"),
-            "open_under": rec.get("open_under"),
-            "morning_over": rec.get("morning_over"),
-            "morning_under": rec.get("morning_under"),
-            "close_over": rec.get("close_over"),
-            "close_under": rec.get("close_under"),
-            **arms,
-            "pnl_flat1u": bet_pnl(arms["stake_flat1u"], amer, won=won) if accepted else 0.0,
-            "pnl_band": bet_pnl(arms["stake_band"], amer, won=won) if accepted else 0.0,
-            "pnl_kelly": bet_pnl(arms["stake_kelly"], amer, won=won) if accepted else 0.0,
-            "pnl_robust": bet_pnl(arms["stake_robust"], amer, won=won) if accepted else 0.0,
-            "half_size_2_5_3_5": half_ok,
-        }
-        rows.append(row)
+                over_ev = evaluate_side(pm, oa, ua, "over")
+                under_ev = evaluate_side(1.0 - pm, oa, ua, "under")
+            except (ValueError, ZeroDivisionError):
+                rows.append({
+                    "gd": rec["gd"], "key": rec["key"], "line": line,
+                    "accepted": False, "reason": "bad_price",
+                    "side": "", "edge": None, "snap": snap,
+                })
+                continue
+            best = over_ev if float(over_ev["edge"]) >= float(under_ev["edge"]) else under_ev
+            side = str(best["side"])
+            edge = float(best["edge"])
+            p_side = float(best["p_model"])
+            amer = float(best["price_american"])
+            reason = policy_reason(side, line, edge, floors, cap=cap, under_premium=premium)
+            accepted = reason == ""
+            won = (y == 1.0) if side == "over" else (y == 0.0)
+            fl = live_floor(line, side, floors)
+            arms = size_arms(p_side, amer, edge, fl) if accepted else {
+                "stake_flat1u": 0.0, "stake_band": 0.0,
+                "stake_kelly": 0.0, "units_kelly": 0.0, "stake_robust": 0.0,
+            }
+            # Half-size counterfactual for 2.5/3.5 overs that would have been taken.
+            half_ok = (side == "over" and round(line, 1) in (2.5, 3.5) and accepted)
+            clv_val = None
+            close_invalid = False
+            ceid = rec.get("close_event_id")
+            if ceid and ceid in invalid:
+                close_invalid = True
+            if rec.get("close_over") is not None and rec.get("close_under") is not None and not close_invalid:
+                try:
+                    c_over = evaluate_side(pm, float(rec["close_over"]), float(rec["close_under"]), "over")
+                    p_close = float(c_over["p_market"]) if side == "over" else 1.0 - float(c_over["p_market"])
+                    p_bet = float(best["p_market"])
+                    clv_val = clv_pp(p_close, p_bet) * 100.0
+                except (ValueError, ZeroDivisionError, TypeError):
+                    clv_val = None
+            row = {
+                "gd": rec["gd"], "key": rec["key"], "player_name": rec.get("player_name"),
+                "line": line, "side": side, "snap": snap, "book": book,
+                "entry_clock": args.entry_clock,
+                "yr": str(rec["gd"])[:4],
+                "p_ours_cal": pm, "y": y, "won": bool(won),
+                "edge": edge, "price": amer, "p_mkt": float(best["p_market"]),
+                "accepted": accepted, "reason": reason or "taken",
+                "floor": fl, "close_invalid": close_invalid, "clv_pp": clv_val,
+                # raw two-way prices per snapshot: the market-only
+                # movement baseline derives from these WITHOUT the model
+                "open_over": rec.get("open_over"),
+                "open_under": rec.get("open_under"),
+                "morning_over": rec.get("morning_over"),
+                "morning_under": rec.get("morning_under"),
+                "close_over": rec.get("close_over"),
+                "close_under": rec.get("close_under"),
+                **arms,
+                "pnl_flat1u": bet_pnl(arms["stake_flat1u"], amer, won=won) if accepted else 0.0,
+                "pnl_band": bet_pnl(arms["stake_band"], amer, won=won) if accepted else 0.0,
+                "pnl_kelly": bet_pnl(arms["stake_kelly"], amer, won=won) if accepted else 0.0,
+                "pnl_robust": bet_pnl(arms["stake_robust"], amer, won=won) if accepted else 0.0,
+                "half_size_2_5_3_5": half_ok,
+            }
+            rows.append(row)
 
-    taken = [r for r in rows if r.get("accepted")]
-    frame = pl.DataFrame(rows)
-    atomic_write_parquet(frame, out_parquet)
+    if args.entry_clock == "registered":
+        taken = [r for r in rows if r.get("accepted")]
+        frame = pl.DataFrame(rows)
+        atomic_write_parquet(frame, out_parquet)
 
     # ---- baseline population: INDEPENDENT of the legacy p_ours_cal
     # accept/reject flag. One row per (start, line) in the window with
@@ -521,9 +705,13 @@ def main() -> None:
         line = float(rec["line"])
         y = float(rec["y"])
         won_over = (y == 1.0)
-        reason = ""
         snap = book = None
         oa = ua = None
+        entry_reason = ""
+        close_reason = ""
+        # ---- entry side: price availability, price validity, and (for
+        # paid-morning entries, when the envelope exists) decision-time
+        # vendor-timestamp availability
         if (rec.get("open_over") is not None
                 and rec.get("open_under") is not None):
             snap = "open"
@@ -536,34 +724,69 @@ def main() -> None:
             book = rec.get("morning_book")
             oa = float(rec["morning_over"])
             ua = float(rec["morning_under"])
+            if env_present:
+                m_ts = rec.get("morning_vendor_ts")
+                m_lag = rec.get("morning_lag_sec")
+                if m_ts is None or m_lag is None:
+                    entry_reason = "entry_timing_unavailable"
+                elif float(m_lag) < 0:
+                    # lag = commence - vendor: negative means the vendor
+                    # quote is post-commence, not a decision-time price
+                    entry_reason = "entry_timing_post_commence"
+                elif float(m_lag) < MORNING_DECISION_LAG_SEC:
+                    # quote exists but arrived AFTER the declared T-5h
+                    # decision: unavailable at decision time even though
+                    # it is pregame (a T-1h quote is not a T-5h input)
+                    entry_reason = "entry_timing_after_decision"
         else:
-            reason = "no_two_way_entry_price"
-        close_pair = (rec.get("close_over") is not None
-                      and rec.get("close_under") is not None)
-        ceid = rec.get("close_event_id")
-        close_invalid = bool(ceid) and ceid in invalid
-        if reason == "" and not close_pair:
-            reason = "no_two_way_close"
-        if reason == "" and close_invalid:
-            reason = "close_invalid_vendor"
-        fair_entry = fair_close = None
-        if reason == "":
+            entry_reason = "no_two_way_entry_price"
+        entry_eligible = entry_reason == ""
+        fair_entry = None
+        if entry_eligible:
             try:
                 # the de-vigged market probability is model-independent;
                 # evaluate_side is the registered construction
                 fair_entry = float(evaluate_side(
                     0.0, oa, ua, "over")["p_market"])
+            except (ValueError, ZeroDivisionError, TypeError):
+                entry_reason = "bad_entry_price"
+                entry_eligible = False
+        # ---- settlement: independent of entry/close availability
+        settlement_available = y is not None
+        # ---- close benchmark: assessed independently of entry
+        close_pair = (rec.get("close_over") is not None
+                      and rec.get("close_under") is not None)
+        if not close_pair:
+            close_reason = "no_two_way_close"
+        elif env_present:
+            c_ts = rec.get("close_vendor_ts")
+            c_lag = rec.get("close_lag_sec")
+            if c_ts is None or c_lag is None:
+                close_reason = "close_timing_unavailable"
+            elif float(c_lag) < 0:
+                close_reason = "close_invalid_vendor"
+            elif float(c_lag) < CLOSE_DECISION_LAG_SEC:
+                # vendor quote arrived after the declared T-5min close
+                # benchmark time: not a close-decision-time price
+                close_reason = "close_timing_after_decision"
+        fair_close = None
+        close_benchmark_available = False
+        if close_reason == "":
+            try:
                 fair_close = float(evaluate_side(
                     0.0, float(rec["close_over"]),
                     float(rec["close_under"]), "over")["p_market"])
+                close_benchmark_available = True
             except (ValueError, ZeroDivisionError, TypeError):
-                reason = "bad_entry_price"
+                close_reason = "bad_close_price"
         movement_pp = ((fair_close - fair_entry) * 100.0
-                       if fair_entry is not None else None)
+                       if (fair_entry is not None
+                           and close_benchmark_available) else None)
         base_rows.append({
             "gd": rec["gd"], "key": rec["key"],
             "player_name": rec.get("player_name"),
             "line": line, "snap": snap, "book": book,
+            "entry_clock": args.entry_clock,
             "yr": str(rec["gd"])[:4],
             "entry_over": oa, "entry_under": ua,
             "fair_over_entry": fair_entry,
@@ -583,26 +806,177 @@ def main() -> None:
                                 if oa is not None else None),
             "pnl_flat1u_under": (bet_pnl(1.0, ua, won=(not won_over))
                                  if ua is not None else None),
-            "has_model_probability": rec.get("p_ours_cal") is not None,
-            "baseline_reason": reason or "eligible",
+            "has_model_probability": (
+                rec["p_ours_cal"] is not None
+                if "p_ours_cal" in rec else None),
+            # ---- separated states with independent denominators
+            "entry_eligible": entry_eligible,
+            "entry_reason": entry_reason or "eligible",
+            "settlement_available": settlement_available,
+            "close_benchmark_available": close_benchmark_available,
+            "close_reason": close_reason or "available",
+            # combined gate kept for compatibility (entry side wins ties)
+            "baseline_reason": (entry_reason or close_reason
+                                or "eligible"),
         })
     base_frame = pl.DataFrame(base_rows)
     atomic_write_parquet(base_frame, out_base)
-    eligible = [r for r in base_rows if r["baseline_reason"] == "eligible"]
-    reason_counts = {}
+    n_candidates = len(base_rows)
+    entry_ok = [r for r in base_rows if r["entry_eligible"]]
+    settled_ok = [r for r in base_rows if r["settlement_available"]]
+    close_ok = [r for r in base_rows
+                if r["entry_eligible"] and r["close_benchmark_available"]]
+    entry_reason_counts: dict = {}
     for r in base_rows:
-        reason_counts[r["baseline_reason"]] =             reason_counts.get(r["baseline_reason"], 0) + 1
+        k = r["entry_reason"]
+        entry_reason_counts[k] = entry_reason_counts.get(k, 0) + 1
+    close_reason_counts = {}
+    for r in base_rows:
+        k = r["close_reason"]
+        close_reason_counts[k] = close_reason_counts.get(k, 0) + 1
+
+    def _mean(vals: list) -> float | None:
+        vals = [v for v in vals if v is not None]
+        return float(np.mean(vals)) if vals else None
+
+    def _market_movement_stats() -> dict:
+        mv = [float(r["movement_pp"]) for r in close_ok
+              if r.get("movement_pp") is not None]
+        n = len(mv)
+        if not n:
+            return {"n": 0}
+        pnl_o = sum(r["pnl_flat1u_over"] for r in close_ok
+                    if r["pnl_flat1u_over"] is not None)
+        pnl_u = sum(r["pnl_flat1u_under"] for r in close_ok
+                    if r["pnl_flat1u_under"] is not None)
+        return {
+            "n": n,
+            "denominator": len(entry_ok),
+            "mean_movement_pp": float(np.mean(mv)),
+            "median_movement_pp": float(np.median(mv)),
+            "positive_clv_share_over": float(
+                np.mean([1.0 if v > 0 else 0.0 for v in mv])),
+            "positive_clv_share_under": float(
+                np.mean([1.0 if v < 0 else 0.0 for v in mv])),
+            "mean_fair_over_entry": _mean([r["fair_over_entry"]
+                                           for r in close_ok]),
+            "mean_fair_over_close": _mean([r["fair_over_close"]
+                                           for r in close_ok]),
+            "entry_roi_flat1u_over": (
+                float(pnl_o / n) if n else None),
+            "entry_roi_flat1u_under": (
+                float(pnl_u / n) if n else None),
+            "over_hit_share": float(np.mean(
+                [1.0 if r["over_hit"] == 1 else 0.0 for r in close_ok])),
+        }
+
     base_summary = {
-        "n_baseline_rows": len(base_rows),
-        "n_eligible": len(eligible),
-        "reason_counts": reason_counts,
+        "n_baseline_rows": n_candidates,
+        "n_eligible": len([r for r in base_rows
+                           if r["baseline_reason"] == "eligible"]),
+        "reason_counts": {
+            k: v for k, v in
+            ((k, sum(1 for r in base_rows
+                     if r["baseline_reason"] == k))
+             for k in {r["baseline_reason"] for r in base_rows})},
+        # ---- independent denominators (Req: separated states)
+        "entry": {
+            "n_eligible": len(entry_ok),
+            "denominator": n_candidates,
+            "reason_counts": entry_reason_counts,
+        },
+        "settlement": {
+            "n_available": len(settled_ok),
+            "denominator": n_candidates,
+        },
+        "close_benchmark": {
+            "n_available": len(close_ok),
+            "denominator": len(entry_ok),
+            "reason_counts": close_reason_counts,
+        },
+        # model probability is not accessed in market-only mode
         "has_model_probability_share": (
-            float(np.mean([1.0 if r["has_model_probability"] else 0.0
-                           for r in base_rows])) if base_rows else None),
+            None if market_only else
+            (float(np.mean([1.0 if r["has_model_probability"] else 0.0
+                            for r in base_rows])) if base_rows else None)),
         "note": ("market-only movement baseline over ALL baseline-"
                  "eligible contracts; model-selected performance is "
-                 "reported separately in the taken/selection sections"),
+                 "reported separately in the taken/selection sections"
+                 if not market_only else
+                 "market-only movement baseline over ALL candidates; "
+                 "model probability, policy and sizing not accessed"),
     }
+
+    # ---- market-only execution path: legacy model probability
+    # requirements, policy filters and sizing execution are bypassed;
+    # only the baseline construction and canonical de-vig math run.
+    if args.entry_clock == "morning_only":
+        rep = {
+            "generated_utc": datetime.now(timezone.utc).isoformat(),
+            "contract": {
+                "mode": "market_only",
+                "entry_clock": args.entry_clock,
+                "decision": "paid morning T-5h only (Friend skipped)",
+                "model": "bypassed (p_ours_cal not required)",
+                "policy": "bypassed (no floors/veto/probation filter)",
+                "sizing": "bypassed (no Kelly/edge-band execution)",
+                "edge": "two-way multiplicative de-vig (registered)",
+                "settlement": "panel y (binary over-hit at the line)",
+                "book": "DK else FD else next US book with two-way quote",
+                "vendor_timing_enforced": bool(env_present),
+                "timing_note": (
+                    "envelope present and required: morning/close "
+                    "vendor timestamps must exist and be at or before "
+                    "the declared decision times (morning T-5h, close "
+                    "T-5min before commence); missing, post-commence "
+                    "or post-decision timing is an explicit "
+                    "unavailable/refusal state"
+                    if env_present else
+                    "envelope absent: timing enforcement disabled "
+                    "(legacy behavior)"),
+                "timing_reference": (
+                    "commence_time (vendor convention); actual "
+                    "first-pitch time is NOT supplied and is NOT "
+                    "equated to commence"),
+                "units": {
+                    "fair_over_entry": "probability [0,1] (over-side "
+                                       "multiplicative de-vig)",
+                    "movement_pp": "percentage points of fair-over "
+                                   "probability (close minus entry; "
+                                   "positive = over side shortened)",
+                    "clv_pp_over/under": "percentage points vs entry "
+                                         "fair (over/under perspective)",
+                    "entry_roi_flat1u_over/under": "units won or lost "
+                                                   "per 1.0 unit flat "
+                                                   "stake at entry price",
+                    "over_hit_share": "fraction of contracts where the "
+                                      "over won (panel y = 1)",
+                },
+                "gd_window": (f"{gd_window[0]}..{gd_window[1]} "
+                              "(confirm_2025H2 excluded pre-decode)"
+                              if gd_restricted else "full (canonical)"),
+                "boundary": ("development market-only replay; "
+                             "write-once sidecar destination; "
+                             "baseline outputs only (no candidates "
+                             "parquet)"),
+            },
+            "n_candidates": n_candidates,
+            "baseline_market_only": base_summary,
+            "market_movement": _market_movement_stats(),
+        }
+        atomic_write_text(out_report, json.dumps(rep, indent=2,
+                                                 default=str))
+        print(json.dumps({
+            "mode": "market_only",
+            "n_candidates": n_candidates,
+            "entry_eligible": len(entry_ok),
+            "settlement_available": len(settled_ok),
+            "close_benchmark_available": len(close_ok),
+            "market_movement": rep["market_movement"],
+        }, indent=2, default=str))
+        print(f"wrote {out_base}")
+        print(f"wrote {out_report}")
+        return 0
 
     def year_slice(yr: str | None) -> list[dict]:
         if yr is None:
@@ -687,7 +1061,10 @@ def main() -> None:
         "contract": {
             "model": "frozen p_ours_cal universe_panel_live",
             "edge": "two-way multiplicative de-vig at juiced book pair",
-            "decision": "friend open else paid morning",
+            "decision": ("friend open else paid morning"
+                         if args.entry_clock == "registered"
+                         else "paid morning T-5h only (Friend skipped)"),
+            "entry_clock": args.entry_clock,
             "book": "DK else FD else next US book with two-way quote (canonical per owner 2026-09-11)",
             "dk_fd_only": "sensitivity, not the headline",
             "policy": (
@@ -761,7 +1138,8 @@ def main() -> None:
     }, indent=2, default=str))
     print(f"wrote {out_parquet}")
     print(f"wrote {out_report}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
