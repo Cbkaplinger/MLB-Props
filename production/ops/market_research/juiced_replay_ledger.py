@@ -318,6 +318,12 @@ def resolve_outputs(out_suffix: str, gd_restricted: bool,
     return paths
 
 
+def _fail_date(flag: str, value: str) -> None:
+    raise SystemExit(
+        f"{flag} must be a valid YYYY-MM-DD date; got {value!r}; "
+        "refusing before any input/output side effect")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--floor-uniform", type=float, default=None,
@@ -350,6 +356,26 @@ def main(argv: list[str] | None = None) -> int:
                          "2025-06-30)")
     args = ap.parse_args(argv)
     gd_restricted = args.gd_start is not None or args.gd_end is not None
+    if gd_restricted:
+        # validate before any input/output side effect
+        for label, val in [("--gd-start", args.gd_start),
+                           ("--gd-end", args.gd_end)]:
+            if val is not None:
+                parts = val.split("-")
+                if (len(parts) != 3 or len(parts[0]) != 4
+                        or not all(p.isdigit() for p in parts)
+                        or not all(len(p) == d for p, d
+                                   in zip(parts, (4, 2, 2)))):
+                    _fail_date(label, val)
+        lo = args.gd_start or "0000-01-01"
+        hi = args.gd_end or "9999-12-31"
+        if lo > hi:
+            _fail_date("--gd-start/--gd-end",
+                       f"reversed window {lo}..{hi}")
+    gd_window = None
+    if gd_restricted:
+        gd_window = (args.gd_start or "0000-01-01",
+                     args.gd_end or "9999-12-31")
     floors = uniform_floors(args.floor_uniform) if args.floor_uniform is not None else _floors()
     cap = args.cap
     premium = UNDER_LEAN_PREMIUM if args.under_lean else 0.0
@@ -374,17 +400,15 @@ def main(argv: list[str] | None = None) -> int:
     # cache may be (re)built locally from the raw event index when
     # missing (local file write; no network).
     allowed_event_ids = None
-    gd_window = None
     if gd_restricted:
-        gd_lo = args.gd_start or "0000-01-01"
-        gd_hi = args.gd_end or "9999-12-31"
         allowed_event_ids = {
             eid for eid, gd in evdate.items()
-            if gd_lo <= str(gd)[:10] <= gd_hi}
+            if gd_window[0] <= str(gd)[:10] <= gd_window[1]}
         if not allowed_event_ids:
             raise SystemExit(
-                f"gd window {gd_lo}..{gd_hi} matches no cached event "
-                "dates; refusing rather than decoding the full lake")
+                f"gd window {gd_window[0]}..{gd_window[1]} matches no "
+                "cached event dates; refusing rather than decoding the "
+                "full lake")
     print("attaching paid morning/close two-way pairs...")
     morning = _two_way_paid("morning", ev, allowed, event_ids=allowed_event_ids)
     close = _two_way_paid("close", ev, allowed, event_ids=allowed_event_ids)
