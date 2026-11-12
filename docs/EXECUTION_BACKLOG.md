@@ -94,29 +94,29 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
    outputs; panel exception NOT consumed; receipt preserved (PR #87
    comment 6829936974). Next decision (owner): amend the binding to
    the four-key set (new order) or declare close-side treatment.
-2. Current-control-versus-books evaluation packet (PR #88, this
-   branch): packet EXTENDED with (0) recovery-evidence reconciliation
-   (fourth key = close-side union discovery; receipts unchanged; no
-   duplicate claim without evidence), (0b) the canonical identity
-   implementation map (join_coverage.build_task_frames: event->game
-   via +-1-day closest-date + event_id-order tiebreak, id-map
-   player->MLBAM, meta-counted ambiguity/unmatched; no second
-   matcher), (0c) the minimum exact read proposal for the four
-   ambiguous keys (envelope commence/home/away + event-index game
-   number for 8 event ids only), (0d) the coherent treatment rule
-   (declared exclusion with classification provenance; validated
-   same-game mapping proposed as future owner option, not
-   implemented), and the IMPLEMENTED wiring (0->5):
-   research/offseason_2026/pregame_pa_ext/run_control_vs_books.py -
-   gated write-once runner (pins: k-PMF 8c5c849c..., assessment
-   464fe192..., count_agg_eval dates afc94ad7...; cohort hash
-   f77d7a66...; ack EXECUTE-CONTROL-VS-BOOKS-V1; control arm
-   pmf_multinomial_control ONLY, legacy panel never read; NEAR-CLOSE
-   label retained). Tests: tests/test_control_vs_books_runner.py (8
-   green + 1 skip) and tests/test_event_player_bridge.py (5
-   skipif-guarded fixtures: name-order normalization, doubleheaders,
-   two vendor IDs -> one validated game, closest-date-wins, unmatched
-   player/game). NOT EXECUTED on real data (gate + owner order).
+2. Current-control-versus-books benchmark EXECUTION-READY (PR #88,
+   this branch): the gated runner is complete with output discipline
+   (tables as parquet; scores/coverage JSON via fail-loud conversion,
+   never default=str; receipt_final written LAST - output-write
+   failure test proves no completed receipt on failure); required
+   args validated before any output/decode; consumed identities
+   recorded (cohort content hash, pinned artifacts, book_lines/
+   envelope/workload hashes, bridge source + card manifest sha).
+   Timing/identity contract recorded in every output: commence
+   semantics (vendor-scheduled commence, NOT observed first pitch),
+   near-close interpretation with the confirmed-lineup limitation,
+   and the declared per-mapping tie-break gap (closest-date + id-
+   order tiebreak is NOT independent identity validation; aggregate
+   counts only in existing metadata). Synthetic main-entry success
+   test reads outputs back with hand-computed log-loss/Brier values.
+   Four-key binding amendment PREPARED
+   (expected_exclusions_2025H1.json: three receipt keys + castillo
+   luis 2025-04-09; union-exclusion policy unchanged; lineage +
+   not-a-duplicate caveat recorded). Combined gates: 83 passed.
+   Two execution packets proposed (PR #88 handoff): (A) paid-morning
+   baseline recovery (needs a recorded order with the amended
+   binding); (B) control-vs-books near-close benchmark (ack
+   EXECUTE-CONTROL-VS-BOOKS-V1 + registered gate). NOT EXECUTED.
 3. Boundary-exception coverage follow-up: implemented + 8 synthetic
    tests; NOT RUN on real odds (owner authorization; near-close
    labeling preserved).

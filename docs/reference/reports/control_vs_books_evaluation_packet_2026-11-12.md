@@ -102,6 +102,16 @@ acceptance, no silent key widening; complete denominators preserved.
 keys through the existing duplicate-side guard - that is NOT
 implemented and needs its own declared rule.)
 
+## 0e. Prepared four-key binding amendment (baseline recovery)
+
+`production/ops/market_research/expected_exclusions_2025H1.json` now
+binds the FOUR detected reduced keys: the three receipt-1 keys (chris
+paddack 4.5, gavin williams 5.5, bryan woo 4.5) plus castillo luis /
+2025-04-09 / 4.5 from receipt 2's detected-only diff. Lineage and the
+not-a-duplicate caveat are recorded in the file. The union-exclusion
+policy is UNCHANGED; no identity guessing; no rerun under consumed
+permissions - execution requires a new recorded single-run order.
+
 ## 1. Registered control PMF artifact and provenance
 
 - **Artifact:** `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\platoon_information_v1_reproduction_20261110\k_pmf_per_start_v1.parquet`
@@ -186,21 +196,36 @@ implemented and needs its own declared rule.)
   gated `market_eval_k.run_market_eval_k` runner.
 - **IMPLEMENTED THIS PR (the one missing step):**
   `research/offseason_2026/pregame_pa_ext/run_control_vs_books.py` -
-  a thin, gated, write-once runner that (1) hash-pins and loads the
-  three registered files plus `count_agg_eval_v1.parquet` (dates
-  source; pin `afc94ad7...`), (2) derives observed K via the
-  registered `derive_observed_k`, (3) declares start_dates from
+  a thin, gated, write-once runner that (1) validates EVERY required
+  argument (ack, fresh out-dir, existing book-lines/envelope) BEFORE
+  output creation or frame decoding, (2) hash-pins and loads the
+  registered files (k-PMF `8c5c849c...`, assessment `464fe192...`,
+  count_agg_eval dates `afc94ad7...`; cohort content-checked
+  downstream), (3) derives observed K via the registered
+  `derive_observed_k`, (4) declares start_dates from
   count_agg_eval_v1 restricted to the cohort (seam asserts exact
-  cover - no date invention), (4) builds quotes + starts_bridge via
-  the registered `build_task_frames` (dev window 2024-07-01..2025-06-30),
-  (5) calls `benchmark_contract_rows` with
+  cover - no date invention), (5) builds quotes + starts_bridge via
+  the registered `build_task_frames` (dev window
+  2024-07-01..2025-06-30), (6) calls `benchmark_contract_rows` with
   `arm="pmf_multinomial_control"` ONLY. Execution-ack
-  `EXECUTE-CONTROL-VS-BOOKS-V1`; write-once out-dir; receipt_initial /
-  receipt_final / failure_record preserved. Tests:
-  `tests/test_control_vs_books_runner.py` (name normalization, date
-  derivation exact-cover, conflicting-date refusal, missing-column
-  refusal, pin enforcement, ack gate, write-once, seam exact-cover
-  refusal through the runner's derivation).
+  `EXECUTE-CONTROL-VS-BOOKS-V1`.
+- **Output discipline (tested):** tables persist as parquet via the
+  registered atomic write (`benchmark_model_rows/consensus/
+  book_probs/ltbo.parquet`); scores/coverage persist as
+  `benchmark_summary.json` through an explicit fail-loud converter -
+  `default=str` NEVER serializes scientific results (numpy scalars
+  convert to Python scalars; unknown types REFUSE).
+  `receipt_final.json` is written LAST, only after every declared
+  output succeeded; the synthetic output-failure test proves a failed
+  write leaves `failure_record.json` and never a completed receipt.
+- **Consumed identities (receipt-final, actual):** cohort content
+  hash (registered recipe), pinned artifact hashes, book_lines/
+  envelope/workload sha256, private bridge source sha + card
+  manifest sha (existing provenance machinery reused; no new
+  registry). Timing + identity contract recorded in every output
+  (`TIMING_CONTRACT`): commence semantics, near-close interpretation
+  and its confirmed-lineup limitation, and the declared per-mapping
+  tie-break gap.
 - **Remaining unknown:** whether the canonical id-map bridge resolves
   every cohort start to a game_date (cohort ⊆ count_agg_eval_v1) -
   the seam's exact-cover assertion answers it on first real run and

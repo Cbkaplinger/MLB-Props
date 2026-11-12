@@ -32,20 +32,26 @@ diagnostic (PR #83) merged.
   fourth close-side ambiguous key, castillo luis 2025-04-09, beyond
   the bound three; receipt on PR #87 comment 6829936974; no outputs;
   panel exception not consumed). Awaiting the owner's binding decision.
-- IMPLEMENTED (PR #88): the thin orchestration runner
-  research/offseason_2026/pregame_pa_ext/run_control_vs_books.py
-  (hash-pinned inputs incl. count_agg_eval dates afc94ad7...;
-  declared start_dates from count_agg_eval_v1 restricted to the
-  cohort, exact-cover enforced by the seam; registered
-  build_task_frames bridge; ack EXECUTE-CONTROL-VS-BOOKS-V1;
-  write-once receipts; control arm pmf_multinomial_control ONLY;
-  NEAR-CLOSE label retained). Identity map + treatment rule +
-  minimum-exact-read proposal added to the packet (sections 0-0d).
-- Tests: tests/test_control_vs_books_runner.py (8 green) +
-  tests/test_event_player_bridge.py (5 fixtures vs the canonical
-  bridge: name normalization, doubleheaders, two vendor IDs -> one
-  validated game, closest-date wins, unmatched). NOT EXECUTED on
-  real data (registered gate + owner order).
+- EXECUTION-READY (PR #88): the gated runner is complete - args
+  validated before output/decode; tables as parquet; scores/coverage
+  JSON via fail-loud conversion (never default=str); receipt_final
+  LAST (output-failure test: no completed receipt on failure);
+  consumed identities recorded (cohort hash, pinned artifacts,
+  book_lines/envelope/workload, bridge source + card manifest).
+  Synthetic main-entry success test reads outputs back with
+  hand-computed log-loss/Brier. Timing contract recorded: commence
+  (vendor-scheduled) is NOT observed first pitch; near-close does
+  NOT establish confirmed-lineup availability before every quote;
+  closest-date/id-order tiebreak is NOT independent identity
+  validation (per-mapping status = declared gap).
+- Four-key binding amendment PREPARED
+  (production/ops/market_research/expected_exclusions_2025H1.json:
+  3 receipt keys + castillo luis 2025-04-09; union-exclusion policy
+  unchanged; no rerun under consumed permissions).
+- Combined gates 83 passed. Two proposed execution packets on the
+  PR #88 handoff: (A) paid-morning baseline recovery (recorded order
+  + amended binding); (B) control-vs-books near-close benchmark
+  (ack EXECUTE-CONTROL-VS-BOOKS-V1 + registered gate). NOT EXECUTED.
 
 ## Prior action: identity-exclusion policy (CLOSED, PR #87 merged)
 
