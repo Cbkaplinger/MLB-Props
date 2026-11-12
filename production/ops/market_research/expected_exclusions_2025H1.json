@@ -1,19 +1,30 @@
 {
-  "purpose": "Expected excluded reduced keys for the paid-morning 2025H1 development baseline recovery packet. Binds the run to the preserved stopped-run receipt; a detected set different from this set REFUSES the run.",
-  "lineage": {
-    "stopped_run": "PR #86 single-run execution (closed as execution of record); receipt posted as PR #86 comment 6816558623",
-    "receipt_error": "ambiguous reduced-key join: 3 (gd,key,line) map to multiple event_id values, e.g. [('2025-05-21', 'chris paddack', 4.5, 2), ('2025-05-21', 'gavin williams', 5.5, 2), ('2025-06-11', 'bryan woo', 4.5, 2)]; refusing",
-    "input_hashes": {
-      "book_lines_pitcher.parquet": "325abdf01f5f0b84abd8f1f0504b50e7e9f84e09593731bed31364f367ee233e",
-      "snapshot_envelope.parquet": "2b73bc4096b34641cee42b5d6533875ff0274b7196800730bbaf461dd3b9ccb7",
-      "event_date_map.json": "3463fc4db17ec79c64254e5f3a53a465df710bb08db0d965cf37d26c6ad73249",
-      "universe_panel_live.parquet": "568a6bfc17476ee524bc6c6286b79c751f4b478b857c77feed35432c4255f2e9"
-    }
+  "purpose": "Expected excluded reduced keys for the paid-morning 2025H1 development baseline recovery packet. Binds the run to the preserved stopped-run receipt AND its amended single-run refusal; a detected set different from this set REFUSES the run. Exclusion remains a declared development-baseline EXCLUSION (never an identity resolution); the union-exclusion policy across morning and close is unchanged.",
+  "amendment": {
+    "status": "prepared, not executed (no rerun under consumed permissions; a new owner single-run order is required)",
+    "lineage": [
+      {
+        "receipt": "PR #86 comment 6816558623 (stopped run, closed as execution of record)",
+        "keys": [
+          {"gd": "2025-05-21", "key": "chris paddack", "line": 4.5},
+          {"gd": "2025-05-21", "key": "gavin williams", "line": 5.5},
+          {"gd": "2025-06-11", "key": "bryan woo", "line": 4.5}
+        ],
+        "note": "morning-scan sample; close screening never ran"
+      },
+      {
+        "receipt": "PR #87 comment 6829936974 (amended run, closed)",
+        "added_key": {"gd": "2025-04-09", "key": "castillo luis", "line": 4.5},
+        "evidence": "morning+close union detected-only=[('2025-04-09', 'castillo luis', 4.5)]; expected-only=[] confirmed all three receipt keys; expected-only/detected-only diff printed by the binding gate"
+      }
+    ],
+    "identity_caveat": "a (gd,key) mapping to two event_ids is NOT claimed to be a vendor duplicate: doubleheader vs re-listing is unresolved without the minimum evidence read (envelope commence/home/away + event-index game number for the eight conflicting event ids). Treatment is declared exclusion in every case, never identity resolution."
   },
   "window": "2025-01-01..2025-06-30",
   "expected_excluded_keys": [
     {"gd": "2025-05-21", "key": "chris paddack", "line": 4.5},
     {"gd": "2025-05-21", "key": "gavin williams", "line": 5.5},
-    {"gd": "2025-06-11", "key": "bryan woo", "line": 4.5}
+    {"gd": "2025-06-11", "key": "bryan woo", "line": 4.5},
+    {"gd": "2025-04-09", "key": "castillo luis", "line": 4.5}
   ]
 }

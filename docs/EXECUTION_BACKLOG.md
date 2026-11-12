@@ -86,16 +86,41 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### FORWARD
 
-1. Recovery packet (needs a NEW owner single-run order; not executed
-   here): `python production/ops/market_research/juiced_replay_ledger.py
-   --entry-clock morning_only --gd-start 2025-01-01 --gd-end
-   2025-06-30 --out-suffix __mkt2025H1 --identity-policy
-   exclude_ambiguous --expected-excluded-keys
-   production/ops/market_research/expected_exclusions_2025H1.json`
-2. Boundary-exception coverage follow-up: implemented + 8 synthetic
+1. Baseline recovery: PR #87 MERGED (main 999ffbe); the amended
+   single run was EXECUTED once on integrated main and REFUSED at the
+   binding gate, exit 1: the morning+close identity union detected a
+   FOURTH ambiguous reduced key (2025-04-09, castillo luis, 4.5)
+   beyond the three receipt-bound keys (all three confirmed). No
+   outputs; panel exception NOT consumed; receipt preserved (PR #87
+   comment 6829936974). Next decision (owner): amend the binding to
+   the four-key set (new order) or declare close-side treatment.
+2. Current-control-versus-books benchmark EXECUTION-READY (PR #88,
+   this branch): the gated runner is complete with output discipline
+   (tables as parquet; scores/coverage JSON via fail-loud conversion,
+   never default=str; receipt_final written LAST - output-write
+   failure test proves no completed receipt on failure); required
+   args validated before any output/decode; consumed identities
+   recorded (cohort content hash, pinned artifacts, book_lines/
+   envelope/workload hashes, bridge source + card manifest sha).
+   Timing/identity contract recorded in every output: commence
+   semantics (vendor-scheduled commence, NOT observed first pitch),
+   near-close interpretation with the confirmed-lineup limitation,
+   and the declared per-mapping tie-break gap (closest-date + id-
+   order tiebreak is NOT independent identity validation; aggregate
+   counts only in existing metadata). Synthetic main-entry success
+   test reads outputs back with hand-computed log-loss/Brier values.
+   Four-key binding amendment PREPARED
+   (expected_exclusions_2025H1.json: three receipt keys + castillo
+   luis 2025-04-09; union-exclusion policy unchanged; lineage +
+   not-a-duplicate caveat recorded). Combined gates: 83 passed.
+   Two execution packets proposed (PR #88 handoff): (A) paid-morning
+   baseline recovery (needs a recorded order with the amended
+   binding); (B) control-vs-books near-close benchmark (ack
+   EXECUTE-CONTROL-VS-BOOKS-V1 + registered gate). NOT EXECUTED.
+3. Boundary-exception coverage follow-up: implemented + 8 synthetic
    tests; NOT RUN on real odds (owner authorization; near-close
    labeling preserved).
-3. Scientific queue: no other task assigned.
+4. Scientific queue: no other task assigned.
 
 ### DEFERRED
 
