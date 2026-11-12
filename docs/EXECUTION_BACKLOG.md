@@ -86,16 +86,26 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### FORWARD
 
-1. Recovery packet (needs a NEW owner single-run order; not executed
-   here): `python production/ops/market_research/juiced_replay_ledger.py
-   --entry-clock morning_only --gd-start 2025-01-01 --gd-end
-   2025-06-30 --out-suffix __mkt2025H1 --identity-policy
-   exclude_ambiguous --expected-excluded-keys
-   production/ops/market_research/expected_exclusions_2025H1.json`
-2. Boundary-exception coverage follow-up: implemented + 8 synthetic
+1. Baseline recovery: PR #87 MERGED (main 999ffbe); the amended
+   single run was EXECUTED once on integrated main and REFUSED at the
+   binding gate, exit 1: the morning+close identity union detected a
+   FOURTH ambiguous reduced key (2025-04-09, castillo luis, 4.5)
+   beyond the three receipt-bound keys (all three confirmed). No
+   outputs; panel exception NOT consumed; receipt preserved (PR #87
+   comment 6829936974). Next decision (owner): amend the binding to
+   the four-key set (new order) or declare close-side treatment.
+2. Current-control-versus-books evaluation packet PREPARED (this PR):
+   docs/reference/reports/control_vs_books_evaluation_packet_2026-11-12.md
+   - registered control arm pmf_multinomial_control (k-PMF artifact
+   pin 8c5c849c...; provenance: byte-identical platoon reproduction,
+   receipt_final b1b91357...), cohort f77d7a66... (2,509 starts),
+   NEAR-CLOSE benchmark label (morning model-input availability
+   unestablished), one missing wiring step = declared start_dates
+   from count_agg_eval_v1 + ordered seam call. NOT EXECUTED.
+3. Boundary-exception coverage follow-up: implemented + 8 synthetic
    tests; NOT RUN on real odds (owner authorization; near-close
    labeling preserved).
-3. Scientific queue: no other task assigned.
+4. Scientific queue: no other task assigned.
 
 ### DEFERRED
 

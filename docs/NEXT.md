@@ -25,29 +25,37 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: identity-exclusion policy PR (2026-11-12)
+## Current action: control-vs-books evaluation packet (2026-11-12)
 
-- PR #86 merged (main 16a99b0); the single-run order was executed once
-  and STOPPED at the exact-identity guard (3 reduced keys mapping to
-  two event_ids each in 2025H1). That run is CLOSED as the execution
-  of record; receipt preserved (PR #86 comment 6816558623).
-- This PR adds the opt-in development-baseline policy
-  `--identity-policy exclude_ambiguous` (default refuse unchanged):
-  exclusions determined BEFORE book selection/outcome consumption,
-  union across morning+close (no re-entry), preserved in accounting
-  with all conflicting event_ids, never resolved.
-- `--expected-excluded-keys` binds the run to the preserved receipt
-  (expected_exclusions_2025H1.json); any different detected set
-  REFUSES. Population before/after screening + post-screening
-  denominators reported.
-- Tests: 10 green (tests/test_identity_exclusion.py); combined gate
-  76 passed. NO private-data read or rerun authorized here.
-- Recovery packet (requires a NEW owner single-run order):
-  `python production/ops/market_research/juiced_replay_ledger.py
-  --entry-clock morning_only --gd-start 2025-01-01 --gd-end
-  2025-06-30 --out-suffix __mkt2025H1 --identity-policy
-  exclude_ambiguous --expected-excluded-keys
-  production/ops/market_research/expected_exclusions_2025H1.json`
+- Baseline recovery status: PR #87 merged (main 999ffbe); the amended
+  single run was EXECUTED once and REFUSED at the binding gate (a
+  fourth close-side ambiguous key, castillo luis 2025-04-09, beyond
+  the bound three; receipt on PR #87 comment 6829936974; no outputs;
+  panel exception not consumed). Awaiting the owner's binding decision.
+- NEW: docs/reference/reports/control_vs_books_evaluation_packet_2026-11-12.md
+  - bounded current-control-versus-books evaluation packet: registered
+  control PMF artifact (platoon reproduction k-PMF, control arm
+  pmf_multinomial_control), eligible cohort f77d7a66... (2,509 starts),
+  NEAR-CLOSE benchmark label (morning model-input availability
+  unestablished - NOT a morning trading replay), book/consensus
+  contract (tier A 60-min cutoff / tier B close snapshot; LTBO >= 2
+  other books), ONE missing wiring step (declared start_dates from
+  count_agg_eval_v1 + ordered seam call into the gated
+  run_market_eval_k). Uses existing bridge/seam/scorer only. NOT
+  EXECUTED; needs the registered market-eval gate + owner order.
+
+## Prior action: identity-exclusion policy (CLOSED, PR #87 merged)
+
+PR #87 merged at main 999ffbe. Opt-in `--identity-policy
+exclude_ambiguous` (default refuse unchanged; exclusions before book
+selection/outcome consumption; morning+close union, no re-entry;
+preserved in accounting; `--expected-excluded-keys` receipt binding).
+The amended single run was EXECUTED once on integrated main: REFUSED
+at the binding gate (fourth close-side key castillo luis 2025-04-09
+beyond the bound three; all three bound keys confirmed; no outputs;
+panel exception not consumed; receipt PR #87 comment 6829936974).
+CLOSED as the execution of record under that order; awaiting the
+owner's binding decision before any further run.
 
 ## Prior action: market-only T-5h replay (CLOSED, PR #86 merged)
 
