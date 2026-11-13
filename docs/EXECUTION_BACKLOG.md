@@ -61,38 +61,39 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PRESENT
 
-- **QUOTE-MULTIPLICITY INTEGRITY + NARROW NORMALIZATION (PR, this
-  branch):** Packet A's second stop (duplicate over-side quotes,
-  receipt PR #88 comment 6838485286) is now diagnosable without blind
-  retries. juiced_replay_ledger gains:
-  (1) full quote identity through validation and pair construction
-  (event_id retained on BOTH sides; pairs join on the full supported
-  contract key incl. event_id);
-  (2) a multiplicity classifier with four declared classes (exact
-  identical repeats; same-time conflicting prices; distinct-time
-  observations; insufficient timestamp) -- timestamp semantics never
-  inferred;
-  (3) ONE structured integrity report covering BOTH morning and close
-  in a single permitted input pass (counts, affected keys, snapshot,
-  available timestamps, conflict class, refusing stage), written to
-  juiced_replay_quote_integrity<suffix>.json (write-once-guarded)
-  BEFORE outcomes/scoring -- no more uninformative first-side
-  messages; refusal fires with the full report;
-  (4) default behavior unchanged (refuse); opt-in
-  --quote-policy normalize_idempotent collapses ONLY exact repeated
-  observations (identical price AND timestamp); same-time conflicts,
-  distinct-time rows and insufficient-timestamp groups still refuse
-  (no first()/best-price/latest; no declared decision-time selector
-  exists for distinct-time rows);
-  (5) no outcome access on refusal (integrity pass precedes the
-  envelope and panel reads).
-  Tests: 11 green in tests/test_quote_integrity.py (identical
-  repeats refuse+collapse, same-time conflict, distinct-time,
-  morning-only/close-only, one-sided dup, missing timestamps,
-  unchanged unique metrics, refusal-before-panel, full-identity
-  pairing, four-key exclusions coexisting). Combined gates: 101
-  passed. Proposed bounded quote-only recovery packet in the PR
-  description. NOT EXECUTED on real data (new owner order required).
+- **CLOSE-CONFLICT DROP-AND-COUNT POLICY (PR, this branch):** the
+  diagnosed close same_time_conflict class (26 williamhill_us/bovada
+  groups; PR #89 comment 6857588715) now has a narrow declared
+  treatment: --quote-policy drop_close_conflicts (opt-in; default
+  refusal unchanged):
+  - applies ONLY to close-snapshot same_time_conflict groups; ALL
+    observations in each conflicting group removed (no first/best/
+    last price selection); the registered conflict-removal PRINCIPLE
+    reused (owner tie rule 2026-10-22) - NOT the near-close selector's
+    timing/selection contract;
+  - detected close-conflict groups must EQUAL the bound signature
+    (--expected-close-conflicts, committed binding file
+    expected_close_conflicts_2025H1.json built from the preserved
+    integrity artifact sha c590d3b6... with full per-group provenance
+    and input-hash lineage); mismatch refuses; no hardcoded count;
+  - morning integrity NOT relaxed (non-identical morning classes
+    refuse); distinct_time / insufficient_timestamp still refuse;
+  - after removal: valid two-sided close pairs rebuilt; declared book
+    preference applied ONLY among surviving pairs; morning entry
+    eligibility independent; no valid close -> close unavailable with
+    reason (no substitute line, no invented probability);
+  - structured accounting: conflicting side groups, implicated source
+    rows, removed observations, affected contracts, remaining
+    two-sided pairs, changed closing-book selections, entries losing
+    a closing benchmark; snapshot/key/timestamp/class provenance
+    preserved;
+  - integrity sidecars are POLICY-TAGGED (fresh write-once destination
+    per attempt; earlier preserved artifacts never overwritten).
+  Tests: 10 green in tests/test_close_conflict_policy.py (all nine
+  assigned cases through main()); combined gates 111 passed.
+- Proposed amended recovery packet (PR description; NOT executed;
+  needs a new recorded owner single-run order): drop_close_conflicts
+  + both bindings; fresh policy-tagged integrity sidecar.
 
 ### FORWARD
 
