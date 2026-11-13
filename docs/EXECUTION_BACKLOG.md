@@ -1,4 +1,4 @@
-# MLB Props — Execution Backlog & Directive
+﻿# MLB Props â€” Execution Backlog & Directive
 > **This is the ONE holy file.** Single source of truth for what is approved, blocked, waiting on the user, and parked. Do NOT create parallel backlog files. When the user drags in a markdown file, reconcile it INTO this file, then it / the old file goes away. Keep it evergreen (see Evergreen Rule below).
 >
 > **Always open this file first** (`docs/EXECUTION_BACKLOG.md`). After every user prompt / agent turn that changes work state, update the **Session Snapshot** before ending.
@@ -8,34 +8,34 @@
 | Kind | Path | Role vs this backlog |
 | --- | --- | --- |
 | **Master work state** | `docs/EXECUTION_BACKLOG.md` (this file) | Approvals, Snapshot PAST/PRESENT/FORWARD/DEFERRED, standing ops rules |
-| Agent entry pointer | `AGENTS.md`, `.cursor/rules/execution-backlog.mdc` | Point here only — no second queue |
-| Research constraints | `docs/reference/research_assistant_instructions.md` | How to build/leakage-safe — **not** a todo list |
+| Agent entry pointer | `AGENTS.md`, `.cursor/rules/execution-backlog.mdc` | Point here only â€” no second queue |
+| Research constraints | `docs/reference/research_assistant_instructions.md` | How to build/leakage-safe â€” **not** a todo list |
 | Ops runbooks | `production/README.md`, `INDEX.md`, `RUNBOOK.md` | How to run commands |
-| Dated evidence | `docs/reference/reports/*.md` | Point-in-time reports; must say if SUPERSEDED and point here for “what next” |
+| Dated evidence | `docs/reference/reports/*.md` | Point-in-time reports; must say if SUPERSEDED and point here for â€œwhat nextâ€ |
 | OpenCode paste brief | `docs/reference/opencode_handoff.md` | Coworker briefing 2026-09-11 (replay era). **Not** a second queue. Pack #113 built; juiced #123 measured; totals #124 pulled. |
-| Frozen-model replay spec | `docs/reference/oddsapi_replay_architecture.md` | How to backtest 2025-present Odds API open/close with the model frozen — **not** a queue. Freeze/work/product partition. Inventory: `reports/oddsapi_replay_inventory_2026-09-11.md`. |
+| Frozen-model replay spec | `docs/reference/oddsapi_replay_architecture.md` | How to backtest 2025-present Odds API open/close with the model frozen â€” **not** a queue. Freeze/work/product partition. Inventory: `reports/oddsapi_replay_inventory_2026-09-11.md`. |
 | Golden metrics | `docs/reference/golden_metrics.md` | Canonical numbers + JSON sources. Cite, do not recompute. |
-| Paper / resume | `docs/paper/manuscript.md`, `resume-summary.md` | Publication narrative — not the live work queue |
-| Cleanup history | `docs/archive/CLEANUP_LOG.md` | Historical cleanup log — not instructions |
+| Paper / resume | `docs/paper/manuscript.md`, `resume-summary.md` | Publication narrative â€” not the live work queue |
+| Cleanup history | `docs/archive/CLEANUP_LOG.md` | Historical cleanup log â€” not instructions |
 | Canonical surfaces | `docs/reference/repo_canonical_map.md` | What code/docs are canonical vs archive |
 
-If another doc’s “next steps” disagree with the Session Snapshot, **this file wins**. Fix the subordinate doc to redirect here.
+If another docâ€™s â€œnext stepsâ€ disagree with the Session Snapshot, **this file wins**. Fix the subordinate doc to redirect here.
 
 ## Directive (read this first, every session)
-You have blanket approval for every item below marked APPROVED. Execute them **in order**; do not re-ask on anything already approved. Do not start new discovery/analysis/philosophizing until every APPROVED item is DONE or marked BLOCKED with a one-line reason. Notice something interesting mid-task? Put it in "Parking Lot," don't chase it. Report only on item completion or a true block — not every intermediate find.
+You have blanket approval for every item below marked APPROVED. Execute them **in order**; do not re-ask on anything already approved. Do not start new discovery/analysis/philosophizing until every APPROVED item is DONE or marked BLOCKED with a one-line reason. Notice something interesting mid-task? Put it in "Parking Lot," don't chase it. Report only on item completion or a true block â€” not every intermediate find.
 
 ### Iterative session loop (required)
-1. **Read** this file (Snapshot → Waiting on user → Forward → **Deferred** → Standing Rules).
-2. **Do** the next APPROVED item(s) only — **never** pull work from **DEFERRED** unless the user asks or the reopen condition is clearly met.
-3. **Write back** before the turn ends — Snapshot must always have four labeled blocks:
-   - **PAST** — durable completed work (what already shipped).
-   - **PRESENT** — where we are now / what just finished this turn.
-   - **FORWARD** — concrete ordered plan for the next session(s).
-   - **DEFERRED** — approved-or-parked work that is *not* next (with why + reopen trigger).
+1. **Read** this file (Snapshot â†’ Waiting on user â†’ Forward â†’ **Deferred** â†’ Standing Rules).
+2. **Do** the next APPROVED item(s) only â€” **never** pull work from **DEFERRED** unless the user asks or the reopen condition is clearly met.
+3. **Write back** before the turn ends â€” Snapshot must always have four labeled blocks:
+   - **PAST** â€” durable completed work (what already shipped).
+   - **PRESENT** â€” where we are now / what just finished this turn.
+   - **FORWARD** â€” concrete ordered plan for the next session(s).
+   - **DEFERRED** â€” approved-or-parked work that is *not* next (with why + reopen trigger).
    - Also refresh Waiting on user; add ideas to Parking Lot; never silent-drop threads.
 4. Tell the user briefly what changed and point them back here for the plan.
 
-**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened — update PAST/PRESENT/FORWARD/**DEFERRED**, item statuses, Parking Lot, and **pre-write the next session's plan** so no thread is lost. Close every session with this file reflecting "here is where we were, where we are, where we're heading next, and what we are deliberately not doing yet."
+**Evergreen Rule (every session):** after reporting, reconcile THIS file against what actually happened â€” update PAST/PRESENT/FORWARD/**DEFERRED**, item statuses, Parking Lot, and **pre-write the next session's plan** so no thread is lost. Close every session with this file reflecting "here is where we were, where we are, where we're heading next, and what we are deliberately not doing yet."
 
 ---
 
@@ -44,56 +44,71 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PAST
 
-- Paid-morning baseline: THREE closed authorized attempts, all
-  preserved: (1) PR #86 single run - 3-key morning-scan identity stop
-  (comment 6816558623); (2) PR #87 amended run - four-key binding-gate
-  refusal (close-side castillo luis discovery; comment 6829936974);
-  (3) PR #88 Packet A run on integrated main 0977a2d - four-key
-  binding MATCHED, then duplicate-quote-side integrity refusal
-  (comment 6838485286). No market baseline result exists; input
-  hashes unchanged throughout; no outputs ever written.
-- PR #87 (identity-exclusion policy) and PR #88 (control-vs-books
-  benchmark + four-key binding) merged (mains 16a99b0 / 0977a2d).
-  Packet B (control-vs-books real run) NOT authorized.
+- Paid-morning baseline: FIVE authorized attempts; four closed with
+  preserved receipts: (1) PR #86 - 3-key morning-scan identity stop
+  (comment 6816558623); (2) PR #87 - four-key binding-gate refusal
+  (comment 6829936974); (3) PR #88 - four-key MATCH + duplicate-side
+  refusal (comment 6838485286); (4) PR #89 diagnostic run - 26 close
+  same_time_conflicts diagnosed (comment 6857588715). The FIFTH (PR #90
+  recovery, integrated main aa61986) SUCCEEDED: baseline produced
+  (receipt PR #90 comment 6861125006; artifact index 6861289910).
+- PR #87 (identity-exclusion policy), PR #88 (control-vs-books
+  benchmark + four-key binding), PR #89 (quote-integrity diagnostics +
+  idempotent normalization), PR #90 (close-conflict drop-and-count)
+  all merged (mains 16a99b0 / 0977a2d / 19a4d89 / aa61986).
 - Market-only T-5h replay implemented + accepted + MERGED (PR #86).
 - Board-coverage probes, boundary follow-up, recovered-ideas register:
   CLOSED as recorded in prior snapshots.
 
 ### PRESENT
 
-- **CLOSE-CONFLICT DROP-AND-COUNT POLICY (PR, this branch):** the
-  diagnosed close same_time_conflict class (26 williamhill_us/bovada
-  groups; PR #89 comment 6857588715) now has a narrow declared
-  treatment: --quote-policy drop_close_conflicts (opt-in; default
-  refusal unchanged):
-  - applies ONLY to close-snapshot same_time_conflict groups; ALL
-    observations in each conflicting group removed (no first/best/
-    last price selection); the registered conflict-removal PRINCIPLE
-    reused (owner tie rule 2026-10-22) - NOT the near-close selector's
-    timing/selection contract;
-  - detected close-conflict groups must EQUAL the bound signature
-    (--expected-close-conflicts, committed binding file
-    expected_close_conflicts_2025H1.json built from the preserved
-    integrity artifact sha c590d3b6... with full per-group provenance
-    and input-hash lineage); mismatch refuses; no hardcoded count;
-  - morning integrity NOT relaxed (non-identical morning classes
-    refuse); distinct_time / insufficient_timestamp still refuse;
-  - after removal: valid two-sided close pairs rebuilt; declared book
-    preference applied ONLY among surviving pairs; morning entry
-    eligibility independent; no valid close -> close unavailable with
-    reason (no substitute line, no invented probability);
-  - structured accounting: conflicting side groups, implicated source
-    rows, removed observations, affected contracts, remaining
-    two-sided pairs, changed closing-book selections, entries losing
-    a closing benchmark; snapshot/key/timestamp/class provenance
-    preserved;
-  - integrity sidecars are POLICY-TAGGED (fresh write-once destination
-    per attempt; earlier preserved artifacts never overwritten).
-  Tests: 10 green in tests/test_close_conflict_policy.py (all nine
-  assigned cases through main()); combined gates 111 passed.
-- Proposed amended recovery packet (PR description; NOT executed;
-  needs a new recorded owner single-run order): drop_close_conflicts
-  + both bindings; fresh policy-tagged integrity sidecar.
+- **CONSENSUS SHARED-POPULATION POLICY (PR, this branch):** Packet B's
+  one authorized attempt refused at the exact-cohort gate (2,509 ->
+  2,154 model-vs-consensus; receipt PR #91 comment 6862633285; the
+  failed run and its receipts are PRESERVED). The bounded follow-up:
+  runner --consensus-policy shared_population (opt-in; default refusal
+  unchanged) -- model-vs-consensus scored ONLY on the declared shared
+  population; ORIGINAL 2,509 cohort stays the coverage denominator;
+  matched/unmatched start keys + reason codes
+  (no_near_close_quotes / no_two_sided_quote_at_any_line /
+  consensus_unavailable_other) derived BEFORE scoring and persisted as
+  consensus_matched_starts.parquet / consensus_unmatched_starts.parquet;
+  book/LTBO populations separate with per-book denominators; all
+  duplicate/identity/timestamp/protected-data/PMF refusals preserved.
+  Tests: 5 new through main() (tests/test_consensus_shared_population.py,
+  incl. default-refusal-preserved and hand-computed shared-population
+  metrics); combined gates 104 passed. NOT EXECUTED on real data (any
+  rerun needs a new owner order).
+- Packet B remains otherwise unauthorized; NEAR-CLOSE DEVELOPMENT
+  labeling unchanged.
+
+### PRESENT (prior cycle - Packet B brief; superseded by the entry above)
+
+- **PACKET B OWNER-DECISION BRIEF PREPARED (merged via PR #91):** the
+  existing control_vs_books evaluation packet now carries the complete
+  Packet B brief (section "PACKET B OWNER-DECISION BRIEF"): the
+  question (registered control PMF vs near-close books/LTBO), the
+  accepted runner identity (run_control_vs_books.py at 735bb54 /
+  main aa61986; ack EXECUTE-CONTROL-VS-BOOKS-V1), the exact command
+  with literal paths, honest full-file eager-read disclosure
+  (book_lines/envelope/workload/id-map all decoded for ALL years with
+  in-memory window filtering - the window is NOT pre-decode
+  protection), the panel-not-consumed guarantee, timing/identity
+  limitations (NEAR-CLOSE label; commence semantics; confirmed-lineup
+  gap; tiebreak-not-validation), fresh output directory and stop
+  conditions. Packet B remains UNAUTHORIZED - the brief is for the
+  owner's decision only. No new features were added to prepare it.
+- **PACKET A RECONCILED (executed + closed):** the paid-morning 2025H1
+  market-only baseline was PRODUCED on 2026-11-13 (exit 0; code
+  735bb54, main aa61986; receipt PR #90 comment 6861125006; artifact
+  index comment 6861289910). Preserved artifacts: baseline parquet
+  e4348d3b..., report 18cd418d..., policy-tagged integrity sidecar
+  53b989e0..., preserved pre-#90 diagnostic c590d3b6... untouched.
+  Headline (market-only, no model-edge claim): 19,800 candidates;
+  entry-eligible 5,441/19,797; valid close 4,934/5,441; mean movement
+  -0.0869 pp; positive-CLV shares over 0.4270 / under 0.4497; entry
+  flat-1u ROI over -0.0452 / under -0.0782 units per unit. Single-run
+  permission CONSUMED; no reruns.
 
 ### FORWARD
 
@@ -294,7 +309,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   workload recomputation, no dashboard revival; nothing pulled from
   deferred lanes.
 
-## Post-closeout canonical state — 2026-11-10
+## Post-closeout canonical state â€” 2026-11-10
 
 This is the handoff for main after this docs checkpoint integrates following
 PRs #74-#77. Main is the canonical
@@ -346,7 +361,7 @@ integration history; the role rules and workflow remain in `AGENTS.md`,
 - Do not start another repository-wide cleanup, test redesign, Helios
   exploration, policy framework, or additional worktree.
 
-## Historical consolidation closeout receipt — 2026-11-10
+## Historical consolidation closeout receipt â€” 2026-11-10
 
 The detailed batch record below is preserved execution evidence. It is not
 current ownership or queue state; the current state is recorded above.
@@ -479,7 +494,7 @@ current ownership or queue state; the current state is recorded above.
   relocation. Noncanonical/regenerable ignored storage was confined to the
   removed worktrees and no protected storage was touched.
 
-### One exact approval batch — executed 2026-11-10
+### One exact approval batch â€” executed 2026-11-10
 
 Before execution, every expected ref tip matched, had no open PR, and was
 verified reachable from fetched `origin/main`. Each ref candidate had no
@@ -644,7 +659,7 @@ local/remote deletion tips with 0 missing tips before being removed.
 
 ---
 
-## Session Snapshot — 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
+## Session Snapshot â€” 2026-10-28 (PRs #46/#48/#49/#50 MERGED; main = 15fe7bf; PR #51 derivation runner at 60401f6 awaiting owner execution decision)
 
 **INTEGRATION COMPLETE 2026-11-03 (Chat 1 builder reconciliation; docs-only;
 single post-integration update; supersedes the integration-order items in the
@@ -970,7 +985,7 @@ PR #67 (`research/stage-a-numerical-gate`, base main). Minimal
 reproducer: NaN `p_h3_raw` in the ledger passes the existing null
 filter and I2 (NaN > tol is False in Polars), then causes an unhandled
 AdapterError in I3's `start_count_pmfs`. Repair: numerical-validity
-gate added after route construction, before I1/I2/I3 — checks both
+gate added after route construction, before I1/I2/I3 â€” checks both
 routes' `p_h3_raw` for NaN, infinity, and [0,1] range violations;
 reports the route name, affected key count, and example keys; fails
 with `numerical_validity` gate and write-once failure receipt. 4
@@ -992,10 +1007,10 @@ advanced to 38da8aa (PR #60 temporal-robustness lane merged). The earlier
 owner-directed backfill/source-pack alignment PR #63 was merged
 (2026-11-05). Local worktree/branch cleanup is a separate maintenance
 activity; its actual outcome and approval exceptions are recorded
-separately (Chat 3 supplied: batch 1 — 5 worktree removals explicitly
-approved; batch 2 — 4 local branch deletions under weak approval, one of
+separately (Chat 3 supplied: batch 1 â€” 5 worktree removals explicitly
+approved; batch 2 â€” 4 local branch deletions under weak approval, one of
 which exceeded the presented batch, all 4 tips ancestors of main, zero
-content loss, restorable on request; batch 3 — 4 forced-deletion
+content loss, restorable on request; batch 3 â€” 4 forced-deletion
 candidates PROPOSED NOT EXECUTED per owner stop; no remote branch
 touched).** **FURTHER INTEGRATION 2026-11-06: PR #64 (result-summary
 renderer) merged at 290b0fa; PR #65 (publication/dashboard/gate-rules
@@ -1538,7 +1553,7 @@ f77d7a66... verified). 148,369 training rows; 2,509 scored starts;
 55,579 assessment PAs (43,565 matched to projections, 12,014 excluded
 no-projected-matchup, 467 excluded by cohort restriction). PRIMARY
 RESULT: RPS(Ref1 multinomial) - RPS(Ref0 population) = -0.086351,
-CI95 [-0.104141, -0.067529] — ENTIRELY below zero: the regularized
+CI95 [-0.104141, -0.067529] â€” ENTIRELY below zero: the regularized
 multinomial logistic model's K marginal produces significantly better
 count forecasts than population proportions under identical workload,
 aggregation, and assessment starts. K-marginal log loss: Ref0 0.5171,
@@ -1688,9 +1703,9 @@ MISSING (run production refresh).
 ## Execution Order
 
 1. **[APPROVED] Commit the current green working tree** (test fixes: `test_pipeline.py`, `test_pitcher_features.py`, `test_registries.py`, `test_train.py`; new observability files from the daily-improvement session). Clean baseline before anything else touches the repo.
-2. **[BLOCKED — verified no-op 2026-08-27]** Split/commit `close_watcher.py` (lock hardening vs. aux-market-probe). Verified: working tree is clean, the aux-probe + late-open features are already buried together inside the broad commit `de942c3` (183 new lines in close_watcher.py among 27+ files), the pre-split backup `.py` is gone (only a stale `.pyc` remains), and there is **zero uncommitted delta to split**. The split would require a destructive rebase/filter of already-committed history — not doing that without explicit sign-off. Treat as effectively combined already; resume only if user explicitly wants the `de942c3` history rewritten.
-3. **[DONE 2026-08-27 — commit 3947a7a]** Widen CI (`ci.yml`): py_compile all 60 production scripts (dynamic find, was 6 hardcoded), full 270-test suite (was 2 files), install pyproject deps `.[dev]`+scipy (was a no-op `requirements.txt` that never installed polars). Validated: 60/60 compile, 270 tests green, YAML OK.
-4. **[DONE 2026-08-27 — commit 2d27ef3]** Dedupe-to-best-line as shared infrastructure. Fixed canonical `dedupe_ledger_props` to key on `(game_date, player, line, SIDE)` (was missing side — kept over/under of the same line merged, a latent bug; 22 such props in data). Wired the one canonical function into the 3 scripts still aggregating raw rows: `line_policy_settled_lookback`, `clv_basis_reconcile`, `build_automation_self_check`. Added 2 tests (over/under kept separate; best book per side). Validated: 272 tests pass; real-ledger settled 1118→643 props.
+2. **[BLOCKED â€” verified no-op 2026-08-27]** Split/commit `close_watcher.py` (lock hardening vs. aux-market-probe). Verified: working tree is clean, the aux-probe + late-open features are already buried together inside the broad commit `de942c3` (183 new lines in close_watcher.py among 27+ files), the pre-split backup `.py` is gone (only a stale `.pyc` remains), and there is **zero uncommitted delta to split**. The split would require a destructive rebase/filter of already-committed history â€” not doing that without explicit sign-off. Treat as effectively combined already; resume only if user explicitly wants the `de942c3` history rewritten.
+3. **[DONE 2026-08-27 â€” commit 3947a7a]** Widen CI (`ci.yml`): py_compile all 60 production scripts (dynamic find, was 6 hardcoded), full 270-test suite (was 2 files), install pyproject deps `.[dev]`+scipy (was a no-op `requirements.txt` that never installed polars). Validated: 60/60 compile, 270 tests green, YAML OK.
+4. **[DONE 2026-08-27 â€” commit 2d27ef3]** Dedupe-to-best-line as shared infrastructure. Fixed canonical `dedupe_ledger_props` to key on `(game_date, player, line, SIDE)` (was missing side â€” kept over/under of the same line merged, a latent bug; 22 such props in data). Wired the one canonical function into the 3 scripts still aggregating raw rows: `line_policy_settled_lookback`, `clv_basis_reconcile`, `build_automation_self_check`. Added 2 tests (over/under kept separate; best book per side). Validated: 272 tests pass; real-ledger settled 1118â†’643 props.
 5. **[DONE 2026-08-27]** Regenerated every previously-cited number on the deduped ledger (old vs new, same ledger, apples-to-apples):
    | Metric | OLD (raw) | NEW (deduped) |
    |---|---|---|
@@ -1701,53 +1716,53 @@ MISSING (run production refresh).
    | Skill-gate n_clv@floor12 | 248 | **150** |
    | Skill-gate WR | 0.534 | 0.5334 |
    | CLV beat>0 | 46.5% | 55.5% |
-   | Line 4.5 all ROI | −26.4% (n=413) | −22.2% (n=244) |
-   | Line 4.5 profile(≥.14) ROI | −33.3% (n=76) | −34.1% (n=52) |
-   | Line 5.5 over ROI | −59.1% (n=22) | −61.8% (n=13) |
-   **Headline: the all-time "green" was +2.08%/+$576 on raw; on the honest deduped ledger it is +0.51%/+$84.51 — barely above breakeven. Skill-gate n falls 248→150 (still met) and WR is essentially flat (0.534→0.5334); the edge shows in CLV, not raw WR.**
-6. **[DONE (infra) + BACKFILL BLOCKED on operator prices — 2026-08-27, commit 1da4c82]** Built the append-only real-bet ledger: `src/Python/real_bets.py` (separate from paper-sim `ledger.parquet`; decision-time `bet_price`/`stake` snapshot; `append_real_bets` returns `(frame, n_appended, skipped_ids)` so no ticket can silently drop — the 8/24 failure mode); `tests/test_real_bets.py` (6 integration tests proving idempotency, in-batch dup reporting, re-append never-silent, real≠paper path, summary math, stable schema); `production/ops/backfill_real_bets.py` (holds the 8 confirmed identities Valdez U4.5 W / Suarez U4.5 W / Messick O6.5 L / Skenes U6.5 W / Melton O3.5 W / G.Rodriguez O4.5 L / Cantillo U6.5 W / Sasaki O4.5 L; refuses to write rows lacking a real decision-time price/stake — reports instead of fabricating zeros). **SATISFIES THE INTEGRATION-TEST REQUIREMENT.** Backfill WRITE is BLOCKED only on the per-ticket decision-time `bet_price`/`stake`/`pnl` (and the 9th ticket's identity+prices) which live in the user's records — fill `REAL_TICKETS` in the backfill script and rerun; complete set is 6W–3L, +$109.80/$455.
-7. **[BLOCKED — no script to rewrite 2026-08-27]** CUSUM `corr_before`/`clv_before` null bug. Verified: the CUSUM/regime **regeneration script does not exist anywhere in the repo** (no source for `regime_model_report.json` / `corr_after` / `clv_after` / `cusum`; only the artifacts remain, and it's likely a deleted one-off probe like `_probe*.py`). Diagnosis captured from the surviving artifact for when the script is restored: `corr_before: null` despite `edge_win_corr_break_pos: 253` (rolling_window 40) and `clv_before: null` at `clv_break_pos: 191` — i.e. the pre-breakpoint sample window is too small/empty, so the "before" stat computes null. The rewrite needs a min-sample guard that emits an explicit `null`/`insufficient` with the n instead of an unlabelled null. Resume when the script is restored or the user provides it.
-8. **[DONE (in-repo sweep) 2026-08-27 — external network call remains outside agent scope]** External-outcome recovery sweep. Verified from the ledger and stored artifacts:
-   - **8/24 gap is isolated to a single day, not systemic**: `ledger.parquet` has daily rows through 8/20–8/23 and 8/25–8/27 but **0 rows on 2026-08-24** — an isolated one-day ingestion hole in an otherwise-continuous record.
-   - `open_projection_quotes_raw`/`open_quotes_canonical` **end in early July entirely** (last rows ~2026-07-10/11), so they never reached August — their "0 rows for 8/24" is trivial; not the right source for recovery.
-   - **Melton's real 8/25 O3.5 line is not in the paper ledger** (only other Melton dates/lines are: 8/04 U5.5, 8/15 O5.5, 8/21 O4.5, 8/26 O3.5) — same class of real-ticket data gap as 8/24.
-   - **Real-ticket players are present in the paper ledger on different dates/lines** than their real bets — confirming real (real_bets.parquet) vs paper are correctly separate tracks.
+   | Line 4.5 all ROI | âˆ’26.4% (n=413) | âˆ’22.2% (n=244) |
+   | Line 4.5 profile(â‰¥.14) ROI | âˆ’33.3% (n=76) | âˆ’34.1% (n=52) |
+   | Line 5.5 over ROI | âˆ’59.1% (n=22) | âˆ’61.8% (n=13) |
+   **Headline: the all-time "green" was +2.08%/+$576 on raw; on the honest deduped ledger it is +0.51%/+$84.51 â€” barely above breakeven. Skill-gate n falls 248â†’150 (still met) and WR is essentially flat (0.534â†’0.5334); the edge shows in CLV, not raw WR.**
+6. **[DONE (infra) + BACKFILL BLOCKED on operator prices â€” 2026-08-27, commit 1da4c82]** Built the append-only real-bet ledger: `src/Python/real_bets.py` (separate from paper-sim `ledger.parquet`; decision-time `bet_price`/`stake` snapshot; `append_real_bets` returns `(frame, n_appended, skipped_ids)` so no ticket can silently drop â€” the 8/24 failure mode); `tests/test_real_bets.py` (6 integration tests proving idempotency, in-batch dup reporting, re-append never-silent, realâ‰ paper path, summary math, stable schema); `production/ops/backfill_real_bets.py` (holds the 8 confirmed identities Valdez U4.5 W / Suarez U4.5 W / Messick O6.5 L / Skenes U6.5 W / Melton O3.5 W / G.Rodriguez O4.5 L / Cantillo U6.5 W / Sasaki O4.5 L; refuses to write rows lacking a real decision-time price/stake â€” reports instead of fabricating zeros). **SATISFIES THE INTEGRATION-TEST REQUIREMENT.** Backfill WRITE is BLOCKED only on the per-ticket decision-time `bet_price`/`stake`/`pnl` (and the 9th ticket's identity+prices) which live in the user's records â€” fill `REAL_TICKETS` in the backfill script and rerun; complete set is 6Wâ€“3L, +$109.80/$455.
+7. **[BLOCKED â€” no script to rewrite 2026-08-27]** CUSUM `corr_before`/`clv_before` null bug. Verified: the CUSUM/regime **regeneration script does not exist anywhere in the repo** (no source for `regime_model_report.json` / `corr_after` / `clv_after` / `cusum`; only the artifacts remain, and it's likely a deleted one-off probe like `_probe*.py`). Diagnosis captured from the surviving artifact for when the script is restored: `corr_before: null` despite `edge_win_corr_break_pos: 253` (rolling_window 40) and `clv_before: null` at `clv_break_pos: 191` â€” i.e. the pre-breakpoint sample window is too small/empty, so the "before" stat computes null. The rewrite needs a min-sample guard that emits an explicit `null`/`insufficient` with the n instead of an unlabelled null. Resume when the script is restored or the user provides it.
+8. **[DONE (in-repo sweep) 2026-08-27 â€” external network call remains outside agent scope]** External-outcome recovery sweep. Verified from the ledger and stored artifacts:
+   - **8/24 gap is isolated to a single day, not systemic**: `ledger.parquet` has daily rows through 8/20â€“8/23 and 8/25â€“8/27 but **0 rows on 2026-08-24** â€” an isolated one-day ingestion hole in an otherwise-continuous record.
+   - `open_projection_quotes_raw`/`open_quotes_canonical` **end in early July entirely** (last rows ~2026-07-10/11), so they never reached August â€” their "0 rows for 8/24" is trivial; not the right source for recovery.
+   - **Melton's real 8/25 O3.5 line is not in the paper ledger** (only other Melton dates/lines are: 8/04 U5.5, 8/15 O5.5, 8/21 O4.5, 8/26 O3.5) â€” same class of real-ticket data gap as 8/24.
+   - **Real-ticket players are present in the paper ledger on different dates/lines** than their real bets â€” confirming real (real_bets.parquet) vs paper are correctly separate tracks.
    - **Recovery action**: both gaps are isolated ingestion/record flat-spots, so a targeted external odds/score call (not a systemic rebuild) is warranted; executing that network/API call is outside what the agent can run here. 8/24 outcomes are already user-confirmed (PnL not blocked); this is an auditability/completeness backfill only. Side pattern re-confirmed: all 3 real losses were Overs (Messick, G.Rodriguez, Sasaki).
-9. **[EVIDENCE COMPLETE 2026-08-27 — swap still gated on user sign-off]** Champion-vs-monotone swap evidence package. The side-conditional breakdown is already fully built in `artifacts/odds_log/_audit_step4_monotone_sidebreak.json` — and it was **never actually blocked on #4-#5**: it operates on the 2025 model open universe (`config.PITCHER_TRAINING_PATH`) with its own `(pitcher+line+date)` dedupe, NOT the 2026 settled paper ledger that #4-#5 dedupe. That BLOCKED-PENDING-#4-#5 status was a false dependency. Evidence verdict (clean, complete):
-   - **LODO robustness: passed** — 0/55 date-drops flipped monotone's advantage (`flip_dates: []`), pooled Brier margin +0.0135 for monotone.
-   - **Overs: no change** (n=896; WR 0.4766 / ROI@fair 0.1067 identical; calib −0.0307→−0.0301).
-   - **Unders: monotone improves calibration (+0.0073 on shared n=835) and reduces the unders bleed — but does NOT make it positive**: deduped under ROI@fair −0.0272 (champion) → −0.0166 (monotone). Softens but does NOT obsolete the unders-floor problem.
-   - **Verdict**: swap is coherent and robust, but unders-floor still requires its own decision (not obsoleted). Per Standing Rules, the actual champion swap is NOT an approved action — it needs explicit user sign-off after this evidence is reviewed.
+9. **[EVIDENCE COMPLETE 2026-08-27 â€” swap still gated on user sign-off]** Champion-vs-monotone swap evidence package. The side-conditional breakdown is already fully built in `artifacts/odds_log/_audit_step4_monotone_sidebreak.json` â€” and it was **never actually blocked on #4-#5**: it operates on the 2025 model open universe (`config.PITCHER_TRAINING_PATH`) with its own `(pitcher+line+date)` dedupe, NOT the 2026 settled paper ledger that #4-#5 dedupe. That BLOCKED-PENDING-#4-#5 status was a false dependency. Evidence verdict (clean, complete):
+   - **LODO robustness: passed** â€” 0/55 date-drops flipped monotone's advantage (`flip_dates: []`), pooled Brier margin +0.0135 for monotone.
+   - **Overs: no change** (n=896; WR 0.4766 / ROI@fair 0.1067 identical; calib âˆ’0.0307â†’âˆ’0.0301).
+   - **Unders: monotone improves calibration (+0.0073 on shared n=835) and reduces the unders bleed â€” but does NOT make it positive**: deduped under ROI@fair âˆ’0.0272 (champion) â†’ âˆ’0.0166 (monotone). Softens but does NOT obsolete the unders-floor problem.
+   - **Verdict**: swap is coherent and robust, but unders-floor still requires its own decision (not obsoleted). Per Standing Rules, the actual champion swap is NOT an approved action â€” it needs explicit user sign-off after this evidence is reviewed.
 
 
 ## New Items
 
 10. **[DONE 2026-09-01]** Two-tier test-gating. Added `.pre-commit-config.yaml` (local system hook: pytest on `tests/test_odds_ledger.py tests/test_real_bets.py tests/test_registries.py`). Ran `pre-commit install`; fast subset **28 passed in ~3.9s**. Full suite remains CI-only.
 
-11. **[PROVENANCE AUDIT — COMPLETE 2026-08-27]** Grep for every place that aggregates the ledger; confirm each historical finding's generating script and whether it used canonical `dedupe_ledger_props`, a bespoke grouping, or raw rows; flag what needs recomputation. **Verdict (evidence-backed):**
-    - **CLEAN — already on the fixed canonical `dedupe_ledger_props`** (live import → round-trips fixed signature automatically): all `artifacts/odds_log/_*.py` (`_analysis_extra`, `_audit_stratify_by_epoch`, `_audit_stratify_edges`, `_calibration_deep`, `_clv_snapshot`, `_timing_results`) + production `grade_odds_ledger.py`, `build_automation_self_check.py`, `line_policy_settled_lookback`, `clv_basis_reconcile`, `weekly_kpi_report`.
-    - **RESOLVED specific concern:** **favorite/dog ROI splits + line×side splits** come from `_audit_stratify_edges.py` (lines 85–124), which calls canonical `dedupe_ledger_props` — **CLEAN, no recompute.**
-    - **BESPOKE but side-aware — unaffected by over/under merge bug:** `keep_best_available_lines` (`src/Python/notebook_analysis_utils.py`, keyed on `(game_date, player_name, side)`) used by `build_policy_governance_report.py` + `policy_simulator.py`. Key already includes `side`, so it never had item-4's bug. (It intentionally collapses across LINES per game/player/side — different, intended semantic, not a regression.) No recompute.
-    - **AT-RISK — aggregates RAW settled rows, bypasses canonical dedupe (recompute under fixed logic):**
-      - `build_runtime_monitoring_snapshot.py` `_compute_floor_table`/`_compute_monthly_regime`/`_compute_edge_deciles` (roi/pnl on raw rows). Quantified: raw settled **1118 / +$576.15**, deduped **643 / +$84.51**. The `daily_kpi_loop_last_run.json` `total_pnl=$+1041.04` is a stale raw-row artifact of this path. NOTE: `_compute_slippage_segments` segments *by book*, intentionally raw — leave it.
+11. **[PROVENANCE AUDIT â€” COMPLETE 2026-08-27]** Grep for every place that aggregates the ledger; confirm each historical finding's generating script and whether it used canonical `dedupe_ledger_props`, a bespoke grouping, or raw rows; flag what needs recomputation. **Verdict (evidence-backed):**
+    - **CLEAN â€” already on the fixed canonical `dedupe_ledger_props`** (live import â†’ round-trips fixed signature automatically): all `artifacts/odds_log/_*.py` (`_analysis_extra`, `_audit_stratify_by_epoch`, `_audit_stratify_edges`, `_calibration_deep`, `_clv_snapshot`, `_timing_results`) + production `grade_odds_ledger.py`, `build_automation_self_check.py`, `line_policy_settled_lookback`, `clv_basis_reconcile`, `weekly_kpi_report`.
+    - **RESOLVED specific concern:** **favorite/dog ROI splits + lineÃ—side splits** come from `_audit_stratify_edges.py` (lines 85â€“124), which calls canonical `dedupe_ledger_props` â€” **CLEAN, no recompute.**
+    - **BESPOKE but side-aware â€” unaffected by over/under merge bug:** `keep_best_available_lines` (`src/Python/notebook_analysis_utils.py`, keyed on `(game_date, player_name, side)`) used by `build_policy_governance_report.py` + `policy_simulator.py`. Key already includes `side`, so it never had item-4's bug. (It intentionally collapses across LINES per game/player/side â€” different, intended semantic, not a regression.) No recompute.
+    - **AT-RISK â€” aggregates RAW settled rows, bypasses canonical dedupe (recompute under fixed logic):**
+      - `build_runtime_monitoring_snapshot.py` `_compute_floor_table`/`_compute_monthly_regime`/`_compute_edge_deciles` (roi/pnl on raw rows). Quantified: raw settled **1118 / +$576.15**, deduped **643 / +$84.51**. The `daily_kpi_loop_last_run.json` `total_pnl=$+1041.04` is a stale raw-row artifact of this path. NOTE: `_compute_slippage_segments` segments *by book*, intentionally raw â€” leave it.
       - `edge_floor_sweep_governance.py` `_load_settled_ledger` (line 72): raw settled.
       - `policy_calibration_uncertainty_sweep.py` `_load_settled_ledger` (line 136): raw settled.
       - `build_daily_operator_summary.py` `_ledger_snapshot` (line 40): per-day stake/pnl/roi on raw settled rows (DK+FD pairs double-counted per day).
-    - **ORPHAN — generator not in repo (same class as item 7):** `regime_model_report.json` (`is_fav`/`is_over` coefficients; 939/999-bet regime analysis) has **no source script** in the repo — only the artifact remains. Provenance cannot be confirmed; do not cite its coefficients as settled until the generator is restored.
-    - **NOT AFFECTED (different data domain):** `build_board_ledger_reconciliation.py` (targets `status=="open"` slate occupancy, not settled ROI); the A1/champion side-strat audit (2025 model open universe, not the settled paper ledger — consistent with item 9).
+    - **ORPHAN â€” generator not in repo (same class as item 7):** `regime_model_report.json` (`is_fav`/`is_over` coefficients; 939/999-bet regime analysis) has **no source script** in the repo â€” only the artifact remains. Provenance cannot be confirmed; do not cite its coefficients as settled until the generator is restored.
+    - **NOT AFFECTED (different data domain):** `build_board_ledger_reconciliation.py` (targets `status=="open"` slate occupancy, not settled ROI); the A1/champion side-strat audit (2025 model open universe, not the settled paper ledger â€” consistent with item 9).
     - **Next (approved, not blocking):** add `dedupe_ledger_props(settled)` to the four at-risk aggregators above (keeping slippage-segments raw-by-book) + a regression test. Do NOT touch the orphan regime artifact.
-    11-followup. **[DONE 2026-08-27 — aggregator dedupe fix]** Wired canonical `dedupe_ledger_props` into the producer + all four at-risk aggregators: `grade_odds_ledger.py` (`--status` PnL sum, `--curve` n_settled), `build_runtime_monitoring_snapshot.py` (floor/monthly/deciles use deduped; slippage segments keep raw-by-book), `edge_floor_sweep_governance.py` + `policy_calibration_uncertainty_sweep.py` (`_load_settled_ledger`), `build_daily_operator_summary.py` (`_ledger_snapshot` daily ROI/PnL). Added regression test `test_dedupe_ledger_props_pnl_not_double_counted` (proves DK+FD pair is not double-counted in PnL aggregation). All 5 files py_compile; `tests/test_odds_ledger.py` 13/13 green. **Live-verified 2026-08-27**: `grade_odds_ledger.py --status` printed `settled=643 total_pnl=+$84.51` (was 1118/+$576.15 raw; stale loop artifact +$1041.04). Regenerated `daily_kpi_loop_last_run.json` via `run_daily_kpi_loop.py --skip-notebooks` → `n_settled=653` (deduped; +~10 settled during run). **Refresh 2026-09-01**: after more settled days, deduped ledger is `settled=790 total_pnl=+$10.55` (ROI ≈ +0.05%); full-cohort CLV reconcile is `n_closed=493`, `price_devig_gt0=0.544` (was 441 / 0.551 on 2026-08-27). Note: dashboard `_dedupe_frame` keys on `book` too — only exact-dupe removal, not canonical cross-book dedupe (potential item-11 follow-up). **(Item 11 follow-up now COMPLETE; reordered to run before item 10 per user approval.)**
+    11-followup. **[DONE 2026-08-27 â€” aggregator dedupe fix]** Wired canonical `dedupe_ledger_props` into the producer + all four at-risk aggregators: `grade_odds_ledger.py` (`--status` PnL sum, `--curve` n_settled), `build_runtime_monitoring_snapshot.py` (floor/monthly/deciles use deduped; slippage segments keep raw-by-book), `edge_floor_sweep_governance.py` + `policy_calibration_uncertainty_sweep.py` (`_load_settled_ledger`), `build_daily_operator_summary.py` (`_ledger_snapshot` daily ROI/PnL). Added regression test `test_dedupe_ledger_props_pnl_not_double_counted` (proves DK+FD pair is not double-counted in PnL aggregation). All 5 files py_compile; `tests/test_odds_ledger.py` 13/13 green. **Live-verified 2026-08-27**: `grade_odds_ledger.py --status` printed `settled=643 total_pnl=+$84.51` (was 1118/+$576.15 raw; stale loop artifact +$1041.04). Regenerated `daily_kpi_loop_last_run.json` via `run_daily_kpi_loop.py --skip-notebooks` â†’ `n_settled=653` (deduped; +~10 settled during run). **Refresh 2026-09-01**: after more settled days, deduped ledger is `settled=790 total_pnl=+$10.55` (ROI â‰ˆ +0.05%); full-cohort CLV reconcile is `n_closed=493`, `price_devig_gt0=0.544` (was 441 / 0.551 on 2026-08-27). Note: dashboard `_dedupe_frame` keys on `book` too â€” only exact-dupe removal, not canonical cross-book dedupe (potential item-11 follow-up). **(Item 11 follow-up now COMPLETE; reordered to run before item 10 per user approval.)**
 
-12. **[WAITING ON USER] Item 6 backfill** — still needs your decision-time `bet_price`/`stake`/`pnl` for the 8 confirmed tickets (Valdez, Suarez, Messick, Skenes, Melton, G.Rodriguez, Cantillo, Sasaki) plus the 9th ticket's identity, to complete the real-bet ledger write.
+12. **[WAITING ON USER] Item 6 backfill** â€” still needs your decision-time `bet_price`/`stake`/`pnl` for the 8 confirmed tickets (Valdez, Suarez, Messick, Skenes, Melton, G.Rodriguez, Cantillo, Sasaki) plus the 9th ticket's identity, to complete the real-bet ledger write.
 
-13. **[APPROVED — DEFERRED] Local MLflow Tracking (thin v1).** Useful when actively iterating Strikeout/TBF train or Optuna — **not** on the critical path for this ops cycle (wrong tool for freeze/null/CLV/veto work). See Session Snapshot → **DEFERRED**. Resume when you ask or when train iteration restarts; do not jump here mid-ops.
+13. **[APPROVED â€” DEFERRED] Local MLflow Tracking (thin v1).** Useful when actively iterating Strikeout/TBF train or Optuna â€” **not** on the critical path for this ops cycle (wrong tool for freeze/null/CLV/veto work). See Session Snapshot â†’ **DEFERRED**. Resume when you ask or when train iteration restarts; do not jump here mid-ops.
 
-14. **[DONE research 2026-09-01 — promote gated] Granular open calibration challenger (ROI path).** Fit line / line-bucket (and optional side-aware apply) isotonic/Platt on **open 2025–2026** with chrono-safe holdout; score **post-freeze** as pure OOS on skill vs market + shadow KING ROI. Do not refit on post-freeze tickets. Do not edit live calibrator / KING without sign-off. Script: production/ops/fit_granular_open_calibration.py.
+14. **[DONE research 2026-09-01 â€” promote gated] Granular open calibration challenger (ROI path).** Fit line / line-bucket (and optional side-aware apply) isotonic/Platt on **open 2025â€“2026** with chrono-safe holdout; score **post-freeze** as pure OOS on skill vs market + shadow KING ROI. Do not refit on post-freeze tickets. Do not edit live calibrator / KING without sign-off. Script: production/ops/fit_granular_open_calibration.py.
 
 
 
-## Next Session — Open Questions & Plan (evergreen)
-> **Not a second backlog.** Canonical live plan = Session Snapshot → **PAST / PRESENT / FORWARD / DEFERRED** (top of this file). Checklists below are a short mirror only.
+## Next Session â€” Open Questions & Plan (evergreen)
+> **Not a second backlog.** Canonical live plan = Session Snapshot â†’ **PAST / PRESENT / FORWARD / DEFERRED** (top of this file). Checklists below are a short mirror only.
 
 **Waiting on user (blocks these):**
 
@@ -1755,59 +1770,59 @@ MISSING (run production refresh).
 
 - [ ] Cleanup-skills bounded pass DONE (see Parking Lot 2026-10-29 entry): two owner decisions open - (a) `pingouin` undeclared import (`src/Python/reliability.py`): declare or remove; (b) approve a CI slice adding strict-failure pytest steps for the 15 research-lane test files outside `testpaths`.
 - [ ] Disposition ~30 untracked local files (tests, reports, market_research scripts, `research/offseason_2026/experiments/forward_2025.parquet` + `run_2025_selection.py` + `selection_2025_report.json`) - uncommitted work at risk; commit, archive, or explicitly discard per file.
-- [ ] Confirm 2.5/3.5 over style — **data rec 2026-09-11: freeze current probation** (from the archived CLV + Hosting Plan; carried forward at split)
-- [ ] **Dashboard v1** — parked until backend #113 is green; say go to unpark (from the archived CLV + Hosting Plan; carried forward at split)
+- [ ] Confirm 2.5/3.5 over style â€” **data rec 2026-09-11: freeze current probation** (from the archived CLV + Hosting Plan; carried forward at split)
+- [ ] **Dashboard v1** â€” parked until backend #113 is green; say go to unpark (from the archived CLV + Hosting Plan; carried forward at split)
 - [ ] `git push origin HEAD` so remote has promoted 4.5-over veto.
 - [ ] Ops Checkpoint A review: 5 owner questions (`docs/reference/reports/ops_contracts_2026-09-30.md`, defaults YES) + OPS-1 defaults sign-off.
 - [ ] Scoped infra/docs commit checkpoint (writers paused during staging; model/production/ledger files excluded).
 - [ ] Item 6/#12: per-ticket decision-time prices/stakes/pnl for the 8 + 9th identity.
-- [ ] Item 9: explicit champion→monotone sign-off, or leave deferred (not needed for 4.5 veto).
+- [ ] Item 9: explicit championâ†’monotone sign-off, or leave deferred (not needed for 4.5 veto).
 
 **Ready / operating now:**
-- [x] Live `veto_4_5_over` + soft probation 2.5/3.5 — DONE 2026-09-01.
-- [x] Weekly settle pack habit — re-run after each settle week.
-- [ ] Item 13 MLflow — APPROVED but **DEFERRED** (wrong tool for this ops cycle).
-- [ ] Optional polish: regenerate `manuscript.pdf`; dashboard dedupe → canonical `dedupe_ledger_props`.
+- [x] Live `veto_4_5_over` + soft probation 2.5/3.5 â€” DONE 2026-09-01.
+- [x] Weekly settle pack habit â€” re-run after each settle week.
+- [ ] Item 13 MLflow â€” APPROVED but **DEFERRED** (wrong tool for this ops cycle).
+- [ ] Optional polish: regenerate `manuscript.pdf`; dashboard dedupe â†’ canonical `dedupe_ledger_props`.
 
-**Blocked / parked (see DEFERRED + Execution Order):** Item 7 CUSUM rewrite; Item 2 history split; SSAC future-work 9–13.
+**Blocked / parked (see DEFERRED + Execution Order):** Item 7 CUSUM rewrite; Item 2 history split; SSAC future-work 9â€“13.
 
 **Historical polish notes** (2026-08-27 freshness sweep detail, ledger refresh figures): kept in git history; intentionally not repeated here so this section cannot compete with the Snapshot.
 
 
 ## Standing Rules (apply to all of the above)
-- Never mutate historical labels (hold→bet relabeling) — always append new records instead.
-- Every real-money conclusion requires ≥50 real tickets before being treated as evidence of edge. The current 9-ticket, +24.1% ROI record is now fully auditable (6W–3L, all outcomes confirmed) — a good start, not proof; don't let it drive stake-sizing yet.
+- Never mutate historical labels (holdâ†’bet relabeling) â€” always append new records instead.
+- Every real-money conclusion requires â‰¥50 real tickets before being treated as evidence of edge. The current 9-ticket, +24.1% ROI record is now fully auditable (6Wâ€“3L, all outcomes confirmed) â€” a good start, not proof; don't let it drive stake-sizing yet.
 - Verify settlement-rule parity (prediction-market vs. sportsbook K definitions, extra innings, early exits) before trusting any grading as final.
-- Personal accounts/API keys only — never company-owned tooling for any of this.
+- Personal accounts/API keys only â€” never company-owned tooling for any of this.
 - Do not touch `KING_PROFILE_AUG2026`, floors, staking, or the champion file without explicit sign-off after evidence is reviewed.
-- **DEFERRED is binding:** Item 13 (MLflow) and other Snapshot → DEFERRED rows are not idle backlog to fill quiet turns. Do not scaffold/install them during an ops/policy week unless the user asks or the reopen condition is met.
+- **DEFERRED is binding:** Item 13 (MLflow) and other Snapshot â†’ DEFERRED rows are not idle backlog to fill quiet turns. Do not scaffold/install them during an ops/policy week unless the user asks or the reopen condition is met.
 - Prefer weekly settle-pack measurement and real-bet logging over new tooling while the live 4.5-over veto is the active experiment.
-- A pre-registered sample-size gate that is *exactly* met (not comfortably exceeded) should be treated as "not yet conclusive" — do not size up or treat as validated edge until the sample comfortably clears the threshold with margin.
-- **Measurement vs money (owner-locked 2026-09-11):** two jobs, never mixed. *Measurement* (are we right?) = devigged consensus median at the same snapshot (`consensus_cache.parquet`, never re-devig) for Brier/skill/CLV. *Money* (did we profit?) = juiced book-pair at the decision clock (DK else FD else next US book) for ROI/WR. Report both forever; cite which lane every number lives in. Dedupe (`dedupe_ledger_props`) is money-track aggregation only — selection stays per-quote, line×side cells stay per player O/U line.
+- A pre-registered sample-size gate that is *exactly* met (not comfortably exceeded) should be treated as "not yet conclusive" â€” do not size up or treat as validated edge until the sample comfortably clears the threshold with margin.
+- **Measurement vs money (owner-locked 2026-09-11):** two jobs, never mixed. *Measurement* (are we right?) = devigged consensus median at the same snapshot (`consensus_cache.parquet`, never re-devig) for Brier/skill/CLV. *Money* (did we profit?) = juiced book-pair at the decision clock (DK else FD else next US book) for ROI/WR. Report both forever; cite which lane every number lives in. Dedupe (`dedupe_ledger_props`) is money-track aggregation only â€” selection stays per-quote, lineÃ—side cells stay per player O/U line.
 
 
-## Parking Lot (new ideas noticed mid-task — do not act on these until the list above is clear)
+## Parking Lot (new ideas noticed mid-task â€” do not act on these until the list above is clear)
 - **Full cleanup-skills program (owner request 2026-10-29) - BOUNDED PASS COMPLETE 2026-10-29, deletions still owner-gated:** all five specialists' read-only "Explore first" inventories executed + allowed pointer repairs applied; findings consolidated here (no separate report written). (1) **docs-canonicalizer:** 10 broken relative md links found and REPAIRED (reports README full-index: 9 dead rows converted to the established "FILE REMOVED; git history preserves it" plain-text convention per the PR #41 pattern; `docs/archive/CLEANUP_LOG.md` relative path fixed to `../EXECUTION_BACKLOG.md`); register + supersession CSVs exist and current; 6 prereg `*-draft.md` pairs in `research/offseason_2026/` remain per T6 disposition plan (banners executed PR #15; deeper disposition pending, untouched). (2) **dead-code-auditor:** static text scan over `src/Python/` + `production/` found ZERO zero-reference candidates - no deletion candidates surfaced (scan is text-only; skill caveats on dynamic imports/lake runners apply; full evidence-graph audit NOT run). (3) **artifact-lifecycle:** inventory only - 22 tracked notebooks, 79 files under `models/`, 9 paper figures; `check_notebook_artifacts.py` shows 1 required artifact MISSING (`artifacts/odds_log/ledger.parquet` - run production refresh); per-file lifecycle classification deferred. (4) **ci-coverage:** CI collects `testpaths=["tests"]` = 128 files; 15 research-lane test files sit OUTSIDE default collection (bf_lane 2, bf_workload_v1 1, market_eval 4, p1_harness 3, prospective_logging 1, count-eval-v2-spec 4); CI runs only ONE explicitly (`tests/test_pregame_pa_tracking.py`); gap spec = add explicit strict-failure pytest steps for the research harness suites - workflow edit needs an approved slice, NOT done. (5) **dependency-hygiene:** `tests/test_sb_dependency_declarations.py` 4/4 PASS (sage remains a registered deliberate exclusion per its test contract); scanner surfaced one REAL undeclared import: `pingouin` (consumer `src/Python/reliability.py`) - outside the S-B test's src-only declared-set scope; needs owner decision: declare (tier?) or remove consumer. Declared-but-unimported candidates (PIL/cv2/fitz/plotly/pyarrow/yaml/bs4/sklearn etc.) are false positives of the name-normalization scan - not findings. Prohibition #3 unchanged: no deletions without evidence artifact + owner gate + validation + rollback.
-- **Cheap agent stack (2026-09-02) — PARTIAL DONE:** ignore-files + agent-context rule shipped. Still parked: Cline/OpenCode + DeepSeek V4 Flash on Mac; kill Cursor Auto/credits; escalate Kimi/GLM; Claude escape hatch. Never route Lenovo work through Chinese APIs. Reopen when user starts Mac harness migrate.
-- **Historical K CLV backfill (2026-09-02) — RESEARCH DONE, pull PARKED:** see `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`. Execute free HF + OddsPapi smoke then optional The Odds API month only when user asks. Do not start paid pull mid-ops week.
-- **Book-quality filter — WONT_DO** (user 2026-09-01): books used for lines only; usually synced.
+- **Cheap agent stack (2026-09-02) â€” PARTIAL DONE:** ignore-files + agent-context rule shipped. Still parked: Cline/OpenCode + DeepSeek V4 Flash on Mac; kill Cursor Auto/credits; escalate Kimi/GLM; Claude escape hatch. Never route Lenovo work through Chinese APIs. Reopen when user starts Mac harness migrate.
+- **Historical K CLV backfill (2026-09-02) â€” RESEARCH DONE, pull PARKED:** see `docs/reference/reports/historical_clv_odds_apis_2026-09-02.md`. Execute free HF + OddsPapi smoke then optional The Odds API month only when user asks. Do not start paid pull mid-ops week.
+- **Book-quality filter â€” WONT_DO** (user 2026-09-01): books used for lines only; usually synced.
 - **Juiced next-book vs DK+FD (2026-09-11 #123):** next-US-book fallback after DK/FD soaked BetRivers (n=1,001 of 2,077, WR 0.429). GO had said median. Waiting on owner which universe is canonical. Do not mix all-books ROI with DK+FD ROI.
 
 - **Live A/B parallel ledgers:** score every opportunity under status_quo / veto_4_5 / asym16 even when only one rule is bet live.
-- **Block bootstrap by game_date** for ROI/CLV CIs; do not bootstrap a line cell with n≈18 into a promote claim.
+- **Block bootstrap by game_date** for ROI/CLV CIs; do not bootstrap a line cell with nâ‰ˆ18 into a promote claim.
 - **Real-bet first:** Item 6/#12 unblocks honest money ROI vs paper.
-- **Optional soft veto:** size 2.5–3.5 overs at 0.5u instead of hard skip if learning value matters.
+- **Optional soft veto:** size 2.5â€“3.5 overs at 0.5u instead of hard skip if learning value matters.
 - Three-state action space (bet / prediction-market-watch / hold) as a cleaner replacement for the binary bet/hold flip.
 - Calibration-drift monitor (recent-window WR 0.493 vs. all-time 0.534).
 - Reliability/calibration bucket report (among props rated 0.7-0.8, what's the real hit rate).
 - Cost-asymmetry-informed stake sizing (expected loss of missing a winner vs. betting a loser).
 - Side asymmetry on real tickets: all 3 losses to date were Overs; every Under/low-line-Over hit. Worth a real-ticket side-conditional check once ledger reaches meaningful n, not a 9-shot pattern to bet on.
-- **MLflow v2 (after Item 13):** Optuna callback → nested MLflow runs; log ensemble-sweep / null-lane decision metrics as separate experiments; optional Model Registry *mirror* of frozen champions (still not auto-promote).
+- **MLflow v2 (after Item 13):** Optuna callback â†’ nested MLflow runs; log ensemble-sweep / null-lane decision metrics as separate experiments; optional Model Registry *mirror* of frozen champions (still not auto-promote).
 - **W&B** only if you want hosted multi-machine dashboards; not needed for solo local research.
-- **SSAC27 (MIT Sloan Sports Analytics Conference) — abstract deadline Oct 1, 2026.** Items **1–8 DONE**. Future-work 9–13 remain parked. Lead submission with modeling half; betting half stays demoted. Low-priority doc polish: move ablation/freshness self-notes to a Supplemental appendix.
-- **Phase 10 pipeline-discovery + reusable-prop-platform prompt (2026-09-17) — CENSUS EXECUTED, design queued:** see PRESENT "PHASE 10 EXECUTED" + FORWARD Phase 10 workstreams (ARCH/DATA/PROP/SIM/EVAL/OBS/NB/OPS/TEST). Source file lives outside repo (`Downloads/Pipeline Discovery and Reusable Prop Platform Prompt.md`); content reconciled here, no second roadmap. Conflicts with FORWARD pickup box (no coding job until owner names it) and October sequencing (post-9/27) — design-only at most before then; no live/Modal/policy/model/schedule changes. Verified pre-checks: all 5 Modal schedules use `modal.Cron` (`modal_app.py:132,154,181,197,213`), so the Period-reset timing risk does not apply. Reopen when owner names the census or the October program starts.
+- **SSAC27 (MIT Sloan Sports Analytics Conference) â€” abstract deadline Oct 1, 2026.** Items **1â€“8 DONE**. Future-work 9â€“13 remain parked. Lead submission with modeling half; betting half stays demoted. Low-priority doc polish: move ablation/freshness self-notes to a Supplemental appendix.
+- **Phase 10 pipeline-discovery + reusable-prop-platform prompt (2026-09-17) â€” CENSUS EXECUTED, design queued:** see PRESENT "PHASE 10 EXECUTED" + FORWARD Phase 10 workstreams (ARCH/DATA/PROP/SIM/EVAL/OBS/NB/OPS/TEST). Source file lives outside repo (`Downloads/Pipeline Discovery and Reusable Prop Platform Prompt.md`); content reconciled here, no second roadmap. Conflicts with FORWARD pickup box (no coding job until owner names it) and October sequencing (post-9/27) â€” design-only at most before then; no live/Modal/policy/model/schedule changes. Verified pre-checks: all 5 Modal schedules use `modal.Cron` (`modal_app.py:132,154,181,197,213`), so the Period-reset timing risk does not apply. Reopen when owner names the census or the October program starts.
 
-- **GATE A CORRECTION COMMITTED 33e1f63 2026-10-09 (owner-authorized bounded numerical correction; 17 tests green; pre-commit passed; no push):** root cause = support truncation in cond24_binom (k>23 dropped from the uncollapsed conditional before expectation verification; NOT scipy, NOT dtype — builder verified vs exact Fraction reference at 4.7e-16). Fix: B conditional on full 0..n support, tail mapped via map24 (same as C), expectations via math.fsum; frozen 1e-9 gate UNCHANGED and passes all 4,446 rows x all supported n. Evidence wording corrected per owner: support-mapping identity verified over n=1..60 x 37-point p grid (max diff 4.7e-14); all 38 exported numeric columns x 4,446 rows max diff 7.3e-14 (float64 rounding; NOT claimed bit-identical); boolean flags identical; paired effects unchanged (B-A -0.033037*, C-B +0.000098*, C-A -0.032939*). Failed first validation preserved (pa-gateA-validation-20261009a) alongside passing full-row run (...20261009b). Negative tests (shifted PMF, wrong-sequence) still fail gate; edge tests p in {0,0.001,0.5,0.999,1} x n<=60 pass. Doc defect C closed. Chat-two closure review can proceed at c0805be + b2d7140 + 33e1f63. Remaining before pilot scoring: BF reconstruction (fixed recipe, pre-2025 fit, serialization, reload parity, availability audit — no automatic embargo per owner correction), pilot sealing, outcome authorization.
+- **GATE A CORRECTION COMMITTED 33e1f63 2026-10-09 (owner-authorized bounded numerical correction; 17 tests green; pre-commit passed; no push):** root cause = support truncation in cond24_binom (k>23 dropped from the uncollapsed conditional before expectation verification; NOT scipy, NOT dtype â€” builder verified vs exact Fraction reference at 4.7e-16). Fix: B conditional on full 0..n support, tail mapped via map24 (same as C), expectations via math.fsum; frozen 1e-9 gate UNCHANGED and passes all 4,446 rows x all supported n. Evidence wording corrected per owner: support-mapping identity verified over n=1..60 x 37-point p grid (max diff 4.7e-14); all 38 exported numeric columns x 4,446 rows max diff 7.3e-14 (float64 rounding; NOT claimed bit-identical); boolean flags identical; paired effects unchanged (B-A -0.033037*, C-B +0.000098*, C-A -0.032939*). Failed first validation preserved (pa-gateA-validation-20261009a) alongside passing full-row run (...20261009b). Negative tests (shifted PMF, wrong-sequence) still fail gate; edge tests p in {0,0.001,0.5,0.999,1} x n<=60 pass. Doc defect C closed. Chat-two closure review can proceed at c0805be + b2d7140 + 33e1f63. Remaining before pilot scoring: BF reconstruction (fixed recipe, pre-2025 fit, serialization, reload parity, availability audit â€” no automatic embargo per owner correction), pilot sealing, outcome authorization.
 - **ADAPTER COMMIT 2026-10-09 (owner-authorized trio; see PRESENT top entry):** pinned latest-cutoff-valid-snapshot rule (NO older-revision substitution; naive cutoff rejected before any UTC coercion); naive-rejection + no-substitution tests added (25 green); dry run re-verified 32/110/142; committed after this line.
 
 - **ADAPTER D1-D4 REMEDIATION COMPLETE (UNCOMMITTED, awaiting receipt review) 2026-10-09:** D1 coverage basis documented in runner receipts (team-game lineups != eligible pitcher-forecast count; population fixed only at sealing); D2 adapter now delegates to the canonical canonical_team_code (src/Python/daily_lineups.py:155, read-only import, identity-asserted in test; hand-rolled alias map removed); D3 mixed lineup_status within one latest snapshot -> explicit REASON_MIXED_STATUS fallback with statuses preserved; D4 stored-naive timestamp interpretation documented at the parse site per the writer contract, dead _receipt helper removed. 15 adapter tests green (incl. canonical-parity + mixed-status tests); dry-run re-verified unchanged 32/110/142 with the canonical mapper. Uncommitted: adapter, runner, tests. BF reconstruction (availability audit + training eligibility manifest + single pre-2025 fit + serialization + fresh-process reload parity) is the next deliverable; sealing waits on adapter closure review, aggregation closure review, and BF reload verification.

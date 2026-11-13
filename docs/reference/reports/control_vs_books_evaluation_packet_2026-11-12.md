@@ -257,3 +257,112 @@ permissions - execution requires a new recorded single-run order.
   availability is unestablished for 2025H1. This packet does NOT
   constitute a morning T-5h trading replay and must not be cited as
   one.
+
+---
+
+# PACKET B OWNER-DECISION BRIEF (2026-11-12; appended after Packet A completion)
+
+Packet B remains UNAUTHORIZED. This brief consolidates the decision material
+only; the runner is already built and accepted (no new features were added
+to prepare this request).
+
+## B.1 The question
+
+Does the REGISTERED current control (8-feature multinomial + pooled W0,
+arm `pmf_multinomial_control`) improve on near-close book quotes and the
+LTBO consensus at forecasting the realized full-start over outcome? Paired
+log loss / Brier (registered 1e-12 clip definitions) with the slate-date
+bootstrap; probability disagreement (book vs LTBO) reported separately from
+outcome scoring. Model-only and market-only artifacts stay separate; no
+complementary-side pooling; no model-edge or profitability claim.
+
+## B.2 Exact runner/code identity
+
+- Runner: `research/offseason_2026/pregame_pa_ext/run_control_vs_books.py`
+  at accepted head `735bb5485560d1773ffc193d10733e5d61440f86` (integrated
+  main `aa61986d3d8d818c758a56ae75e64176299cb8ee`; verified identical).
+- Gate: `--execution-ack EXECUTE-CONTROL-VS-BOOKS-V1` + write-once receipts
+  + delegated owner order (the registered market-eval lane's gate discipline).
+- Receipt discipline: tables as parquet (atomic write); scores/coverage as
+  fail-loud JSON (never default=str); `receipt_final.json` written LAST
+  (output-write failure test proves no completed receipt on failure).
+- Consumed identities recorded in the receipt: cohort content hash
+  (registered recipe), pinned artifact hashes, book_lines/envelope sha256,
+  private bridge source sha + card manifest sha.
+
+## B.2a Command (exact; AMENDED policy - supersedes the consumed invocation, which is preserved, not erased)
+
+**Permission status:** attempt 1 (exact-cohort policy, `control_vs_books_v1`) was EXECUTED once and REFUSED at the exact-cohort coverage gate (2,509 -> 2,154; 355 cohort starts lack an all-book near-close consensus; receipt PR #91 comment 6862633285). That permission is CONSUMED. Any rerun under the amended shared-population policy below requires a NEW recorded owner order.
+
+```
+python research/offseason_2026/pregame_pa_ext/run_control_vs_books.py --execution-ack EXECUTE-CONTROL-VS-BOOKS-V1 --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\control_vs_books_v2" --book-lines "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Odds-Historical\theoddsapi\book_lines_pitcher.parquet" --envelope "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Odds-Historical\theoddsapi\snapshot_envelope.parquet" --consensus-policy shared_population
+```
+
+Policy semantics (`--consensus-policy shared_population`, opt-in; default refusal unchanged): model-vs-consensus scored ONLY on the declared shared population; the ORIGINAL 2,509-start cohort remains the coverage denominator (`coverage.consensus_shared_population.cohort_denominator`); matched/unmatched start keys + reason codes (`no_near_close_quotes` / `no_two_sided_quote_at_any_line` / `consensus_unavailable_other`) are durably persisted BEFORE scoring via a membership sink (a scorer failure cannot lose the coverage evidence - tested with a synthetic scorer failure); ZERO matched coverage is a CONTROLLED REFUSAL (explicit no-score result, never silent empty scoring); complete coverage produces explicit accounting (`complete_coverage: true`); book/LTBO populations stay separate with per-book denominators. The policy value is validated at the seam boundary, and the selected policy is recorded in the INITIAL receipt (visible on failed attempts too).
+
+## B.3 Inputs, actual access, and protected exposure (honest decoding facts)
+
+- **Pinned registered artifacts (full-file reads, byte-pinned, hash-enforced
+  at run time):** k-PMF control artifact `8c5c849c...`; assessment
+  `464fe192...`; count_agg_eval_v1 dates `afc94ad7...`; eligible cohort
+  (content hash `f77d7a66...` enforced by the registered validator).
+- **Private bridge (build_task_frames, odds-coverage-v1 `join_coverage.py`):
+  ALL of the following are FULL-FILE EAGER reads - `pl.read_parquet` then
+  in-memory filtering. The declared 2024-07-01..2025-06-30 window is an
+  in-memory filter, NOT pre-decode protection, and must not be described as
+  such:**
+  - `book_lines_pitcher.parquet` (4,025,730 rows): projected quote fields
+    decoded for ALL years INCLUDING protected 2025H2/2026 quote rows,
+    transiently, filtered in memory;
+  - `snapshot_envelope.parquet` (14,531 rows): commence timestamps for all
+    years transiently decoded;
+  - workload starts `C:\Users\ckaplinger\MLB-Props-Research\bf-workload-v1\data\bf_forecasts.parquet`
+    (task/forecast table; no outcome columns);
+  - `data\dimensions\player_id_map.parquet` (identity bridge; actually
+    consumed).
+- The universe_panel_live panel is NOT consumed by Packet B (model
+  probabilities come from the pinned k-PMF artifact; `p_ours_cal` never
+  read).
+- No Friend CSV, no network, no live-path file.
+
+## B.4 Timing and identity limitations
+
+- The comparison is the NEAR-CLOSE BENCHMARK contract (tier A: latest
+  quote at or before the start's commence within 60 minutes; tier B:
+  vendor close snapshot). It is NOT a morning trading replay.
+- Envelope `commence_time` is the vendor-scheduled commence - NOT an
+  observed first pitch.
+- A near-close label does NOT establish that confirmed-lineup model inputs
+  existed before every selected quote: model inputs are strictly-prior
+  pregame states and 2025H1 morning decision-time availability is
+  unestablished.
+- The event->game mapping tie-break (closest date, then event_id order) is
+  NOT independent identity validation; aggregate tie-break counts exist
+  (`archive_event_map_duplicate_keys`), per-mapping
+  uniquely-supported-vs-tie-broken status is NOT carried by existing
+  metadata (declared gap, recorded in the receipt).
+
+## B.5 Fresh output directory and stop conditions
+
+- AMENDED: `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\control_vs_books_v2`
+  - must NOT pre-exist (write-once; failure records preserved, receipt
+    final written LAST only after all declared outputs succeed). The
+    consumed `control_vs_books_v1` directory (receipt_initial +
+    failure_record from the refused attempt 1) is PRESERVED untouched.
+- Stop conditions: ack mismatch; existing out-dir; missing/nonexistent
+  --book-lines/--envelope; pinned-artifact hash mismatch; cohort exact-
+  cover refusal; duplicate quote/consensus identity; consensus
+  shared population EMPTY (zero matched -> controlled no-score refusal);
+  model-rows-lost-in-join refusal (refuse policy); protected/unknown
+  block refusal; unknown consensus_policy value (seam-boundary
+  validation); any runtime failure -> `failure_record.json` preserved,
+  no completed receipt, ONE run, no repair-and-rerun.
+
+## B.6 Packet A reconciliation (verified)
+
+Packet A is EXECUTED (exit 0) and CLOSED; single-run permission consumed.
+Preserved artifacts + receipt: PR #90 comment 6861125006 (locations) and
+6861289910 (artifact index for Chat 2's verification): baseline parquet
+`e4348d3b...`, report `18cd418d...`, policy-tagged integrity sidecar
+`53b989e0...`; preserved pre-#90 diagnostic `c590d3b6...` untouched.
+No further Packet A runs.
