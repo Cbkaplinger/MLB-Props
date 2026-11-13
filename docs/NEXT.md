@@ -25,14 +25,33 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: control-vs-books evaluation packet (2026-11-12)
+## Current action: quote-integrity PR (2026-11-12)
 
-- Baseline recovery status: PR #87 merged (main 999ffbe); the amended
-  single run was EXECUTED once and REFUSED at the binding gate (a
-  fourth close-side ambiguous key, castillo luis 2025-04-09, beyond
-  the bound three; receipt on PR #87 comment 6829936974; no outputs;
-  panel exception not consumed). Awaiting the owner's binding decision.
-- EXECUTION-READY (PR #88): the gated runner is complete - args
+- Packet A attempts (all CLOSED, receipts preserved): 3-key morning
+  stop (#86), four-key binding refusal (#87), four-key MATCH +
+  duplicate-quote-side refusal on integrated main 0977a2d (#88,
+  comment 6838485286). No baseline result exists.
+- NEW PR (this branch): quote-multiplicity classification (identical
+  repeats / same-time conflicts / distinct-time / insufficient
+  timestamp), ONE structured both-snapshot integrity report written
+  before outcomes/scoring, full-identity pairing (event_id on both
+  sides), default refusal unchanged, narrow
+  --quote-policy normalize_idempotent (identical copies only;
+  conflicts/distinct-time/insufficient-timestamp still refuse).
+  11 tests (tests/test_quote_integrity.py); combined gates 101 passed.
+- Proposed bounded quote-only recovery packet: one run with
+  --quote-policy normalize_idempotent + the four-key binding - if the
+  only multiplicities are idempotent copies the baseline completes;
+  any conflict/distinct/insufficient refuses with the full report
+  (panel never read on refusal). NOT EXECUTED (new owner order).
+
+- Proposed bounded quote-only recovery packet: one run with
+  --quote-policy normalize_idempotent + the four-key binding - if the
+  only multiplicities are idempotent copies the baseline completes;
+  any conflict/distinct/insufficient refuses with the full report
+  (panel never read on refusal). NOT EXECUTED (new owner order).
+
+- EXECUTION-READY (PR #88, merged): the gated runner is complete - args
   validated before output/decode; tables as parquet; scores/coverage
   JSON via fail-loud conversion (never default=str); receipt_final
   LAST (output-failure test: no completed receipt on failure);

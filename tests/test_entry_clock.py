@@ -178,6 +178,7 @@ def _setup(tmp_path: Path, extra_book_rows=None, friend_csv=None,
     jr.__dict__["OUT_PARQUET"] = odds_dir / "juiced_replay_candidates__t.parquet"
     jr.__dict__["OUT_REPORT"] = odds_dir / "juiced_replay_report__t.json"
     jr.__dict__["OUT_BASELINE"] = odds_dir / "juiced_replay_baseline__t.parquet"
+    jr.__dict__["OUT_INTEGRITY"] = odds_dir / "integrity__t.json"
     return friend
 
 
@@ -330,7 +331,7 @@ def test_duplicate_quote_sides_refused(tmp_path):
            "player_norm": "aa p", "line": LINE, "side": "over",
            "price": -120}
     _setup(tmp_path, extra_book_rows=[dup])
-    with pytest.raises(SystemExit, match="duplicate over-side"):
+    with pytest.raises(SystemExit, match="quote integrity failure"):
         jr.main(["--entry-clock", "morning_only"])
 
 
