@@ -44,45 +44,55 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PAST
 
-- Market-only T-5h replay implemented + accepted + MERGED (PR #86,
-  main 16a99b0). Single-run order executed once on integrated main
-  (head edde515): STOPPED at a declared stop condition, exit 1 - the
-  exact-identity guard refused 3 (gd,key,line) contracts in 2025H1
-  mapping to TWO event_ids each (chris paddack 4.5, gavin williams
-  5.5, bryan woo 4.5; receipt PR #86 comment 6816558623, preserved
-  unchanged; that run is CLOSED as the execution of record; input
-  hashes verified unchanged; no outputs produced).
+- Paid-morning baseline: THREE closed authorized attempts, all
+  preserved: (1) PR #86 single run - 3-key morning-scan identity stop
+  (comment 6816558623); (2) PR #87 amended run - four-key binding-gate
+  refusal (close-side castillo luis discovery; comment 6829936974);
+  (3) PR #88 Packet A run on integrated main 0977a2d - four-key
+  binding MATCHED, then duplicate-quote-side integrity refusal
+  (comment 6838485286). No market baseline result exists; input
+  hashes unchanged throughout; no outputs ever written.
+- PR #87 (identity-exclusion policy) and PR #88 (control-vs-books
+  benchmark + four-key binding) merged (mains 16a99b0 / 0977a2d).
+  Packet B (control-vs-books real run) NOT authorized.
+- Market-only T-5h replay implemented + accepted + MERGED (PR #86).
 - Board-coverage probes, boundary follow-up, recovered-ideas register:
   CLOSED as recorded in prior snapshots.
 
 ### PRESENT
 
-- **IDENTITY-EXCLUSION POLICY PR (this branch):** new opt-in
-  development-baseline policy --identity-policy exclude_ambiguous
-  (default refuse unchanged):
-  - exclusions determined from the permitted paid inputs BEFORE book
-    selection, model/outcome consumption or scoring; union across
-    morning and close (no re-entry through the other snapshot);
-  - scope = per reduced (gd,key,line) start/line identity (minimum
-    scope that makes the panel join unambiguous);
-  - excluded candidates preserved in accounting: full reduced key,
-    ALL conflicting event_ids, affected snapshots, reason
-    ambiguous_event_identity, entry_eligible=False; no excluded quote
-    values persist; never described as resolution;
-  - --expected-excluded-keys binds the run to the preserved receipt
-    (production/ops/market_research/expected_exclusions_2025H1.json,
-    lineage to the stopped run + input hashes); detected set != bound
-    set REFUSES (no silent expansion; not hardcoded);
-  - report adds identity_screening (population before screening,
-    excluded keys/rows, population after screening) and subsequent
-    entry/settlement/close denominators on the post-screening
-    population.
-  Tests: 10 green in tests/test_identity_exclusion.py (default
-  refusal, opt-in exclusion, unchanged clean metrics, single-snapshot
-  ambiguity, book-selection cannot hide, binding mismatch refuses,
-  binding match passes, coverage accounting, binding-without-policy
-  refusal). Combined gate: 76 passed.
-- NO private-data read and NO rerun authorized by this assignment.
+- **QUOTE-MULTIPLICITY INTEGRITY + NARROW NORMALIZATION (PR, this
+  branch):** Packet A's second stop (duplicate over-side quotes,
+  receipt PR #88 comment 6838485286) is now diagnosable without blind
+  retries. juiced_replay_ledger gains:
+  (1) full quote identity through validation and pair construction
+  (event_id retained on BOTH sides; pairs join on the full supported
+  contract key incl. event_id);
+  (2) a multiplicity classifier with four declared classes (exact
+  identical repeats; same-time conflicting prices; distinct-time
+  observations; insufficient timestamp) -- timestamp semantics never
+  inferred;
+  (3) ONE structured integrity report covering BOTH morning and close
+  in a single permitted input pass (counts, affected keys, snapshot,
+  available timestamps, conflict class, refusing stage), written to
+  juiced_replay_quote_integrity<suffix>.json (write-once-guarded)
+  BEFORE outcomes/scoring -- no more uninformative first-side
+  messages; refusal fires with the full report;
+  (4) default behavior unchanged (refuse); opt-in
+  --quote-policy normalize_idempotent collapses ONLY exact repeated
+  observations (identical price AND timestamp); same-time conflicts,
+  distinct-time rows and insufficient-timestamp groups still refuse
+  (no first()/best-price/latest; no declared decision-time selector
+  exists for distinct-time rows);
+  (5) no outcome access on refusal (integrity pass precedes the
+  envelope and panel reads).
+  Tests: 11 green in tests/test_quote_integrity.py (identical
+  repeats refuse+collapse, same-time conflict, distinct-time,
+  morning-only/close-only, one-sided dup, missing timestamps,
+  unchanged unique metrics, refusal-before-panel, full-identity
+  pairing, four-key exclusions coexisting). Combined gates: 101
+  passed. Proposed bounded quote-only recovery packet in the PR
+  description. NOT EXECUTED on real data (new owner order required).
 
 ### FORWARD
 

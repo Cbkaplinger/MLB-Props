@@ -59,6 +59,7 @@ PANEL = ODDS_DIR / "universe_panel_live.parquet"
 OUT_PARQUET = ODDS_DIR / "juiced_replay_candidates.parquet"
 OUT_REPORT = ODDS_DIR / "juiced_replay_report.json"
 OUT_BASELINE = ODDS_DIR / "juiced_replay_baseline.parquet"
+OUT_INTEGRITY = ODDS_DIR / "juiced_replay_quote_integrity.json"
 
 # Declared decision clocks (see the snapshot reconstruction contract in
 # production/ops/market_research): the
@@ -142,6 +143,15 @@ def _paid_scan(
     )
 
 
+def _ambiguous_from_bk(bk: pl.DataFrame) -> pl.DataFrame:
+    """Reduced identities (gd, key, line) mapping to more than one
+    event_id within an ALREADY-SCANNED frame (no second decode)."""
+    return bk.group_by(["gd", "key", "line"]).agg(
+        pl.col("event_id").n_unique().alias("n_ev"),
+        pl.col("event_id").unique().sort().alias("event_ids"),
+    ).filter(pl.col("n_ev") > 1).drop("n_ev")
+
+
 def _ambiguous_reduced_keys(
     snapshot: str,
     ev: pl.DataFrame,
@@ -153,11 +163,8 @@ def _ambiguous_reduced_keys(
     event_id in the permitted inputs. Determined BEFORE book selection,
     outcome consumption or scoring. Never resolved -- only refused or
     excluded by declared policy."""
-    bk = _paid_scan(snapshot, ev, allowed_books, event_ids, gd_window)
-    return bk.group_by(["gd", "key", "line"]).agg(
-        pl.col("event_id").n_unique().alias("n_ev"),
-        pl.col("event_id").unique().sort().alias("event_ids"),
-    ).filter(pl.col("n_ev") > 1).drop("n_ev")
+    return _ambiguous_from_bk(
+        _paid_scan(snapshot, ev, allowed_books, event_ids, gd_window))
 
 
 def _two_way_paid(
@@ -167,6 +174,7 @@ def _two_way_paid(
     event_ids: set[str] | None = None,
     gd_window: tuple | None = None,
     drop_keys: set | None = None,
+    bk: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     """Two-sided juiced-pair construction for one snapshot. When
     ``event_ids`` is provided, the restriction is pushed INTO the lazy
@@ -178,10 +186,15 @@ def _two_way_paid(
     decode scope is deterministic (rg11-rg17 for a 2025H1 window).
     ``drop_keys`` (opt-in exclusion policy) removes declared ambiguous
     reduced identities BEFORE pair construction; it is an EXCLUSION,
-    never an identity resolution."""
-    scan_source = _paid_scan(snapshot, ev, allowed_books, event_ids,
-                             gd_window)
-    bk = scan_source
+    never an identity resolution. ``bk`` supplies an ALREADY-SCANNED
+    frame (single permitted input pass from main); when omitted the
+    scan runs here. Quote multiplicity is classified with FULL
+    identity retained (event_id on BOTH sides); findings refuse with
+    the structured report; only the declared idempotent policy may
+    collapse exact repeated observations."""
+    if bk is None:
+        bk = _paid_scan(snapshot, ev, allowed_books, event_ids,
+                        gd_window)
     if drop_keys:
         # anti-join on the reduced key: excluded candidates never reach
         # pair construction, so no book selection can re-introduce them
@@ -193,33 +206,39 @@ def _two_way_paid(
     # --- identity guards (no silent ambiguity resolution). A reduced
     # (gd, key, line) that maps to more than one event_id would fan out
     # every downstream join; refuse instead of picking first().
-    amb = bk.group_by(["gd", "key", "line"]).agg(
-        pl.col("event_id").n_unique().alias("n_ev")).filter(
-        pl.col("n_ev") > 1)
+    amb = _ambiguous_from_bk(bk)
     if amb.height:
         sample = amb.head(5).rows()
         raise SystemExit(
             f"ambiguous reduced-key join: {amb.height} (gd,key,line) "
             f"map to multiple event_id values, e.g. {sample}; refusing")
+    # --- quote multiplicity: classified with FULL identity retained;
+    # the caller may pre-classify (integrity pass); standalone calls
+    # get the guard here. Default = refuse with the finding classes.
+    findings = _classify_quote_multiplicity(bk)
+    if findings:
+        counts: dict = {}
+        for f in findings:
+            kk = f["class"]
+            counts[kk] = counts.get(kk, 0) + 1
+        raise SystemExit(
+            f"quote multiplicity findings ({snapshot}): "
+            f"{len(findings)} duplicated observation group(s) - "
+            f"classes {counts}; refusing (run the integrity report "
+            "for affected keys)")
+    # event_id is retained on BOTH sides; pairs join on the full
+    # supported contract key so a quote can never attach to another
+    # event's counter-side
     over = bk.filter(pl.col("side") == "over").select(
-        ["gd", "key", "line", "book", "event_id", "price"]
+        ["gd", "key", "line", "book", "event_id", "snapshot_ts", "price"]
     ).rename({"price": "over_amer"})
     under = bk.filter(pl.col("side") == "under").select(
-        ["gd", "key", "line", "book", "price"]
+        ["gd", "key", "line", "book", "event_id", "snapshot_ts", "price"]
     ).rename({"price": "under_amer"})
-    # duplicate quote sides for the same event/book/line are a lake
-    # integrity failure; refuse rather than multiply the join
-    for name, fr in (("over", over), ("under", under)):
-        dup_key = [c for c in ("gd", "key", "line", "book", "event_id")
-                   if c in fr.columns]
-        if fr.height != fr.unique(subset=dup_key).height:
-            raise SystemExit(
-                f"duplicate {name}-side quotes for the same "
-                f"(gd,key,line,book,event_id); refusing")
     # --- pairs: multi-book quotes for one (gd,key,line) are expected;
     # selection among books is the DECLARED registered rule (pref order
     # below), not silent ambiguity resolution
-    pairs = over.join(under, on=["gd", "key", "line", "book"])
+    pairs = over.join(under, on=["gd", "key", "line", "book", "event_id"])
     pairs = pairs.with_columns(
         pl.col("book").map_elements(_pref, return_dtype=pl.Int64).alias("pref")
     )
@@ -238,6 +257,104 @@ def _two_way_paid(
             "under_amer": f"{snapshot}_under",
         })
     )
+
+
+def _classify_quote_multiplicity(bk: pl.DataFrame) -> list[dict]:
+    """Classify duplicated quote-side observations BEFORE any
+    distinguishing field is discarded. One finding per observation
+    group (gd, key, line, book, event_id, side) with more than one
+    row. Classes:
+    - identical_repeat: every field identical (price AND timestamp)
+      -> idempotent-collapse candidate under the declared policy;
+    - same_time_conflict: same observation identity AND same
+      available timestamp, different price;
+    - distinct_time: different snapshot_ts values (timestamp semantics
+      are NOT inferred - a declared decision-time selector would be
+      required and none exists);
+    - insufficient_timestamp: null/missing timestamp information.
+    """
+    key = ["gd", "key", "line", "book", "event_id", "side", "snapshot"]
+    g = bk.group_by(key).agg(
+        n=pl.len(),
+        n_prices=pl.col("price").n_unique(),
+        n_ts=pl.col("snapshot_ts").n_unique(),
+        n_ts_null=pl.col("snapshot_ts").null_count(),
+        prices=pl.col("price").unique().sort(),
+        timestamps=pl.col("snapshot_ts").unique(),
+    )
+    findings = []
+    for r in g.filter(pl.col("n") > 1).iter_rows(named=True):
+        if r["n_ts_null"] and r["n_ts_null"] == r["n"]:
+            cls = "insufficient_timestamp"
+        elif r["n_ts"] == 1 and r["n_prices"] == 1:
+            cls = "identical_repeat"
+        elif r["n_ts"] == 1:
+            cls = "same_time_conflict"
+        else:
+            cls = "distinct_time"
+        findings.append({
+            "snapshot": r["snapshot"],
+            "gd": r["gd"], "key": r["key"], "line": float(r["line"]),
+            "book": r["book"], "event_id": r["event_id"],
+            "side": r["side"], "n_observations": r["n"],
+            "n_distinct_prices": r["n_prices"],
+            "n_distinct_timestamps": r["n_ts"],
+            "prices": [float(p) for p in r["prices"]],
+            "timestamps": [str(t) for t in r["timestamps"]
+                           if t is not None],
+            "class": cls,
+        })
+    return findings
+
+
+def _collapse_identical_copies(bk: pl.DataFrame) -> tuple[pl.DataFrame, int]:
+    """Narrowly specified idempotent normalization: collapse EXACT
+    repeated observations (all retained fields identical, including
+    snapshot_ts). Same-time conflicts, distinct-time rows and
+    timestamp-unresolvable groups are NOT touched - they refuse
+    upstream via the classifier."""
+    key = ["gd", "key", "line", "book", "event_id", "side",
+           "snapshot_ts", "price"]
+    n0 = bk.height
+    collapsed = bk.unique(subset=key)
+    return collapsed, n0 - collapsed.height
+
+
+def _integrity_report(findings_morning: list[dict],
+                      findings_close: list[dict],
+                      collapsed_counts: dict,
+                      residual_morning: list[dict] | None = None,
+                      residual_close: list[dict] | None = None) -> dict:
+    """One structured integrity report covering BOTH snapshots,
+    produced before outcomes/scoring: pre-normalization findings,
+    the collapse counts, and any residual findings after the
+    declared normalization policy."""
+    def _pack(findings):
+        classes: dict = {}
+        for f in findings:
+            classes[f["class"]] = classes.get(f["class"], 0) + 1
+        return {"n_findings": len(findings), "classes": classes,
+                "findings": findings[:50]}
+    applied = (collapsed_counts.get("morning", 0)
+               + collapsed_counts.get("close", 0)) > 0
+    return {
+        "report": "quote_multiplicity_integrity_v1",
+        "stage": "pair_construction_pre_check",
+        "morning": _pack(findings_morning),
+        "close": _pack(findings_close),
+        "normalization": {
+            "applied": applied,
+            "collapsed_identical_copies": collapsed_counts,
+            "residual_findings": {
+                "morning": _pack(residual_morning or []),
+                "close": _pack(residual_close or [])},
+        },
+        "note": ("findings classify multiplicities on the full "
+                 "observation identity (gd,key,line,book,event_id,"
+                 "side,snapshot,snapshot_ts,price); timestamp semantics "
+                 "are never inferred; no first()/best-price/latest "
+                 "selection is made"),
+    }
 
 
 def _two_way_friend(allowed_books: set[str] | None = None,
@@ -471,6 +588,18 @@ def main(argv: list[str] | None = None) -> int:
                          "and preserved in accounting with all "
                          "conflicting event_ids -- never resolved, "
                          "never first/cheapest/latest/most-favorable")
+    ap.add_argument("--quote-policy", choices=("refuse",
+                                               "normalize_idempotent"),
+                    default="refuse",
+                    help="quote multiplicity treatment: refuse = any "
+                         "duplicated observation group refuses with the "
+                         "structured integrity report (default); "
+                         "normalize_idempotent = collapse ONLY exact "
+                         "repeated observations (identical price AND "
+                         "timestamp) -- same-time conflicts, distinct-"
+                         "time rows and timestamp-unresolvable groups "
+                         "STILL refuse (no first()/best-price/latest "
+                         "selection; no timestamp semantics inferred)")
     ap.add_argument("--expected-excluded-keys", default=None,
                     help="JSON binding file listing the expected "
                          "excluded reduced keys (binds the run to a "
@@ -539,15 +668,19 @@ def main(argv: list[str] | None = None) -> int:
         OUT_REPORT.stem + args.out_suffix + OUT_REPORT.suffix)
     out_base = OUT_BASELINE if not args.out_suffix else OUT_BASELINE.with_name(
         OUT_BASELINE.stem + args.out_suffix + OUT_BASELINE.suffix)
+    out_integrity = OUT_INTEGRITY if not args.out_suffix else OUT_INTEGRITY.with_name(
+        OUT_INTEGRITY.stem + args.out_suffix + OUT_INTEGRITY.suffix)
     # market-only mode writes only the baseline + report (no candidates
     # parquet), so only those destinations are declared
     declared = ([out_report, out_base] if market_only
                 else [out_parquet, out_report, out_base])
-    guarded = resolve_outputs(args.out_suffix, gd_restricted, declared)
+    guarded = resolve_outputs(args.out_suffix, gd_restricted,
+                              declared + [out_integrity])
+    (out_integrity,) = guarded[-1:]
     if market_only:
-        (out_report, out_base) = guarded
+        (out_report, out_base) = guarded[:-1]
     else:
-        (out_parquet, out_report, out_base) = guarded
+        (out_parquet, out_report, out_base) = guarded[:-1]
     if market_only and not EVENT_DATE_MAP.exists():
         raise SystemExit(
             "cached event-date map missing; this order forbids a "
@@ -578,10 +711,13 @@ def main(argv: list[str] | None = None) -> int:
                 "cached event dates; refusing rather than decoding the "
                 "full lake")
     print("attaching paid morning/close two-way pairs...")
-    # ---- identity screening (determines exclusions BEFORE book
-    # selection, model/outcome consumption or scoring). Default policy
-    # is refuse: any reduced identity mapping to multiple event_ids
-    # stops the run inside _two_way_paid. The opt-in policy excludes.
+    # ---- ONE permitted input pass: scan BOTH snapshots once, then run
+    # identity screening and quote-multiplicity classification BEFORE
+    # book selection, outcome consumption or scoring.
+    bk_m = _paid_scan("morning", ev, allowed,
+                      event_ids=allowed_event_ids, gd_window=gd_window)
+    bk_c = _paid_scan("close", ev, allowed,
+                      event_ids=allowed_event_ids, gd_window=gd_window)
     exclude_ambiguous = args.identity_policy == "exclude_ambiguous"
     if args.expected_excluded_keys and not exclude_ambiguous:
         raise SystemExit(
@@ -590,14 +726,9 @@ def main(argv: list[str] | None = None) -> int:
     excl: dict[tuple, dict] = {}
     binding = None
     if exclude_ambiguous:
-        amb_m = _ambiguous_reduced_keys(
-            "morning", ev, allowed,
-            event_ids=allowed_event_ids, gd_window=gd_window)
-        amb_c = _ambiguous_reduced_keys(
-            "close", ev, allowed,
-            event_ids=allowed_event_ids, gd_window=gd_window)
         excl = {}
-        for snap, amb in (("morning", amb_m), ("close", amb_c)):
+        for snap, amb in (("morning", _ambiguous_from_bk(bk_m)),
+                          ("close", _ambiguous_from_bk(bk_c))):
             for r in amb.iter_rows(named=True):
                 kk = (r["gd"], r["key"], float(r["line"]))
                 e = excl.setdefault(kk, {"event_ids": [], "snapshots": []})
@@ -611,19 +742,64 @@ def main(argv: list[str] | None = None) -> int:
             binding = {"source_file": args.expected_excluded_keys,
                        "matched": True,
                        "lineage": "expected set bound to the preserved "
-                                  "stopped-run receipt (PR #86 comment "
-                                  "6816558623; closed as execution of "
-                                  "record)"}
+                                  "stopped-run receipts (PR #86 comment "
+                                  "6816558623; PR #87 comment "
+                                  "6829936974; both closed as "
+                                  "executions of record)"}
         print(f"identity-policy exclude_ambiguous: "
               f"{len(excl)} excluded reduced keys")
+    # ---- quote-multiplicity integrity pass (BOTH snapshots, structured)
+    findings_m = _classify_quote_multiplicity(bk_m)
+    findings_c = _classify_quote_multiplicity(bk_c)
+    collapsed = {"morning": 0, "close": 0}
+    if findings_m or findings_c:
+        pre_m, pre_c = findings_m, findings_c
+        non_idem = [f for f in (*findings_m, *findings_c)
+                    if f["class"] != "identical_repeat"]
+        residual_m, residual_c = findings_m, findings_c
+        normalized = False
+        if (args.quote_policy == "normalize_idempotent"
+                and not non_idem):
+            # ONLY exact repeated observations (identical price AND
+            # timestamp) collapse; anything else refuses above
+            bk_m, collapsed["morning"] = _collapse_identical_copies(bk_m)
+            bk_c, collapsed["close"] = _collapse_identical_copies(bk_c)
+            residual_m = _classify_quote_multiplicity(bk_m)
+            residual_c = _classify_quote_multiplicity(bk_c)
+            normalized = True
+        if residual_m or residual_c or not normalized:
+            report = _integrity_report(pre_m, pre_c, collapsed,
+                                       residual_m, residual_c)
+            atomic_write_text(out_integrity,
+                              json.dumps(report, indent=1,
+                                         sort_keys=True, default=str))
+            classes: dict = {}
+            for f in (*residual_m, *residual_c):
+                classes[f["class"]] = classes.get(f["class"], 0) + 1
+            raise SystemExit(
+                f"quote integrity failure: {len(residual_m) + len(residual_c)} "
+                f"unresolved duplicated observation group(s), classes "
+                f"{classes}; structured report written: {out_integrity}; "
+                "refusing (no first()/best-price/latest selection; "
+                "unresolved cases remain unavailable)")
+        report = _integrity_report(pre_m, pre_c, collapsed,
+                                   residual_m, residual_c)
+        atomic_write_text(out_integrity,
+                          json.dumps(report, indent=1, sort_keys=True,
+                                     default=str))
+        print(f"quote integrity: collapsed {collapsed['morning']} morning "
+              f"+ {collapsed['close']} close identical copies "
+              f"(idempotent normalization); report: {out_integrity}")
     morning = _two_way_paid("morning", ev, allowed,
                             event_ids=allowed_event_ids,
                             gd_window=gd_window,
-                            drop_keys=set(excl) if exclude_ambiguous else None)
+                            drop_keys=set(excl) if exclude_ambiguous else None,
+                            bk=bk_m)
     close = _two_way_paid("close", ev, allowed,
                           event_ids=allowed_event_ids,
                           gd_window=gd_window,
-                          drop_keys=set(excl) if exclude_ambiguous else None)
+                          drop_keys=set(excl) if exclude_ambiguous else None,
+                          bk=bk_c)
     print(f"morning pairs {morning.height} close pairs {close.height}")
     if args.entry_clock == "registered":
         friend = _two_way_friend(

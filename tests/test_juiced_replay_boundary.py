@@ -1,4 +1,4 @@
-"""Synthetic boundary tests for the development-only juiced replay
+﻿"""Synthetic boundary tests for the development-only juiced replay
 (juiced_replay_ledger.py). NO private-data reads, NO network, NO
 canonical-path writes: every test uses tmp_path fixtures and the
 module's own pure helpers.
@@ -79,12 +79,13 @@ def _write_book_lines(tmp: Path) -> Path:
         # pre-decode restriction must exclude
         for side, price in (("over", -110), ("under", -110)):
             rows.append((eid, "pitcher_strikeouts", "morning", "P1", 4.5,
-                         side, price, book))
+                         side, price, book, "2025-04-10T14:00:00Z"))
     path = tmp / "book_lines_pitcher.parquet"
     pl.DataFrame(rows, schema={
         "event_id": pl.Utf8, "market": pl.Utf8, "snapshot": pl.Utf8,
         "player_norm": pl.Utf8, "line": pl.Float64, "side": pl.Utf8,
-        "price": pl.Int64, "book": pl.Utf8}, orient="row").write_parquet(path)
+        "price": pl.Int64, "book": pl.Utf8, "snapshot_ts": pl.Utf8},
+        orient="row").write_parquet(path)
     return path
 
 
