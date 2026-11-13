@@ -1,4 +1,4 @@
-# NEXT - current action
+﻿# NEXT - current action
 
 Owner: architect. Updated 2026-11-11. Chat 3 closed; cleanup integrated.
 Chat 1 active: parity lanes CLOSED (reproduced bit-exactly); the K-PMF
@@ -25,31 +25,29 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: quote-integrity PR (2026-11-12)
+## Current action: close-conflict drop-and-count PR (2026-11-12)
 
-- Packet A attempts (all CLOSED, receipts preserved): 3-key morning
-  stop (#86), four-key binding refusal (#87), four-key MATCH +
-  duplicate-quote-side refusal on integrated main 0977a2d (#88,
-  comment 6838485286). No baseline result exists.
-- NEW PR (this branch): quote-multiplicity classification (identical
-  repeats / same-time conflicts / distinct-time / insufficient
-  timestamp), ONE structured both-snapshot integrity report written
-  before outcomes/scoring, full-identity pairing (event_id on both
-  sides), default refusal unchanged, narrow
-  --quote-policy normalize_idempotent (identical copies only;
-  conflicts/distinct-time/insufficient-timestamp still refuse).
-  11 tests (tests/test_quote_integrity.py); combined gates 101 passed.
-- Proposed bounded quote-only recovery packet: one run with
-  --quote-policy normalize_idempotent + the four-key binding - if the
-  only multiplicities are idempotent copies the baseline completes;
-  any conflict/distinct/insufficient refuses with the full report
-  (panel never read on refusal). NOT EXECUTED (new owner order).
+- Paid-morning baseline: FOUR closed authorized attempts (3-key
+  morning stop #86; four-key binding refusal #87; duplicate-side
+  refusal #88; diagnostic run #89 - four-key binding MATCHED, morning
+  clean, close 26 same_time_conflicts in williamhill_us(22)/bovada(4);
+  integrity artifact preserved c590d3b6...). No baseline result yet.
+- NEW PR (this branch): --quote-policy drop_close_conflicts (opt-in;
+  default refuse unchanged): idempotent collapse composes; close
+  same_time_conflict groups removed ENTIRELY (drop-and-count, no
+  price choice), bound to the preserved artifact via
+  expected_close_conflicts_2025H1.json (26 groups; mismatch refuses);
+  morning integrity NOT relaxed; other classes still refuse; policy-
+  tagged fresh integrity sidecars (preserved artifacts untouched).
+  10 tests (tests/test_close_conflict_policy.py) through main();
+  combined gates 111 passed. NOT EXECUTED (new owner order).
+- Amended recovery packet: same Packet A command with
+  --quote-policy drop_close_conflicts --expected-close-conflicts
+  production/ops/market_research/expected_close_conflicts_2025H1.json.
 
-- Proposed bounded quote-only recovery packet: one run with
-  --quote-policy normalize_idempotent + the four-key binding - if the
-  only multiplicities are idempotent copies the baseline completes;
-  any conflict/distinct/insufficient refuses with the full report
-  (panel never read on refusal). NOT EXECUTED (new owner order).
+- Prior bounded quote-only diagnostic packet (SUPERSEDED by the
+  close-conflict drop-and-count policy above; executed once, refused
+  with the preserved close-conflict evidence).
 
 - EXECUTION-READY (PR #88, merged): the gated runner is complete - args
   validated before output/decode; tables as parquet; scores/coverage

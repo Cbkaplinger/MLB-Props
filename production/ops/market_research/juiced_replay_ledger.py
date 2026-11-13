@@ -357,6 +357,133 @@ def _integrity_report(findings_morning: list[dict],
     }
 
 
+def _drop_close_conflicts(bk: pl.DataFrame,
+                          conflicts: list[dict]) -> tuple[pl.DataFrame, dict]:
+    """Remove ALL observations in each conflicting CLOSE group (no
+    first/best/last price selection; the group identity is the full
+    observation key). Returns (cleaned frame, removal accounting)."""
+    if not conflicts:
+        return bk, {"groups_removed": 0, "rows_removed": 0,
+                    "removed_group_keys": []}
+    drop = pl.DataFrame(
+        [{"gd": f["gd"], "key": f["key"], "line": float(f["line"]),
+          "book": f["book"], "event_id": f["event_id"],
+          "side": f["side"], "snapshot": f["snapshot"]}
+         for f in conflicts],
+        schema={"gd": pl.Utf8, "key": pl.Utf8, "line": pl.Float64,
+                "book": pl.Utf8, "event_id": pl.Utf8, "side": pl.Utf8,
+                "snapshot": pl.Utf8})
+    n0 = bk.height
+    cleaned = bk.join(drop, on=["gd", "key", "line", "book",
+                                "event_id", "side", "snapshot"],
+                      how="anti")
+    return cleaned, {"groups_removed": len(conflicts),
+                     "rows_removed": n0 - cleaned.height}
+
+
+def _close_conflict_accounting(conflicts: list[dict], removal: dict,
+                               close_after: "pl.DataFrame",
+                               collapsed: dict) -> dict:
+    """Structured accounting for the declared close-conflict removal:
+    groups, implicated source rows, affected contracts, removed
+    observations, remaining two-sided pairs, changed closing-book
+    selections, and entries losing a closing benchmark."""
+    implicated = sum(f["n_observations"] for f in conflicts)
+    contracts = sorted({(f["gd"], f["key"], f["book"], f["line"],
+                         f["event_id"]) for f in conflicts})
+    affected = [{"gd": g[0], "key": g[1], "book": g[2], "line": g[3],
+                 "event_id": g[4]} for g in contracts]
+
+    def _pref_best(close_frame, keys):
+        """Pref-best book with a VALID two-sided pair per reduced key
+        (restricted to ``keys``; absent when no valid pair survives)."""
+        tp = close_frame.filter(pl.col("side") == "over").select(
+            ["gd", "key", "line", "book"]).unique().join(
+            close_frame.filter(pl.col("side") == "under").select(
+                ["gd", "key", "line", "book"]).unique(),
+            on=["gd", "key", "line", "book"])
+        out = {}
+        for r in tp.iter_rows(named=True):
+            k = (r["gd"], r["key"], float(r["line"]))
+            if k not in keys:
+                continue
+            if k not in out or _pref(r["book"]) < _pref(out[k]):
+                out[k] = r["book"]
+        return out
+
+    # restricted to the affected keys only (bounded comparison)
+    affected_keys = {(c["gd"], c["key"], float(c["line"]))
+                     for c in conflicts}
+    sel_changed = []
+    lost_benchmark = []
+    # per affected key: the surviving pref-best VALID pair after
+    # removal, plus which books were removed; a selection change is
+    # reported only when the removed book was the pref-best survivor's
+    # competitor that would have won the declared preference
+    best_after = _pref_best(close_after, affected_keys)
+    for k in sorted(affected_keys):
+        f0 = [f for f in conflicts
+              if (f["gd"], f["key"], float(f["line"])) == k]
+        removed_books = sorted({f["book"] for f in f0})
+        survivor = best_after.get(k)
+        entry = {"gd": k[0], "key": k[1], "line": k[2],
+                 "removed_books": removed_books,
+                 "surviving_pref_best_book": survivor,
+                 "selection_change_status": (
+                     "closing_benchmark_lost"
+                     if survivor is None else
+                     "removed_book_was_not_the_surviving_best"
+                     if survivor not in removed_books else
+                     "removed_book_was_pref_best: re-evaluated among "
+                     "remaining valid pairs under the declared "
+                     "preference")}
+        if survivor is None:
+            lost_benchmark.append(entry)
+        else:
+            sel_changed.append(entry)
+    return {
+        "conflicting_side_groups": len(conflicts),
+        "implicated_source_rows": implicated,
+        "removed_observations": removal["rows_removed"],
+        "removed_groups": removal["groups_removed"],
+        "affected_contracts": affected,
+        "remaining_two_sided_close_pairs": close_after.group_by(
+            ["gd", "key", "line", "book"]).agg(
+            n_sides=pl.col("side").n_unique()).filter(
+            pl.col("n_sides") == 2).height,
+        "changed_or_lost_closing_selections": sel_changed + lost_benchmark,
+        "entries_losing_close_benchmark_count": len(lost_benchmark),
+        "note": ("ALL observations in each conflicting group removed "
+                 "(drop-and-count, registered principle); no "
+                 "first/best/last price selection; book preference "
+                 "re-applied ONLY among surviving valid pairs"),
+    }
+
+
+def _check_close_conflict_binding(findings_c: list[dict],
+                                  path: str) -> None:
+    """Bind the detected CLOSE same_time_conflict groups to a preserved
+    integrity artifact. A detected group set different from the bound
+    signature REFUSES the run -- never silently expand removals.
+    (Defined once; an earlier draft duplicate was removed.)"""
+    spec = json.loads(Path(path).read_text(encoding="utf-8"))
+    expected = {(str(g["gd"]), str(g["key"]), float(g["line"]),
+                 str(g["book"]), str(g["event_id"]), str(g["side"]))
+                for g in spec["expected_conflicting_groups"]}
+    detected = {(f["gd"], f["key"], float(f["line"]), f["book"],
+                 f["event_id"], f["side"])
+                for f in findings_c
+                if f["class"] == "same_time_conflict"}
+    if expected != detected:
+        missing = sorted(expected - detected)
+        extra = sorted(detected - expected)
+        raise SystemExit(
+            "close-conflict signature mismatch: the run is bound to a "
+            f"preserved integrity artifact ({path}); "
+            f"expected-only={missing} detected-only={extra}; stopping "
+            "(never silently expand removals)")
+
+
 def _two_way_friend(allowed_books: set[str] | None = None,
                     gd_window: tuple | None = None) -> pl.DataFrame:
     if not FRIEND.exists():
@@ -589,23 +716,33 @@ def main(argv: list[str] | None = None) -> int:
                          "conflicting event_ids -- never resolved, "
                          "never first/cheapest/latest/most-favorable")
     ap.add_argument("--quote-policy", choices=("refuse",
-                                               "normalize_idempotent"),
+                                               "normalize_idempotent",
+                                               "drop_close_conflicts"),
                     default="refuse",
                     help="quote multiplicity treatment: refuse = any "
                          "duplicated observation group refuses with the "
                          "structured integrity report (default); "
                          "normalize_idempotent = collapse ONLY exact "
                          "repeated observations (identical price AND "
-                         "timestamp) -- same-time conflicts, distinct-"
-                         "time rows and timestamp-unresolvable groups "
-                         "STILL refuse (no first()/best-price/latest "
-                         "selection; no timestamp semantics inferred)")
+                         "timestamp); drop_close_conflicts = idempotent "
+                         "collapse PLUS close-snapshot same_time_conflict "
+                         "groups removed entirely (drop-and-count; "
+                         "requires --expected-close-conflicts; morning "
+                         "integrity NOT relaxed; everything else "
+                         "refuses)")
     ap.add_argument("--expected-excluded-keys", default=None,
                     help="JSON binding file listing the expected "
                          "excluded reduced keys (binds the run to a "
                          "preserved receipt); requires --identity-policy "
                          "exclude_ambiguous; a detected set different "
                          "from the bound set REFUSES the run")
+    ap.add_argument("--expected-close-conflicts", default=None,
+                    help="JSON binding file listing the expected "
+                         "close-snapshot same_time_conflict groups "
+                         "(binds the removal to a preserved integrity "
+                         "artifact); required by --quote-policy "
+                         "drop_close_conflicts; a detected group set "
+                         "different from the bound set REFUSES")
     ap.add_argument("--out-suffix", default="",
                     help="sidecar suffix; empty reproduces canonical outputs")
     ap.add_argument("--gd-start", default=None,
@@ -670,6 +807,13 @@ def main(argv: list[str] | None = None) -> int:
         OUT_BASELINE.stem + args.out_suffix + OUT_BASELINE.suffix)
     out_integrity = OUT_INTEGRITY if not args.out_suffix else OUT_INTEGRITY.with_name(
         OUT_INTEGRITY.stem + args.out_suffix + OUT_INTEGRITY.suffix)
+    # policy-tagged integrity sidecar: every normalization/removal
+    # attempt gets a FRESH write-once destination; earlier preserved
+    # artifacts are never overwritten or deleted
+    if args.quote_policy != "refuse":
+        out_integrity = out_integrity.with_name(
+            out_integrity.stem + f"__{args.quote_policy}"
+            + out_integrity.suffix)
     # market-only mode writes only the baseline + report (no candidates
     # parquet), so only those destinations are declared
     declared = ([out_report, out_base] if market_only
@@ -752,6 +896,7 @@ def main(argv: list[str] | None = None) -> int:
     findings_m = _classify_quote_multiplicity(bk_m)
     findings_c = _classify_quote_multiplicity(bk_c)
     collapsed = {"morning": 0, "close": 0}
+    close_conflict_accounting = None
     if findings_m or findings_c:
         pre_m, pre_c = findings_m, findings_c
         non_idem = [f for f in (*findings_m, *findings_c)
@@ -767,9 +912,50 @@ def main(argv: list[str] | None = None) -> int:
             residual_m = _classify_quote_multiplicity(bk_m)
             residual_c = _classify_quote_multiplicity(bk_c)
             normalized = True
+        elif args.quote_policy == "drop_close_conflicts":
+            # opt-in CLOSE-snapshot drop-and-count for same_time_conflict
+            # groups ONLY (the registered conflict-removal PRINCIPLE,
+            # owner tie rule 2026-10-22 - NOT the near-close selector's
+            # timing/selection contract). Morning integrity is NOT
+            # relaxed: non-identical morning classes still refuse.
+            # Detected close-conflict groups must equal the bound
+            # signature; ALL observations in each conflicting group are
+            # removed (no first/best/last price selection). Identical
+            # repeats on either snapshot still collapse (the reviewed
+            # idempotent policy composes).
+            non_idem_m = [f for f in findings_m
+                          if f["class"] != "identical_repeat"]
+            non_conflict_c = [f for f in findings_c
+                              if f["class"] not in
+                              ("same_time_conflict", "identical_repeat")]
+            bk_m, collapsed["morning"] = _collapse_identical_copies(bk_m)
+            bk_c, collapsed["close"] = _collapse_identical_copies(bk_c)
+            if non_idem_m or non_conflict_c:
+                residual_m = non_idem_m
+                residual_c = non_conflict_c
+            else:
+                conflicts_c = [f for f in findings_c
+                               if f["class"] == "same_time_conflict"]
+                if not args.expected_close_conflicts:
+                    raise SystemExit(
+                        "--quote-policy drop_close_conflicts requires "
+                        "--expected-close-conflicts (the bound conflict "
+                        "signature); refusing")
+                _check_close_conflict_binding(conflicts_c,
+                                              args.expected_close_conflicts)
+                pre_c = findings_c
+                bk_c, removal = _drop_close_conflicts(bk_c, conflicts_c)
+                residual_c = _classify_quote_multiplicity(bk_c)
+                residual_m = []
+                normalized = True
+                close_conflict_accounting = _close_conflict_accounting(
+                    conflicts_c, removal=removal, close_after=bk_c,
+                    collapsed=collapsed)
         if residual_m or residual_c or not normalized:
             report = _integrity_report(pre_m, pre_c, collapsed,
                                        residual_m, residual_c)
+            if close_conflict_accounting is not None:
+                report["close_conflict_removal"] = close_conflict_accounting
             atomic_write_text(out_integrity,
                               json.dumps(report, indent=1,
                                          sort_keys=True, default=str))
@@ -784,6 +970,8 @@ def main(argv: list[str] | None = None) -> int:
                 "unresolved cases remain unavailable)")
         report = _integrity_report(pre_m, pre_c, collapsed,
                                    residual_m, residual_c)
+        if close_conflict_accounting is not None:
+            report["close_conflict_removal"] = close_conflict_accounting
         atomic_write_text(out_integrity,
                           json.dumps(report, indent=1, sort_keys=True,
                                      default=str))

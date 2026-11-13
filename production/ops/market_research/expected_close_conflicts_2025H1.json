@@ -1,0 +1,411 @@
+{
+  "purpose": "Expected close-snapshot same_time_conflict groups for the paid-morning 2025H1 baseline recovery. Binds the drop_close_conflicts removal to the preserved diagnostic integrity artifact; a detected group set different from this set REFUSES the run. Exclusion/removal is a declared treatment, never an identity resolution; no first/best/last price selection.",
+  "lineage": {
+    "preserved_integrity_artifact": {
+      "path": "artifacts/odds_log/juiced_replay_quote_integrity__mkt2025H1.json",
+      "sha256": "c590d3b6e8b92f5114aad8abe4ba8a9bb2b21e28490af1e706a1bcbd8332c38e"
+    },
+    "receipts": [
+      "PR #89 comment 6857588715 (diagnostic/recovery run, closed as execution of record: morning clean, close 26 same_time_conflict)"
+    ],
+    "input_hashes": {
+      "book_lines_pitcher.parquet": "325abdf01f5f0b84abd8f1f0504b50e7e9f84e09593731bed31364f367ee233e",
+      "snapshot_envelope.parquet": "2b73bc4096b34641cee42b5d6533875ff0274b7196800730bbaf461dd3b9ccb7",
+      "event_date_map.json": "3463fc4db17ec79c64254e5f3a53a465df710bb08db0d965cf37d26c6ad73249",
+      "universe_panel_live.parquet": "568a6bfc17476ee524bc6c6286b79c751f4b478b857c77feed35432c4255f2e9"
+    }
+  },
+  "window": "2025-01-01..2025-06-30",
+  "expected_conflicting_groups": [
+    {
+      "gd": "2025-04-04",
+      "key": "megill tylor",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "211447186cf2aac9381bb4a936973b26",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T19:05:00Z"
+      ],
+      "prices": [
+        -106.0,
+        100.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "buehler walker",
+      "line": 3.5,
+      "book": "williamhill_us",
+      "event_id": "e6a5ef250ff07fb296b8cd77d946ca8b",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T18:05:00Z"
+      ],
+      "prices": [
+        -109.0,
+        100.0
+      ]
+    },
+    {
+      "gd": "2025-06-19",
+      "key": "freddy peralta",
+      "line": 5.5,
+      "book": "bovada",
+      "event_id": "80f65eb1518df351dedbcfed1dfc92d0",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-06-19T18:16:00Z"
+      ],
+      "prices": [
+        -120.0,
+        -115.0
+      ]
+    },
+    {
+      "gd": "2025-06-19",
+      "key": "jameson taillon",
+      "line": 4.5,
+      "book": "bovada",
+      "event_id": "80f65eb1518df351dedbcfed1dfc92d0",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-06-19T18:16:00Z"
+      ],
+      "prices": [
+        -135.0,
+        -125.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "fried max",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "45b6ac6933d3e598704686929df5454b",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T20:07:00Z"
+      ],
+      "prices": [
+        -109.0,
+        -106.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "megill tylor",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "211447186cf2aac9381bb4a936973b26",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T19:05:00Z"
+      ],
+      "prices": [
+        -137.0,
+        -129.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "flaherty jack",
+      "line": 6.5,
+      "book": "williamhill_us",
+      "event_id": "24ee0735d662d45dc83dcd2077c50a21",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T17:05:00Z"
+      ],
+      "prices": [
+        -148.0,
+        -133.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "lugo seth",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "0133b309d728db073f58061a2ee130a7",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T23:35:00Z"
+      ],
+      "prices": [
+        -154.0,
+        -137.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "buehler walker",
+      "line": 3.5,
+      "book": "williamhill_us",
+      "event_id": "e6a5ef250ff07fb296b8cd77d946ca8b",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T18:05:00Z"
+      ],
+      "prices": [
+        -137.0,
+        -125.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "keller mitch",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "45b6ac6933d3e598704686929df5454b",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T20:07:00Z"
+      ],
+      "prices": [
+        -137.0,
+        -133.0
+      ]
+    },
+    {
+      "gd": "2025-06-19",
+      "key": "freddy peralta",
+      "line": 5.5,
+      "book": "bovada",
+      "event_id": "80f65eb1518df351dedbcfed1dfc92d0",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-06-19T18:16:00Z"
+      ],
+      "prices": [
+        -115.0,
+        -110.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "jesus luzardo",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "e523af16e5e5011f2ab78e6bbf9eac95",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T22:40:00Z"
+      ],
+      "prices": [
+        -117.0,
+        -113.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "jesus luzardo",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "e523af16e5e5011f2ab78e6bbf9eac95",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T22:40:00Z"
+      ],
+      "prices": [
+        -121.0,
+        -117.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "justin verlander",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "7a9e49efd77d1be50c158278db6af4ac",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T20:30:00Z"
+      ],
+      "prices": [
+        -113.0,
+        -106.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "justin verlander",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "7a9e49efd77d1be50c158278db6af4ac",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T20:30:00Z"
+      ],
+      "prices": [
+        -129.0,
+        -121.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "cannon jonathan",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "24ee0735d662d45dc83dcd2077c50a21",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T17:05:00Z"
+      ],
+      "prices": [
+        -117.0,
+        -106.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "lugo seth",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "0133b309d728db073f58061a2ee130a7",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T23:35:00Z"
+      ],
+      "prices": [
+        100.0,
+        112.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "flaherty jack",
+      "line": 6.5,
+      "book": "williamhill_us",
+      "event_id": "24ee0735d662d45dc83dcd2077c50a21",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T17:05:00Z"
+      ],
+      "prices": [
+        -103.0,
+        108.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "gausman kevin",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "211447186cf2aac9381bb4a936973b26",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-04T19:05:00Z"
+      ],
+      "prices": [
+        -117.0,
+        -106.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "keller mitch",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "45b6ac6933d3e598704686929df5454b",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T20:07:00Z"
+      ],
+      "prices": [
+        -103.0,
+        100.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "fried max",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "45b6ac6933d3e598704686929df5454b",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T20:07:00Z"
+      ],
+      "prices": [
+        -129.0,
+        -125.0
+      ]
+    },
+    {
+      "gd": "2025-04-05",
+      "key": "jose soriano",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "e272cddd924db34befc7a850609e27cd",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-05T01:33:00Z"
+      ],
+      "prices": [
+        -129.0,
+        -117.0
+      ]
+    },
+    {
+      "gd": "2025-06-19",
+      "key": "jameson taillon",
+      "line": 4.5,
+      "book": "bovada",
+      "event_id": "80f65eb1518df351dedbcfed1dfc92d0",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-06-19T18:16:00Z"
+      ],
+      "prices": [
+        -105.0,
+        105.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "gausman kevin",
+      "line": 5.5,
+      "book": "williamhill_us",
+      "event_id": "211447186cf2aac9381bb4a936973b26",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T19:05:00Z"
+      ],
+      "prices": [
+        -129.0,
+        -117.0
+      ]
+    },
+    {
+      "gd": "2025-04-05",
+      "key": "jose soriano",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "e272cddd924db34befc7a850609e27cd",
+      "side": "under",
+      "snapshot_ts": [
+        "2025-04-05T01:33:00Z"
+      ],
+      "prices": [
+        -117.0,
+        -106.0
+      ]
+    },
+    {
+      "gd": "2025-04-04",
+      "key": "cannon jonathan",
+      "line": 4.5,
+      "book": "williamhill_us",
+      "event_id": "24ee0735d662d45dc83dcd2077c50a21",
+      "side": "over",
+      "snapshot_ts": [
+        "2025-04-04T17:05:00Z"
+      ],
+      "prices": [
+        -129.0,
+        -117.0
+      ]
+    }
+  ]
+}

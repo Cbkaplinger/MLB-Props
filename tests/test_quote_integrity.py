@@ -122,6 +122,14 @@ def _setup(tmp_path, extra_rows=None, with_panel=True, base_rows=None):
     jr.__dict__["OUT_INTEGRITY"] = odds_dir / "integrity__t.json"
 
 
+def _integ(tag=""):
+    p = jr.OUT_INTEGRITY
+    return p.with_name(p.stem + tag + p.suffix)
+
+def _integ_norm():
+    return _integ("__normalize_idempotent")
+
+
 def _dup_over_rows(snap, ts=TS, prices=(-120,)):
     return [_bl("evt1", snap, "draftkings", "over", p, ts=ts)
             for p in prices]
@@ -135,7 +143,7 @@ NORM_ARGS = ["--entry-clock", "morning_only",
 def test_unique_quotes_no_findings_no_report(tmp_path):
     _setup(tmp_path)
     assert jr.main(NORM_ARGS) == 0
-    assert not jr.OUT_INTEGRITY.exists()  # nothing to report
+    assert not _integ().exists()  # nothing to report
     base = pl.read_parquet(jr.OUT_BASELINE)
     r = {x["key"]: x for x in base.iter_rows(named=True)}["aa p"]
     # unchanged unique-contract metrics
@@ -149,7 +157,7 @@ def test_exact_identical_repeats_default_refuse(tmp_path):
     _setup(tmp_path, extra_rows=_dup_over_rows("morning"))
     with pytest.raises(SystemExit, match="quote integrity failure"):
         jr.main(NORM_ARGS[:-2])  # default quote policy = refuse
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ().read_text(encoding="utf-8"))
     assert rep["morning"]["classes"] == {"identical_repeat": 1}
     assert rep["close"]["n_findings"] == 0
     f = rep["morning"]["findings"][0]
@@ -166,7 +174,7 @@ def test_exact_identical_repeats_idempotent_collapse(tmp_path):
     assert abs(r["fair_over_entry"] - FAIR_OVER) < 1e-9
     assert r["entry_eligible"] is True
     assert r["close_benchmark_available"] is True
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ_norm().read_text(encoding="utf-8"))
     assert rep["normalization"]["collapsed_identical_copies"]["morning"] == 1
     assert rep["normalization"]["residual_findings"]["morning"]["n_findings"] == 0
 
@@ -176,15 +184,15 @@ def test_same_time_conflicting_prices_refuse_both_policies(tmp_path):
                                                prices=(-120, -130)))
     with pytest.raises(SystemExit, match="quote integrity failure"):
         jr.main(NORM_ARGS[:-2])
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ().read_text(encoding="utf-8"))
     f = rep["morning"]["findings"][0]
     assert f["class"] == "same_time_conflict"
     assert sorted(f["prices"]) == [-130.0, -120.0]
-    jr.OUT_INTEGRITY.unlink()
+    _integ().unlink()
     # the idempotent policy must NOT collapse a same-time conflict
     with pytest.raises(SystemExit, match="quote integrity failure"):
         jr.main(NORM_ARGS)
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ_norm().read_text(encoding="utf-8"))
     assert rep["morning"]["classes"] == {"same_time_conflict": 1}
 
 
@@ -199,19 +207,19 @@ def test_different_time_observations_refuse(tmp_path):
             ts=f"{GD}T13:00:00Z")])
     with pytest.raises(SystemExit, match="quote integrity failure"):
         jr.main(NORM_ARGS[:-2])
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ().read_text(encoding="utf-8"))
     assert rep["morning"]["classes"] == {"distinct_time": 1}
-    jr.OUT_INTEGRITY.unlink()
+    _integ().unlink()
     with pytest.raises(SystemExit, match="quote integrity failure"):
         jr.main(NORM_ARGS)
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ_norm().read_text(encoding="utf-8"))
     assert rep["morning"]["classes"] == {"distinct_time": 1}
 
 
 def test_duplicate_only_in_morning_close_untouched(tmp_path):
     _setup(tmp_path, extra_rows=_dup_over_rows("morning"))
     jr.main(NORM_ARGS)
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ_norm().read_text(encoding="utf-8"))
     assert rep["normalization"]["collapsed_identical_copies"] == {"morning": 1, "close": 0}
     assert rep["close"]["n_findings"] == 0
 
@@ -219,7 +227,7 @@ def test_duplicate_only_in_morning_close_untouched(tmp_path):
 def test_duplicate_only_in_close(tmp_path):
     _setup(tmp_path, extra_rows=_dup_over_rows("close"))
     jr.main(NORM_ARGS)
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ_norm().read_text(encoding="utf-8"))
     assert rep["close"]["classes"] == {"identical_repeat": 1}
     assert rep["morning"]["n_findings"] == 0
     assert rep["normalization"]["collapsed_identical_copies"]["close"] == 1
@@ -234,7 +242,7 @@ def test_missing_timestamp_insufficient_class(tmp_path):
     _setup(tmp_path, base_rows=rows)
     with pytest.raises(SystemExit, match="quote integrity failure"):
         jr.main(NORM_ARGS)
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ_norm().read_text(encoding="utf-8"))
     f = rep["morning"]["findings"][0]
     assert f["class"] == "insufficient_timestamp"
     assert f["timestamps"] == []  # never inferred
@@ -297,7 +305,7 @@ def test_four_key_exclusions_coexist_with_integrity(tmp_path):
         {"gd": GD, "key": "bb p", "line": LINE}]}), encoding="utf-8")
     rc = jr.main(NORM_ARGS + ["--expected-excluded-keys", str(binding)])
     assert rc == 0
-    rep = json.loads(jr.OUT_INTEGRITY.read_text(encoding="utf-8"))
+    rep = json.loads(_integ_norm().read_text(encoding="utf-8"))
     assert rep["normalization"]["collapsed_identical_copies"]["morning"] == 1
     assert rep["normalization"]["applied"] is True
     base = pl.read_parquet(jr.OUT_BASELINE)
