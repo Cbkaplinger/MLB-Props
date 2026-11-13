@@ -80,9 +80,11 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   metrics); combined gates 104 passed. NOT EXECUTED on real data (any
   rerun needs a new owner order).
 - Packet B remains otherwise unauthorized; NEAR-CLOSE DEVELOPMENT
-  labeling unchanged.### PRESENT
+  labeling unchanged.
 
-- **PACKET B OWNER-DECISION BRIEF PREPARED (PR, this branch):** the
+### PRESENT (prior cycle - Packet B brief; superseded by the entry above)
+
+- **PACKET B OWNER-DECISION BRIEF PREPARED (merged via PR #91):** the
   existing control_vs_books evaluation packet now carries the complete
   Packet B brief (section "PACKET B OWNER-DECISION BRIEF"): the
   question (registered control PMF vs near-close books/LTBO), the

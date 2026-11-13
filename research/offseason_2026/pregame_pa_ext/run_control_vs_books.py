@@ -292,9 +292,10 @@ def _validate_args(args) -> None:
 def _persist_results(out_dir: Path, result: dict) -> None:
     """Persist ALL declared outputs. Tables as parquet (registered
     atomic write); scores/coverage as explicit JSON (fail-loud
-    conversion). Matched/unmatched start keys are persisted BEFORE the
-    summary when the declared shared-population policy ran. Receipt
-    final is written by the CALLER only after this succeeds."""
+    conversion). Matched/unmatched start keys are durably persisted
+    EARLIER - via membership_sink before the scorer runs - so they are
+    NOT rewritten here. Receipt final is written by the CALLER only
+    after this succeeds."""
     atomic_write_parquet(result["model_rows"],
                          out_dir / OUTPUT_TABLES[0])
     atomic_write_parquet(result["consensus"],
@@ -304,13 +305,6 @@ def _persist_results(out_dir: Path, result: dict) -> None:
     atomic_write_parquet(result["ltbo"],
                          out_dir / OUTPUT_TABLES[3])
     cov = result["coverage"]
-    if cov.get("consensus_shared_population") is not None:
-        atomic_write_parquet(
-            pl.DataFrame(cov["consensus_matched_starts"]),
-            out_dir / "consensus_matched_starts.parquet")
-        atomic_write_parquet(
-            pl.DataFrame(cov["consensus_unmatched_starts"]),
-            out_dir / "consensus_unmatched_starts.parquet")
     summary = {
         "contract": TIMING_CONTRACT,
         "model_vs_consensus": _jsonable(result["model_vs_consensus"]),
@@ -359,9 +353,30 @@ def main(argv: list | None = None) -> int:
                             for name, (path, pin) in FILE_PINS.items()},
         "cohort_expected_content_hash": EXPECTED_COHORT_HASH,
         "control_arm": CONTROL_ARM,
+        "consensus_policy": args.consensus_policy,
         "legacy_panel_used": False,
         "timing_contract": TIMING_CONTRACT,
     }
+    # durable pre-score membership boundary: the seam hands the
+    # matched/unmatched key tables to this sink BEFORE the scorer runs,
+    # so a scorer failure cannot lose the coverage evidence
+    membership_schema = {"game_pk": pl.Int64, "side": pl.Utf8,
+                         "pitcher": pl.Int64, "game_date": pl.Utf8,
+                         "block": pl.Utf8}
+
+    def _membership_sink(matched_rows, unmatched_rows):
+        atomic_write_parquet(
+            pl.DataFrame(matched_rows, schema=membership_schema
+                         if matched_rows else None),
+            out_dir / "consensus_matched_starts.parquet")
+        atomic_write_parquet(
+            pl.DataFrame(unmatched_rows,
+                         schema={**membership_schema,
+                                 "reason": pl.Utf8}
+                         if unmatched_rows else None),
+            out_dir / "consensus_unmatched_starts.parquet")
+        print(f"membership persisted pre-score: {len(matched_rows)} "
+              f"matched / {len(unmatched_rows)} unmatched")
     out_dir.mkdir(parents=True)
     (out_dir / OUTPUT_INITIAL_RECEIPT).write_text(
         json.dumps(receipt, indent=1, sort_keys=True), encoding="utf-8")
@@ -381,13 +396,13 @@ def main(argv: list | None = None) -> int:
             k_pmf, observed, start_dates, cohort, EXPECTED_COHORT_HASH,
             CONTROL_ARM, quotes, starts_bridge,
             n_boot=args.n_boot,
-            consensus_policy=args.consensus_policy)
+            consensus_policy=args.consensus_policy,
+            membership_sink=_membership_sink)
         # ---- ACTUAL consumed identities (recorded, not re-derived)
         from pregame_pa_ext import market_eval_k as mk
         join_meta["book_lines_sha256"] = sha256_file(Path(args.book_lines))
         join_meta["envelope_sha256"] = sha256_file(Path(args.envelope))
         join_meta["bridge"] = _bridge_identity()
-        receipt["consensus_policy"] = args.consensus_policy
         receipt["consumed_identities"] = {
             "cohort_content_hash": _cohort_content_hash(cohort),
             "pinned_artifacts": {name: pin

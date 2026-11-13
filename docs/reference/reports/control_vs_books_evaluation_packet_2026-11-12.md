@@ -290,11 +290,15 @@ complementary-side pooling; no model-edge or profitability claim.
   (registered recipe), pinned artifact hashes, book_lines/envelope sha256,
   private bridge source sha + card manifest sha.
 
-## B.2a Command (exact)
+## B.2a Command (exact; AMENDED policy - supersedes the consumed invocation, which is preserved, not erased)
+
+**Permission status:** attempt 1 (exact-cohort policy, `control_vs_books_v1`) was EXECUTED once and REFUSED at the exact-cohort coverage gate (2,509 -> 2,154; 355 cohort starts lack an all-book near-close consensus; receipt PR #91 comment 6862633285). That permission is CONSUMED. Any rerun under the amended shared-population policy below requires a NEW recorded owner order.
 
 ```
-python research/offseason_2026/pregame_pa_ext/run_control_vs_books.py --execution-ack EXECUTE-CONTROL-VS-BOOKS-V1 --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\control_vs_books_v1" --book-lines "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Odds-Historical\theoddsapi\book_lines_pitcher.parquet" --envelope "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Odds-Historical\theoddsapi\snapshot_envelope.parquet"
+python research/offseason_2026/pregame_pa_ext/run_control_vs_books.py --execution-ack EXECUTE-CONTROL-VS-BOOKS-V1 --out-dir "C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\control_vs_books_v2" --book-lines "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Odds-Historical\theoddsapi\book_lines_pitcher.parquet" --envelope "C:\Users\ckaplinger\Downloads\Personal-Projects\MLB-Props\data\Odds-Historical\theoddsapi\snapshot_envelope.parquet" --consensus-policy shared_population
 ```
+
+Policy semantics (`--consensus-policy shared_population`, opt-in; default refusal unchanged): model-vs-consensus scored ONLY on the declared shared population; the ORIGINAL 2,509-start cohort remains the coverage denominator (`coverage.consensus_shared_population.cohort_denominator`); matched/unmatched start keys + reason codes (`no_near_close_quotes` / `no_two_sided_quote_at_any_line` / `consensus_unavailable_other`) are durably persisted BEFORE scoring via a membership sink (a scorer failure cannot lose the coverage evidence - tested with a synthetic scorer failure); ZERO matched coverage is a CONTROLLED REFUSAL (explicit no-score result, never silent empty scoring); complete coverage produces explicit accounting (`complete_coverage: true`); book/LTBO populations stay separate with per-book denominators. The policy value is validated at the seam boundary, and the selected policy is recorded in the INITIAL receipt (visible on failed attempts too).
 
 ## B.3 Inputs, actual access, and protected exposure (honest decoding facts)
 
@@ -340,15 +344,19 @@ python research/offseason_2026/pregame_pa_ext/run_control_vs_books.py --executio
 
 ## B.5 Fresh output directory and stop conditions
 
-- `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\control_vs_books_v1`
+- AMENDED: `C:\Users\ckaplinger\MLB-Props-Research\pregame-pa-ext-v2\diagnostics\control_vs_books_v2`
   - must NOT pre-exist (write-once; failure records preserved, receipt
-    final written LAST only after all declared outputs succeed).
+    final written LAST only after all declared outputs succeed). The
+    consumed `control_vs_books_v1` directory (receipt_initial +
+    failure_record from the refused attempt 1) is PRESERVED untouched.
 - Stop conditions: ack mismatch; existing out-dir; missing/nonexistent
   --book-lines/--envelope; pinned-artifact hash mismatch; cohort exact-
-  cover refusal; duplicate quote/consensus identity; model-rows-lost-in-
-  join refusal; protected/unknown block refusal; any runtime failure ->
-  `failure_record.json` preserved, no completed receipt, ONE run, no
-  repair-and-rerun.
+  cover refusal; duplicate quote/consensus identity; consensus
+  shared population EMPTY (zero matched -> controlled no-score refusal);
+  model-rows-lost-in-join refusal (refuse policy); protected/unknown
+  block refusal; unknown consensus_policy value (seam-boundary
+  validation); any runtime failure -> `failure_record.json` preserved,
+  no completed receipt, ONE run, no repair-and-rerun.
 
 ## B.6 Packet A reconciliation (verified)
 

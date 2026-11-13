@@ -353,7 +353,8 @@ def benchmark_contract_rows(
         expected_cohort_hash: str, arm: str, quotes: pl.DataFrame,
         starts_bridge: pl.DataFrame, *, min_other_books: int = 2,
         n_boot: int = 2000, seed: int = 20261001,
-        consensus_policy: str = "refuse") -> dict:
+        consensus_policy: str = "refuse",
+        membership_sink=None) -> dict:
     """Narrow end-to-end benchmark contract assembly. Every stage
     reuses the registered machinery; this function adds only the
     ordered glue and observable coverage accounting.
@@ -438,6 +439,10 @@ def benchmark_contract_rows(
                        "bridged consensus")
 
     # ---- identical paired contract rows (same realized event)
+    if consensus_policy not in ("refuse", "shared_population"):
+        # seam-boundary validation: not only argparse
+        raise ValueError(
+            f"unknown consensus_policy {consensus_policy!r}; refusing")
     cons_sel = consensus.select("game_pk", "pitcher", "line", "p_over",
                                 "n_books")
     model_rows = model_frame.join(cons_sel, on=["game_pk", "pitcher"],
@@ -453,8 +458,15 @@ def benchmark_contract_rows(
         # ---- declared shared-population policy: score model-vs-
         # consensus ONLY on their intersection; the ORIGINAL cohort
         # stays the coverage denominator; matched/unmatched start keys
-        # and reason codes are derived BEFORE any scoring, and the
-        # book/LTBO populations keep their own separate denominators.
+        # and reason codes are derived BEFORE any scoring and handed to
+        # membership_sink (durable persistence BEFORE the scorer runs);
+        # the book/LTBO populations keep their own separate denominators.
+        if model_rows.height == 0:
+            raise ValueError(
+                "consensus shared population is empty (0 of "
+                f"{model_frame.height} cohort starts matched an all-book "
+                "near-close consensus); refusing (explicit no-score "
+                "result)")
         unmatched = model_frame.join(cons_sel, on=["game_pk", "pitcher"],
                                      how="anti")
         # bridge the near-close frame (vendor keys) to MLBAM start keys
@@ -503,11 +515,45 @@ def benchmark_contract_rows(
             "matched": model_rows.height,
             "unmatched": unmatched.height,
             "unmatched_by_reason": by_reason,
+            "complete_coverage": False,
             "note": ("model-vs-consensus scored on the declared shared "
                      "population only; the original cohort remains the "
                      "coverage denominator; book/LTBO populations are "
                      "separate and disclose their own denominators"),
         }
+        # ---- DURABLE PRE-SCORE MEMBERSHIP: matched/unmatched keys are
+        # handed to membership_sink HERE, before the scorer runs, so a
+        # scorer failure cannot lose the coverage evidence.
+        if membership_sink is not None:
+            membership_sink(consensus_matched_rows,
+                            consensus_unmatched_rows)
+    else:
+        # complete coverage: identical accounting shape under the
+        # shared_population policy (explicit, not implicit absence)
+        if consensus_policy == "shared_population":
+            for r in model_frame.select([*START_KEYS, "game_date",
+                                         "block"]).sort(START_KEYS
+                                                        ).iter_rows(
+                                                            named=True):
+                consensus_matched_rows.append({
+                    "game_pk": r["game_pk"], "side": r["side"],
+                    "pitcher": r["pitcher"],
+                    "game_date": str(r["game_date"]),
+                    "block": r["block"]})
+            consensus_shared = {
+                "policy": "shared_population",
+                "cohort_denominator": len(cohort_keys),
+                "matched": model_rows.height,
+                "unmatched": 0,
+                "unmatched_by_reason": {},
+                "complete_coverage": True,
+                "note": ("every cohort start carries an all-book "
+                         "near-close consensus; the shared population "
+                         "equals the cohort"),
+            }
+            if membership_sink is not None:
+                membership_sink(consensus_matched_rows,
+                                consensus_unmatched_rows)
     n_consensus_unmatched = consensus.height - model_rows.height
 
     # ---- model-vs-consensus: EXISTING outcome scorer + uncertainty

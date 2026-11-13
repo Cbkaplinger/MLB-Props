@@ -256,3 +256,86 @@ def test_shared_population_receipt_records_policy(tmp_path, monkeypatch):
     # refusals elsewhere remain: receipt_final exists only after ALL
     # declared outputs (incl. matched/unmatched parquets) succeeded
     assert (out / "consensus_matched_starts.parquet").exists()
+
+
+def test_membership_persists_through_scorer_failure(tmp_path, monkeypatch):
+    """Durable pre-score membership boundary: when the scorer fails,
+    the matched/unmatched membership parquets ALREADY EXIST (written by
+    membership_sink before scoring), and the failure leaves a failure
+    record but NO completed receipt."""
+    files, cohort = _write_pinned(tmp_path)
+    bl, env = _wire(monkeypatch, tmp_path, files, cohort, _quote_rows())
+    from pregame_pa_ext import market_eval_k as mk
+
+    def broken_scorer(joined):
+        raise RuntimeError("synthetic scorer failure")
+
+    monkeypatch.setattr(mk, "score_starts", broken_scorer)
+    out = tmp_path / "out"
+    with pytest.raises(RuntimeError, match="synthetic scorer failure"):
+        rc.main(SHARED_ARGS + ["--out-dir", str(out),
+                               "--book-lines", str(bl),
+                               "--envelope", str(env)])
+    # membership was durably persisted BEFORE scoring ran
+    matched = pl.read_parquet(out / "consensus_matched_starts.parquet")
+    unmatched = pl.read_parquet(out / "consensus_unmatched_starts.parquet")
+    assert matched.height == 1 and unmatched.height == 2
+    assert (out / "failure_record.json").exists()
+    assert not (out / "receipt_final.json").exists()
+    # the selected policy is visible in the INITIAL receipt even on
+    # failed attempts
+    ri = json.loads((out / "receipt_initial.json").read_text(
+        encoding="utf-8"))
+    assert ri["consensus_policy"] == "shared_population"
+
+
+def test_complete_coverage_accounting(tmp_path, monkeypatch):
+    """Every cohort start carries a consensus: shared_population
+    accounting is EXPLICIT (not absent), with complete_coverage True
+    and the membership parquets persisted."""
+    files, cohort = _write_pinned(tmp_path)
+    rows = _quote_rows()
+    # give s2 and s3 the same full two-sided quote set as s1
+    for gpk, key in ((2, "bb p"), (3, "cc p")):
+        for book in ("draftkings", "fanduel", "betmgm"):
+            for side, price in (("over", -120), ("under", 105)):
+                rows.append(_bl(gpk, key, "morning", book, side, price))
+                rows.append(_bl(gpk, key, "close", book, side, price))
+    bl, env = _wire(monkeypatch, tmp_path, files, cohort, rows)
+    out = tmp_path / "out"
+    assert rc.main(SHARED_ARGS + ["--out-dir", str(out),
+                                  "--book-lines", str(bl),
+                                  "--envelope", str(env)]) == 0
+    matched = pl.read_parquet(out / "consensus_matched_starts.parquet")
+    assert matched.height == 3
+    summary = json.loads((out / "benchmark_summary.json").read_text(
+        encoding="utf-8"))
+    sh = summary["coverage"]["consensus_shared_population"]
+    assert sh["complete_coverage"] is True
+    assert sh["cohort_denominator"] == 3
+    assert sh["matched"] == 3 and sh["unmatched"] == 0
+
+
+def test_zero_matched_controlled_refusal(tmp_path, monkeypatch):
+    """NO cohort start has a consensus: an explicit controlled refusal
+    (no-score result), not a crash and not silent empty scoring. The
+    declared declaration: zero matches -> controlled refusal. Which
+    gate fires first depends on the frames: with NO two-sided quotes
+    anywhere, the consensus-construction gate refuses first; the empty-
+    shared-population guard remains as defense in depth for the case
+    where consensus rows exist but none match the cohort."""
+    files, cohort = _write_pinned(tmp_path)
+    # one-sided only + no quotes -> zero consensus matches
+    rows = [r for r in _quote_rows() if r["game_pk"] == 2]
+    bl, env = _wire(monkeypatch, tmp_path, files, cohort, rows)
+    out = tmp_path / "out"
+    with pytest.raises(ValueError, match="missing over/under bet sides"):
+        rc.main(SHARED_ARGS + ["--out-dir", str(out),
+                               "--book-lines", str(bl),
+                               "--envelope", str(env)])
+    assert (out / "failure_record.json").exists()
+    assert not (out / "receipt_final.json").exists()
+    # the selected policy is visible in the initial receipt on failure
+    ri = json.loads((out / "receipt_initial.json").read_text(
+        encoding="utf-8"))
+    assert ri["consensus_policy"] == "shared_population"
