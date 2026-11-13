@@ -25,25 +25,21 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: close-conflict drop-and-count PR (2026-11-12)
+## Current action: Packet B owner-decision brief (2026-11-13)
 
-- Paid-morning baseline: FOUR closed authorized attempts (3-key
-  morning stop #86; four-key binding refusal #87; duplicate-side
-  refusal #88; diagnostic run #89 - four-key binding MATCHED, morning
-  clean, close 26 same_time_conflicts in williamhill_us(22)/bovada(4);
-  integrity artifact preserved c590d3b6...). No baseline result yet.
-- NEW PR (this branch): --quote-policy drop_close_conflicts (opt-in;
-  default refuse unchanged): idempotent collapse composes; close
-  same_time_conflict groups removed ENTIRELY (drop-and-count, no
-  price choice), bound to the preserved artifact via
-  expected_close_conflicts_2025H1.json (26 groups; mismatch refuses);
-  morning integrity NOT relaxed; other classes still refuse; policy-
-  tagged fresh integrity sidecars (preserved artifacts untouched).
-  10 tests (tests/test_close_conflict_policy.py) through main();
-  combined gates 111 passed. NOT EXECUTED (new owner order).
-- Amended recovery packet: same Packet A command with
-  --quote-policy drop_close_conflicts --expected-close-conflicts
-  production/ops/market_research/expected_close_conflicts_2025H1.json.
+- **Packet A COMPLETE (executed + closed):** the paid-morning 2025H1
+  market-only baseline was PRODUCED (PR #90 merged at main aa61986;
+  exit 0; receipt PR #90 comment 6861125006; artifact index 6861289910).
+  Headline (market-only, no model-edge claim): 19,800 candidates;
+  entry-eligible 5,441/19,797; valid close 4,934/5,441; mean movement
+  -0.0869 pp; positive-CLV over 0.4270 / under 0.4497; flat-1u entry
+  ROI over -0.0452 / under -0.0782 units per unit. Single-run
+  permission CONSUMED.
+- NEW PR (this branch): the existing control_vs_books packet now
+  carries the PACKET B OWNER-DECISION BRIEF (question, runner
+  identity, honest full-file/transitive access + protected exposure,
+  timing/identity limitations, fresh out-dir, stop conditions).
+  Packet B remains UNAUTHORIZED - owner decision only.
 
 - Prior bounded quote-only diagnostic packet (SUPERSEDED by the
   close-conflict drop-and-count policy above; executed once, refused

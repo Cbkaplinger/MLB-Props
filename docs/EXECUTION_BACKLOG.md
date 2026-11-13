@@ -44,56 +44,49 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PAST
 
-- Paid-morning baseline: THREE closed authorized attempts, all
-  preserved: (1) PR #86 single run - 3-key morning-scan identity stop
-  (comment 6816558623); (2) PR #87 amended run - four-key binding-gate
-  refusal (close-side castillo luis discovery; comment 6829936974);
-  (3) PR #88 Packet A run on integrated main 0977a2d - four-key
-  binding MATCHED, then duplicate-quote-side integrity refusal
-  (comment 6838485286). No market baseline result exists; input
-  hashes unchanged throughout; no outputs ever written.
-- PR #87 (identity-exclusion policy) and PR #88 (control-vs-books
-  benchmark + four-key binding) merged (mains 16a99b0 / 0977a2d).
-  Packet B (control-vs-books real run) NOT authorized.
+- Paid-morning baseline: FIVE authorized attempts; four closed with
+  preserved receipts: (1) PR #86 - 3-key morning-scan identity stop
+  (comment 6816558623); (2) PR #87 - four-key binding-gate refusal
+  (comment 6829936974); (3) PR #88 - four-key MATCH + duplicate-side
+  refusal (comment 6838485286); (4) PR #89 diagnostic run - 26 close
+  same_time_conflicts diagnosed (comment 6857588715). The FIFTH (PR #90
+  recovery, integrated main aa61986) SUCCEEDED: baseline produced
+  (receipt PR #90 comment 6861125006; artifact index 6861289910).
+- PR #87 (identity-exclusion policy), PR #88 (control-vs-books
+  benchmark + four-key binding), PR #89 (quote-integrity diagnostics +
+  idempotent normalization), PR #90 (close-conflict drop-and-count)
+  all merged (mains 16a99b0 / 0977a2d / 19a4d89 / aa61986).
 - Market-only T-5h replay implemented + accepted + MERGED (PR #86).
 - Board-coverage probes, boundary follow-up, recovered-ideas register:
   CLOSED as recorded in prior snapshots.
 
 ### PRESENT
 
-- **CLOSE-CONFLICT DROP-AND-COUNT POLICY (PR, this branch):** the
-  diagnosed close same_time_conflict class (26 williamhill_us/bovada
-  groups; PR #89 comment 6857588715) now has a narrow declared
-  treatment: --quote-policy drop_close_conflicts (opt-in; default
-  refusal unchanged):
-  - applies ONLY to close-snapshot same_time_conflict groups; ALL
-    observations in each conflicting group removed (no first/best/
-    last price selection); the registered conflict-removal PRINCIPLE
-    reused (owner tie rule 2026-10-22) - NOT the near-close selector's
-    timing/selection contract;
-  - detected close-conflict groups must EQUAL the bound signature
-    (--expected-close-conflicts, committed binding file
-    expected_close_conflicts_2025H1.json built from the preserved
-    integrity artifact sha c590d3b6... with full per-group provenance
-    and input-hash lineage); mismatch refuses; no hardcoded count;
-  - morning integrity NOT relaxed (non-identical morning classes
-    refuse); distinct_time / insufficient_timestamp still refuse;
-  - after removal: valid two-sided close pairs rebuilt; declared book
-    preference applied ONLY among surviving pairs; morning entry
-    eligibility independent; no valid close -> close unavailable with
-    reason (no substitute line, no invented probability);
-  - structured accounting: conflicting side groups, implicated source
-    rows, removed observations, affected contracts, remaining
-    two-sided pairs, changed closing-book selections, entries losing
-    a closing benchmark; snapshot/key/timestamp/class provenance
-    preserved;
-  - integrity sidecars are POLICY-TAGGED (fresh write-once destination
-    per attempt; earlier preserved artifacts never overwritten).
-  Tests: 10 green in tests/test_close_conflict_policy.py (all nine
-  assigned cases through main()); combined gates 111 passed.
-- Proposed amended recovery packet (PR description; NOT executed;
-  needs a new recorded owner single-run order): drop_close_conflicts
-  + both bindings; fresh policy-tagged integrity sidecar.
+- **PACKET B OWNER-DECISION BRIEF PREPARED (PR, this branch):** the
+  existing control_vs_books evaluation packet now carries the complete
+  Packet B brief (section "PACKET B OWNER-DECISION BRIEF"): the
+  question (registered control PMF vs near-close books/LTBO), the
+  accepted runner identity (run_control_vs_books.py at 735bb54 /
+  main aa61986; ack EXECUTE-CONTROL-VS-BOOKS-V1), the exact command
+  with literal paths, honest full-file eager-read disclosure
+  (book_lines/envelope/workload/id-map all decoded for ALL years with
+  in-memory window filtering - the window is NOT pre-decode
+  protection), the panel-not-consumed guarantee, timing/identity
+  limitations (NEAR-CLOSE label; commence semantics; confirmed-lineup
+  gap; tiebreak-not-validation), fresh output directory and stop
+  conditions. Packet B remains UNAUTHORIZED - the brief is for the
+  owner's decision only. No new features were added to prepare it.
+- **PACKET A RECONCILED (executed + closed):** the paid-morning 2025H1
+  market-only baseline was PRODUCED on 2026-11-13 (exit 0; code
+  735bb54, main aa61986; receipt PR #90 comment 6861125006; artifact
+  index comment 6861289910). Preserved artifacts: baseline parquet
+  e4348d3b..., report 18cd418d..., policy-tagged integrity sidecar
+  53b989e0..., preserved pre-#90 diagnostic c590d3b6... untouched.
+  Headline (market-only, no model-edge claim): 19,800 candidates;
+  entry-eligible 5,441/19,797; valid close 4,934/5,441; mean movement
+  -0.0869 pp; positive-CLV shares over 0.4270 / under 0.4497; entry
+  flat-1u ROI over -0.0452 / under -0.0782 units per unit. Single-run
+  permission CONSUMED; no reruns.
 
 ### FORWARD
 
