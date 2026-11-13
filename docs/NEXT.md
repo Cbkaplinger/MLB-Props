@@ -25,9 +25,29 @@ LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
 
-## Current action: Packet B owner-decision brief (2026-11-13)
+## Current action: consensus shared-population policy PR (2026-11-13)
 
-- **Packet A COMPLETE (executed + closed):** the paid-morning 2025H1
+- Packet B: the ONE authorized attempt REFUSED at the exact-cohort
+  gate (2,509 -> 2,154 model-vs-consensus; 355 starts lack a near-close
+  all-book consensus; receipt PR #91 comment 6862633285; preserved
+  receipt_initial + failure_record; no completed receipt). Permission
+  consumed for that policy.
+- NEW PR (this branch): the bounded follow-up - runner
+  --consensus-policy shared_population (opt-in; default refusal
+  unchanged): model-vs-consensus scored ONLY on the declared shared
+  population; ORIGINAL 2,509 cohort stays the coverage denominator;
+  matched/unmatched start keys + reason codes
+  (no_near_close_quotes / no_two_sided_quote_at_any_line /
+  consensus_unavailable_other) persisted BEFORE scoring as
+  consensus_matched_starts / consensus_unmatched_starts parquets;
+  book/LTBO populations separate with per-book denominators; all
+  duplicate/identity/timestamp/protected/PMF refusals preserved.
+  5 new tests through main() (tests/test_consensus_shared_population.py);
+  combined gates 104 passed. NOT EXECUTED on real data (new owner
+  order required for any rerun).
+- Packet B remains otherwise unauthorized; NEAR-CLOSE DEVELOPMENT
+  labeling unchanged.
+- Packet A COMPLETE (executed + closed): the paid-morning 2025H1
   market-only baseline was PRODUCED (PR #90 merged at main aa61986;
   exit 0; receipt PR #90 comment 6861125006; artifact index 6861289910).
   Headline (market-only, no model-edge claim): 19,800 candidates;
@@ -35,11 +55,6 @@ diagnostic (PR #83) merged.
   -0.0869 pp; positive-CLV over 0.4270 / under 0.4497; flat-1u entry
   ROI over -0.0452 / under -0.0782 units per unit. Single-run
   permission CONSUMED.
-- NEW PR (this branch): the existing control_vs_books packet now
-  carries the PACKET B OWNER-DECISION BRIEF (question, runner
-  identity, honest full-file/transitive access + protected exposure,
-  timing/identity limitations, fresh out-dir, stop conditions).
-  Packet B remains UNAUTHORIZED - owner decision only.
 
 - Prior bounded quote-only diagnostic packet (SUPERSEDED by the
   close-conflict drop-and-count policy above; executed once, refused

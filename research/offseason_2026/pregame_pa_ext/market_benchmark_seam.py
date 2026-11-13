@@ -352,10 +352,18 @@ def benchmark_contract_rows(
         start_dates: pl.DataFrame, cohort: pl.DataFrame,
         expected_cohort_hash: str, arm: str, quotes: pl.DataFrame,
         starts_bridge: pl.DataFrame, *, min_other_books: int = 2,
-        n_boot: int = 2000, seed: int = 20261001) -> dict:
+        n_boot: int = 2000, seed: int = 20261001,
+        consensus_policy: str = "refuse") -> dict:
     """Narrow end-to-end benchmark contract assembly. Every stage
     reuses the registered machinery; this function adds only the
     ordered glue and observable coverage accounting.
+
+    ``consensus_policy``: "refuse" (default) keeps the exact-cohort
+    coverage gate; "shared_population" scores model-vs-consensus on
+    the declared intersection, keeps the ORIGINAL cohort as the
+    coverage denominator, and derives matched/unmatched start keys
+    with reason codes BEFORE scoring. Book/LTBO populations stay
+    separate with their own denominators in either mode.
 
     Stages: harness PMF + full-start observed K + declared cohort/dates
     -> selected two-sided quotes (registered near-close rules; the
@@ -434,10 +442,72 @@ def benchmark_contract_rows(
                                 "n_books")
     model_rows = model_frame.join(cons_sel, on=["game_pk", "pitcher"],
                                   how="inner")
+    consensus_shared = None
+    consensus_unmatched_rows: list[dict] = []
+    consensus_matched_rows: list[dict] = []
     if model_rows.height != model_frame.height:
-        raise ValueError(
-            "model rows lost in the consensus join "
-            f"({model_frame.height} -> {model_rows.height}); refusing")
+        if consensus_policy == "refuse":
+            raise ValueError(
+                "model rows lost in the consensus join "
+                f"({model_frame.height} -> {model_rows.height}); refusing")
+        # ---- declared shared-population policy: score model-vs-
+        # consensus ONLY on their intersection; the ORIGINAL cohort
+        # stays the coverage denominator; matched/unmatched start keys
+        # and reason codes are derived BEFORE any scoring, and the
+        # book/LTBO populations keep their own separate denominators.
+        unmatched = model_frame.join(cons_sel, on=["game_pk", "pitcher"],
+                                     how="anti")
+        # bridge the near-close frame (vendor keys) to MLBAM start keys
+        near_bridged = near.join(
+            starts_bridge.select("game_pk", "pitcher_key",
+                                 pl.col("pitcher").alias("pitcher_id")),
+            left_on=["game_pk", "pitcher"],
+            right_on=["game_pk", "pitcher_key"], how="left")
+        has_quotes = {(int(r["game_pk"]), int(r["pitcher_id"]))
+                      for r in near_bridged.select("game_pk", "pitcher_id")
+                      .unique().iter_rows(named=True)
+                      if r["pitcher_id"] is not None}
+        # a start has a two-sided quote when SOME (book, line) carries
+        # both sides for its quoted pitcher
+        two_sided = (near_bridged
+                     .group_by(["game_pk", "pitcher_id", "book", "line"])
+                     .agg(n_sides=pl.col("side").n_unique())
+                     .filter(pl.col("n_sides") == 2)
+                     .select(["game_pk", "pitcher_id"]).unique())
+        has_two_sided = {(int(r["game_pk"]), int(r["pitcher_id"]))
+                         for r in two_sided.iter_rows(named=True)}
+        for r in unmatched.iter_rows(named=True):
+            k = (int(r["game_pk"]), int(r["pitcher"]))
+            reason = ("no_near_close_quotes"
+                      if k not in has_quotes else
+                      "no_two_sided_quote_at_any_line"
+                      if k not in has_two_sided else
+                      "consensus_unavailable_other")
+            consensus_unmatched_rows.append({
+                "game_pk": r["game_pk"], "side": r["side"],
+                "pitcher": r["pitcher"], "game_date": str(r["game_date"]),
+                "block": r["block"], "reason": reason})
+        by_reason: dict = {}
+        for u in consensus_unmatched_rows:
+            by_reason[u["reason"]] = by_reason.get(u["reason"], 0) + 1
+        for r in model_rows.select([*START_KEYS, "game_date", "block"]
+                                   ).sort(START_KEYS).iter_rows(
+                                        named=True):
+            consensus_matched_rows.append({
+                "game_pk": r["game_pk"], "side": r["side"],
+                "pitcher": r["pitcher"], "game_date": str(r["game_date"]),
+                "block": r["block"]})
+        consensus_shared = {
+            "policy": "shared_population",
+            "cohort_denominator": len(cohort_keys),
+            "matched": model_rows.height,
+            "unmatched": unmatched.height,
+            "unmatched_by_reason": by_reason,
+            "note": ("model-vs-consensus scored on the declared shared "
+                     "population only; the original cohort remains the "
+                     "coverage denominator; book/LTBO populations are "
+                     "separate and disclose their own denominators"),
+        }
     n_consensus_unmatched = consensus.height - model_rows.height
 
     # ---- model-vs-consensus: EXISTING outcome scorer + uncertainty
@@ -490,8 +560,14 @@ def benchmark_contract_rows(
         "n_matched_model_starts": model_frame.height,
         "consensus_starts_total": consensus.height,
         "n_consensus_unmatched_to_model": n_consensus_unmatched,
+        "consensus_shared_population": consensus_shared,
+        "consensus_matched_starts": consensus_matched_rows,
+        "consensus_unmatched_starts": consensus_unmatched_rows,
         "ltbo_unavailable_rows": n_ltbo_unavailable,
         "book_rows": book_probs.height,
+        "book_vs_ltbo_denominators": {
+            str(book): s["n_starts"]
+            for book, s in sorted(book_scores.items())},
         "quotes_funnel": funnel,
     }
     return {

@@ -292,8 +292,9 @@ def _validate_args(args) -> None:
 def _persist_results(out_dir: Path, result: dict) -> None:
     """Persist ALL declared outputs. Tables as parquet (registered
     atomic write); scores/coverage as explicit JSON (fail-loud
-    conversion). Receipt_final is written by the CALLER only after
-    this succeeds."""
+    conversion). Matched/unmatched start keys are persisted BEFORE the
+    summary when the declared shared-population policy ran. Receipt
+    final is written by the CALLER only after this succeeds."""
     atomic_write_parquet(result["model_rows"],
                          out_dir / OUTPUT_TABLES[0])
     atomic_write_parquet(result["consensus"],
@@ -302,11 +303,19 @@ def _persist_results(out_dir: Path, result: dict) -> None:
                          out_dir / OUTPUT_TABLES[2])
     atomic_write_parquet(result["ltbo"],
                          out_dir / OUTPUT_TABLES[3])
+    cov = result["coverage"]
+    if cov.get("consensus_shared_population") is not None:
+        atomic_write_parquet(
+            pl.DataFrame(cov["consensus_matched_starts"]),
+            out_dir / "consensus_matched_starts.parquet")
+        atomic_write_parquet(
+            pl.DataFrame(cov["consensus_unmatched_starts"]),
+            out_dir / "consensus_unmatched_starts.parquet")
     summary = {
         "contract": TIMING_CONTRACT,
         "model_vs_consensus": _jsonable(result["model_vs_consensus"]),
         "book_scores": _jsonable(result["book_scores"]),
-        "coverage": _jsonable(result["coverage"]),
+        "coverage": _jsonable(cov),
     }
     (out_dir / OUTPUT_SUMMARY).write_text(
         json.dumps(summary, indent=1, sort_keys=True), encoding="utf-8")
@@ -319,6 +328,18 @@ def main(argv: list | None = None) -> int:
     ap.add_argument("--book-lines", default=None)
     ap.add_argument("--envelope", default=None)
     ap.add_argument("--n-boot", type=int, default=2000)
+    ap.add_argument("--consensus-policy", choices=("refuse",
+                                                   "shared_population"),
+                    default="refuse",
+                    help="refuse = exact-cohort consensus coverage is a "
+                         "hard gate (any model start without an all-book "
+                         "near-close consensus refuses); "
+                         "shared_population = score model-vs-consensus "
+                         "on the declared shared population only, keep "
+                         "the ORIGINAL cohort as the coverage "
+                         "denominator, and persist matched/unmatched "
+                         "start keys with reason codes before scoring; "
+                         "book/LTBO populations stay separate")
     args = ap.parse_args(argv)
     # ---- validate BEFORE any output creation or frame decoding
     _validate_args(args)
@@ -359,12 +380,14 @@ def main(argv: list | None = None) -> int:
         result = seam.benchmark_contract_rows(
             k_pmf, observed, start_dates, cohort, EXPECTED_COHORT_HASH,
             CONTROL_ARM, quotes, starts_bridge,
-            n_boot=args.n_boot)
+            n_boot=args.n_boot,
+            consensus_policy=args.consensus_policy)
         # ---- ACTUAL consumed identities (recorded, not re-derived)
         from pregame_pa_ext import market_eval_k as mk
         join_meta["book_lines_sha256"] = sha256_file(Path(args.book_lines))
         join_meta["envelope_sha256"] = sha256_file(Path(args.envelope))
         join_meta["bridge"] = _bridge_identity()
+        receipt["consensus_policy"] = args.consensus_policy
         receipt["consumed_identities"] = {
             "cohort_content_hash": _cohort_content_hash(cohort),
             "pinned_artifacts": {name: pin
