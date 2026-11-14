@@ -62,6 +62,42 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PRESENT
 
+- **PACKET B VERIFIED (executed + independently verified; CLOSED):** the
+  amended shared-population run COMPLETED (exit 0; code c1d770e,
+  integrated main c3c0feb; receipt PR #92 comment 6866892070; Chat 2
+  VERIFIED comment 6866986855 - scores recomputed from preserved
+  artifacts to <1e-9). RESULT (NEAR-CLOSE DEVELOPMENT evidence):
+  model-vs-consensus on the 2,154-start shared population - log loss
+  model 0.715358 vs consensus 0.688572, paired delta +0.026786,
+  CI95 [+0.01727, +0.03672], Holm p 0.0005, decision
+  model_not_better_than_close; Brier 0.25887 vs 0.24772; Count-RPS
+  1.28006 (no paired market RPS exists). Coverage: 2,154 matched +
+  355 unmatched (ALL no_near_close_quotes) = 2,509 cohort; membership
+  partition row-verified disjoint. Book-vs-LTBO: per-book deltas tiny
+  (max |d| ~0.0012; per-book denominators 453-2,178) - books
+  indistinguishable from their leave-one-out consensus. Artifacts:
+  control_vs_books_v2 (receipt_initial/final, membership parquets,
+  4 benchmark tables, summary; sha256 recorded in the handoff).
+- **EXPLICIT GAPS (owner-recorded):** NO model-vs-individual-book
+  comparison exists in these outputs (books scored only vs LTBO) - a
+  per-book direct comparison would be a separate declared comparison.
+  Morning (T-5h) decision-time model-input availability remains
+  UNESTABLISHED - the near-close result says nothing about T-5h
+  decisions. Strategy validation/betting thresholds remain unresolved
+  and untuned. Consensus-coverage selection caveat: the paired delta
+  describes the covered subset only.
+- **DELIVERY-BOUNDARY FOOTPRINT (2026-11-13 inventory; nothing
+  deleted):** worktrees: MLB-Props (research/control-arm-parity,
+  clean, 3 untracked experiment files preserved), review-68 (detached
+  pin c1d770e, clean), wtsc (main, clean). All 7 lane branch tips +
+  research/control-arm-parity tip REACHABLE from origin/main
+  (c3c0feb) - fully integrated; no unique unmerged commits. Open PRs:
+  none. Preservation requirements: Packet A artifacts
+  (artifacts/odds_log/juiced_replay_*__mkt2025H1.*), Packet B artifacts
+  (control_vs_books_v2, 9 files), failed-run receipts
+  (control_vs_books_v1, quote-integrity artifacts, stopped-run
+  receipts PR #86/#87/#88/#89/#90/#91 comments) - all preserved.### PRESENT
+
 - **CONSENSUS SHARED-POPULATION POLICY (PR, this branch):** Packet B's
   one authorized attempt refused at the exact-cohort gate (2,509 ->
   2,154 model-vs-consensus; receipt PR #91 comment 6862633285; the

@@ -1,4 +1,32 @@
-﻿# NEXT - current action
+﻿# NEXT - current state
+
+Owner: architect. Updated 2026-11-13. Packet A closed and verified;
+Packet B executed once (shared-population rerun) and Chat 2 VERIFIED.
+All single-run permissions consumed. ROLES_REV 2026-10-28-r1. Read
+docs/roles/README.md and your card. EXECUTION_BACKLOG remains the
+single queue.
+
+## Current state: Packet B VERIFIED (2026-11-13); awaiting one bounded scientific assignment
+
+- **Packet B COMPLETE + Chat 2 VERIFIED (main c3c0feb; receipt PR #92
+  comment 6866892070; verification 6866986855 - scores recomputed from
+  preserved artifacts to <1e-9):** NEAR-CLOSE DEVELOPMENT result on
+  the 2,154-start shared population (2,154 matched + 355 unmatched,
+  ALL no_near_close_quotes = 2,509 cohort): control log loss 0.715358
+  vs near-close consensus 0.688572, paired delta +0.026786,
+  CI95 [+0.01727, +0.03672], Holm p 0.0005, decision
+  model_not_better_than_close; Brier 0.25887 vs 0.24772; Count-RPS
+  1.28006. Book-vs-LTBO per-book deltas tiny (max |d| ~0.0012;
+  denominators 453-2,178). Artifacts preserved in control_vs_books_v2.
+- **EXPLICIT GAPS (owner-recorded):** NO model-vs-individual-book
+  comparison exists (books scored only vs LTBO); morning (T-5h)
+  model-input availability UNESTABLISHED; strategy validation/betting
+  thresholds unresolved; consensus-coverage selection caveat (the
+  paired delta describes the covered subset only).
+- **All single-run permissions consumed** (Packet A + both Packet B
+  attempts). Awaiting ONE bounded scientific assignment before any
+  implementation.
+# NEXT - current action
 
 Owner: architect. Updated 2026-11-11. Chat 3 closed; cleanup integrated.
 Chat 1 active: parity lanes CLOSED (reproduced bit-exactly); the K-PMF
@@ -24,41 +52,6 @@ Ref0-vs-Ref1, Stage-A (implemented; authorization-gated), binary-K /
 LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
 reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
 diagnostic (PR #83) merged.
-
-## Current action: consensus shared-population policy PR (2026-11-13)
-
-- Packet B: the ONE authorized attempt REFUSED at the exact-cohort
-  gate (2,509 -> 2,154 model-vs-consensus; 355 starts lack a near-close
-  all-book consensus; receipt PR #91 comment 6862633285; preserved
-  receipt_initial + failure_record; no completed receipt). Permission
-  consumed for that policy.
-- NEW PR (this branch): the bounded follow-up - runner
-  --consensus-policy shared_population (opt-in; default refusal
-  unchanged): model-vs-consensus scored ONLY on the declared shared
-  population; ORIGINAL 2,509 cohort stays the coverage denominator;
-  matched/unmatched start keys + reason codes
-  (no_near_close_quotes / no_two_sided_quote_at_any_line /
-  consensus_unavailable_other) persisted BEFORE scoring as
-  consensus_matched_starts / consensus_unmatched_starts parquets;
-  book/LTBO populations separate with per-book denominators; all
-  duplicate/identity/timestamp/protected/PMF refusals preserved.
-  5 new tests through main() (tests/test_consensus_shared_population.py);
-  combined gates 104 passed. NOT EXECUTED on real data (new owner
-  order required for any rerun).
-- Packet B remains otherwise unauthorized; NEAR-CLOSE DEVELOPMENT
-  labeling unchanged.
-- Packet A COMPLETE (executed + closed): the paid-morning 2025H1
-  market-only baseline was PRODUCED (PR #90 merged at main aa61986;
-  exit 0; receipt PR #90 comment 6861125006; artifact index 6861289910).
-  Headline (market-only, no model-edge claim): 19,800 candidates;
-  entry-eligible 5,441/19,797; valid close 4,934/5,441; mean movement
-  -0.0869 pp; positive-CLV over 0.4270 / under 0.4497; flat-1u entry
-  ROI over -0.0452 / under -0.0782 units per unit. Single-run
-  permission CONSUMED.
-
-- Prior bounded quote-only diagnostic packet (SUPERSEDED by the
-  close-conflict drop-and-count policy above; executed once, refused
-  with the preserved close-conflict evidence).
 
 - EXECUTION-READY (PR #88, merged): the gated runner is complete - args
   validated before output/decode; tables as parquet; scores/coverage
