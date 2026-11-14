@@ -102,9 +102,6 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   (artifacts/odds_log/juiced_replay_*__mkt2025H1.*), Packet B artifacts
   (control_vs_books_v2, 9 files), failed-run receipts
   (control_vs_books_v1, quote-integrity artifacts, stopped-run
-  (artifacts/odds_log/juiced_replay_*__mkt2025H1.*), Packet B artifacts
-  (control_vs_books_v2, 9 files), failed-run receipts
-  (control_vs_books_v1, quote-integrity artifacts, stopped-run
   receipts PR #86/#87/#88/#89/#90/#91 comments) - all preserved.
 
 ### HISTORICAL SNAPSHOT (pre-#93; superseded)

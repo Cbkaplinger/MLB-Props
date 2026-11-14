@@ -40,7 +40,7 @@ experiment_impact_ledger_2026-10-22.md.
 
 ## Prepared next packet (pre-registered; NOT executed)
 
-- CONTROL BIAS/EXTREMITY DIAGNOSTIC on the existing 2,154 matched
+- CONTROL DIRECTIONAL-DISAGREEMENT/EXTREMITY DIAGNOSTIC (paired model-binned; NOT consensus calibration) on the existing 2,154 matched
   starts - see the PACKET C section of
   docs/reference/reports/control_vs_books_evaluation_packet_2026-11-12.md
   (fixed summary definitions, saved-input hashes, fresh write-once

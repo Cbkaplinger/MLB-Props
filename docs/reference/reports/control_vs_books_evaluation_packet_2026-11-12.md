@@ -369,13 +369,14 @@ No further Packet A runs.
 
 ---
 
-# PACKET C PRE-REGISTERED DIAGNOSTIC (prepared 2026-11-13; NOT executed; no owner order yet)
+# PACKET C PRE-REGISTERED DIAGNOSTIC (prepared 2026-11-13, definitions amended same day; NOT executed; no owner order yet)
 
-Question: does the frozen control exhibit AVERAGE PROBABILITY BIAS or
-EXCESS PROBABILITY EXTREMITY relative to the consensus on the existing
-2,154 paired starts? Descriptive diagnostic only - no fitting, no
-calibration fitting, no tuning, no subgroup search, no model change,
-no protected-data access, no lake query.
+Question: does the frozen control exhibit DIRECTIONAL DISAGREEMENT
+(model minus consensus) or EXCESS PROBABILITY EXTREMITY (distance from
+0.5) relative to the consensus on the existing 2,154 paired starts?
+Descriptive diagnostic only - no fitting, no calibration fitting, no
+tuning, no subgroup search, no model change, no protected-data access,
+no lake query.
 
 ## C.1 Exact saved inputs and hashes (read-only; already preserved)
 
@@ -407,26 +408,57 @@ no protected-data access, no lake query.
 
 - Paired row = one matched start; equal weight; n = 2,154; no
   covariates, no subgroups, no filtering beyond the preserved rows.
+- Outcome label: y = 1{realized_k > line} (binary over win at the
+  quoted line), recomputed from the preserved realized_k + line.
 - signed_diff = model_p_over - p_over (consensus). Report mean,
-  median, sd, min, max of signed_diff (average bias, percentage
-  points x100 also reported).
+  median, sd, min, max of signed_diff (DIRECTIONAL DISAGREEMENT,
+  model minus consensus; percentage points x100 also reported).
+  SIGN CONVENTION: positive signed_diff means the model rates the
+  over HIGHER than the consensus on that row.
+- mean(p - y) per source, on the EXACT same saved rows (y as defined
+  above; model p = model_p_over, consensus p = p_over). SIGN
+  CONVENTION: positive mean(p - y) means the source's over
+  probabilities EXCEED the realized over frequency on this population
+  (a descriptive statement about THIS sample; it is NOT by itself a
+  calibration claim, which would require the reliability structure
+  below plus an inference framework this diagnostic deliberately
+  omits).
 - extremity_model = mean(|model_p_over - 0.5|); extremity_consensus =
   mean(|p_over - 0.5|); extremity_delta = extremity_model -
   extremity_consensus; plus the share of rows with |p - 0.5| >= 0.25
-  for each source (fixed threshold, declared, no search).
+  for each source (fixed threshold, declared, no search). EXTREMITY
+  is DISTANCE FROM 0.5 - a descriptive spread measure; a larger
+  extremity is NOT proof of overconfidence (that would require the
+  reliability structure plus an inference framework, deliberately
+  omitted here).
 - Reliability: the EXISTING registered 10-bucket reliability recomputed
   for BOTH sources over the SAME rows, using the SAME model-probability
-  decile assignment for both (paired buckets; no new binning scheme).
+  decile assignment for both. This is a PAIRED MODEL-BINNED diagnostic
+  (bins defined by the model's own probability deciles) - it is NOT a
+  consensus-calibration assessment and must not be described as one.
 
 ## C.4 Fresh output destination (if outputs are proposed)
 
 - `...\diagnostics\control_vs_books_v2_bias_diagnostic\` - write-once,
   must NOT pre-exist; the v2 directory and all Packet A/B artifacts
-  stay untouched. Outputs: one `bias_extremity_summary.json`
+  stay untouched. Outputs: one `directional_disagreement_extremity_summary.json`
   (fixed definitions + counts) and one
-  `bias_extremity_buckets.parquet` (paired reliability rows).
+  `paired_model_binned_reliability.parquet` (paired model-binned
+  reliability rows).
 
-## C.5 Limitations and stop condition
+## C.5 Executable/script identity (none exists yet)
+
+- NO Packet C executable or script exists at this time: the diagnostic
+  is a PRE-REGISTERED DEFINITION SET only. Its precise computational
+  identity when implemented will be a new write-once runner whose ONLY
+  registered dependency is `market_eval_k.model_p_over` (file
+  `research/offseason_2026/pregame_pa_ext/market_eval_k.py`, blob
+  unchanged at integrated main `c3c0feb435d199fdbfd7000d0c26d34c10998c8d`)
+  plus polars over the two preserved inputs. Any implementation
+  requires its own owner order + delta review; preparation here does
+  not create an executable identity.
+
+## C.6 Limitations and stop condition
 
 - Descriptive diagnostic on the consensus-COVERED 2,154-start subset
   (selection caveat inherited from Packet B); NEAR-CLOSE tier A/B
