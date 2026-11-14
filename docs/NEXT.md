@@ -45,17 +45,17 @@ experiment_impact_ledger_2026-10-22.md.
   observed rates closely in the SAME bins. An earlier PR #93 comment
   described the deficit as concentrated in outer deciles - that
   wording is superseded here (no decomposition claim).
-- ONE MODEL-ONLY EXPERIMENT PROPOSED (awaiting owner decision; full
-  spec in the packet section "MODEL-ONLY EXPERIMENT PROPOSAL
-  (2026-11-13)"): the registered pooled-prior STRENGTH (W0/BF37
-  weight in start_count_pmfs) as the single changed component -
-  hypothesis: the control's unsupported extremity reflects
-  insufficient shrinkage toward the pooled mean; a stronger declared
-  prior weight should reduce extremity and close part of the +0.0268
-  paired log-loss deficit WITHOUT market information. Causal
-  attribution NOT established - the experiment tests it. Awaiting
-  owner decision before implementation.
-- Packet C runner identity: run_packet_c_diagnostic.py (ack
+- PRIOR-STRENGTH EXPERIMENT PROPOSAL WITHDRAWN (2026-11-13): code
+  trace shows W0/BF37 is the pooled batters-faced workload
+  distribution (P(N=n)), not a probability-shrinkage prior; the only
+  smoothing constant is a hardcoded add-one inside the registered
+  `_pooled_bf37_at` (part of the registered identity, 1e-12
+  reconstruction gates). No tunable prior-strength scalar exists;
+  the mechanism claim was wrong (extremity comes from the per-PA
+  probabilities p9, not the BF37 prior) and the component selection
+  was development-informed. No replacement knob proposed without a
+  new explicit scientific contrast. Awaiting one bounded scientific
+  assignment.- Packet C runner identity: run_packet_c_diagnostic.py (ack
   EXECUTE-PACKET-C-DIAGNOSTIC-V1; executed once, artifacts in
   control_vs_books_v2_bias_diagnostic).
 
