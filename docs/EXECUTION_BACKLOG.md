@@ -62,6 +62,50 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PRESENT
 
+- **PACKET B VERIFIED (executed + independently verified; CLOSED):** the
+  amended shared-population run COMPLETED (exit 0; code c1d770e,
+  integrated main c3c0feb; receipt PR #92 comment 6866892070; Chat 2
+  VERIFIED comment 6866986855 - scores recomputed from preserved
+  artifacts to <1e-9). RESULT (NEAR-CLOSE DEVELOPMENT evidence):
+  model-vs-consensus on the 2,154-start shared population - log loss
+  model 0.715358 vs consensus 0.688572, paired delta +0.026786,
+  CI95 [+0.01727, +0.03672], Holm p 0.0005, decision
+  model_not_better_than_close; Brier 0.25887 vs 0.24772; Count-RPS
+  1.28006 (no paired market RPS exists). TIMING CONTRACT (Chat 2
+  corrected): Packet B uses the registered NEAR-CLOSE tier A/B rules
+  (latest quote <= commence within 60 min / vendor close snapshot) -
+  NOT Packet A's T-5h/T-5min decision gates; the execution handoff's
+  T-5h/T-5min wording (PR #92 comment 6866892070) is superseded here.
+  Coverage: 2,154 matched +
+  355 unmatched (ALL no_near_close_quotes) = 2,509 cohort; membership
+  partition row-verified disjoint. Book-vs-LTBO: per-book paired deltas are small in this sample
+  (max |d| ~0.0012 log loss; per-book denominators 453-2,178) - a
+  DESCRIPTIVE observation only; no formal equal-accuracy claim is
+  made and no per-book test was run. Artifacts:
+  control_vs_books_v2 (receipt_initial/final, membership parquets,
+  4 benchmark tables, summary; sha256 recorded in the handoff).
+- **EXPLICIT GAPS (owner-recorded):** NO model-vs-individual-book
+  comparison exists in these outputs (books scored only vs LTBO) - a
+  per-book direct comparison would be a separate declared comparison.
+  Morning (T-5h) decision-time model-input availability remains
+  UNESTABLISHED - the near-close result says nothing about T-5h
+  decisions. Strategy validation/betting thresholds remain unresolved
+  and untuned. Consensus-coverage selection caveat: the paired delta
+  describes the covered subset only.
+- **DELIVERY-BOUNDARY FOOTPRINT (inventoried 2026-11-13, pre-#93 observations; nothing
+  deleted):** worktrees: MLB-Props (research/control-arm-parity,
+  clean, 3 untracked experiment files preserved), review-68 (detached
+  pin c1d770e, clean), wtsc (main, clean). All 7 lane branch tips +
+  research/control-arm-parity tip REACHABLE from origin/main
+  (c3c0feb) - fully integrated; no unique unmerged commits. Open PRs:
+  none. Preservation requirements: Packet A artifacts
+  (artifacts/odds_log/juiced_replay_*__mkt2025H1.*), Packet B artifacts
+  (control_vs_books_v2, 9 files), failed-run receipts
+  (control_vs_books_v1, quote-integrity artifacts, stopped-run
+  receipts PR #86/#87/#88/#89/#90/#91 comments) - all preserved.
+
+### HISTORICAL SNAPSHOT (pre-#93; superseded)
+
 - **CONSENSUS SHARED-POPULATION POLICY (PR, this branch):** Packet B's
   one authorized attempt refused at the exact-cohort gate (2,509 ->
   2,154 model-vs-consensus; receipt PR #91 comment 6862633285; the
@@ -82,7 +126,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 - Packet B remains otherwise unauthorized; NEAR-CLOSE DEVELOPMENT
   labeling unchanged.
 
-### PRESENT (prior cycle - Packet B brief; superseded by the entry above)
+### HISTORICAL SNAPSHOT (pre-#93; Packet B brief cycle - superseded)
 
 - **PACKET B OWNER-DECISION BRIEF PREPARED (merged via PR #91):** the
   existing control_vs_books evaluation packet now carries the complete
@@ -179,7 +223,7 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   market-eval scoring) - only reusable as a single fresh
   pre-registered contract.
 
-### PRESENT
+### HISTORICAL SNAPSHOT (pre-#93; superseded)
 
 - **BASELINE K-PMF DIAGNOSTIC IMPLEMENTED (owner-assigned, this PR):**
   `research/offseason_2026/pregame_pa_ext/count_pmf_diagnostic.py` -
@@ -328,7 +372,7 @@ integration history; the role rules and workflow remain in `AGENTS.md`,
   released. Unique source and ignored research storage remain recoverable
   outside the active workspace set.
 
-### PRESENT
+### HISTORICAL SNAPSHOT (pre-#93; superseded)
 
 - Three worktrees remain: primary `main`, Chat 1's `wtsc`, and detached Chat 2
   reviewer workspace `review-68`. The temporary Chat 3 workspace is released.
@@ -380,7 +424,7 @@ current ownership or queue state; the current state is recorded above.
   `C:\Users\ckaplinger\Downloads\MLB-Props-preservation-20261109`.
   It excludes raw data, credentials, MLflow storage, artifacts, and caches.
 
-### PRESENT
+### HISTORICAL SNAPSHOT (pre-#93; superseded)
 
 - Fetched integration reference: `origin/main =
   731a32e56a494e778ea0e45d51ea18f3362ac975`.

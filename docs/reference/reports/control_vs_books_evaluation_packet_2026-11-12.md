@@ -1,4 +1,4 @@
-# Current-control-versus-books evaluation packet (2026-11-12)
+﻿# Current-control-versus-books evaluation packet (2026-11-12)
 
 Bounded preparation only. No fitting, model search, calibration,
 blending, or staking changes. No framework built - every stage reuses
@@ -227,7 +227,7 @@ permissions - execution requires a new recorded single-run order.
   and its confirmed-lineup limitation, and the declared per-mapping
   tie-break gap.
 - **Remaining unknown:** whether the canonical id-map bridge resolves
-  every cohort start to a game_date (cohort ⊆ count_agg_eval_v1) -
+  every cohort start to a game_date (cohort âŠ† count_agg_eval_v1) -
   the seam's exact-cover assertion answers it on first real run and
   the runner records the failure receipt if not.
 - No new evaluation code path beyond that ordered call list.
@@ -366,3 +366,108 @@ Preserved artifacts + receipt: PR #90 comment 6861125006 (locations) and
 `e4348d3b...`, report `18cd418d...`, policy-tagged integrity sidecar
 `53b989e0...`; preserved pre-#90 diagnostic `c590d3b6...` untouched.
 No further Packet A runs.
+
+---
+
+# PACKET C PRE-REGISTERED DIAGNOSTIC (prepared 2026-11-13, definitions amended same day; NOT executed; no owner order yet)
+
+Question: does the frozen control exhibit DIRECTIONAL DISAGREEMENT
+(model minus consensus) or EXCESS PROBABILITY EXTREMITY (distance from
+0.5) relative to the consensus on the existing 2,154 paired starts?
+Descriptive diagnostic only - no fitting, no calibration fitting, no
+tuning, no subgroup search, no model change, no protected-data access,
+no lake query.
+
+## C.1 Exact saved inputs and hashes (read-only; already preserved)
+
+- `...\diagnostics\control_vs_books_v2\benchmark_model_rows.parquet`
+  sha256 `1c0e7f4e3a83608fb0315b5ac4ca421ac4b3096e2ea63661e7dcda377d5de075`
+  - one row per matched start (n = 2,154); columns: game_pk, side,
+    pitcher, game_date, block, realized_k, line, pmf_baseline
+    (24-bucket registered PMF), p_over (consensus de-vigged over
+    probability), n_books.
+- `...\diagnostics\control_vs_books_v2\benchmark_summary.json`
+  sha256 `2fee0f1dcc2a3ee076434235fec16973dae2ee1985fbb3ad3f0b5012e6b5bce6`
+  - contains the already-computed MODEL reliability decile buckets
+    (registered fixed bins).
+- Receipts for provenance: receipt_initial/receipt_final in the same
+  directory (identity chain verified by Chat 2, PR #92 comment
+  6866986855).
+
+## C.2 Required columns and actual access
+
+- Read-only of the two preserved files above (NO lake query, no
+  book_lines/envelope/panel/bridge access - the diagnostic is
+  self-contained on Packet B's saved outputs).
+- Model over probability RECOMPUTED from the preserved pmf_baseline via
+  the registered `market_eval_k.model_p_over` (existing helper;
+  half-line tail semantics) - no new math.
+- Consensus over probability is already a column (`p_over`).
+
+## C.3 Fixed summary definitions (pre-registered before any run)
+
+- Paired row = one matched start; equal weight; n = 2,154; no
+  covariates, no subgroups, no filtering beyond the preserved rows.
+- Outcome label: y = 1{realized_k > line} (binary over win at the
+  quoted line), recomputed from the preserved realized_k + line.
+- signed_diff = model_p_over - p_over (consensus). Report mean,
+  median, sd, min, max of signed_diff (DIRECTIONAL DISAGREEMENT,
+  model minus consensus; percentage points x100 also reported).
+  SIGN CONVENTION: positive signed_diff means the model rates the
+  over HIGHER than the consensus on that row.
+- mean(p - y) per source, on the EXACT same saved rows (y as defined
+  above; model p = model_p_over, consensus p = p_over). SIGN
+  CONVENTION: positive mean(p - y) means the source's over
+  probabilities EXCEED the realized over frequency on this population
+  (a descriptive statement about THIS sample; it is NOT by itself a
+  calibration claim, which would require the reliability structure
+  below plus an inference framework this diagnostic deliberately
+  omits).
+- extremity_model = mean(|model_p_over - 0.5|); extremity_consensus =
+  mean(|p_over - 0.5|); extremity_delta = extremity_model -
+  extremity_consensus; plus the share of rows with |p - 0.5| >= 0.25
+  for each source (fixed threshold, declared, no search). EXTREMITY
+  is DISTANCE FROM 0.5 - a descriptive spread measure; a larger
+  extremity is NOT proof of overconfidence (that would require the
+  reliability structure plus an inference framework, deliberately
+  omitted here).
+- Reliability: the EXISTING registered 10-bucket reliability recomputed
+  for BOTH sources over the SAME rows, using the SAME model-probability
+  decile assignment for both. This is a PAIRED MODEL-BINNED diagnostic
+  (bins defined by the model's own probability deciles) - it is NOT a
+  consensus-calibration assessment and must not be described as one.
+
+## C.4 Fresh output destination (if outputs are proposed)
+
+- `...\diagnostics\control_vs_books_v2_bias_diagnostic\` - write-once,
+  must NOT pre-exist; the v2 directory and all Packet A/B artifacts
+  stay untouched. Outputs: one `directional_disagreement_extremity_summary.json`
+  (fixed definitions + counts) and one
+  `paired_model_binned_reliability.parquet` (paired model-binned
+  reliability rows).
+
+## C.5 Executable/script identity (IMPLEMENTED 2026-11-13; not executed)
+
+- Script: `research/offseason_2026/pregame_pa_ext/run_packet_c_diagnostic.py`
+  (acked write-once runner; ack `EXECUTE-PACKET-C-DIAGNOSTIC-V1`).
+  It implements EXACTLY the C.3 definition set: registered
+  `market_eval_k.model_p_over` (half-line tail) for model p_over;
+  directional disagreement (mean/median/sd[ddof=0]/min/max + pp);
+  mean(p-y) per source; extremity (mean |p-0.5|, delta, fixed 0.25
+  shares); paired model-binned table using the registered
+  `score_starts` decile-edge derivation ([lo, hi), -inf/+inf, empty
+  buckets omitted) applied to BOTH sources.
+- Invocation: `python research/offseason_2026/pregame_pa_ext/run_packet_c_diagnostic.py --execution-ack EXECUTE-PACKET-C-DIAGNOSTIC-V1 --out-dir <fresh write-once dir>` (default declared out-dir per C.4).
+- Receipt discipline: hash/schema validation BEFORE any output; receipt_initial -> outputs -> receipt_final LAST; failure_record on any error.
+- The script's own SHA is published with the delivery; it has NEVER
+  been run on the real preserved artifacts (no owner order yet).## C.6 Limitations and stop condition
+
+- Descriptive diagnostic on the consensus-COVERED 2,154-start subset
+  (selection caveat inherited from Packet B); NEAR-CLOSE tier A/B
+  timing; commence = vendor-scheduled; no morning-validity, holdout,
+  profitability or promotion interpretation.
+- Stop conditions: destination exists; any preserved-artifact hash
+  mismatch vs the recorded receipt; column/schema mismatch; runtime
+  failure -> failure record, no completed receipt, one run, no
+  repair-and-rerun. Requires a new recorded owner order before
+  execution (this handoff authorizes PREPARATION only).
