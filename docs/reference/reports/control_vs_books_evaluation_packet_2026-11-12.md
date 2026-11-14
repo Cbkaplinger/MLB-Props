@@ -471,3 +471,130 @@ no lake query.
   failure -> failure record, no completed receipt, one run, no
   repair-and-rerun. Requires a new recorded owner order before
   execution (this handoff authorizes PREPARATION only).
+
+---
+
+# MODEL-ONLY EXPERIMENT PROPOSAL (2026-11-13; PREPARED ONLY - no owner order, no execution, no implementation)
+
+ONE changed component, pre-registered as a proposal for the owner's
+decision. No tournament, no feature/window search, no calibration, no
+new framework, no data execution. If the owner rejects the component,
+this proposal records that the existing evidence was judged
+insufficient - nothing is invented.
+
+## P.1 Evidence base (all VERIFIED, already in the repository)
+
+- Packet B (VERIFIED): on the 2,154-start shared population the
+  registered control is worse than the near-close consensus: paired
+  log-loss delta +0.026786, CI95 [+0.01727, +0.03672], Holm p 0.0005,
+  decision model_not_better_than_close; Brier delta +0.011147.
+- Packet C (VERIFIED): the control's extremity (mean |p-0.5| 0.0902)
+  is ~1.8x the consensus (0.0488); in the MODEL's own outer deciles
+  the realized over rates (0.440 bottom / 0.500 top) diverge from the
+  model's bin means (0.307 / 0.708; mean(p-y) -0.132 / +0.208) while
+  the consensus tracks observed rates closely in the SAME bins
+  (~0.447-0.530 mean vs 0.44-0.56 observed).
+
+## P.2 Existing controls that the experiment reuses (identified)
+
+- PA controls: registered assessment-derived labels (realized K =
+  count of class_label == 0 per start, registered
+  derive_observed_k); per-PA identity (game_pk, side, pitcher,
+  at_bat_number, batter); registered norm_player_name/sorted-key
+  identity bridge.
+- Workload controls: registered bf_forecasts workload
+  (BF_WORKLOAD_DIR); pooled-league W0 prior (BF37) through the
+  registered `start_count_pmfs`.
+- Aggregation controls: registered 24-bucket K-PMF aggregation
+  (`adapter.count_pmf_from_mixture`; K_MAX = 24, tail bucket 23);
+  m0_multiclass 8-feature multinomial recipe (the control arm
+  `pmf_multinomial_control`, bit-exact reproduction receipt
+  b1b91357...224ba / 8c5c849c...).
+- Paired-score controls: market_eval_k.score_starts,
+  paired_line_scores, cmp_bootstrap (seed 20261001, 2,000 reps,
+  Holm m=1); the Packet B seam (benchmark_contract_rows) with the
+  shared-population policy; Packet C's fixed diagnostic summaries.
+
+## P.3 The ONE changed component and hypothesis
+
+- Component: the pooled-prior STRENGTH in the registered count
+  aggregation - the W0/BF37 weight that shrinks pitcher-specific
+  count evidence toward the pooled league mean inside
+  `start_count_pmfs`. NOTHING else changes: same 8 features, same W0
+  mixture composition, same 24-bucket aggregation, same frozen
+  pipeline, no calibration of outputs.
+- Hypothesis (specific, falsifiable): the control's unsupported
+  extremity (Packet C) reflects INSUFFICIENT shrinkage of
+  pitcher-specific count evidence toward the pooled mean. A stronger
+  declared prior weight produces a less extreme PMF whose over
+  probabilities pair better with realized outcomes - i.e., it reduces
+  extremity toward (not past) the consensus range and closes a
+  material part of the +0.0268 paired log-loss deficit WITHOUT using
+  any market information.
+- Why this experiment can change the decision: the component is the
+  ONLY registered knob that directly targets the measured failure
+  mode (unsupported extremity) and it is model-internal - if
+  strengthening the prior closes the deficit, the control's market
+  gap is a shrinkage artifact and the fix is a one-parameter
+  model change; if it does NOT close, the deficit lives in the
+  feature/recipe layer and prior-strength tuning is excluded from
+  the decision space. Either outcome changes what we do next.
+- Explicit honesty: Packet C shows WHERE the miscalibration pattern
+  sits (extremity in the model's own outer deciles) but NOT WHICH
+  component causes it. The prior weight is the most direct
+  registered hypothesis; the experiment tests it rather than
+  assuming it. The alternative's magnitude must be pre-registered as
+  a SINGLE value (e.g., a doubled BF weight) chosen WITHOUT reference
+  to the Packet C rows - it is a design choice, not an
+  evidence-derived fit.
+
+## P.4 Experiment contract
+
+- Target: full-start K distribution (24-bucket PMF) -> over
+  probability at quoted lines.
+- Prediction unit: per-start paired rows, equal weight; model-vs-
+  consensus on the declared shared population; book/LTBO untouched;
+  ORIGINAL 2,509-start cohort as coverage denominator.
+- Decision time: NEAR-CLOSE benchmark timing (registered tier A/B) -
+  identical to Packet B; NOT a morning-decision claim.
+- Cohort: registered 2,509-start 2025H1 eligible cohort (content
+  hash f77d7a66...); shared population disclosed (expected ~2,154/355
+  with reason codes, not assumed).
+- Input availability: strictly-prior pregame states, identical to the
+  registered control's contract; NO market information enters the
+  model arm.
+- Training/evaluation windows: the registered control recipe's
+  windows (unchanged; reconstruction gate must reproduce the
+  existing control arm exactly at the unmodified weight - max abs
+  diff 0.0 convention - before the alternative arm is scored);
+  evaluation window 2025H1 only; 2026 stays closed.
+- Frozen components: 8-feature recipe, W0 mixture composition,
+  aggregation code, calibration NONE, the entire market seam and
+  scorer stack; ONLY the prior-weight parameter differs between the
+  control arm and the new arm.
+- Paired scores: the registered harness (log loss/Brier with 1e-12
+  clip, Count-RPS, slate-date bootstrap seed 20261001 / 2,000 reps /
+  Holm) on identical realized outcomes; Packet C's directional-
+  disagreement/extremity summaries as pre-registered diagnostics to
+  confirm the mechanism (extremity should DROP in the new arm).
+
+## P.5 Implementation gap, permissions, stop condition
+
+- Implementation gap (exact): (1) one new arm in the registered
+  count-aggregation lane computing the PMFs at the declared
+  alternative prior weight (reuses start_count_pmfs; ~a parameter +
+  a runner); (2) wiring that arm into the existing Packet B seam call
+  as the scored arm (the seam already accepts keyed PMF frames; the
+  runner needs an arm-path argument). No new framework, no scorer
+  changes.
+- Permissions needed: (a) implementation order (synthetic tests only;
+  no real-data run); (b) ONE real-data execution order for the paired
+  benchmark (write-once, fresh destination, all Packet B stop
+  conditions).
+- Stop condition: ONE run; existing destination, hash/binding
+  mismatch, coverage-gate refusal, any unresolved multiplicity class,
+  runtime failure -> preserve evidence, no repair-and-rerun. If the
+  alternative arm fails its reconstruction gate or the paired delta
+  is inconclusive, the result is recorded and the component is
+  excluded from the decision space - no iteration on the weight under
+  the same order.

@@ -62,6 +62,34 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PRESENT
 
+- **PACKET C CLOSED + Chat 2 VERIFIED (2026-11-13):** the
+  directional-disagreement/extremity diagnostic EXECUTED once (exit 0;
+  runner sha256 30187e38..., main 0909ed40; receipt/handoff PR #93
+  comment 6872744340; Chat 2 independent verification + consolidated
+  verdict recorded on PR #93). Single-run permission CONSUMED; no rerun, no shrinkage-to-consensus, no calibration, no new artifact analysis. NOTE: an earlier PR #93 execution comment described the deficit as concentrated in outer deciles - that wording is SUPERSEDED by the supported descriptive finding above (no decomposition claim). Descriptive finding (SUPPORTED, no loss decomposition):
+  on the 2,154 paired starts, directional disagreement mean
+  -0.0084 (-0.84 pp, model rates over slightly LOWER), mean(p-y)
+  model -0.0139 vs consensus -0.0055, extremity 0.0902 vs 0.0488
+  (delta +0.0414; |p-0.5| >= 0.25 on 2.88% vs 0.00%). In the MODEL's
+  own outer deciles the observed over rates (0.440 bottom / 0.500
+  top) diverge from the model's bin means (0.307 / 0.708; mean(p-y)
+  -0.132 / +0.208) while the consensus tracks observed rates closely
+  in the SAME bins (~0.447-0.530 vs observed 0.44-0.56). No loss
+  decomposition was run and none is claimed.
+- **MODEL-ONLY EXPERIMENT PROPOSAL (ONE changed component; awaiting
+  owner decision - full spec in the evaluation packet section
+  "MODEL-ONLY EXPERIMENT PROPOSAL (2026-11-13)"):** test the
+  registered pooled-prior STRENGTH (W0/BF37 weight in
+  start_count_pmfs) as the single changed component: hypothesis =
+  the control's unsupported extremity reflects insufficient
+  shrinkage of pitcher-specific count evidence toward the pooled
+  mean; a stronger declared prior weight should reduce extremity and
+  close part of the +0.0268 paired log-loss deficit WITHOUT market
+  information. See the packet for target/unit/timing/cohort/windows/
+  frozen components/paired scores/implementation gap/permissions/
+  stop condition. The causal attribution (prior weight vs features
+  vs workload) is NOT established - the experiment tests it.### PRESENT
+
 - **PACKET B VERIFIED (executed + independently verified; CLOSED):** the
   amended shared-population run COMPLETED (exit 0; code c1d770e,
   integrated main c3c0feb; receipt PR #92 comment 6866892070; Chat 2
