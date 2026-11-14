@@ -1,133 +1,66 @@
 ﻿# NEXT - current state
 
-Owner: architect. Updated 2026-11-13. Packet A closed and verified;
-Packet B executed once (shared-population rerun) and Chat 2 VERIFIED.
-All single-run permissions consumed. ROLES_REV 2026-10-28-r1. Read
-docs/roles/README.md and your card. EXECUTION_BACKLOG remains the
-single queue.
+Owner: architect. Updated 2026-11-13. Packet A closed/verified; Packet B
+executed + Chat 2 VERIFIED. All single-run permissions consumed.
+ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card.
+EXECUTION_BACKLOG remains the single queue. Full records: backlog +
+experiment_impact_ledger_2026-10-22.md.
 
-## Current state: Packet B VERIFIED (2026-11-13); awaiting one bounded scientific assignment
+## Current state: Packet B VERIFIED; awaiting one bounded scientific assignment
 
-- **Packet B COMPLETE + Chat 2 VERIFIED (main c3c0feb; receipt PR #92
-  comment 6866892070; verification 6866986855 - scores recomputed from
-  preserved artifacts to <1e-9):** NEAR-CLOSE DEVELOPMENT result on
-  the 2,154-start shared population (2,154 matched + 355 unmatched,
-  ALL no_near_close_quotes = 2,509 cohort): control log loss 0.715358
-  vs near-close consensus 0.688572, paired delta +0.026786,
-  CI95 [+0.01727, +0.03672], Holm p 0.0005, decision
-  model_not_better_than_close; Brier 0.25887 vs 0.24772; Count-RPS
-  1.28006. Book-vs-LTBO per-book deltas tiny (max |d| ~0.0012;
-  denominators 453-2,178). Artifacts preserved in control_vs_books_v2.
-- **EXPLICIT GAPS (owner-recorded):** NO model-vs-individual-book
-  comparison exists (books scored only vs LTBO); morning (T-5h)
-  model-input availability UNESTABLISHED; strategy validation/betting
-  thresholds unresolved; consensus-coverage selection caveat (the
-  paired delta describes the covered subset only).
-- **All single-run permissions consumed** (Packet A + both Packet B
+- Packet A (paid-morning 2025H1 market-only baseline): EXECUTED, exit 0
+  (main aa61986; receipt PR #90 comment 6861125006; artifact index
+  6861289910). 19,800 candidates; entry-eligible 5,441/19,797; valid
+  close 4,934/5,441; mean movement -0.0869 pp; flat-1u entry ROI over
+  -0.0452 / under -0.0782 units per unit (the 4,934 close-benchmarked
+  contracts, NOT all 5,441 entry-eligible). No model-edge claim.
+- Packet B (current-control vs near-close books/LTBO; registered
+  NEAR-CLOSE tier A/B timing - NOT Packet A's T-5h/T-5min gates):
+  EXECUTED under the shared-population policy (main c3c0feb; receipt
+  PR #92 comment 6866892070) and Chat 2 VERIFIED (6866986855; scores
+  recomputed from preserved artifacts to <1e-9). RESULT on the
+  2,154-start shared population (2,154 matched + 355 unmatched, ALL
+  no_near_close_quotes = 2,509 cohort): control log loss 0.715358 vs
+  consensus 0.688572, paired delta +0.026786, CI95 [+0.01727,
+  +0.03672], Holm p 0.0005, decision model_not_better_than_close;
+  Brier 0.25887 vs 0.24772; Count-RPS 1.28006. Book-vs-LTBO per-book
+  paired deltas small in this sample (max |d| ~0.0012 log loss;
+  denominators 453-2,178) - a DESCRIPTIVE observation only; no formal
+  equal-accuracy claim is made. Artifacts preserved in
+  control_vs_books_v2 (sha256 recorded in the receipt).
+- EXPLICIT GAPS: NO model-vs-individual-book comparison exists (books
+  scored only vs LTBO; a per-book direct comparison would be a
+  separate declared comparison). Morning (T-5h) model-input
+  availability UNESTABLISHED. Strategy validation/betting thresholds
+  unresolved. Consensus-coverage selection caveat: the paired delta
+  describes the covered subset only.
+- All single-run permissions consumed (Packet A + both Packet B
   attempts). Awaiting ONE bounded scientific assignment before any
   implementation.
-# NEXT - current action
 
-Owner: architect. Updated 2026-11-11. Chat 3 closed; cleanup integrated.
-Chat 1 active: parity lanes CLOSED (reproduced bit-exactly); the K-PMF
-diagnostic executed (cohort contract; results in backlog + PR #83
-comments); the market-benchmark seam is implemented and synthetic-tested.
-ROLES_REV 2026-10-28-r1. Read docs/roles/README.md and your card.
-EXECUTION_BACKLOG remains the single queue.
+## Prepared next packet (pre-registered; NOT executed)
 
-## Ablation baseline decision (owner, 2026-11-09)
+- CONTROL BIAS/EXTREMITY DIAGNOSTIC on the existing 2,154 matched
+  starts - see the PACKET C section of
+  docs/reference/reports/control_vs_books_evaluation_packet_2026-11-12.md
+  (fixed summary definitions, saved-input hashes, fresh write-once
+  destination, stop conditions). Awaits a new owner order.
 
-Control = registered 8-feature multinomial + pooled W0; challenger =
-registered 12-feature platoon recipe; no promotion/fresh-validation
-claim. Evaluation: per-PA multiclass log loss, per-start means, paired
-slate-date bootstrap, K-count RPS guard; no calibration. Full record:
-`docs/EXECUTION_BACKLOG.md` + `experiment_impact_ledger_2026-10-22.md`.
+## Delivery-boundary inventory (2026-11-13, pre-#93 observations)
 
-## Prior completed milestones (this lane)
+- Worktrees: MLB-Props (research/control-arm-parity @05bab80, clean,
+  3 untracked owner-local experiment files preserved), review-68
+  (detached pin c1d770e, clean), wtsc (main, clean). All 7 lane tips +
+  research/control-arm-parity REACHABLE from origin/main (c3c0feb) -
+  fully integrated; open PRs: none. Nothing deleted; deletion/reset
+  requires separate scoped approval.
 
-All VERIFIED; full records in `docs/EXECUTION_BACKLOG.md` and
-`docs/reference/reports/experiment_impact_ledger_2026-10-22.md`:
-workload w0v1, starter-outcome derivation, history-sensitivity,
-Ref0-vs-Ref1, Stage-A (implemented; authorization-gated), binary-K /
-LGBM / platoon lanes, lane stack at `2ca8aef`; paired comparison
-reproduced bit-exactly (`b1b91357...224ba`); bridge (PR #81) and K-PMF
-diagnostic (PR #83) merged.
+## Superseded/historical (evidence preserved)
 
-- EXECUTION-READY (PR #88, merged): the gated runner is complete - args
-  validated before output/decode; tables as parquet; scores/coverage
-  JSON via fail-loud conversion (never default=str); receipt_final
-  LAST (output-failure test: no completed receipt on failure);
-  consumed identities recorded (cohort hash, pinned artifacts,
-  book_lines/envelope/workload, bridge source + card manifest).
-  Synthetic main-entry success test reads outputs back with
-  hand-computed log-loss/Brier. Timing contract recorded: commence
-  (vendor-scheduled) is NOT observed first pitch; near-close does
-  NOT establish confirmed-lineup availability before every quote;
-  closest-date/id-order tiebreak is NOT independent identity
-  validation (per-mapping status = declared gap).
-- Four-key binding amendment PREPARED
-  (production/ops/market_research/expected_exclusions_2025H1.json:
-  3 receipt keys + castillo luis 2025-04-09; union-exclusion policy
-  unchanged; no rerun under consumed permissions).
-- Combined gates 83 passed. Two proposed execution packets on the
-  PR #88 handoff: (A) paid-morning baseline recovery (recorded order
-  + amended binding); (B) control-vs-books near-close benchmark
-  (ack EXECUTE-CONTROL-VS-BOOKS-V1 + registered gate). NOT EXECUTED.
-
-## Prior action: identity-exclusion policy (CLOSED, PR #87 merged)
-
-PR #87 merged at main 999ffbe. Opt-in `--identity-policy
-exclude_ambiguous` (default refuse unchanged; exclusions before book
-selection/outcome consumption; morning+close union, no re-entry;
-preserved in accounting; `--expected-excluded-keys` receipt binding).
-The amended single run was EXECUTED once on integrated main: REFUSED
-at the binding gate (fourth close-side key castillo luis 2025-04-09
-beyond the bound three; all three bound keys confirmed; no outputs;
-panel exception not consumed; receipt PR #87 comment 6829936974).
-CLOSED as the execution of record under that order; awaiting the
-owner's binding decision before any further run.
-
-## Prior action: market-only T-5h replay (CLOSED, PR #86 merged)
-
-juiced_replay_ledger --entry-clock morning_only: explicit market-only
-path (bypasses p_ours_cal/policy/sizing; canonical bare run unchanged;
-no candidates parquet). Identity guards refuse duplicate quote sides
-and ambiguous reduced-key joins; decision-time vendor timing enforced
-(morning lag >= 18000 s, close >= 300 s; T-1h quote refused); fail-
-closed on absent envelope/event map; panel projected to minimum
-identity/date/line/settlement fields; book-lines game_date pushdown
-(deterministic rg11-rg17 scope for 2025H1). 14 tests green. Executed
-once under a single-run order: STOPPED at the exact-identity guard
-(3 duplicate-event contracts); receipt preserved; CLOSED as the
-execution of record. The identity-exclusion policy PR above handles
-the declared recovery.
-
-## Prior action: market-benchmark seam (CLOSED, PR #84 merged)
-
-market_benchmark_seam.py: harness PMF frame + per-book de-vig +
-LTBO consensus. 7 synthetic tests. Zero live-path change.
-  Closing quotes remain benchmark-only; the seam's benchmark paths are
-  NEAR-CLOSE, not morning evidence. NOT RUN on real odds.
-- Next bounded deliverable: the opening-price replay contract
-  (market-only first). Registered decision clock
-  (oddsapi_replay_inventory_2026-09-11.md): Friend -12h open when
-  present, else paid morning T-5h; close = paid commence-5min via
-  snapshot_envelope.vendor_timestamp (never the reconstructed ts);
-  consensus cache is already de-vigged (never re-devig). Clocks
-  recorded in pull_oddsapi_historical._snapshot_ts: close -5min,
-  morning -5h, board = fixed 12:00Z (8am ET, all-EDT), open18 -18h
-  (T-24h/-30h dead per probe). 2025 board-clock coverage: UNKNOWN
-  (2023/24 sampled only). The MODEL morning replay is blocked by
-  historical morning-decision-time projected-lineup availability
-  (pregame_lineup_capture.py has no committed 2025H1
-  morning-coverage record; later confirmed lineups are not morning
-  inputs). Replay baseline rows renamed: over_hit (binary panel
-  outcome; full-start K only in assessment-derived paths).
-- Deferred hypothesis (corrected; not implemented): recency weighting
-  of the model's EW features (fixed 90d half-life, self-relative,
-  unshrunk - the committed stale-form finding). The batter-recency
-  challenger was REJECTED and recency-batch-v1 showed development-only
-  gains; no implementation without a new registered reason.
-- Diagnostic: first execution BLOCKED (2,532 vs 2,509); second PASSED
-  with 23 exclusions
-  (results + delta-decomposition handoffs in PR #83 comments).
+Identity-exclusion (PR #87), market-only T-5h replay (PR #86),
+market-benchmark seam (PR #84), quote-integrity +
+normalize_idempotent (PR #89), close-conflict drop-and-count
+(PR #90), consensus shared-population policy (PR #92): all merged and
+recorded in the backlog's dated snapshots. Older lane results (w0v1,
+binary-K, LGBM, platoon; paired comparison reproduced bit-exactly
+b1b91357...224ba) remain VERIFIED historical records.

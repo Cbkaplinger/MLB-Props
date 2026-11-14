@@ -366,3 +366,74 @@ Preserved artifacts + receipt: PR #90 comment 6861125006 (locations) and
 `e4348d3b...`, report `18cd418d...`, policy-tagged integrity sidecar
 `53b989e0...`; preserved pre-#90 diagnostic `c590d3b6...` untouched.
 No further Packet A runs.
+
+---
+
+# PACKET C PRE-REGISTERED DIAGNOSTIC (prepared 2026-11-13; NOT executed; no owner order yet)
+
+Question: does the frozen control exhibit AVERAGE PROBABILITY BIAS or
+EXCESS PROBABILITY EXTREMITY relative to the consensus on the existing
+2,154 paired starts? Descriptive diagnostic only - no fitting, no
+calibration fitting, no tuning, no subgroup search, no model change,
+no protected-data access, no lake query.
+
+## C.1 Exact saved inputs and hashes (read-only; already preserved)
+
+- `...\diagnostics\control_vs_books_v2\benchmark_model_rows.parquet`
+  sha256 `1c0e7f4e3a83608fb0315b5ac4ca421ac4b3096e2ea63661e7dcda377d5de075`
+  - one row per matched start (n = 2,154); columns: game_pk, side,
+    pitcher, game_date, block, realized_k, line, pmf_baseline
+    (24-bucket registered PMF), p_over (consensus de-vigged over
+    probability), n_books.
+- `...\diagnostics\control_vs_books_v2\benchmark_summary.json`
+  sha256 `2fee0f1dcc2a3ee076434235fec16973dae2ee1985fbb3ad3f0b5012e6b5bce6`
+  - contains the already-computed MODEL reliability decile buckets
+    (registered fixed bins).
+- Receipts for provenance: receipt_initial/receipt_final in the same
+  directory (identity chain verified by Chat 2, PR #92 comment
+  6866986855).
+
+## C.2 Required columns and actual access
+
+- Read-only of the two preserved files above (NO lake query, no
+  book_lines/envelope/panel/bridge access - the diagnostic is
+  self-contained on Packet B's saved outputs).
+- Model over probability RECOMPUTED from the preserved pmf_baseline via
+  the registered `market_eval_k.model_p_over` (existing helper;
+  half-line tail semantics) - no new math.
+- Consensus over probability is already a column (`p_over`).
+
+## C.3 Fixed summary definitions (pre-registered before any run)
+
+- Paired row = one matched start; equal weight; n = 2,154; no
+  covariates, no subgroups, no filtering beyond the preserved rows.
+- signed_diff = model_p_over - p_over (consensus). Report mean,
+  median, sd, min, max of signed_diff (average bias, percentage
+  points x100 also reported).
+- extremity_model = mean(|model_p_over - 0.5|); extremity_consensus =
+  mean(|p_over - 0.5|); extremity_delta = extremity_model -
+  extremity_consensus; plus the share of rows with |p - 0.5| >= 0.25
+  for each source (fixed threshold, declared, no search).
+- Reliability: the EXISTING registered 10-bucket reliability recomputed
+  for BOTH sources over the SAME rows, using the SAME model-probability
+  decile assignment for both (paired buckets; no new binning scheme).
+
+## C.4 Fresh output destination (if outputs are proposed)
+
+- `...\diagnostics\control_vs_books_v2_bias_diagnostic\` - write-once,
+  must NOT pre-exist; the v2 directory and all Packet A/B artifacts
+  stay untouched. Outputs: one `bias_extremity_summary.json`
+  (fixed definitions + counts) and one
+  `bias_extremity_buckets.parquet` (paired reliability rows).
+
+## C.5 Limitations and stop condition
+
+- Descriptive diagnostic on the consensus-COVERED 2,154-start subset
+  (selection caveat inherited from Packet B); NEAR-CLOSE tier A/B
+  timing; commence = vendor-scheduled; no morning-validity, holdout,
+  profitability or promotion interpretation.
+- Stop conditions: destination exists; any preserved-artifact hash
+  mismatch vs the recorded receipt; column/schema mismatch; runtime
+  failure -> failure record, no completed receipt, one run, no
+  repair-and-rerun. Requires a new recorded owner order before
+  execution (this handoff authorizes PREPARATION only).
