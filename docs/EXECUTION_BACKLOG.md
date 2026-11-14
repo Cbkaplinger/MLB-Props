@@ -62,6 +62,45 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
 
 ### PRESENT
 
+- **PACKET C CLOSED + Chat 2 VERIFIED (2026-11-13):** the
+  directional-disagreement/extremity diagnostic EXECUTED once (exit 0;
+  runner sha256 30187e38..., main 0909ed40; receipt/handoff PR #93
+  comment 6872744340; Chat 2 independent verification + consolidated
+  verdict recorded on PR #93). Single-run permission CONSUMED; no rerun, no shrinkage-to-consensus, no calibration, no new artifact analysis. NOTE: an earlier PR #93 execution comment described the deficit as concentrated in outer deciles - that wording is SUPERSEDED by the supported descriptive finding above (no decomposition claim). Descriptive finding (SUPPORTED, no loss decomposition):
+  on the 2,154 paired starts, directional disagreement mean
+  -0.0084 (-0.84 pp, model rates over slightly LOWER), mean(p-y)
+  model -0.0139 vs consensus -0.0055, extremity 0.0902 vs 0.0488
+  (delta +0.0414; |p-0.5| >= 0.25 on 2.88% vs 0.00%). In the MODEL's
+  own outer deciles the observed over rates (0.440 bottom / 0.500
+  top) diverge from the model's bin means (0.307 / 0.708; mean(p-y)
+  -0.132 / +0.208) while the consensus tracks observed rates closely
+  in the SAME bins (~0.447-0.530 vs observed 0.44-0.56). No loss
+  decomposition was run and none is claimed.
+- **MODEL-ONLY EXPERIMENT PROPOSAL: WITHDRAWN (2026-11-13)** - the
+  proposed knob does not exist; see the withdrawal entry above and
+  the trace in the evaluation packet section 'PRIOR-STRENGTH KNOB
+  TRACE (2026-11-13)'.
+
+### PRESENT (post-withdrawal correction, 2026-11-13)
+
+- **PRIOR-STRENGTH KNOB DOES NOT EXIST - PROPOSAL WITHDRAWN:** the
+  trace (below) shows W0/BF37 is the pooled BATTERS-FACED workload
+  distribution (P(N=n)), not a probability-shrinkage prior; its only
+  smoothing constant is a HARDCODED add-one inside the registered
+  `_pooled_bf37_at`, part of the registered identity (imported, not
+  re-implemented; reconstruction gate 1e-12). There is no tunable
+  pooled-prior-strength scalar. The proposal's mechanism claim
+  ("insufficient shrinkage of pitcher-specific count evidence toward
+  the pooled mean") was WRONG - the pooled mean in the binomial
+  mixture is the N-distribution, not a probability anchor; extremity
+  comes from the per-PA probabilities p9 (the multinomial outputs).
+  The component choice was development-informed (selected BECAUSE of
+  the Packet C diagnostic on the 2025H1 evaluation rows) and its
+  causal success/failure claims are withdrawn. No replacement knob
+  (W_PRIOR, workload tempering, output calibration) is proposed
+  without a new explicit scientific contrast. Awaiting one bounded
+  scientific assignment.
+
 - **PACKET B VERIFIED (executed + independently verified; CLOSED):** the
   amended shared-population run COMPLETED (exit 0; code c1d770e,
   integrated main c3c0feb; receipt PR #92 comment 6866892070; Chat 2
