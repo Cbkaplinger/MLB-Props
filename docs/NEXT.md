@@ -38,16 +38,32 @@ experiment_impact_ledger_2026-10-22.md.
   attempts). Awaiting ONE bounded scientific assignment before any
   implementation.
 
-## Prepared next packet (IMPLEMENTED; NOT executed)
+## Current action: Packet C CLOSED/VERIFIED; ONE experiment proposal awaits owner decision (2026-11-13)
 
-- Packet C IMPLEMENTED (run_packet_c_diagnostic.py; ack
-  EXECUTE-PACKET-C-DIAGNOSTIC-V1; never run on real artifacts):
-  DIRECTIONAL-DISAGREEMENT/EXTREMITY diagnostic (paired model-binned;
-  NOT consensus calibration) on the existing 2,154 matched starts -
-  see the PACKET C section of docs/reference/reports/
-  control_vs_books_evaluation_packet_2026-11-12.md (definitions,
-  saved-input hashes, fresh write-once destination, stop conditions).
-  Awaits a new owner order for execution.
+- Packet C EXECUTED once (exit 0; main 0909ed40; handoff PR #93
+  comment 6872744340) and CLOSED. Descriptive finding (SUPPORTED, no
+  loss decomposition): directional disagreement mean -0.0084 (-0.84
+  pp); mean(p-y) model -0.0139 vs consensus -0.0055; extremity 0.0902
+  vs 0.0488 (delta +0.0414; |p-0.5| >= 0.25 on 2.88% vs 0.00%). In
+  the MODEL's own outer deciles the observed over rates (0.440
+  bottom / 0.500 top) diverge from the model's bin means (0.307 /
+  0.708; mean(p-y) -0.132 / +0.208) while the consensus tracks
+  observed rates closely in the SAME bins. An earlier PR #93 comment
+  described the deficit as concentrated in outer deciles - that
+  wording is superseded here (no decomposition claim).
+- ONE MODEL-ONLY EXPERIMENT PROPOSED (awaiting owner decision; full
+  spec in the packet section "MODEL-ONLY EXPERIMENT PROPOSAL
+  (2026-11-13)"): the registered pooled-prior STRENGTH (W0/BF37
+  weight in start_count_pmfs) as the single changed component -
+  hypothesis: the control's unsupported extremity reflects
+  insufficient shrinkage toward the pooled mean; a stronger declared
+  prior weight should reduce extremity and close part of the +0.0268
+  paired log-loss deficit WITHOUT market information. Causal
+  attribution NOT established - the experiment tests it. Awaiting
+  owner decision before implementation.
+- Packet C runner identity: run_packet_c_diagnostic.py (ack
+  EXECUTE-PACKET-C-DIAGNOSTIC-V1; executed once, artifacts in
+  control_vs_books_v2_bias_diagnostic).
 
 ## Delivery-boundary inventory (2026-11-13, pre-#93 observations)
 
