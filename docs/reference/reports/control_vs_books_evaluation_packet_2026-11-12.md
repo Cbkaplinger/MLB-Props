@@ -598,3 +598,102 @@ insufficient - nothing is invented.
   is inconclusive, the result is recorded and the component is
   excluded from the decision space - no iteration on the weight under
   the same order.
+
+---
+
+# PRIOR-STRENGTH KNOB TRACE (2026-11-13; code-verified - PROPOSAL WITHDRAWN)
+
+Traced the registered control from its artifact producer through the
+aggregation chain, with exact paths/signatures/equations. RESULT: the
+proposed "pooled-prior-strength scalar" DOES NOT EXIST; the proposal
+is withdrawn as specified. No replacement knob (W_PRIOR, workload
+tempering, output calibration) is proposed without a new explicit
+scientific contrast.
+
+## T.1 The chain (exact paths, signatures, equations)
+
+1. **Keyed PA probabilities (per-PA p9):**
+   `research/offseason_2026/pregame_pa_ext/adapter.py` -
+   `apply_h3_raw(pf, model)` per checkpoint block writes `p_h3_raw`
+   (and `p_l5_raw`); the control arm consumes the NINE per-PA
+   probabilities `p9_h3` from the registered 8-feature multinomial
+   (`m0_multiclass.FEATURES`; training/fitting in the m0 lane).
+2. **W0/BF37 workload construction:**
+   `research/offseason_2026/pregame_pa_ext/workload_comparison.py` -
+   `_pooled_bf37_at(pa: pl.DataFrame, cutoff) -> np.ndarray`
+   (EXACT equation: pooled histogram of outing batters-faced `v`
+   over first-pitcher-of-record game-halves strictly before the
+   cutoff, then `(counts + 1.0) / (counts.sum() + 37.0)` - ADD-ONE
+   smoothing; cold start returns uniform 1/37). Each cutoff yields
+   ONE 37-vector. W0 = this pooled BF37 per cutoff.
+3. **BF37 -> N-distribution:**
+   `research/offseason_2026/kcount_combiner.py` -
+   `bf_pmf_from_37(bf_pmf37: np.ndarray, cap: int = KCOUNT_CAP) ->
+   np.ndarray` (also aliased via adapter): maps the 37-category
+   workload PMF to the 1..60 N-distribution; index 36 = P(N>=37),
+   redistributed over 37..60 by a geometric tail with per-step ratio
+   = mean hazard of entries 31..36 (frozen approximation).
+4. **start_count_pmfs:**
+   `research/offseason_2026/pregame_pa_ext/adapter.py` -
+   `start_count_pmfs(p9_h3: np.ndarray, p9_l5: np.ndarray,
+   bf37: np.ndarray) -> dict`:
+   `bf_ext = bf_pmf_from_37(bf37)`; `pbar = cycled_cond_mean(p9)`
+   (cycled prefix mean of the nine per-PA probs, clipped to
+   [P_CLIP, 1-P_CLIP]); per arm.
+5. **count_pmf_from_mixture:**
+   `research/offseason_2026/pregame_pa_ext/adapter.py` -
+   `count_pmf_from_mixture(bf_ext: np.ndarray, pbar_n:
+   np.ndarray) -> np.ndarray`:
+   `P(K=k) = sum_n P(N=n) * Binom(k; n, pbar_n)` (24 buckets, tail
+   absorbed into k=23).
+
+## T.2 Answers
+
+1. **What W0 means:** the pooled BATTERS-FACED distribution - the
+   probability distribution of outing LENGTH N (number of batters
+   faced by the first pitcher of record in a game-half), estimated
+   across all qualifying outings before the cutoff. It is the
+   WORKLOAD prior over N inside the binomial mixture - NOT a
+   shrinkage prior over the strikeout probability.
+2. **What each BF37 entry represents:** entry j (j = 0..36) is the
+   probability that an outing comprises exactly j+1 batters faced
+   (entry 36 = P(N >= 37), redistributed by the registered tail).
+3. **Does a separate pooled-prior-strength scalar exist?** NO. The
+   only shrinkage constant in the W0 construction is the HARDCODED
+   add-one (`counts + 1.0`, denominator `+ 37.0`) inline in
+   `_pooled_bf37_at` - a Dirichlet(alpha=1) posterior mean, part of
+   the REGISTERED IDENTITY (binary_k_comparison imports
+   `wcmod._pooled_bf37_at` rather than re-implementing it "so the W0
+   control reconstruction is exact by identity"; reconstruction gates
+   pin the accepted-W0 RPS within 1e-12). There is no tunable
+   prior-strength parameter, no W_PRIOR, no exposure scalar.
+4. **Where genuine shrinkage enters the control:** (a) the per-PA
+   probabilities p9 themselves - outputs of the frozen 8-feature
+   multinomial (m0_multiclass; a MODEL, not a scalar); (b) the
+   cycled prefix-mean in `cycled_cond_mean` with `P_CLIP` bounds
+   (registered constants, not a tunable prior); (c) the binomial
+   mixture itself, whose "pull toward the middle" comes from
+   integrating over N, not from a strength parameter. None of these
+   is an adjustable pooled-prior-strength scalar.
+
+## T.3 Proposal withdrawal and causal-claim correction
+
+- The proposed mechanism ("insufficient shrinkage of pitcher-specific
+  count evidence toward the pooled mean") was WRONG: the pooled mean
+  in the mixture is the workload N-distribution; extremity of p_over
+  comes from the per-PA probabilities p9 and their cycling, not from
+  the BF37 prior. Changing the (nonexistent) prior strength was
+  never possible; changing the add-one constant would alter the
+  registered workload identity (breaking the 1e-12 reconstruction
+  gates) and was never a sanctioned knob.
+- DEVELOPMENT-INFORMED SELECTION DISCLOSED: the component was chosen
+  BECAUSE of the Packet C diagnostic measured on the SAME 2025H1
+  rows that the experiment would have evaluated - the selection was
+  in-sample, and the proposal's causal success/failure claims
+  (deficit closes / lives elsewhere) are WITHDRAWN.
+- Consequence: no experiment is proposed. The verified Packet B/C
+  findings stand as diagnostics. Any future component experiment
+  requires a NEW explicit scientific contrast with a mechanism
+  traceable through THIS chain (e.g., at the p9/multinomial layer),
+  developed without reuse of the 2025H1 diagnostic as its training
+  signal.

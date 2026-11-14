@@ -76,19 +76,30 @@ You have blanket approval for every item below marked APPROVED. Execute them **i
   -0.132 / +0.208) while the consensus tracks observed rates closely
   in the SAME bins (~0.447-0.530 vs observed 0.44-0.56). No loss
   decomposition was run and none is claimed.
-- **MODEL-ONLY EXPERIMENT PROPOSAL (ONE changed component; awaiting
-  owner decision - full spec in the evaluation packet section
-  "MODEL-ONLY EXPERIMENT PROPOSAL (2026-11-13)"):** test the
-  registered pooled-prior STRENGTH (W0/BF37 weight in
-  start_count_pmfs) as the single changed component: hypothesis =
-  the control's unsupported extremity reflects insufficient
-  shrinkage of pitcher-specific count evidence toward the pooled
-  mean; a stronger declared prior weight should reduce extremity and
-  close part of the +0.0268 paired log-loss deficit WITHOUT market
-  information. See the packet for target/unit/timing/cohort/windows/
-  frozen components/paired scores/implementation gap/permissions/
-  stop condition. The causal attribution (prior weight vs features
-  vs workload) is NOT established - the experiment tests it.### PRESENT
+- **MODEL-ONLY EXPERIMENT PROPOSAL: WITHDRAWN (2026-11-13)** - the
+  proposed knob does not exist; see the withdrawal entry above and
+  the trace in the evaluation packet section 'PRIOR-STRENGTH KNOB
+  TRACE (2026-11-13)'.
+
+### PRESENT (post-withdrawal correction, 2026-11-13)
+
+- **PRIOR-STRENGTH KNOB DOES NOT EXIST - PROPOSAL WITHDRAWN:** the
+  trace (below) shows W0/BF37 is the pooled BATTERS-FACED workload
+  distribution (P(N=n)), not a probability-shrinkage prior; its only
+  smoothing constant is a HARDCODED add-one inside the registered
+  `_pooled_bf37_at`, part of the registered identity (imported, not
+  re-implemented; reconstruction gate 1e-12). There is no tunable
+  pooled-prior-strength scalar. The proposal's mechanism claim
+  ("insufficient shrinkage of pitcher-specific count evidence toward
+  the pooled mean") was WRONG - the pooled mean in the binomial
+  mixture is the N-distribution, not a probability anchor; extremity
+  comes from the per-PA probabilities p9 (the multinomial outputs).
+  The component choice was development-informed (selected BECAUSE of
+  the Packet C diagnostic on the 2025H1 evaluation rows) and its
+  causal success/failure claims are withdrawn. No replacement knob
+  (W_PRIOR, workload tempering, output calibration) is proposed
+  without a new explicit scientific contrast. Awaiting one bounded
+  scientific assignment.
 
 - **PACKET B VERIFIED (executed + independently verified; CLOSED):** the
   amended shared-population run COMPLETED (exit 0; code c1d770e,
