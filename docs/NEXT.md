@@ -38,13 +38,16 @@ experiment_impact_ledger_2026-10-22.md.
   attempts). Awaiting ONE bounded scientific assignment before any
   implementation.
 
-## Prepared next packet (pre-registered; NOT executed)
+## Prepared next packet (IMPLEMENTED; NOT executed)
 
-- CONTROL DIRECTIONAL-DISAGREEMENT/EXTREMITY DIAGNOSTIC (paired model-binned; NOT consensus calibration) on the existing 2,154 matched
-  starts - see the PACKET C section of
-  docs/reference/reports/control_vs_books_evaluation_packet_2026-11-12.md
-  (fixed summary definitions, saved-input hashes, fresh write-once
-  destination, stop conditions). Awaits a new owner order.
+- Packet C IMPLEMENTED (run_packet_c_diagnostic.py; ack
+  EXECUTE-PACKET-C-DIAGNOSTIC-V1; never run on real artifacts):
+  DIRECTIONAL-DISAGREEMENT/EXTREMITY diagnostic (paired model-binned;
+  NOT consensus calibration) on the existing 2,154 matched starts -
+  see the PACKET C section of docs/reference/reports/
+  control_vs_books_evaluation_packet_2026-11-12.md (definitions,
+  saved-input hashes, fresh write-once destination, stop conditions).
+  Awaits a new owner order for execution.
 
 ## Delivery-boundary inventory (2026-11-13, pre-#93 observations)
 

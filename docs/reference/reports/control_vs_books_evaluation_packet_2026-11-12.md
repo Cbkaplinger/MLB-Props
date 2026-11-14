@@ -1,4 +1,4 @@
-# Current-control-versus-books evaluation packet (2026-11-12)
+﻿# Current-control-versus-books evaluation packet (2026-11-12)
 
 Bounded preparation only. No fitting, model search, calibration,
 blending, or staking changes. No framework built - every stage reuses
@@ -227,7 +227,7 @@ permissions - execution requires a new recorded single-run order.
   and its confirmed-lineup limitation, and the declared per-mapping
   tie-break gap.
 - **Remaining unknown:** whether the canonical id-map bridge resolves
-  every cohort start to a game_date (cohort ⊆ count_agg_eval_v1) -
+  every cohort start to a game_date (cohort âŠ† count_agg_eval_v1) -
   the seam's exact-cover assertion answers it on first real run and
   the runner records the failure receipt if not.
 - No new evaluation code path beyond that ordered call list.
@@ -446,19 +446,21 @@ no lake query.
   `paired_model_binned_reliability.parquet` (paired model-binned
   reliability rows).
 
-## C.5 Executable/script identity (none exists yet)
+## C.5 Executable/script identity (IMPLEMENTED 2026-11-13; not executed)
 
-- NO Packet C executable or script exists at this time: the diagnostic
-  is a PRE-REGISTERED DEFINITION SET only. Its precise computational
-  identity when implemented will be a new write-once runner whose ONLY
-  registered dependency is `market_eval_k.model_p_over` (file
-  `research/offseason_2026/pregame_pa_ext/market_eval_k.py`, blob
-  unchanged at integrated main `c3c0feb435d199fdbfd7000d0c26d34c10998c8d`)
-  plus polars over the two preserved inputs. Any implementation
-  requires its own owner order + delta review; preparation here does
-  not create an executable identity.
-
-## C.6 Limitations and stop condition
+- Script: `research/offseason_2026/pregame_pa_ext/run_packet_c_diagnostic.py`
+  (acked write-once runner; ack `EXECUTE-PACKET-C-DIAGNOSTIC-V1`).
+  It implements EXACTLY the C.3 definition set: registered
+  `market_eval_k.model_p_over` (half-line tail) for model p_over;
+  directional disagreement (mean/median/sd[ddof=0]/min/max + pp);
+  mean(p-y) per source; extremity (mean |p-0.5|, delta, fixed 0.25
+  shares); paired model-binned table using the registered
+  `score_starts` decile-edge derivation ([lo, hi), -inf/+inf, empty
+  buckets omitted) applied to BOTH sources.
+- Invocation: `python research/offseason_2026/pregame_pa_ext/run_packet_c_diagnostic.py --execution-ack EXECUTE-PACKET-C-DIAGNOSTIC-V1 --out-dir <fresh write-once dir>` (default declared out-dir per C.4).
+- Receipt discipline: hash/schema validation BEFORE any output; receipt_initial -> outputs -> receipt_final LAST; failure_record on any error.
+- The script's own SHA is published with the delivery; it has NEVER
+  been run on the real preserved artifacts (no owner order yet).## C.6 Limitations and stop condition
 
 - Descriptive diagnostic on the consensus-COVERED 2,154-start subset
   (selection caveat inherited from Packet B); NEAR-CLOSE tier A/B
