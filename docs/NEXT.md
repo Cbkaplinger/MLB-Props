@@ -66,7 +66,7 @@ experiment_impact_ledger_2026-10-22.md.
   (detached pin c1d770e, clean), wtsc (main, clean). All 7 lane tips +
   research/control-arm-parity REACHABLE from origin/main (c3c0feb);
   open PRs: none. Nothing deleted; deletion/reset needs separate
-  scoped approval. Historical lanes (PRs #84/#86/#87/#89/#90/#92) all
-  merged and recorded in the backlog's dated snapshots.
+  scoped approval. Historical lanes (PRs #84-#92) all merged;
+  recorded in backlog snapshots.
 
 ## Superseded/historical (evidence preserved)
